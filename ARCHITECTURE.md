@@ -27,6 +27,17 @@ So bleibt die UI stabil, während das Backend schrittweise angebunden wird.
  VITE_API_URL (leer = Mock, gesetzt = API)
 ```
 
+Langfristig zwei Speicher-Pfade (siehe `MILESTONES.md`):
+
+```
+Free-Edition     → dieser Stack (zentrale API + Postgres, at-rest encryption)
+Pro/CSC/Enterprise → packages/sync: SQLite/SQLCipher + Event-Log + E2EE
+                     optional untrusted Relay (nur Ciphertext, kein Klartext)
+```
+
+Die Service-Interfaces bleiben die **gleiche** TypeScript-API (`GrowService.list()` …).  
+Implementierungen: `mock` | `api` (Free-Cloud) | `local` (Paid local-first). UI ändert sich nicht.
+
 ---
 
 ## Dateien

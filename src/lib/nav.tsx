@@ -29,7 +29,8 @@ export type ViewKey =
   | "notifications"
   | "profile"
   | "telegram"
-  | "auth";
+  | "auth"
+  | "devAdmin";
 
 export interface NavParams {
   id?: string;

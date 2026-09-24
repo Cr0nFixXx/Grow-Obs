@@ -36,9 +36,11 @@ daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` re
 - **Routing**: eigenes, leichtgewichtiges view-basiertes Routing (`src/lib/nav.tsx`,
   `NavProvider` + `useNav()`). Kein react-router (Single-File-tauglich). Views sind im `ViewKey`-Union
   typisiert; Detail-Seiten nutzen `params` (z. B. `{ growId }`) bei gleichem View-Schlüssel.
-- **State**: ausschließlich UI-State (Theme, Navigation, Modals). Keine echte Datenlogik.
-  Alle Inhalte aus `src/mocks/data.ts`.
-- **Provider-Hierarchie** (`App.tsx`): `ThemeProvider > ToastProvider > NavProvider > Shell`.
+- **State**: UI-State (Theme, Navigation, Modals). Daten sollen über `src/data/hooks.ts` /
+  `src/services` laufen; Pages importieren heute noch oft `src/mocks/data.ts` (P1 in PLAN.md).
+- **Jetzt:** PWA + Self-Host + Feature-Flags + Dev-Admin (`PLAN.md` P0b/P1).
+- **Später:** Native, Editionen, E2EE — `MILESTONES.md` §0 (nicht in P0–P3).
+- **Provider-Hierarchie** (`App.tsx`): `ThemeProvider > I18nProvider > AuthProvider > DataProvider > ToastProvider > NavProvider > Shell`.
 - **Page-Transitions**: `AnimatePresence mode="wait"` keyed by `view` (in `App.tsx`).
 - **Theming**: `<html data-theme="dark|light">` + Tailwind v4 `@theme inline` (semantische Tokens).
   no-FOUC via Inline-Script in `index.html`.
@@ -97,6 +99,9 @@ daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` re
 | `DESIGN.md` | Design-System, Tokens, Bewegung |
 | `ARCHITECTURE.md` | Backend-/Daten-Schicht (Service-Layer, Mock/API, REST) |
 | `MIGRATION.md` | Next.js-Monorepo-Migration (Schritt-für-Schritt) |
+| `HANDOFF.md` | Agent-Handoff (Ist-Stand, Fallstricke, DoD) |
+| `PLAN.md` | Code-Phasen P0–P10: Monorepo, Backend, Funktionen |
+| `MILESTONES.md` | Produkt-Nordstern: Editionen, Privacy, Native, Admin |
 | `CHANGELOG.md` | Versionierter Änderungsverlauf |
 | `PROGRESS.md` | Chronologische Code-Änderungen & Bugfixes |
 | `TODO.md` | Offene Punkte & Vorschläge |

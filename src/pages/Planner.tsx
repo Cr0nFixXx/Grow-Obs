@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Badge, Button, Card, Chip, DataTable, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, Chip, DataTable, EmptyState, PageHeader, SkeletonCard } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { strains, type Strain } from "@/mocks/data";
+import { useStrains } from "@/data/hooks";
+import type { Strain } from "@/types";
 import { eur } from "@/lib/format";
 import { useToast } from "@/components/Toast";
 
@@ -16,8 +17,21 @@ const mediums = [
 
 export default function Planner() {
   const toast = useToast();
-  const [selected, setSelected] = useState<string[]>([strains[1].id, strains[2].id, strains[3].id]);
+  const { strains, loading, error } = useStrains();
+  const [selected, setSelected] = useState<string[]>([]);
   const [selMedium, setSelMedium] = useState<string | null>("Living Soil");
+
+  // Initial-Auswahl, sobald Sorten geladen sind
+  useEffect(() => {
+    if (strains.length && selected.length === 0) {
+      setSelected(strains.slice(0, 3).map((s) => s.id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strains]);
+
+  if (loading) return <div className="space-y-4"><SkeletonCard /><SkeletonCard /></div>;
+  if (error) return <EmptyState icon="AlertTriangle" title="Planung nicht geladen" desc={error} />;
+
   const picked: Strain[] = strains.filter((s) => selected.includes(s.id));
 
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 3 ? s : [...s, id]));

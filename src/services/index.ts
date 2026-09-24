@@ -3,7 +3,20 @@ import type { Services } from "./interfaces";
 import { mockServices } from "./mock";
 import { apiServices } from "./api";
 
-export type { Services, GrowService, SocialService, StrainService } from "./interfaces";
+export type {
+  Services,
+  ActivityService,
+  BreederService,
+  ChatService,
+  ForumService,
+  GrowService,
+  HallService,
+  NotificationService,
+  ProductService,
+  SocialService,
+  StrainService,
+  WikiService,
+} from "./interfaces";
 
 /**
  * Service-Factory: wählt Mock- oder API-Implementierung anhand der Konfiguration.

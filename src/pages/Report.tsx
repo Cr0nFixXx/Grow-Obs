@@ -1,14 +1,20 @@
 import { cn } from "@/utils/cn";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, PageHeader, SkeletonCard } from "@/components/ui";
 import { SeriesChart } from "@/components/charts";
 import { Reveal } from "@/components/motion";
-import { grows } from "@/mocks/data";
+import { useGrows } from "@/data/hooks";
 
 export default function Report() {
   const toast = useToast();
+  const { grows, loading, error } = useGrows();
   const g = grows[0];
+
+  if (loading) return <div className="space-y-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
+  if (error) return <EmptyState icon="AlertTriangle" title="Report nicht geladen" desc={error} />;
+  if (!g) return <EmptyState icon="Sprout" title="Noch kein Grow" desc="Lege zuerst einen Grow an, um einen Report zu sehen." />;
+
   const metrics = [
     { label: "Dauer", value: `${g.day} Tage`, icon: "CalendarDays" },
     { label: "Gesundheit Ø", value: `${g.health}%`, icon: "HeartPulse" },

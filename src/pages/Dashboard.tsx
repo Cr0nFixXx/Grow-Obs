@@ -8,9 +8,10 @@ import { Avatar, Badge, Button, Card, Chip, ProgressBar, SmartImage, StatCard } 
 import { Donut, Gauge, Sparkline } from "@/components/charts";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/motion";
 import {
-  activityFeed, climate, consumptionSeries, currentUser, grows, quickStats, seedOffers,
+  climate, consumptionSeries, currentUser, quickStats,
   upcomingTasks,
 } from "@/mocks/data";
+import { useActivity, useGrows, useSeedOffers } from "@/data/hooks";
 import { eur, n, pct } from "@/lib/format";
 
 const prioTone = { hoch: "danger", mittel: "warning", niedrig: "info" } as const;
@@ -29,6 +30,9 @@ function SectionHead({ title, icon, action }: { title: string; icon: string; act
 export default function Dashboard() {
   const { navigate } = useNav();
   const toast = useToast();
+  const { grows } = useGrows();
+  const { activity } = useActivity();
+  const { offers } = useSeedOffers();
   const [tasks, setTasks] = useState(upcomingTasks);
   const [showAi, setShowAi] = useState(true);
 
@@ -109,7 +113,7 @@ export default function Dashboard() {
           />
           <div className="group/ticker mask-fade-x overflow-hidden">
             <div className="flex w-max gap-3 animate-marquee">
-              {[...seedOffers, ...seedOffers].map((o, i) => {
+              {[...offers, ...offers].map((o, i) => {
                 const discount = o.oldPrice ? Math.round((1 - o.price / o.oldPrice) * 100) : 0;
                 return (
                   <button
@@ -215,7 +219,7 @@ export default function Dashboard() {
             <Card className="p-4 sm:p-5">
               <SectionHead title="Aktivität" icon="Activity" />
               <div className="space-y-1" role="list">
-                {activityFeed.map((a) => (
+                {activity.map((a) => (
                   <div key={a.id} role="listitem" className="flex items-start gap-3 rounded-xl p-2.5 transition hover:bg-surface-2">
                     <Avatar src={a.avatar} size={36} />
                     <div className="min-w-0 flex-1 text-sm">

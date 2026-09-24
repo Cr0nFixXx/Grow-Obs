@@ -1,46 +1,43 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Bookmark, Heart, Image as ImageIcon, MessageCircle, Plus, Send, Share2, Smile } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, Button, Card, PageHeader, Popover, PopoverItem, SmartImage, Textarea } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, PageHeader, Popover, PopoverItem, SkeletonCard, SmartImage, Textarea } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { currentUser, socialPosts, stories, suggestedGrowers, trendingTags, type SocialPost } from "@/mocks/data";
+import { currentUser, stories, suggestedGrowers, trendingTags, type SocialPost } from "@/mocks/data";
 import { vibrate } from "@/lib/format";
-import { dbGet, dbSet } from "@/lib/db";
+import { useSocialPosts } from "@/data/hooks";
 
 export default function Social() {
   const toast = useToast();
-  const [posts, setPosts] = useState<SocialPost[]>(socialPosts);
+  const { posts, loading, error, createPost, toggleLike: likeOnService } = useSocialPosts();
   const [compose, setCompose] = useState("");
   const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
-  const hydrated = useRef(false);
-
-  // Offline-First: Posts (inkl. eigener) via IndexedDB persistieren
-  useEffect(() => {
-    dbGet<SocialPost[]>("social-posts")
-      .then((saved) => { if (saved && saved.length) setPosts(saved); })
-      .catch(() => {})
-      .finally(() => { hydrated.current = true; });
-  }, []);
-  useEffect(() => {
-    if (!hydrated.current) return;
-    dbSet("social-posts", posts).catch(() => {});
-  }, [posts]);
 
   const toggleLike = (id: string) => {
     vibrate();
-    setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p)));
+    void likeOnService(id);
   };
   const publish = () => {
     if (!compose.trim()) return;
-    setPosts((ps) => [
-      { id: `sp-${Date.now()}`, author: currentUser.name, handle: currentUser.handle, avatar: currentUser.avatar, time: "gerade eben", text: compose.trim(), likes: 0, comments: 0, shares: 0, tags: [], liked: false },
-      ...ps,
-    ]);
-    setCompose("");
-    toast.push({ title: "Veröffentlicht", desc: "Dein Post ist im Feed.", tone: "leaf", icon: "Rocket" });
+    void createPost(compose.trim()).then(() => {
+      setCompose("");
+      toast.push({ title: "Veröffentlicht", desc: "Dein Post ist im Feed.", tone: "leaf", icon: "Rocket" });
+    });
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    );
+  }
+  if (error) {
+    return <EmptyState icon="AlertTriangle" title="Feed nicht geladen" desc={error} />;
+  }
 
   return (
     <div className="space-y-6">

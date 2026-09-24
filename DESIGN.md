@@ -97,7 +97,7 @@ Daten.
 
 | Breakpoint | Layout |
 |------------|--------|
-| **Mobile** (`<sm`) | TopBar (Menu/Back + Brand + Search/Bell/Avatar), Bottom-Nav (5), FAB rechts, Drawer; Modals/Notifications = Bottom-Sheets; Safe-Area |
+| **Mobile** (`<sm`) | TopBar (dauerhaft Burger + Brand + Search/Bell/Avatar), Bottom-Nav (4 + „Mehr"), FAB rechts, Drawer; Modals/Notifications = Bottom-Sheets; Safe-Area |
 | **≥lg** | persistente Sidebar (kollaborierbar 272↔80px via `--sb-w`), Top-Bar mit Suche, zentrierter Content (`max-w-1440`) |
 
 **Safe-Area:** `env(safe-area-inset-*)` auf TopBar/BottomNav/FAB/Content. **Touch:**
@@ -109,6 +109,16 @@ Daten.
 
 `Background` (`Particles.tsx`): fixierte Aurora-Gradients + Grain-Overlay + Canvas-Pollenfeld
 (density skaliert mit Viewport, pausiert bei Tab-Wechsel, re-liest Akzent-Farbe bei Theme-Wechsel).
+
+---
+
+## 10. Desktop-Admin & Editionen (geplant)
+
+Siehe `MILESTONES.md`. Noch nicht im Code.
+
+- **Density-Mode** (`data-density="compact"`) für Mod-/Admin-Tabellen auf `xl`.
+- **Edition-Gates:** Nav-Punkte über `entitlements.*` ausblenden, nicht per hartem `if (edition === "pro")` verstreuen.
+- Native App: Tokens (Farbe, Radius, Typo-Stufen) übernehmen; Komponenten **nicht** 1:1 aus `ui.tsx` (DOM) nach React Native kopieren.
 
 ---
 

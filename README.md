@@ -1,13 +1,14 @@
-# 🌿 Grow|Observer — Frontend-Design-Template
+# 🌿 Grow|Observer
 
-Ein **produktionsreifes Frontend/UI-Template** (keine Backend-Logik, nur Mock-Daten) für eine
-Progressive Web App: ein community-getriebenes Cannabis-Grow-Dashboard mit persönlichem
-Grow-Tagebuch, Kostenoptimierung, KI-Assistenz, Wiki, Forum und Marktplatz.
+**Jetzt:** produktionsreifes Frontend-Design-Template (React 19 + Vite + Tailwind v4) — PWA-UI mit Mock-Daten.
 
-> Reines Design-System & UI/UX – alle Daten sind statisch (`src/mocks/data.ts`).
-> State ist reiner UI-State (Theme, Navigation, Modals) – keine echte Geschäftslogik.
+**Jetzt:** voll funktionsfähige **PWA** + selbst gehostetes Backend, Feature-Flags, Developer-Admin. → [`PLAN.md`](./PLAN.md)
 
-**Version:** `v0.3.0` · **Status:** stabil & build-validiert · **Pflege:** siehe [`PROGRESS.md`](./PROGRESS.md), [`CHANGELOG.md`](./CHANGELOG.md)
+**Später:** Native Apps, Editionen, E2EE/P2P. → [`MILESTONES.md`](./MILESTONES.md)
+
+> Aktueller Code: Design-System & UI/UX, statische Mocks (`src/mocks/data.ts`). Service-Layer und Next-Skeleton liegen bereit, sind noch nicht die laufende App.
+
+**Version:** `v0.12.0` · **Status:** Template freeze (M0) · **Agents:** [`HANDOFF.md`](./HANDOFF.md) · [`PLAN.md`](./PLAN.md) · [`MILESTONES.md`](./MILESTONES.md)
 
 ---
 
@@ -85,7 +86,18 @@ public/
 └── sw.js
 ```
 
-Detaillierte Design-Entscheidungen: [`DESIGN.md`](./DESIGN.md) · Anweisungen für KI-Agenten: [`CLAUDE.md`](./CLAUDE.md)
+### Dokumentation
+
+| Datei | Zweck |
+|-------|--------|
+| [HANDOFF.md](./HANDOFF.md) | Agent-Einstieg, Fallstricke, DoD |
+| [PLAN.md](./PLAN.md) | Code-Phasen P0–P10 (Next, Backend, CRUD) |
+| [MILESTONES.md](./MILESTONES.md) | Produkt-Nordstern: Editionen, Privacy, Native, Admin |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Service-Layer Mock/API |
+| [MIGRATION.md](./MIGRATION.md) | Vite → Next.js Monorepo |
+| [DESIGN.md](./DESIGN.md) | Tokens, Komponenten, Bewegung |
+| [CLAUDE.md](./CLAUDE.md) | Konventionen für KI-Agents |
+| [CHANGELOG.md](./CHANGELOG.md) / [PROGRESS.md](./PROGRESS.md) | Historie |
 
 ---
 
@@ -144,7 +156,7 @@ Der atmosphärische Hero (Auth/Onboarding) ist eine KI-generierte, **inlined** J
 
 ---
 
-*Template-Demo – Inhalte sind fiktiv und dienen ausschließlich Präsentationszwecken.*
+*Template-Demo – Inhalte sind fiktiv und dienen ausschließlich Präsentationszwecken. Kein Angebot zum Kauf von Cannabis.*
 
 ---
 

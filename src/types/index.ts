@@ -28,6 +28,24 @@ export interface CreateGrowInput {
   breeder: string;
   medium: string;
 }
+
+export interface CreateThreadInput {
+  title: string;
+  sub: string;
+  text: string;
+}
+
+/** Eintrag im Aktivitäts-Feed (Dashboard/Profil). */
+export interface ActivityItem {
+  id: string;
+  who: string;
+  avatar: string;
+  action: string;
+  target: string;
+  time: string;
+  icon: string;
+  color: string;
+}
 export interface CreatePostInput {
   text: string;
   image?: string;

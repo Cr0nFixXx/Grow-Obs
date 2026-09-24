@@ -1,34 +1,67 @@
-import { useState } from "react";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Pencil } from "lucide-react";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, Button, Card, PageHeader, SearchInput, Tabs } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, PageHeader, SearchInput, SkeletonCard, Tabs } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { AVATARS, wikiArticles, wikiCategories, type WikiArticle } from "@/mocks/data";
+import { useWikiArticles } from "@/data/hooks";
+import { useServices } from "@/data/DataContext";
+import { AVATARS, wikiCategories } from "@/mocks/data";
+import type { WikiArticleDetail } from "@/services/interfaces";
+
+function useWikiArticle(articleId?: string) {
+  const svc = useServices();
+  const [data, setData] = useState<WikiArticleDetail | null>(null);
+  const [loading, setLoading] = useState(!!articleId);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    if (!articleId) return;
+    setLoading(true);
+    try {
+      const res = await svc.wiki.get(articleId);
+      setData(res ?? null);
+      if (!res) setError("Artikel nicht gefunden");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [svc, articleId]);
+  useEffect(() => { void load(); }, [load]);
+  return { article: data, loading, error, refresh: load };
+}
 
 export default function Wiki() {
   const { params } = useNav();
-  const a = params?.articleId ? wikiArticles.find((x) => x.id === params.articleId) : null;
-  return a ? <Reader a={a} /> : <WikiList />;
+  const { articleId } = params ?? {};
+  const listHook = useWikiArticles();
+  const detail = useWikiArticle(articleId);
+
+  if (!articleId) {
+    if (listHook.loading) return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
+    if (listHook.error) return <EmptyState icon="AlertTriangle" title="Wiki nicht geladen" desc={listHook.error} />;
+    return <WikiList />;
+  }
+
+  if (detail.loading) return <SkeletonCard className="mx-auto max-w-3xl" />;
+  if (detail.error || !detail.article) return <EmptyState icon="AlertTriangle" title="Artikel nicht gefunden" desc={detail.error ?? "Kein Inhalt."} />;
+  return <Reader a={detail.article} />;
 }
 
 function WikiList() {
   const { navigate } = useNav();
+  const { articles } = useWikiArticles();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Übersicht");
-  const list = wikiArticles.filter(
+  const list = articles.filter(
     (a) => (cat === "Übersicht" || a.category === cat) && `${a.title} ${a.excerpt}`.toLowerCase().includes(q.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Wiki & Wissensbibliothek"
-        subtitle="Community-gepflegtes Wissen – editierbar wie ein Code-Repo."
-        icon="BookOpen"
-        actions={<Button variant="secondary"><Pencil className="size-4" /> Artikel erstellen</Button>}
-      />
+      <PageHeader title="Wiki & Wissensbibliothek" subtitle="Community-gepflegtes Wissen – editierbar wie ein Code-Repo." icon="BookOpen"
+        actions={<Button variant="secondary"><Pencil className="size-4" /> Artikel erstellen</Button>} />
       <Reveal>
         <Card className="space-y-3 p-4">
           <SearchInput placeholder="Artikel durchsuchen…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -60,13 +93,13 @@ function WikiList() {
   );
 }
 
-function Reader({ a }: { a: WikiArticle }) {
+function Reader({ a }: { a: WikiArticleDetail }) {
   const { back } = useNav();
   const toast = useToast();
   return (
     <article className="mx-auto max-w-3xl space-y-6">
       <button onClick={back} className="flex items-center gap-1.5 text-sm text-fg-muted transition hover:text-fg">
-        <ArrowLeft className="size-4" /> Zurück zur Bibliothek
+        <Icon name="ArrowLeft" size={16} /> Zurück zur Bibliothek
       </button>
       <Reveal>
         <div>
@@ -81,22 +114,17 @@ function Reader({ a }: { a: WikiArticle }) {
           </div>
         </div>
       </Reveal>
-
       <Reveal>
         <div className="relative h-40 overflow-hidden rounded-2xl bg-gradient-to-br from-leaf-600/70 to-leaf-900">
           <div className="absolute inset-0 grain opacity-20 mix-blend-overlay" />
           <div className="absolute bottom-3 left-4 flex items-center gap-2 text-white/90"><Icon name="BookOpen" /> Grow|Wiki</div>
         </div>
       </Reveal>
-
       <Reveal>
         <div className="space-y-4 text-[15px] leading-relaxed text-fg/90">
-          {a.body.map((p, i) => (
-            <p key={i} className={i === 0 ? "text-lg text-fg" : ""}>{p}</p>
-          ))}
+          {a.body.map((p, i) => (<p key={i} className={i === 0 ? "text-lg text-fg" : ""}>{p}</p>))}
         </div>
       </Reveal>
-
       <Reveal>
         <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-1.5">
@@ -107,7 +135,6 @@ function Reader({ a }: { a: WikiArticle }) {
           </Button>
         </Card>
       </Reveal>
-
       <Reveal>
         <Card className="flex items-center justify-between p-4">
           <div>

@@ -13,6 +13,9 @@ import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
 import { Avatar, BottomSheet, Button, Drawer, Spinner } from "@/components/ui";
 import { navGroups, bottomNav, type NavItem } from "@/components/layout/nav-config";
+import { useFeatures } from "@/config/FeatureContext";
+import { featureForView } from "@/config/features";
+import { useForumThreads, useProducts, useStrains } from "@/data/hooks";
 import { currentUser, notifications } from "@/mocks/data";
 import { toneSoft } from "@/lib/tokens";
 
@@ -77,9 +80,13 @@ function NavLink({
 
 function NavList({ lid, collapsed }: { lid: string; collapsed?: boolean }) {
   const { view, navigate } = useNav();
+  const { isEnabled } = useFeatures();
+  const groups = navGroups
+    .map((g) => ({ ...g, items: g.items.filter((it) => isEnabled(featureForView(it.key))) }))
+    .filter((g) => g.items.length > 0);
   return (
     <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-2 no-scrollbar">
-      {navGroups.map((g) => (
+      {groups.map((g) => (
         <div key={g.title}>
           {!collapsed && (
             <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{g.title}</div>
@@ -298,9 +305,11 @@ const moreNav: { key: ViewKey; label: string; icon: string }[] = [
 
 function BottomNav() {
   const { view, navigate } = useNav();
+  const { isEnabled } = useFeatures();
   const [moreOpen, setMoreOpen] = useState(false);
-  const primary = bottomNav.filter((it) => it.key !== "marketplace");
-  const isMoreActive = moreNav.some((m) => m.key === view);
+  const primary = bottomNav.filter((it) => it.key !== "marketplace" && isEnabled(featureForView(it.key)));
+  const extra = moreNav.filter((m) => isEnabled(featureForView(m.key)));
+  const isMoreActive = extra.some((m) => m.key === view);
   const go = (key: ViewKey) => { vibrate(8); navigate(key); };
   const renderItem = (key: ViewKey, icon: string, label: string, active: boolean, onClick: () => void) => (
     <button key={key} onClick={onClick} aria-current={active ? "page" : undefined} className="relative flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium outline-none">
@@ -322,7 +331,7 @@ function BottomNav() {
       </nav>
       <BottomSheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Mehr Bereiche">
         <div className="grid grid-cols-3 gap-3">
-          {moreNav.map((m) => (
+          {extra.map((m) => (
             <button key={m.key} onClick={() => { setMoreOpen(false); go(m.key); }} className={cn("card card-hover flex flex-col items-center gap-2 p-4 text-center", m.key === view && "border-accent ring-2 ring-accent/25")}>
               <span className="grid size-11 place-items-center rounded-xl bg-accent/10 text-accent"><Icon name={m.icon} size={20} /></span>
               <span className="text-sm font-medium">{m.label}</span>
@@ -381,9 +390,36 @@ function Fab() {
 /* ----------------------------- Command palette ----------------------------- */
 function CommandPalette() {
   const { commandOpen, setCommandOpen, navigate } = useNav();
+  const { isEnabled } = useFeatures();
   const [q, setQ] = useState("");
-  const all = useMemo(() => navGroups.flatMap((g) => g.items), []);
+  const all = useMemo(
+    () => navGroups.flatMap((g) => g.items).filter((i) => isEnabled(featureForView(i.key))),
+    [isEnabled]
+  );
   const results = q ? all.filter((i) => i.label.toLowerCase().includes(q.toLowerCase())) : all;
+
+  // Inhalts-Suche (Sorten, Threads, Produkte) — nur bei Query
+  const { strains } = useStrains();
+  const { threads } = useForumThreads();
+  const { products } = useProducts();
+  const query = q.trim().toLowerCase();
+  type ContentItem = { key: string; icon: string; label: string; hint: string; view: ViewKey; params?: Record<string, string> };
+  const content: ContentItem[] = query
+    ? [
+        ...strains.filter((s) => `${s.name} ${s.breeder}`.toLowerCase().includes(query)).slice(0, 4)
+          .map((s): ContentItem => ({ key: `strain-${s.id}`, icon: "Leaf", label: s.name, hint: `Sorte · ${s.breeder}`, view: "strains" })),
+        ...threads.filter((t) => `${t.title} ${t.sub}`.toLowerCase().includes(query)).slice(0, 4)
+          .map((t): ContentItem => ({ key: `thread-${t.id}`, icon: "MessagesSquare", label: t.title, hint: `Thread · ${t.sub}`, view: "forum", params: { threadId: t.id } })),
+        ...products.filter((p) => `${p.name} ${p.brand}`.toLowerCase().includes(query)).slice(0, 4)
+          .map((p): ContentItem => ({ key: `product-${p.id}`, icon: "Package", label: p.name, hint: `Produkt · ${p.brand}`, view: "marketplace" })),
+      ]
+    : [];
+
+  const go = (item: { view: ViewKey; params?: Record<string, string> }) => {
+    navigate(item.view, item.params);
+    setCommandOpen(false);
+    setQ("");
+  };
 
   useEffect(() => {
     if (!commandOpen) return;
@@ -421,11 +457,7 @@ function CommandPalette() {
               {results.map((r) => (
                 <button
                   key={r.key}
-                  onClick={() => {
-                    navigate(r.key);
-                    setCommandOpen(false);
-                    setQ("");
-                  }}
+                  onClick={() => go({ view: r.key })}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
                 >
                   <span className="grid size-9 place-items-center rounded-lg bg-accent/10 text-accent">
@@ -435,7 +467,28 @@ function CommandPalette() {
                   <ArrowLeft className="size-4 rotate-180 text-fg-subtle" />
                 </button>
               ))}
-              {results.length === 0 && <div className="px-3 py-8 text-center text-sm text-fg-subtle">Keine Treffer für „{q}“.</div>}
+              {content.length > 0 && (
+                <>
+                  <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Inhalt</div>
+                  {content.map((r) => (
+                    <button
+                      key={r.key}
+                      onClick={() => go({ view: r.view, params: r.params })}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
+                    >
+                      <span className="grid size-9 place-items-center rounded-lg bg-surface-2 text-fg-muted">
+                        <Icon name={r.icon} size={17} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{r.label}</span>
+                        <span className="block truncate text-xs text-fg-subtle">{r.hint}</span>
+                      </span>
+                      <ArrowLeft className="size-4 rotate-180 text-fg-subtle" />
+                    </button>
+                  ))}
+                </>
+              )}
+              {results.length === 0 && content.length === 0 && <div className="px-3 py-8 text-center text-sm text-fg-subtle">Keine Treffer für „{q}“.</div>}
             </div>
           </motion.div>
         </div>
@@ -539,6 +592,24 @@ function PullToRefresh() {
 }
 
 /* ----------------------------- Shell ----------------------------- */
+function EdgeSwipeOpen() {
+  const { setMobileNavOpen, mobileNavOpen } = useNav();
+  if (mobileNavOpen) return null;
+  return (
+    <motion.div
+      className="fixed inset-y-0 left-0 z-[35] w-5 touch-none lg:hidden"
+      drag="x"
+      dragDirectionLock
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={{ left: 0, right: 0.9 }}
+      onDragEnd={(_, info) => {
+        if (info.offset.x > 54 || info.velocity.x > 520) setMobileNavOpen(true);
+      }}
+      aria-hidden
+    />
+  );
+}
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const { sidebarCollapsed, setCommandOpen, commandOpen } = useNav();
 
@@ -568,6 +639,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </div>
       <BottomNav />
       <Fab />
+      <EdgeSwipeOpen />
       <MobileDrawer />
       <CommandPalette />
       <ScrollToTop />

@@ -11,6 +11,16 @@ Signiert von `claude-grow-dev` (Claude · Anthropic).
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-33 | Backend-Grundgerüst: apps/api (Hono+Drizzle+Postgres+MinIO), Schema, Auth, CRUD, Docker, Seed | ✅ Frontend-Build grün | claude-grow-dev |
+| B-32 | Quick-Wins-Batch: Service-Abschluss (7 Pages) + Auth-Gate + Forum-Actions + ⌘K-Inhaltssuche + Button-Busy + ErrorBoundary | ✅ ~847 kB gzip 304 kB | claude-grow-dev |
+| B-31 | Optimierungen/Touch-UX/Code-Checks + InlineIcon + EdgeSwipe refinements | ✅ ~834 kB gzip 300 kB | claude-grow-dev |
+| B-30 | Mobile Swipe: Drawer/Sheet dismiss + Edge-open Menü | ✅ ~824 kB gzip 299 kB | claude-grow-dev |
+| B-29 | P1 Pages → Services (Social, Grows, Strains, Auth, Dashboard) | ✅ ~823 kB gzip 299 kB | claude-grow-dev |
+| B-29b | P1b Pages → Services (Forum, Chat, Wiki, Notifications) + Service-Erweiterung | ✅ ~838 kB gzip 301 kB | claude-grow-dev |
+| B-28 | P0b Feature-Flags + Dev-Admin-Panel (Mock) | ✅ ~821 kB gzip 298 kB | claude-grow-dev |
+| — | PWA-first Fokus (Flags, Dev-Admin, Self-Host); Editionen/Native zurück | Docs only | claude-grow-dev |
+| — | MILESTONES.md (Editionen, Privacy, Native) + Docs-Abgleich | Docs only | claude-grow-dev |
+| — | HANDOFF.md + PLAN.md für Coding-Agents (kein App-Code) | Docs only | claude-grow-dev |
 | B-27 | v0.12.0 — Next.js Skeleton + Monorepo-Scaffolding + MIGRATION.md | ✅ `dist/index.html` (~813 kB / 296 kB gzip) | claude-grow-dev |
 | B-26 | v0.11.0 — Backend-/Daten-Schicht-Grundgerüst (Service-Layer + Auth + API-Client) | ✅ `dist/index.html` (~813 kB / 296 kB gzip) | claude-grow-dev |
 | B-25 | v0.10.0 — Bundle-Analyse + ESLint + CI + Font-Subsetting | ✅ `dist/index.html` (~811 kB / 295 kB gzip) | claude-grow-dev |
@@ -42,6 +52,12 @@ Signiert von `claude-grow-dev` (Claude · Anthropic).
 ---
 
 ## Änderungs-Historie (detailliert)
+
+### Docs — MILESTONES + Vision (kein App-Build)
+- **`MILESTONES.md`**: Nordstern Native Android/iOS, Editionen Free/Pro/CSC/Enterprise, E2EE,
+  local-first vs Free-Cloud, Tombstone-Löschpropagation, QR-Join, Admin/Mod, M0–M12.
+- Abgleich: README, HANDOFF, PLAN (P11–P14), ARCHITECTURE (zwei Speicher-Pfade), TODO (offene
+  Nordstern-Liste), CLAUDE, DESIGN §10, MIGRATION (apps/mobile), CHANGELOG Unreleased.
 
 ### v0.12.0 (B-27)
 - **`app/layout.tsx`**: Next.js Root-Layout (Metadata/Viewport/Icons, Fonts, No-FOUC, CSS-Import).

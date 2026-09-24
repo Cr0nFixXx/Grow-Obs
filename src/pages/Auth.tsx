@@ -7,16 +7,29 @@ import heroImg from "@/assets/hero.jpg";
 import { Button, Card, Checkbox, Field, Input } from "@/components/ui";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
+import { useAuth } from "@/lib/auth";
 import { n } from "@/lib/format";
 
 export default function Auth() {
   const { navigate } = useNav();
   const toast = useToast();
+  const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [name, setName] = useState("Max Grünfeld");
+  const [email, setEmail] = useState("max@growobserver.app");
+  const [password, setPassword] = useState("supersecret");
+  const [busy, setBusy] = useState(false);
 
   const submit = () => {
-    toast.push({ title: mode === "login" ? "Angemeldet" : "Konto erstellt", desc: "Willkommen bei Grow|Observer 🌿", tone: "leaf", icon: "Sprout" });
-    navigate("dashboard");
+    setBusy(true);
+    const run = mode === "login" ? login(email, password) : register(name, email, password);
+    run
+      .then(() => {
+        toast.push({ title: mode === "login" ? "Angemeldet" : "Konto erstellt", desc: "Willkommen bei Grow|Observer 🌿", tone: "leaf", icon: "Sprout" });
+        navigate("dashboard");
+      })
+      .catch((e) => toast.push({ title: "Fehler", desc: e instanceof Error ? e.message : "Login fehlgeschlagen", tone: "danger", icon: "AlertTriangle" }))
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -90,14 +103,14 @@ export default function Auth() {
             <div className="mt-6 space-y-4">
               {mode === "register" && (
                 <Field label="Anzeigename">
-                  <Input placeholder="z. B. max_grows" defaultValue="Max Grünfeld" />
+                  <Input placeholder="z. B. max_grows" value={name} onChange={(e) => setName(e.target.value)} />
                 </Field>
               )}
               <Field label="E-Mail">
-                <Input type="email" placeholder="du@example.com" defaultValue="max@growobserver.app" />
+                <Input type="email" placeholder="du@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </Field>
               <Field label="Passwort">
-                <Input type="password" placeholder="••••••••" defaultValue="supersecret" />
+                <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
               </Field>
               {mode === "login" ? (
                 <div className="flex items-center justify-between text-sm">
@@ -110,8 +123,8 @@ export default function Auth() {
                 <Checkbox checked onChange={() => {}} label="Ich akzeptiere die AGB & Datenschutz" />
               )}
 
-              <Button className="w-full" size="lg" onClick={submit}>
-                {mode === "login" ? "Anmelden" : "Konto erstellen"} <ArrowRight className="size-4" />
+              <Button className="w-full" size="lg" onClick={submit} loading={busy}>
+                {mode === "login" ? "Anmelden" : "Konto erstellen"} {!busy && <ArrowRight className="size-4" />}
               </Button>
             </div>
 

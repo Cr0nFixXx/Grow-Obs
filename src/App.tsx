@@ -3,14 +3,17 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider } from "@/lib/theme";
+import { useAuth } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth";
 import { DataProvider } from "@/data/DataContext";
+import { FeatureProvider, useFeatures } from "@/config/FeatureContext";
+import { featureForView } from "@/config/features";
 import { ToastProvider } from "@/components/Toast";
 import { NavProvider, useNav, type ViewKey } from "@/lib/nav";
 import { Background } from "@/components/Particles";
 import AppShell from "@/components/layout/AppShell";
-import { Skeleton, SkeletonCard } from "@/components/ui";
+import { Button, EmptyState, Skeleton, SkeletonCard } from "@/components/ui";
 import { useDelayedReady, usePrefersReducedMotion } from "@/lib/hooks";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
@@ -34,6 +37,7 @@ import Notifications from "@/pages/Notifications";
 import Profile from "@/pages/Profile";
 import Telegram from "@/pages/Telegram";
 import Auth from "@/pages/Auth";
+import DevAdmin from "@/pages/DevAdmin";
 import NotFound from "@/pages/NotFound";
 
 const views: Record<ViewKey, ComponentType> = {
@@ -58,6 +62,7 @@ const views: Record<ViewKey, ComponentType> = {
   profile: Profile,
   telegram: Telegram,
   auth: Auth,
+  devAdmin: DevAdmin,
 };
 
 function Router() {
@@ -79,9 +84,22 @@ function Router() {
 
 /** Short skeleton flash on view change (reduced-motion → instant). */
 function AsyncPage({ view }: { view: ViewKey }) {
+  const { isEnabled } = useFeatures();
+  const { navigate } = useNav();
+  const feat = featureForView(view);
   const Page = views[view] ?? NotFound;
   const ready = useDelayedReady(usePrefersReducedMotion() ? 0 : 300);
   if (!ready) return <PageSkeleton />;
+  if (view !== "auth" && !isEnabled(feat)) {
+    return (
+      <EmptyState
+        icon="Lock"
+        title="Noch nicht freigeschaltet"
+        desc="Diese Funktion ist in der Feature-Config deaktiviert. Im Developer-Admin kannst du Flags umschalten."
+        action={<Button variant="soft" onClick={() => navigate("devAdmin")}>Zum Dev-Admin</Button>}
+      />
+    );
+  }
   return <Page />;
 }
 
@@ -113,6 +131,7 @@ function PageSkeleton() {
 
 function Shell() {
   const { view } = useNav();
+  const { user, loading } = useAuth();
   const [onboard, setOnboard] = useState(false);
 
   useEffect(() => {
@@ -128,12 +147,15 @@ function Shell() {
     }
   }, []);
 
+  const authed = !!user || loading;
+  const showAuth = view === "auth" || !authed;
+
   return (
     <>
       <Background />
-      {view === "auth" ? (
+      {showAuth ? (
         <div className="relative z-10">
-          <Router />
+          {view === "auth" ? <Router /> : <Auth />}
         </div>
       ) : (
         <AppShell>
@@ -161,11 +183,13 @@ export default function App() {
       <I18nProvider>
         <AuthProvider>
           <DataProvider>
-            <ToastProvider>
-              <NavProvider>
-                <Shell />
-              </NavProvider>
-            </ToastProvider>
+            <FeatureProvider>
+              <ToastProvider>
+                <NavProvider>
+                  <Shell />
+                </NavProvider>
+              </ToastProvider>
+            </FeatureProvider>
           </DataProvider>
         </AuthProvider>
       </I18nProvider>

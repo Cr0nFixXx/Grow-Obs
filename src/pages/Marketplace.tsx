@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Badge, Button, Card, Chip, Modal, PageHeader, Popover, PopoverItem, RatingStars, SearchInput, Segmented, Slider } from "@/components/ui";
+import { Badge, Button, Card, Chip, EmptyState, Modal, PageHeader, Popover, PopoverItem, RatingStars, SearchInput, Segmented, SkeletonCard, Slider } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { categories, products, seedOffers, type Product } from "@/mocks/data";
+import { useProductCategories, useProducts, useSeedOffers } from "@/data/hooks";
+import type { Product } from "@/types";
 import { eur } from "@/lib/format";
 
 const condTone: Record<string, "leaf" | "info" | "warning"> = { Neu: "leaf", "Wie neu": "info", Gebraucht: "warning" };
@@ -11,6 +12,9 @@ const colorVar: Record<string, string> = { leaf: "accent", soil: "accent-2", inf
 
 export default function Marketplace() {
   const toast = useToast();
+  const { products, loading, error } = useProducts();
+  const { categories } = useProductCategories();
+  const { offers } = useSeedOffers();
   const [cat, setCat] = useState("Alles");
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -33,8 +37,11 @@ export default function Marketplace() {
           p.price <= maxPrice &&
           (conds.length === 0 || conds.includes(p.condition))
       ),
-    [cat, q, maxPrice, conds]
+    [products, cat, q, maxPrice, conds]
   );
+
+  if (loading) return <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
+  if (error) return <EmptyState icon="AlertTriangle" title="Marktplatz nicht geladen" desc={error} />;
 
   return (
     <div className="space-y-6">
@@ -52,7 +59,7 @@ export default function Marketplace() {
           </div>
           <div className="group/ticker mask-fade-x overflow-hidden">
             <div className="flex w-max gap-3 animate-marquee">
-              {[...seedOffers, ...seedOffers].map((o, i) => (
+              {[...offers, ...offers].map((o, i) => (
                 <div key={i} className="flex w-56 shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
                   <Icon name="Leaf" size={16} className="text-accent" />
                   <div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{o.strain}</div><div className="truncate text-[10px] text-fg-subtle">{o.shop}</div></div>

@@ -8,7 +8,9 @@ import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
 import { Avatar, Badge, Button, Card, Field, Input, PageHeader, Segmented, Toggle } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { activityFeed, currentUser } from "@/mocks/data";
+import { useAuth } from "@/lib/auth";
+import { useActivity } from "@/data/hooks";
+import { currentUser } from "@/mocks/data";
 
 const badges = [
   { icon: "Trophy", label: "Erste Ernte", tone: "warning" },
@@ -24,8 +26,11 @@ export default function Profile() {
   const { theme, setTheme, particles, setParticles } = useTheme();
   const { locale, setLocale, currency, setCurrency, money, t } = useI18n();
   const toast = useToast();
+  const { user } = useAuth();
+  const me = user ?? currentUser;
+  const { activity } = useActivity();
   const [tab, setTab] = useState<"profil" | "settings">("profil");
-  const [prefs, setPrefs] = useState({ push: true, telegram: currentUser.telegram, weekly: true, sound: false });
+  const [prefs, setPrefs] = useState({ push: true, telegram: me.telegram, weekly: true, sound: false });
 
   return (
     <div className="space-y-6">
@@ -38,16 +43,16 @@ export default function Profile() {
           <div className="px-5 pb-5">
             <div className="-mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex items-end gap-4">
-                <Avatar src={currentUser.avatar} size={84} className="ring-4 ring-surface" />
+                <Avatar src={me.avatar} size={84} className="ring-4 ring-surface" />
                 <div className="pb-1">
-                  <div className="flex items-center gap-2 text-xl font-bold">{currentUser.name} <Badge tone="leaf">Lvl {currentUser.level}</Badge></div>
-                  <div className="text-sm text-fg-subtle">{currentUser.handle} · {currentUser.title}</div>
+                  <div className="flex items-center gap-2 text-xl font-bold">{me.name} <Badge tone="leaf">Lvl {me.level}</Badge></div>
+                  <div className="text-sm text-fg-subtle">{me.handle} · {me.title}</div>
                 </div>
               </div>
               <Button variant="secondary" onClick={() => toast.push({ title: "Profil bearbeiten", desc: "Editor öffnet im Demo-Modus.", tone: "info", icon: "Pencil" })}><Icon name="Pencil" size={16} /> Bearbeiten</Button>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3">
-              {[{ l: "Grows", v: currentUser.grows }, { l: "Ernten", v: currentUser.harvests }, { l: "Follower", v: currentUser.followers }].map((s) => (
+              {[{ l: "Grows", v: me.grows }, { l: "Ernten", v: me.harvests }, { l: "Follower", v: me.followers }].map((s) => (
                 <div key={s.l} className="rounded-xl bg-surface-2 p-3 text-center"><div className="text-lg font-bold tnum">{s.v.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">{s.l}</div></div>
               ))}
             </div>
@@ -76,7 +81,8 @@ export default function Profile() {
             <Card className="p-5">
               <h2 className="mb-3 text-sm font-semibold text-fg-muted">Letzte Aktivität</h2>
               <div className="space-y-1">
-                {activityFeed.map((a) => (
+                {activity.length === 0 && <p className="py-4 text-center text-sm text-fg-subtle">Noch keine Aktivität.</p>}
+                {activity.map((a) => (
                   <div key={a.id} className="flex items-center gap-3 rounded-xl p-2 hover:bg-surface-2">
                     <Avatar src={a.avatar} size={32} />
                     <span className="min-w-0 flex-1 text-sm"><span className="text-fg-muted">{a.who} {a.action} </span><span className="font-medium">{a.target}</span></span>

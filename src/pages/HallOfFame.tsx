@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Heart, MessageCircle } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, BottomSheet, Button, Card, Modal, PageHeader, SmartImage } from "@/components/ui";
+import { Avatar, Badge, BottomSheet, Button, Card, EmptyState, Modal, PageHeader, SkeletonCard, SmartImage } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { useToast } from "@/components/Toast";
 import { useLongPress } from "@/lib/hooks";
-import { hallOfFame, type HallEntry } from "@/mocks/data";
+import { useHall } from "@/data/hooks";
+import type { HallEntry } from "@/types";
 
 function HofCard({
   h,
@@ -47,10 +48,15 @@ function HofCard({
 
 export default function HallOfFame() {
   const toast = useToast();
+  const { entries, loading, error } = useHall();
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const [lightbox, setLightbox] = useState<HallEntry | null>(null);
   const [menuFor, setMenuFor] = useState<HallEntry | null>(null);
-  const featured = hallOfFame[2];
+
+  if (loading) return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
+  if (error) return <EmptyState icon="AlertTriangle" title="Hall of Fame nicht geladen" desc={error} />;
+
+  const featured = entries[2] ?? entries[0];
   const toggle = (id: string) => setLiked((l) => ({ ...l, [id]: !l[id] }));
 
   const menuActions = [
@@ -90,7 +96,7 @@ export default function HallOfFame() {
 
       {/* Masonry — Lang-Druck öffnet Kontextmenü */}
       <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 [&>*]:mb-4">
-        {hallOfFame.map((h, i) => (
+        {entries.map((h, i) => (
           <Reveal key={h.id} delay={(i % 3) * 0.05}>
             <HofCard h={h} liked={!!liked[h.id]} onToggle={() => toggle(h.id)} onOpen={() => setLightbox(h)} onMenu={() => setMenuFor(h)} />
           </Reveal>

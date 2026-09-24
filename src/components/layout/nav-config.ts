@@ -53,6 +53,10 @@ export const navGroups: NavGroup[] = [
       { key: "profile", label: "Profil & Einstellungen", icon: "Settings" },
     ],
   },
+  {
+    title: "Betreiber",
+    items: [{ key: "devAdmin", label: "Developer-Admin", icon: "Cpu" }],
+  },
 ];
 
 /** Mobile bottom-nav (primary tabs). */

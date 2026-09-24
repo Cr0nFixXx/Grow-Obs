@@ -46,14 +46,18 @@ export function Button({
   size = "md",
   className,
   children,
+  loading,
+  disabled,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize; loading?: boolean }) {
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
+      disabled={disabled || loading}
       className={cn(btnBase, btnSizes[size], btnVariants[variant], className)}
       {...(props as React.ComponentProps<typeof motion.button>)}
     >
+      {loading && <Spinner className="size-4" />}
       {children}
     </motion.button>
   );
@@ -704,8 +708,16 @@ export function Drawer({
             animate={{ x: 0 }}
             exit={{ x: side === "left" ? "-100%" : "100%" }}
             transition={{ type: "spring", stiffness: 360, damping: 36 }}
+            drag="x"
+            dragDirectionLock
+            dragConstraints={side === "left" ? { left: -width, right: 0 } : { left: 0, right: width }}
+            dragElastic={0.08}
+            onDragEnd={(_, info) => {
+              const away = side === "left" ? info.offset.x < -72 || info.velocity.x < -480 : info.offset.x > 72 || info.velocity.x > 480;
+              if (away) onClose();
+            }}
             className={cn("card absolute top-0 bottom-0 z-10 flex flex-col border-0 elev-3", side === "left" ? "left-0" : "right-0")}
-            style={{ width }}
+            style={{ width, paddingTop: "env(safe-area-inset-top)" }}
           >
             {title && (
               <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
@@ -751,9 +763,18 @@ export function BottomSheet({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0.6 }}
             transition={{ type: "spring", stiffness: 320, damping: 36 }}
-            className="card relative z-10 w-full max-w-lg overflow-hidden rounded-b-none elev-3 sm:rounded-2xl"
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.06, bottom: 0.6 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100 || info.velocity.y > 650) onClose();
+            }}
+            className="card relative z-10 w-full max-w-lg touch-pan-y overflow-hidden rounded-b-none elev-3 sm:rounded-2xl"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            <div className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-surface-3 sm:hidden" />
+            <div className="flex justify-center py-2.5 sm:hidden" aria-hidden>
+              <div className="h-1.5 w-12 rounded-full bg-surface-3" />
+            </div>
             {title && (
               <div className="flex items-center justify-between px-5 pt-4">
                 <h3 className="text-lg font-semibold">{title}</h3>

@@ -5,10 +5,11 @@ import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Badge, Button, Card, IconButton, Modal, PageHeader, ProgressBar, SmartImage } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, IconButton, Modal, PageHeader, ProgressBar, SkeletonCard, SmartImage } from "@/components/ui";
 import { Gauge, SeriesChart } from "@/components/charts";
 import { Reveal } from "@/components/motion";
-import { grows, type Grow } from "@/mocks/data";
+import { type Grow } from "@/types";
+import { useGrows } from "@/data/hooks";
 import { toneSoft, type Tone } from "@/lib/tokens";
 
 const logTone: Record<string, Tone> = {
@@ -17,11 +18,20 @@ const logTone: Record<string, Tone> = {
 
 export default function Grows() {
   const { params } = useNav();
+  const { grows, loading, error } = useGrows();
+  if (loading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <SkeletonCard /><SkeletonCard /><SkeletonCard />
+      </div>
+    );
+  }
+  if (error) return <EmptyState icon="AlertTriangle" title="Grows nicht geladen" desc={error} />;
   const grow = params?.growId ? grows.find((g) => g.id === params.growId) : null;
-  return grow ? <GrowDetail grow={grow} /> : <GrowList />;
+  return grow ? <GrowDetail grow={grow} /> : <GrowList grows={grows} />;
 }
 
-function GrowList() {
+function GrowList({ grows }: { grows: Grow[] }) {
   const { navigate } = useNav();
   return (
     <div className="space-y-6">

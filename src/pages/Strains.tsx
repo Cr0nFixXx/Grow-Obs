@@ -4,12 +4,11 @@ import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
 import {
-  Badge, Button, Card, Chip, Meter, Modal, PageHeader, RatingStars, SearchInput, Segmented,
+  Badge, Button, Card, Chip, EmptyState, Meter, Modal, PageHeader, RatingStars, SearchInput, Segmented, SkeletonCard,
 } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import {
-  myStrainCollection, ratingBreakdown, reviews, type Strain, type Type,
-} from "@/mocks/data";
+import { ratingBreakdown, reviews, type Strain, type Type } from "@/mocks/data";
+import { useStrains } from "@/data/hooks";
 import { eur } from "@/lib/format";
 
 /** Konsistentes Farb-Coding nach Typ: Sativa = info, Indica = soil, Hybrid = leaf. */
@@ -19,17 +18,27 @@ const maxReview = Math.max(...ratingBreakdown.map((r) => r.count));
 export default function Strains() {
   const { navigate } = useNav();
   const toast = useToast();
+  const { strains, loading, error } = useStrains();
   const [q, setQ] = useState("");
   const [type, setType] = useState<"Alle" | Type>("Alle");
   const [sort, setSort] = useState<"rating" | "thc" | "price">("rating");
   const [active, setActive] = useState<Strain | null>(null);
 
   const list = useMemo(() => {
-    let l = type === "Alle" ? [...myStrainCollection] : myStrainCollection.filter((s) => s.type === type);
+    let l = type === "Alle" ? [...strains] : strains.filter((s) => s.type === type);
     if (q) l = l.filter((s) => `${s.name} ${s.breeder}`.toLowerCase().includes(q.toLowerCase()));
     l.sort((a, b) => (sort === "rating" ? b.rating - a.rating : sort === "thc" ? b.thc - a.thc : a.price - b.price));
     return l;
-  }, [q, type, sort]);
+  }, [q, type, sort, strains]);
+
+  if (loading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <SkeletonCard /><SkeletonCard /><SkeletonCard />
+      </div>
+    );
+  }
+  if (error) return <EmptyState icon="AlertTriangle" title="Sorten nicht geladen" desc={error} />;
 
   return (
     <div className="space-y-6">

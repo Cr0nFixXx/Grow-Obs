@@ -1,6 +1,104 @@
 import type {
-  CreateGrowInput, CreatePostInput, Grow, GrowLog, SocialPost, Strain,
+  ActivityItem, Breeder, CreateGrowInput, CreatePostInput, CreateThreadInput,
+  Grow, GrowLog, HallEntry, Product, SeedOffer, SocialPost, Strain,
 } from "@/types";
+
+export interface WikiArticleBrief {
+  id: string;
+  title: string;
+  category: string;
+  excerpt: string;
+  readMin: number;
+  author: string;
+  updated: string;
+  version: string;
+  tags: string[];
+}
+
+export interface WikiArticleDetail extends WikiArticleBrief {
+  body: string[];
+}
+
+export interface ForumComment {
+  id: string;
+  author: string;
+  avatar: string;
+  body: string;
+  votes: number;
+  ago: string;
+  replies?: ForumComment[];
+}
+
+export interface ChatMessage {
+  id: string;
+  from: "me" | "them";
+  text: string;
+  time: string;
+}
+
+export interface ConversationItem {
+  id: string;
+  name: string;
+  avatar: string;
+  online: boolean;
+  last: string;
+  time: string;
+  unread: number;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: "grow" | "task" | "forum" | "shop" | "ai" | "system";
+  title: string;
+  body: string;
+  time: string;
+  read: boolean;
+}
+
+export interface WikiService {
+  categories(): Promise<string[]>;
+  list(): Promise<WikiArticleBrief[]>;
+  get(id: string): Promise<WikiArticleDetail | undefined>;
+}
+
+export interface ForumService {
+  subs(): Promise<string[]>;
+  listThreads(): Promise<ForumThreadBrief[]>;
+  getThread(id: string): Promise<ForumThreadDetail | undefined>;
+  vote(threadId: string, delta: 1 | -1): Promise<void>;
+  createThread(input: CreateThreadInput): Promise<ForumThreadBrief>;
+  addComment(threadId: string, text: string): Promise<ForumComment>;
+}
+
+export interface ForumThreadBrief {
+  id: string;
+  title: string;
+  sub: string;
+  author: string;
+  avatar: string;
+  votes: number;
+  comments: number;
+  ago: string;
+  excerpt: string;
+  tag: string;
+  top?: boolean;
+}
+
+export interface ForumThreadDetail extends ForumThreadBrief {
+  commentsList: ForumComment[];
+}
+
+export interface ChatService {
+  listConversations(): Promise<ConversationItem[]>;
+  getMessages(conversationId: string): Promise<ChatMessage[]>;
+  sendMessage(conversationId: string, text: string): Promise<ChatMessage>;
+}
+
+export interface NotificationService {
+  list(): Promise<NotificationItem[]>;
+  markRead(id: string): Promise<void>;
+  markAllRead(): Promise<void>;
+}
 
 /**
  * Service-Verträge (Schnittstellen) für jede Domäne.
@@ -30,9 +128,36 @@ export interface StrainService {
   list(): Promise<Strain[]>;
 }
 
+export interface ProductService {
+  list(): Promise<Product[]>;
+  categories(): Promise<string[]>;
+  offers(): Promise<SeedOffer[]>;
+}
+
+export interface BreederService {
+  list(): Promise<Breeder[]>;
+  get(id: string): Promise<Breeder | undefined>;
+}
+
+export interface HallService {
+  list(): Promise<HallEntry[]>;
+}
+
+export interface ActivityService {
+  list(): Promise<ActivityItem[]>;
+}
+
 /** Die gesamte Service-Registry (Dependency-Container). */
 export interface Services {
   grows: GrowService;
   social: SocialService;
   strains: StrainService;
+  wiki: WikiService;
+  forum: ForumService;
+  chat: ChatService;
+  notifications: NotificationService;
+  products: ProductService;
+  breeders: BreederService;
+  hall: HallService;
+  activity: ActivityService;
 }

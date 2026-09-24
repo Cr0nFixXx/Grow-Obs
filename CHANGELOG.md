@@ -9,7 +9,40 @@ Jeder Eintrag ist signiert von `claude-grow-dev` (Claude · Anthropic).
 
 ## [Unreleased]
 
-_(nächste Iterationen – siehe [`TODO.md`](./TODO.md))_
+### Added
+- **Backend-Grundgerüst** (`apps/api`): selbst hostbares REST-Backend (Hono + Drizzle +
+  PostgreSQL + MinIO) mit REST-Vertrag exakt passend zum Frontend-Service-Layer. Enthält:
+  - Drizzle-Schema (users, grows/logs/photos/env, strains, breeders, products, offers, hall,
+    wiki, communities, invites, forum/subs/threads/votes/comments, chat, notifications) + Relations.
+  - Auth (Register/Login/Me, Argon2 + JWT), Grows-CRUD mit Ownership, Forum (Threads/Kommentare/
+    Votes), Social (Posts/Likes), Chat, Notifications, Katalog-Routen, Presigned S3-Uploads.
+  - `docker-compose.yml` (Postgres + MinIO + API), `Dockerfile`, `seed.ts` (Bucket + Admin +
+    Katalog + Demo-Content), validierte Env (Zod), API-README.
+  - Frontend-`config.useMock`/`VITE_API_URL` schaltet ohne UI-Änderung auf das Backend um.
+- **Quick-Wins-Batch** (UI auf echte Daten + Interaktion):
+  - *Service-Abschluss:* `Marketplace`, `Breeders`, `HallOfFame`, `Planner`, `Report`, `Profile`, `Dashboard`
+    nutzen jetzt Services/Hooks (`useProducts`, `useBreeders`, `useHall`, `useStrains`, `useGrows`,
+    `useActivity`, `useSeedOffers`). Neue Services: `ProductService`, `BreederService`, `HallService`,
+    `ActivityService`. In-Memory-Store für erstellte Forum-Threads/Kommentare.
+  - *Auth-Gate:* App verlangt Login (ungeloggte Views zeigen Auth-Page); Profile zeigt echte Session
+    (`useAuth`); Login/Register setzen den User.
+  - *Echte Forum-Actions:* „+ Thread“ öffnet BottomSheet-Formular (Titel/Bereich/Text) → `createThread`;
+    „Antworten“ postet via `addComment`. Loading-States.
+  - *Global-Search (⌘K):* durchsucht jetzt auch Sorten, Threads und Produkte (Inhalt-Sektion), nicht
+    nur Navigation.
+  - *Button `loading`-Prop* (Spinner + disabled) — genutzt im Auth-Submit.
+  - *ErrorBoundary:* globale Fallback-Ansicht bei Render-Crash (Neu laden).
+- **P0b Feature-Flags:** `src/config/features.ts` (Defaults) + `FeatureProvider` (localStorage-Overrides).
+  Nav, ⌘K, Bottom-Nav „Mehr“ und Views gehorchen `isEnabled()`. Kern-Features nicht abschaltbar.
+- **Developer-Admin** (`devAdmin`): Flag-Matrix, Health-Karten (Mock), User-Tabelle (Mock), Reset auf Datei-Defaults.
+  Disabled Views → EmptyState mit Link zum Panel. — *claude-grow-dev*
+
+Build: `dist/index.html` ✅ (P0b).
+
+### Changed
+- **Mobile Touch:** Drawer per Horizontal-Swipe schließen; Bottom-Sheet am Griff nach unten ziehen (robustere Velocity/Offset-Schwelle, `touch-pan-y`); linker Screen-Rand öffnet das Menü (Richtungs-Lock + Velocity-Guard). — *claude-grow-dev*
+- **Code-Optimierung:** ungenutzte Imports bereinigt (`Grows`), unnötigen Drag-Controls-Import entfernt (`ui.tsx`), Inline-Icon-Platzierung in Text korrigiert. — *claude-grow-dev*
+- **P1 Service-Verdrahtung:** Social (`useSocialPosts`, IndexedDB nur noch im Mock-Service), Grows (`useGrows`), Sorten (`useStrains`), Dashboard (aktive Grows aus Service), Auth (`useAuth().login/register`), **Forum/Chat/Wiki/Notifications auf Hooks (keine direkten Mock-Imports)**. — *claude-grow-dev*
 
 ---
 

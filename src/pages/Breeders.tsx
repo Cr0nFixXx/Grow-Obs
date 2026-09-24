@@ -3,19 +3,24 @@ import { MapPin } from "lucide-react";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Badge, Button, Card, Chip, Meter, PageHeader, SearchInput, Segmented } from "@/components/ui";
+import { Badge, Button, Card, Chip, EmptyState, Meter, PageHeader, SearchInput, Segmented, SkeletonCard } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { breeders, strains } from "@/mocks/data";
+import { useBreeders } from "@/data/hooks";
+import { strains } from "@/mocks/data";
+import type { Breeder } from "@/types";
 
 const colorVar: Record<string, string> = { leaf: "accent", soil: "accent-2", info: "info", warning: "warning" };
 
 export default function Breeders() {
   const { params } = useNav();
+  const { breeders, loading, error } = useBreeders();
+  if (loading) return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
+  if (error) return <EmptyState icon="AlertTriangle" title="Breeder nicht geladen" desc={error} />;
   const b = params?.breederId ? breeders.find((x) => x.id === params.breederId) : null;
-  return b ? <BreederDetail b={b} /> : <BreederList />;
+  return b ? <BreederDetail b={b} /> : <BreederList breeders={breeders} />;
 }
 
-function BreederList() {
+function BreederList({ breeders }: { breeders: ReturnType<typeof useBreeders>["breeders"] }) {
   const { navigate } = useNav();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -84,7 +89,7 @@ function BreederList() {
   );
 }
 
-function BreederDetail({ b }: { b: (typeof breeders)[number] }) {
+function BreederDetail({ b }: { b: Breeder }) {
   const { back } = useNav();
   const toast = useToast();
   const list = strains.filter((s) => s.breeder === b.name);

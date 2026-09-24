@@ -1,9 +1,32 @@
 # TODO.md
 
-Offene Punkte, Verbesserungs- und Erweiterungsvorschläge für **Grow|Observer**.
+Offene Punkte für **Grow|Observer**.
 Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt.
 
+- **Template-Scope (UI)** ist vollständig `[x]`.
+- **Nächste Code-Arbeit:** `PLAN.md` ab P1.
+- **Produkt-Nordstern:** `MILESTONES.md` (nicht an M7 Native beginnen vor M1–M3).
+
 Pflege: `claude-grow-dev` (Claude · Anthropic).
+
+---
+
+## 🚀 Jetzt (PWA first)
+
+- [x] **Feature-Flags** `src/config/features.ts` + Nav/View-Gates. *(PLAN P0b)*
+- [x] **Developer-Admin-Panel** (Betreiber: Flags, Health, User-Mock). *(P0b)*
+- [x] **Pages → Services** (Auth, Grows, Social, Strains, Dashboard). *(P1)*
+- [ ] **Self-Host-Backend** (Docker: API, Postgres, MinIO) + Auth/Grows/Communities. *(P4–P6)*
+- [ ] **Community-Funktionen** auf dem Server (Invite, Rollen, Mod). *(P7)*
+- [ ] **AI-Proxy** serverseitig, per Flag. *(P9)*
+- [ ] **PWA-Härtung** (SW, Offline-Shell). *(P10)*
+
+## 🌙 Später (Nordstern — MILESTONES.md §0)
+
+- [ ] Editionen Free/Pro/CSC/Enterprise
+- [ ] Local-first + E2EE + Tombstones
+- [ ] Native Android/iOS
+- [ ] IAP / Paywall
 
 ---
 

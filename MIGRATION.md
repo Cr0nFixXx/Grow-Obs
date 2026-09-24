@@ -9,8 +9,9 @@ Schritt-für-Schritt-Anleitung zur Umwandlung des aktuellen Vite-Frontends in ei
 |---|---|---|
 | **Build** | Vite (Single-File `dist/index.html`) | Next.js (App Router) |
 | **Routing** | View-State-Context (`useNav`) | File-based (`app/` Directory, `next/navigation`) |
-| **Struktur** | Flaches `src/` | Monorepo: `apps/web` + `packages/*` |
+| **Struktur** | Flaches `src/` | Monorepo: `apps/web` + `apps/mobile` + `packages/*` |
 | **SSR** | Nein (SPA) | Optional (RSC für Landing/SEO, CSR für Dashboard) |
+| **Native** | — | Expo `apps/mobile` ab M7 (`MILESTONES.md`) |
 
 Das Next.js-Skeleton (`app/layout.tsx`, `app/page.tsx`, `next.config.js`, `postcss.config.mjs`,
 `pnpm-workspace.yaml`) ist **bereits erstellt** und nutzt das bestehende `src/` via `@`-Alias.
@@ -249,6 +250,7 @@ export function SWRegister() {
 10. ⬜ `"use client"` an alle interaktiven Komponenten (oder an Layout-Boundary)
 11. ⬜ `next/image` statt `<img>` (remotePatterns für Pexels)
 12. ⬜ Vite-App (`src/`, `vite.config.ts`, `index.html`) entfernen sobald Next.js stabil
+13. ⬜ Danach nicht sofort Native: erst M3 Free-Cloud, dann M5 Sync-Kernel (`MILESTONES.md`)
 
 ---
 

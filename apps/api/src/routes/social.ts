@@ -1,0 +1,92 @@
+import { Hono } from "hono";
+import { desc, eq } from "drizzle-orm";
+import { z } from "zod";
+import { db } from "../db/client";
+import { postLikes, posts } from "../db/schema";
+import { requireAuth, type AuthEnv } from "../middleware/auth";
+import { ago } from "../lib/time";
+
+export const social = new Hono<AuthEnv>();
+
+async function toPost(id: string, viewerId?: string) {
+  const p = await db.query.posts.findFirst({
+    where: eq(posts.id, id),
+    with: { user: true, likes: true, bookmarks: true },
+  });
+  if (!p) return null;
+  return {
+    id: p.id,
+    author: p.user.name,
+    handle: p.user.handle,
+    avatar: p.user.avatarUrl ?? "",
+    time: ago(p.createdAt),
+    text: p.text,
+    image: p.imageUrl ?? null,
+    likes: p.likes.length,
+    comments: 0,
+    shares: 0,
+    liked: viewerId ? p.likes.some((l) => l.userId === viewerId) : false,
+    tags: p.tags,
+  };
+}
+
+social.get("/posts", requireAuth, async (c) => {
+  const userId = c.get("userId");
+  const rows = await db.query.posts.findMany({
+    with: { user: true, likes: true, bookmarks: true },
+    orderBy: [desc(posts.createdAt)],
+    limit: 50,
+  });
+  return c.json(
+    rows.map((p) => ({
+      id: p.id,
+      author: p.user.name,
+      handle: p.user.handle,
+      avatar: p.user.avatarUrl ?? "",
+      time: ago(p.createdAt),
+      text: p.text,
+      image: p.imageUrl ?? null,
+      likes: p.likes.length,
+      comments: 0,
+      shares: 0,
+      liked: p.likes.some((l) => l.userId === userId),
+      tags: p.tags,
+    }))
+  );
+});
+
+const createPostSchema = z.object({
+  text: z.string().min(1),
+  image: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+});
+social.post("/posts", requireAuth, async (c) => {
+  const body = createPostSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
+  const [p] = await db
+    .insert(posts)
+    .values({
+      userId: c.get("userId"),
+      text: body.data.text,
+      imageUrl: body.data.image ?? null,
+      tags: body.data.tags,
+    })
+    .returning();
+  return c.json(await toPost(p.id, c.get("userId")), 201);
+});
+
+social.post("/posts/:id/like", requireAuth, async (c) => {
+  const userId = c.get("userId");
+  const postId = c.req.param("id");
+  const existing = await db.query.postLikes.findFirst({
+    where: (l, f) => [f.eq(l.postId, postId), f.eq(l.userId, userId)],
+  });
+  if (existing) {
+    await db.delete(postLikes).where((l, f) => [f.eq(l.postId, postId), f.eq(l.userId, userId)]);
+  } else {
+    await db.insert(postLikes).values({ postId, userId });
+  }
+  const p = await toPost(postId, userId);
+  if (!p) return c.json({ error: "Nicht gefunden" }, 404);
+  return c.json(p);
+});

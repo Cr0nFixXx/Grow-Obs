@@ -82,7 +82,7 @@ export default function Consumption() {
                 </div>
               );
             })}
-            <div className="rounded-xl bg-leaf-500/10 p-3 text-sm text-leaf-700 dark:text-leaf-300"><Icon name="Trophy" size={15} className="mr-1.5 inline" /> Du liegst bei allen Werten unter dem Community-Schnitt. Top!</div>
+            <div className="flex items-start gap-2 rounded-xl bg-leaf-500/10 p-3 text-sm text-leaf-700 dark:text-leaf-300"><Icon name="Trophy" size={15} className="mt-0.5 shrink-0" /><span>Du liegst bei allen Werten unter dem Community-Schnitt. Top!</span></div>
           </Card>
         </Reveal>
       )}
