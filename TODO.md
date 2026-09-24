@@ -25,7 +25,8 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 
 Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
 
-Prüfstand: **B-38 Frontend-Build erfolgreich**. Test-/Typecheck-/Docker-Gates bleiben offen.
+Prüfstand: **B-39** — Frontend-Build erfolgreich, Doku gegen Code verifiziert.
+**API-Typecheck, Integrationstests und Docker wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
 ---
 

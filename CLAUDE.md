@@ -14,7 +14,10 @@ Backend-Tests: `npx vitest run --config vitest.backend.config.ts` aus dem Root, 
 disponiblen PostgreSQL-Datenbank auf `*_test`. Testlauf löscht Daten in dieser Testdatenbank.
 Die CI beinhaltet nun einen separaten API-Job. Diese Session hat weder CI noch Docker gestartet.
 
-Build-Stand nach dieser Änderung: **B-38** (Frontend erfolgreich). Autor: Codex (OpenAI).
+Build-Stand: **B-39** (Frontend erfolgreich, Doku verifiziert). `apps/api` wurde noch nie
+compiliert/gestartet — vor Backend-Arbeit zwingend `HANDOFF.md` §9.1 abarbeiten.
+API-Tests liegen in `apps/api/tests/` und werden über `tsconfig.tools.json` mitgeprüft.
+Autor: Codex (OpenAI).
 
 ---
 
@@ -89,6 +92,12 @@ daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` re
    Einheit gesetzt sein (siehe #1).
 6. **Mobile Overlays**: Dropdowns mit `right-0` am rechten Trigger laufen auf Mobile nach links
    über den Rand → auf Mobile Bottom-Sheets verwenden (`useMediaQuery`).
+7. **Tailwind v4 scannt standardmäßig ALLE Projektdateien** (auch `*.md`, `apps/api/**`,
+   `drizzle/*.sql`) → CSS wächst bei jeder Doku-Änderung. Deshalb steht in `src/index.css`
+   `@import "tailwindcss" source(none);` plus `@source "."`, `"../index.html"`, `"../app"`.
+   Neue UI-Ordner außerhalb `src/` dort registrieren, sonst fehlen Klassen stillschweigend.
+8. **`npm run build` prüft keine Typen** und erfasst `apps/api` gar nicht. Ein grüner
+   Frontend-Build ist kein Beleg für eine funktionierende API.
 
 ---
 

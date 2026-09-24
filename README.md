@@ -18,8 +18,9 @@ Antworten aus dem PWA-Cache ausgeschlossen und Betreiberansichten an den Admin-S
 Testdefinitionen sind ergänzt; deren Ausführung sowie Docker-/Browser-Abnahme stehen noch aus.
 Prüfmatrix und Befehle: [`TESTING.md`](./TESTING.md). Kein Anspruch auf Produktionsreife.
 
-Letzte Verifikation: **B-38**, Vite-Build erfolgreich; 862.56 kB HTML, 310.29 kB gzip.
-Backend-/Tests-Laufzeitergebnisse dürfen daraus nicht abgeleitet werden.
+Letzte Verifikation: **B-39** (Doku-Abgleich), Vite-Build erfolgreich; 862.56 kB HTML,
+310.29 kB gzip. **Die API wurde bisher nie compiliert oder gestartet** — der Backend-Agent
+beginnt mit `HANDOFF.md` §9.1. Backend-/Testergebnisse sind aus dem Frontend-Build nicht ableitbar.
 
 ---
 

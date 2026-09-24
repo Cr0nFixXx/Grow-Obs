@@ -11,6 +11,8 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-40 | Tailwind-Scan-Scope auf `src/`+`index.html`+`app/` begrenzt (`source(none)`) → Bundle unabhängig von Doku/API | Vite-Build erfolgreich: **861.90 kB, gzip 310.15 kB** (kleiner als B-38); Klassen verifiziert | Codex (OpenAI) |
+| B-39 | Doku-Verifikation gegen Code; `.env.example`-Falle, Test-Typecheck und API-DevDep korrigiert | Vite-Build erfolgreich: 862.56 kB, gzip 310.29 kB (unverändert); API weiterhin uncompiled | Codex (OpenAI) |
 | B-38 | Backend-/Auth-/PWA-Stabilisierung, Admin-Service-Anbindung, Regressionstests und API-CI | Vite-Build erfolgreich: 862.56 kB, gzip 310.29 kB; Tests/Typechecks/Docker hier nicht ausgeführt | Codex (OpenAI) |
 | — | Dokumentations-Audit: HANDOFF komplett, README/ARCHITECTURE/PLAN/MILESTONES/TODO/CLAUDE/MIGRATION/API-README synchronisiert | Docs only | claude-grow-dev |
 | B-37 | Communities MVP (UI + Mock/API Service + Backend CRUD/Invite/Rollen + Seed) | ✅ ~859 kB gzip 309 kB | claude-grow-dev |
@@ -57,6 +59,43 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 ---
 
 ## Änderungs-Historie (detailliert)
+
+### B-40: Build-Determinismus (Codex)
+
+Bei der Doku-Verifikation fiel auf, dass das Frontend-Bundle von 862,56 kB auf 872,90 kB wuchs,
+obwohl ausschließlich Markdown- und API-Dateien geändert wurden. Ursache: Tailwind v4 scannt
+standardmäßig **jede** nicht ignorierte Projektdatei und erzeugt Utilities für alles, was wie ein
+Klassenname aussieht — u. a. `'aspect-square'` in `drizzle/0000_initial.sql` und Token in `*.md`.
+
+- `src/index.css`: `@import "tailwindcss" source(none)` + `@source "."` / `"../index.html"` / `"../app"`.
+- Ergebnis: **861,90 kB / gzip 310,15 kB** — kleiner als der Stand vor der Doku-Erweiterung und
+  jetzt unabhängig von Backend-/Doku-Edits.
+- Gegenprobe: `min-h-dvh`, `card-hover`, `animate-marquee`, `no-scrollbar`, `aspect-[4/5]`,
+  `aspect-square`, `backdrop-blur-2xl`, `grid-cols-5` im `dist/index.html` vorhanden (CSS-Regel + JS-String).
+- Risiko dokumentiert: neue UI-Ordner außerhalb `src/` müssen per `@source` registriert werden
+  (`CLAUDE.md` Fallstrick 7/8, `HANDOFF.md` §7).
+
+### B-39: Doku-Verifikation (Codex)
+
+Doku gegen den tatsächlichen Code geprüft; drei reale Mängel behoben:
+
+- **`.env.example`-Falle:** `POSTGRES_PASSWORD` war doppelt vorhanden und der zweite (leere) Wert
+  hätte den ersten überschrieben → `docker compose` wäre mit `:?Set POSTGRES_PASSWORD` abgebrochen.
+  Duplikat entfernt, `DATABASE_URL`/`POSTGRES_PASSWORD` als `CHANGE_ME` gekennzeichnet und der
+  Unterschied Docker-Host (`db`) vs. lokaler Host (`localhost`) erklärt.
+- **Tests waren nicht typechecked:** `tsconfig.tools.json` erbte `exclude: ["tests"]` aus der
+  Basis-Config. `exclude` jetzt überschrieben und `tests` in `include` aufgenommen.
+- **`vitest` fehlte in `apps/api`:** Integrationstests liefen nur über den Root-Runner und die
+  Auflösung von `vitest` hing am Root-`node_modules`. Jetzt eigene DevDependency.
+- `HANDOFF.md`: Pfadliste vervollständigt (`app.ts`, `lib/health.ts`, `lib/validation.ts`,
+  `config/environment.ts`, `db/storage-init.ts`, `drizzle/`, `tests/`, `session-storage.ts`,
+  `useResource.ts`, `public/sw-policy.js`), Backend-Fallstricke ergänzt (NodeNext-`.js`-Imports,
+  Drizzle-Gegenrelationen, Migrations-Baseline, Presign-Hostname), neuer Pflicht-Startblock §9.1
+  mit exakter Befehlsreihenfolge und der expliziten Warnung, dass die API nie compiliert wurde.
+- Statuszeilen in README/CLAUDE/DESIGN/TODO/TESTING/API-README auf B-39 synchronisiert.
+
+Verifiziert: Frontend-Build unverändert grün (gleiche Hashes wie B-39-Vorgänger, da nur Doku und
+API-Konfiguration geändert wurden). **Nicht** verifiziert: API-Typecheck, Integrationstests, Docker.
 
 ### B-38: Stabilisierung (Codex)
 

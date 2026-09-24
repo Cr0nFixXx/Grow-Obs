@@ -1,4 +1,13 @@
-@import "tailwindcss";
+/*
+ * Tailwind v4 scans EVERY non-ignored project file by default — including Markdown docs,
+ * apps/api/*.ts and drizzle/*.sql. That made the CSS grow whenever documentation changed.
+ * Automatic detection is therefore disabled and limited to the real UI sources, so the
+ * frontend bundle stays deterministic and independent of backend/doc edits.
+ */
+@import "tailwindcss" source(none);
+@source ".";
+@source "../index.html";
+@source "../app";
 
 /* ============================================================= *
  *  Grow|Observer — Design Tokens (Tailwind v4, CSS variables)

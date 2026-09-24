@@ -129,6 +129,10 @@ and deletion/retention are still required before exposing uploads publicly.
 See [../../TESTING.md](../../TESTING.md). CI contains a PostgreSQL integration job; its successful
 execution is still to be confirmed. Tests target a disposable database ending in `_test`.
 
+`vitest` is an `apps/api` devDependency. `npm run typecheck` covers `src/`;
+`npx tsc -p tsconfig.tools.json` additionally covers `seed.ts`, `drizzle.config.ts` and `tests/`.
+Run both — this package has not been compiled in the environment that produced it.
+
 Before deployment: rate limiting, token/session revocation, production bootstrap, durable audit,
 upload verification, pinned images/lockfile, dependency audit and a restore drill are still open.
 Presence, real unread positions, community feed isolation, moderation queue and AI remain future work.

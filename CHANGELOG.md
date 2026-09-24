@@ -9,6 +9,28 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### Build-Determinismus B-40 (Codex / OpenAI)
+
+- **Tailwind-v4-Scan-Scope begrenzt:** `src/index.css` nutzt jetzt `@import "tailwindcss" source(none)`
+  mit expliziten Quellen (`src/`, `index.html`, `app/`). Zuvor scannte Tailwind *jede* Projektdatei,
+  wodurch Markdown-Doku, `apps/api/*.ts` und `drizzle/*.sql` Schein-Klassen ins CSS einschleusten —
+  das Bundle wuchs bei reinen Doku-Änderungen (872,90 kB). Danach: **861,90 kB / gzip 310,15 kB**,
+  also kleiner als vor der Doku-Erweiterung und unabhängig von Backend-/Doc-Edits.
+- Verifiziert: kritische Klassen (`min-h-dvh`, `card-hover`, `animate-marquee`, `no-scrollbar`,
+  `aspect-[4/5]`, `aspect-square`, `backdrop-blur-2xl`, `grid-cols-5`) weiterhin im Build vorhanden.
+- Fallstricke 7 und 8 in `CLAUDE.md` bzw. Tailwind-Abschnitt in `HANDOFF.md` ergänzt.
+
+### Doku-Verifikation B-39 (Codex / OpenAI)
+
+- `.env.example`: doppeltes `POSTGRES_PASSWORD` entfernt (der leere Zweitwert hätte Compose zum
+  Abbruch gebracht); `DATABASE_URL`/Passwort als `CHANGE_ME` markiert, Docker- vs. Lokal-Host erklärt.
+- `tsconfig.tools.json`: `tests/` wird jetzt tatsächlich typegecheckt (geerbtes `exclude` überschrieben).
+- `apps/api`: `vitest` als eigene DevDependency, damit die Integrationstests nicht vom Root-`node_modules` abhängen.
+- `HANDOFF.md`: Pfadliste vervollständigt, Backend-Fallstricke (NodeNext-`.js`, Drizzle-Gegenrelationen,
+  Migrations-Baseline, Presign-Hostname) und Pflicht-Startblock §9.1 ergänzt.
+- Status in README/CLAUDE/DESIGN/TODO/TESTING/API-README auf B-39 synchronisiert.
+- Frontend-Build unverändert grün. API-Typecheck, Integrationstests und Docker sind weiterhin offen.
+
 ### Stabilisierung B-38 (Codex / OpenAI)
 
 - Backend-Startpfade, ESM-Imports und Drizzle-Relationen korrigiert. Eingecheckte Initialmigration,

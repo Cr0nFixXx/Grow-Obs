@@ -2,7 +2,7 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-38, Vite-Build erfolgreich (862.56 kB / gzip 310.29 kB). Tests, Typechecks und Docker-Laufzeit noch unbestätigt.  
+**Stand:** B-40. Frontend-Build grün (861,90 kB / gzip 310,15 kB); **API nie compiliert/gestartet** → §9.1.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
@@ -181,14 +181,29 @@ src/
   pages/Communities.tsx
   pages/DevAdmin.tsx
 
+  lib/session-storage.ts     # Token-Keys (Mock vs. API) + Logout-Bereinigung
+  data/useResource.ts        # last-request-wins Laden (Basis aller Daten-Hooks)
+
 apps/api/
-  docker-compose.yml
-  Dockerfile
-  seed.ts
-  src/index.ts
-  src/db/schema.ts
+  docker-compose.yml         # db, minio, migrate, storage-init, api, seed (Profil "demo")
+  Dockerfile                 # Stages: tools (Build/Migration) + runtime (non-root)
+  .dockerignore
+  seed.ts                    # opt-in Demo-Seed, transactional
+  drizzle/0000_initial.sql   # eingecheckte Initialmigration (+ meta/_journal.json)
+  tsconfig.json              # Runtime: rootDir src, NodeNext
+  tsconfig.tools.json        # Tools+Tests: seed, drizzle.config, tests
+  src/app.ts                 # Hono-App-Factory (ohne Port) → für app.request()-Tests
+  src/index.ts               # Port-Start + Graceful Shutdown
+  src/env.ts                 # lädt .env (Node 22) + validiert
+  src/config/environment.ts  # Zod-Schema inkl. Production-HTTPS-Regeln
+  src/db/{client,schema,migrate,storage-init}.ts
+  src/lib/{jwt,password,s3,time,health,validation}.ts
   src/middleware/auth.ts
-  src/routes/*.ts
+  src/routes/{auth,grows,social,forum,chat,notifications,catalog,communities,admin}.ts
+  tests/{environment,security.integration}.test.ts
+
+public/sw-policy.js          # Cache-Allowlist, auch von Node-Tests ausgeführt
+vitest.backend.config.ts     # API-Integrationstests (Root-Runner)
 ```
 
 Provider-Hierarchie:
@@ -255,6 +270,11 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 - CSS-basierte Config in `src/index.css`
 - kein Root-`postcss.config.mjs`, solange Vite aktiv ist
 - kein `tailwind.config.js`
+- **`source(none)` ist aktiv.** Tailwind v4 scannt sonst *jede* Projektdatei (auch `*.md`,
+  `apps/api/**/*.ts`, `drizzle/*.sql`) und bläht das CSS bei jeder Doku-Änderung auf.
+  Registrierte Quellen: `@source "."` (= `src/`), `../index.html`, `../app`.
+  **Neue UI-Ordner außerhalb von `src/` müssen dort nachgetragen werden**, sonst fehlen
+  deren Klassen stillschweigend im Build.
 
 ### Layout
 
@@ -264,10 +284,17 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 
 ### Backend
 
-- Secrets nur in `apps/api/.env`
-- `/admin/*`: `requireAuth` und `requirePlatformAdmin`
-- Ownership-Checks auf User-Ressourcen
-- Feature-Flags später auch serverseitig prüfen
+- Secrets nur in `apps/api/.env`; `.env.example` enthält bewusst leere/`CHANGE_ME`-Werte
+- `/admin/*`: `requireAuth` und `requirePlatformAdmin`; Rolle kommt aus der DB, nicht aus dem JWT
+- Ownership- und Mitgliedschafts-Checks auf User-Ressourcen (Grows, Chat, private Communities)
+- Feature-Flags sind UI-Vorschau; serverseitige Freigaben fehlen noch
+- **NodeNext:** relative Imports brauchen die `.js`-Endung (`./env.js`), obwohl die Quelle `.ts` ist
+- **Drizzle:** jede `many()`-Relation braucht die Gegenrichtung, sonst schlagen `db.query.*` fehl
+- **Migrationen:** `drizzle/0000_initial.sql` ist handgeschrieben und nur für eine **leere** Datenbank.
+  Vor `db:generate` auf einer bestehenden Installation erst eine saubere Baseline erstellen,
+  sonst drohen doppelte `CREATE`-Statements
+- **Upload:** Presign signiert gegen `S3_PUBLIC_ENDPOINT`; die Hostname der Signatur darf nicht
+  nachträglich umgeschrieben werden (bricht die Signatur)
 
 ---
 
@@ -293,15 +320,49 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 
 ## 9. Nächste Schritte
 
-1. `apps/api` installieren/typechecken und per Docker starten
-2. Frontend auf `VITE_API_URL=http://localhost:8787` schalten
-3. E2E: Register/Login -> Grow -> Post -> Forum -> Community-Invite
-4. DevAdmin-Live-Checks verifizieren; serverseitige Flag-Freigaben und Audit ergänzen
-5. Communities: Kick, Hide, Mod-Queue und Community-Feed-Scope
-6. SSE/Realtime für Chat und Notifications
-7. AI-Proxy serverseitig
-8. PWA Offline-Queue und Sync-Härtung
-9. Danach Next.js-Migration
+### 9.1 Erster Lauf für den Backend-Agenten (Pflicht, in dieser Reihenfolge)
+
+> **Wichtig:** `apps/api` wurde in der bisherigen Agent-Umgebung **nie compiliert oder gestartet**.
+> Der Frontend-Build ist grün, sagt aber nichts über die API aus. Typfehler sind wahrscheinlich
+> und eingeplant — besonders bei Drizzle-Relationen, Hono-Generics und NodeNext-Imports.
+
+```bash
+# 1) API-Abhängigkeiten + beide Typechecks (erwartbar: Korrekturen nötig)
+npm install --prefix apps/api
+npm run typecheck --prefix apps/api          # Runtime-Code (src/)
+cd apps/api && npx tsc -p tsconfig.tools.json && cd ../..   # seed, drizzle.config, tests
+
+# 2) API bauen (erzeugt dist/index.js)
+npm run build --prefix apps/api
+
+# 3) Integrationstests gegen eine WEGWERF-Datenbank (Name muss auf _test enden)
+#    Die Suite löscht ihre Daten per TRUNCATE — niemals gegen eine echte Installation richten.
+TEST_DATABASE_URL=postgres://grow_test:grow_test@127.0.0.1:5432/growobserver_test \
+  npx vitest run --config vitest.backend.config.ts
+
+# 4) Erst danach: Docker-Stack
+cd apps/api && cp .env.example .env   # CHANGE_ME/leere Werte mit echten Secrets füllen
+docker compose up --build             # migrate + storage-init laufen als One-shot-Jobs
+```
+
+Erst wenn 1–4 grün sind, ist die API als "lokal lauffähig" zu betrachten.
+
+> **Größte Falle bei Schema-Änderungen:** `drizzle/0000_initial.sql` ist handgeschrieben und hat
+> **keinen generierten Snapshot** (`drizzle/meta/0000_snapshot.json`). Ein späteres
+> `npm run db:generate` diffed daher gegen "nichts" und erzeugt das komplette Schema erneut →
+> doppelte `CREATE TABLE`-Fehler. Vor der ersten generierten Migration einen passenden Snapshot
+> in einer Wegwerf-Datenbank erstellen bzw. die bestehende Installation sauber baseline'n.
+
+### 9.2 Danach (Reihenfolge)
+
+1. Frontend auf `VITE_API_URL=http://localhost:8787` schalten und API-Modus durchklicken
+2. E2E: Register/Login -> Grow -> Post -> Forum -> Community-Invite -> DevAdmin-Health
+3. DevAdmin-Live-Checks verifizieren; serverseitige Flag-Freigaben und Audit ergänzen
+4. Communities: Kick, Hide, Mod-Queue und Community-Feed-Scope
+5. SSE/Realtime für Chat und Notifications
+6. AI-Proxy serverseitig
+7. PWA Offline-Queue und Sync-Härtung
+8. Danach Next.js-Migration
 
 ---
 
@@ -338,9 +399,9 @@ Zusätzlich:
 
 ## 11. Ein-Satz-Handoff
 
-> Die PWA-UI ist weitgehend fertig und service-basiert; Self-Host-API und Communities-MVP
-> existieren. Als Nächstes muss der Docker-Stack real gestartet, der API-Modus end-to-end geprüft
-> und Communities/Realtime/AI produktiv ausgebaut werden.
+> Frontend/PWA ist gebaut und service-basiert; die Self-Host-API ist **geschrieben, aber hier nie
+> compiliert oder gestartet** — der Backend-Agent beginnt zwingend mit §9.1 (Typecheck → Build →
+> Integrationstests → Docker), bevor neue Backend-Features entstehen.
 
 ---
 

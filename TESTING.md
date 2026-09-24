@@ -3,7 +3,8 @@
 ## Status
 
 The test suites below are implemented, not yet executed in this agent environment.
-Frontend build B-38 succeeded: 862.56 kB HTML / 310.29 kB gzip.
+Frontend build B-39 succeeded: 862.56 kB HTML / 310.29 kB gzip.
+**The API has never been compiled or started here** — run the API section below before trusting it.
 The available build tool checks the Vite frontend bundle only. It does not run TypeScript,
 Vitest, the Hono API, PostgreSQL, MinIO, Docker or real-device gesture tests.
 
@@ -34,11 +35,14 @@ Regression coverage added in this iteration:
 Use a dedicated disposable PostgreSQL database whose name ends in `_test`.
 **The integration suite truncates its test data. Never point it at a real installation.**
 
+`vitest` is an `apps/api` devDependency, and `tsconfig.tools.json` includes `tests/`, so the
+integration suite is typechecked together with `seed.ts` and `drizzle.config.ts`.
+
 ```sh
 npm install --prefix apps/api
-npm run typecheck --prefix apps/api
+npm run typecheck --prefix apps/api        # runtime code (src/)
 cd apps/api
-npx tsc -p tsconfig.tools.json
+npx tsc -p tsconfig.tools.json             # seed + drizzle.config + tests
 cd ../..
 TEST_DATABASE_URL=postgres://grow_test:grow_test@127.0.0.1:5432/growobserver_test \
   npx vitest run --config vitest.backend.config.ts

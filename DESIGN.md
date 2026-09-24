@@ -2,7 +2,7 @@
 
 Design-System-Dokumentation für **Grow|Observer** – Ästhetik, Tokens, Komponenten, Bewegung.
 
-Stand der Admin-Überarbeitung: B-38 (Frontend-Build erfolgreich, Geräte-/Screenreader-Abnahme
+Stand der Admin-Überarbeitung: B-39 (Frontend-Build erfolgreich, Geräte-/Screenreader-Abnahme
 offen), Codex (OpenAI). Für Sicherheits- und Prüfaussagen ist `TESTING.md` maßgeblich.
 
 ---
