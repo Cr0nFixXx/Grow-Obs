@@ -1,69 +1,33 @@
-import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import {
   comments,
   grows,
   hallEntries,
   notifications,
+  postLikes,
+  postBookmarks,
   posts,
   products,
   strains,
+  threadVotes,
   threads,
   users,
   wikiArticles,
-} from "../db/schema";
-import { env } from "../env";
-import { requireAuth, requirePlatformAdmin, type AuthEnv } from "../middleware/auth";
+} from "../db/schema.js";
+import { requireAuth, requirePlatformAdmin, type AuthEnv } from "../middleware/auth.js";
+import { systemHealth } from "../lib/health.js";
+import { uuid } from "../lib/validation.js";
 
 /** Betreiber-Routen: immer Auth + platform_admin. */
 export const admin = new Hono<AuthEnv>();
 admin.use("*", requireAuth, requirePlatformAdmin);
 
 admin.get("/health", async (c) => {
-  const started = Date.now();
-  let dbOk = false;
-  let storageOk = false;
-  let dbLatency: number | null = null;
-  let dbHint = "Postgres nicht erreichbar";
-
-  try {
-    const t0 = Date.now();
-    await db.execute(sql`select 1`);
-    dbLatency = Date.now() - t0;
-    dbOk = true;
-    dbHint = "Postgres erreichbar";
-  } catch (e) {
-    dbHint = e instanceof Error ? e.message : dbHint;
-  }
-
-  const s3 = new S3Client({
-    endpoint: env.S3_ENDPOINT,
-    region: env.S3_REGION,
-    credentials: { accessKeyId: env.S3_ACCESS_KEY, secretAccessKey: env.S3_SECRET_KEY },
-    forcePathStyle: true,
-  });
-  try {
-    await s3.send(new HeadBucketCommand({ Bucket: env.S3_BUCKET }));
-    storageOk = true;
-  } catch {
-    storageOk = false;
-  }
-
-  return c.json({
-    ok: dbOk && storageOk,
-    mode: env.NODE_ENV,
-    latencyMs: Date.now() - started,
-    version: "0.1.0",
-    services: {
-      api: { ok: true, hint: "Hono läuft" },
-      db: { ok: dbOk, hint: dbHint, latencyMs: dbLatency },
-      storage: { ok: storageOk, hint: storageOk ? `Bucket ${env.S3_BUCKET}` : "MinIO/Bucket nicht erreichbar" },
-      ai: { ok: false, hint: "Kein KI-Provider angebunden" },
-    },
-  });
+  return c.json(await systemHealth());
 });
 
 admin.get("/stats", async (c) => {
@@ -88,7 +52,7 @@ admin.get("/stats", async (c) => {
 });
 
 admin.get("/users", async (c) => {
-  const q = c.req.query("q")?.trim();
+  const q = c.req.query("q")?.trim().slice(0, 100);
   const where = q
     ? or(ilike(users.name, `%${q}%`), ilike(users.handle, `%${q}%`), ilike(users.email, `%${q}%`))
     : undefined;
@@ -99,7 +63,7 @@ admin.get("/users", async (c) => {
     })
     .from(users)
     .where(where)
-    .orderBy(desc(users.createdAt));
+    .orderBy(desc(users.createdAt)).limit(100);
   return c.json(
     await Promise.all(rows.map(async (u) => {
       const [g] = await db.select({ n: count() }).from(grows).where(eq(grows.userId, u.id));
@@ -110,14 +74,24 @@ admin.get("/users", async (c) => {
 
 const roleSchema = z.object({ role: z.enum(["member", "moderator", "admin", "platform_admin"]) });
 admin.patch("/users/:id/role", async (c) => {
+  const targetId = uuid(c.req.param("id"));
   const body = roleSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Rolle" }, 400);
-  const [row] = await db
-    .update(users)
-    .set({ role: body.data.role })
-    .where(eq(users.id, c.req.param("id")))
-    .returning({ id: users.id, role: users.role });
-  if (!row) return c.json({ error: "Nicht gefunden" }, 404);
+  const row = await db.transaction(async (tx) => {
+    // Serialize rare role changes so two admins cannot remove each other's final role.
+    await tx.execute(sql`LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE`);
+    const [actor] = await tx.select().from(users).where(eq(users.id, c.get("userId")));
+    if (actor?.role !== "platform_admin") throw new HTTPException(403, { message: "Keine Berechtigung" });
+    const [target] = await tx.select().from(users).where(eq(users.id, targetId));
+    if (!target) throw new HTTPException(404, { message: "User nicht gefunden" });
+    if (target.role === "platform_admin" && body.data.role !== "platform_admin") {
+      const [admins] = await tx.select({ n: count() }).from(users).where(eq(users.role, "platform_admin"));
+      if (admins.n <= 1) throw new HTTPException(409, { message: "Die letzte Betreiber-Rolle darf nicht entfernt werden" });
+    }
+    const [updated] = await tx.update(users).set({ role: body.data.role }).where(eq(users.id, targetId))
+      .returning({ id: users.id, role: users.role });
+    return updated;
+  });
   return c.json(row);
 });
 
@@ -128,19 +102,28 @@ admin.get("/content", async (c) => {
   const recentPosts = await db
     .select({ id: posts.id, text: posts.text, createdAt: posts.createdAt })
     .from(posts).orderBy(desc(posts.createdAt)).limit(8);
-  return c.json({
-    recentThreads: recentThreads.map((x) => ({ ...x, type: "thread" as const })),
-    recentPosts: recentPosts.map((x) => ({ ...x, type: "post" as const })),
-  });
+  return c.json([
+    ...recentThreads.map((x) => ({ ...x, type: "thread" as const })),
+    ...recentPosts.map((x) => ({ ...x, type: "post" as const })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
 });
 
 admin.delete("/threads/:id", async (c) => {
-  await db.delete(comments).where(eq(comments.threadId, c.req.param("id")));
-  await db.delete(threads).where(eq(threads.id, c.req.param("id")));
+  const id = uuid(c.req.param("id"));
+  await db.transaction(async (tx) => {
+    await tx.delete(threadVotes).where(eq(threadVotes.threadId, id));
+    await tx.delete(comments).where(eq(comments.threadId, id));
+    await tx.delete(threads).where(eq(threads.id, id));
+  });
   return c.json({ ok: true });
 });
 
 admin.delete("/posts/:id", async (c) => {
-  await db.delete(posts).where(eq(posts.id, c.req.param("id")));
+  const id = uuid(c.req.param("id"));
+  await db.transaction(async (tx) => {
+    await tx.delete(postLikes).where(eq(postLikes.postId, id));
+    await tx.delete(postBookmarks).where(eq(postBookmarks.postId, id));
+    await tx.delete(posts).where(eq(posts.id, id));
+  });
   return c.json({ ok: true });
 });

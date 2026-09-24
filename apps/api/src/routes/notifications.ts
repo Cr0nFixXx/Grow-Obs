@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { and, desc, eq } from "drizzle-orm";
-import { db } from "../db/client";
-import { notifications } from "../db/schema";
-import { requireAuth, type AuthEnv } from "../middleware/auth";
-import { ago } from "../lib/time";
+import { db } from "../db/client.js";
+import { notifications } from "../db/schema.js";
+import { requireAuth, type AuthEnv } from "../middleware/auth.js";
+import { ago } from "../lib/time.js";
+import { uuid } from "../lib/validation.js";
 
 export const notificationsApi = new Hono<AuthEnv>();
 
@@ -13,7 +14,7 @@ notificationsApi.get("/", requireAuth, async (c) => {
     .select()
     .from(notifications)
     .where(eq(notifications.userId, userId))
-    .orderBy(desc(notifications.createdAt));
+    .orderBy(desc(notifications.createdAt)).limit(200);
   return c.json(
     rows.map((n) => ({ id: n.id, type: n.type, title: n.title, body: n.body, read: n.read, time: ago(n.createdAt) }))
   );
@@ -23,7 +24,7 @@ notificationsApi.post("/:id/read", requireAuth, async (c) => {
   await db
     .update(notifications)
     .set({ read: true })
-    .where(and(eq(notifications.id, c.req.param("id")), eq(notifications.userId, c.get("userId"))));
+    .where(and(eq(notifications.id, uuid(c.req.param("id"))), eq(notifications.userId, c.get("userId"))));
   return c.json({ ok: true });
 });
 

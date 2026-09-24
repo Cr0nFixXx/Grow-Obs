@@ -1,4 +1,6 @@
+import { relations } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   date,
   doublePrecision,
@@ -6,7 +8,6 @@ import {
   jsonb,
   pgEnum,
   pgTable,
-  relations,
   text,
   timestamp,
   uniqueIndex,
@@ -258,7 +259,7 @@ export const comments = pgTable("comments", {
   id: uuid("id").primaryKey().defaultRandom(),
   threadId: uuid("thread_id").notNull().references(() => threads.id),
   userId: uuid("user_id").notNull().references(() => users.id),
-  parentId: uuid("parent_id").references(() => comments.id),
+  parentId: uuid("parent_id").references((): AnyPgColumn => comments.id),
   body: text("body").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -323,12 +324,32 @@ export const threadsRelations = relations(threads, ({ one, many }) => ({
 export const commentsRelations = relations(comments, ({ one, many }) => ({
   thread: one(threads, { fields: [comments.threadId], references: [threads.id] }),
   user: one(users, { fields: [comments.userId], references: [users.id] }),
-  parent: one(comments, { fields: [comments.parentId], references: [comments.id] }),
-  replies: many(comments),
+  parent: one(comments, { fields: [comments.parentId], references: [comments.id], relationName: "commentReplies" }),
+  replies: many(comments, { relationName: "commentReplies" }),
 }));
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
   user: one(users, { fields: [posts.userId], references: [users.id] }),
   likes: many(postLikes),
   bookmarks: many(postBookmarks),
+}));
+
+// Relational queries need the inverse foreign-key mapping for every `many()`.
+export const growLogsRelations = relations(growLogs, ({ one }) => ({
+  grow: one(grows, { fields: [growLogs.growId], references: [grows.id] }),
+}));
+export const growPhotosRelations = relations(growPhotos, ({ one }) => ({
+  grow: one(grows, { fields: [growPhotos.growId], references: [grows.id] }),
+}));
+export const growEnvRelations = relations(growEnv, ({ one }) => ({
+  grow: one(grows, { fields: [growEnv.growId], references: [grows.id] }),
+}));
+export const threadVotesRelations = relations(threadVotes, ({ one }) => ({
+  thread: one(threads, { fields: [threadVotes.threadId], references: [threads.id] }),
+}));
+export const postLikesRelations = relations(postLikes, ({ one }) => ({
+  post: one(posts, { fields: [postLikes.postId], references: [posts.id] }),
+}));
+export const postBookmarksRelations = relations(postBookmarks, ({ one }) => ({
+  post: one(posts, { fields: [postBookmarks.postId], references: [posts.id] }),
 }));

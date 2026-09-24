@@ -2,6 +2,9 @@
 
 Design-System-Dokumentation für **Grow|Observer** – Ästhetik, Tokens, Komponenten, Bewegung.
 
+Stand der Admin-Überarbeitung: B-38 (Frontend-Build erfolgreich, Geräte-/Screenreader-Abnahme
+offen), Codex (OpenAI). Für Sicherheits- und Prüfaussagen ist `TESTING.md` maßgeblich.
+
 ---
 
 ## 1. Design-Philosophie
@@ -113,6 +116,12 @@ Daten.
 ---
 
 ## 10. Desktop-Admin & Editionen (geplant)
+
+Aktuell im Betreiberbereich: Health-Status wird als erreichbar / fehlgeschlagen / ungeprüft
+unterschieden; Demo-Daten werden nicht als Servermessung dargestellt. Benutzeraktionen haben
+44-px-taugliche Touch-Ziele und eine explizite Rollenänderungs-Bestätigung. Tabellenlastige
+Inhalte sind für schmale Viewports als umbrechende Zeilen gestaltet. Ein lokales Sitzungsprotokoll
+wird nicht als revisionssicheres Audit bezeichnet.
 
 Siehe `MILESTONES.md`. Noch nicht im Code.
 

@@ -26,7 +26,7 @@ export default function Profile() {
   const { theme, setTheme, particles, setParticles } = useTheme();
   const { locale, setLocale, currency, setCurrency, money, t } = useI18n();
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const me = user ?? currentUser;
   const { activity } = useActivity();
   const [tab, setTab] = useState<"profil" | "settings">("profil");
@@ -142,7 +142,7 @@ export default function Profile() {
               <Field label="Anzeigename"><Input defaultValue={currentUser.name} /></Field>
               <Field label="E-Mail"><Input defaultValue="max@growobserver.app" /></Field>
               <Button variant="secondary" className="w-full" onClick={() => navigate("telegram")}><Icon name="Send" size={16} /> Telegram verknüpfen</Button>
-              <Button variant="ghost" className="w-full text-danger hover:bg-danger/10" onClick={() => navigate("auth")}><LogOut className="size-4" /> Abmelden</Button>
+              <Button variant="ghost" className="w-full text-danger hover:bg-danger/10" onClick={() => { logout(); navigate("auth"); }}><LogOut className="size-4" /> Abmelden</Button>
             </Card>
           </Reveal>
           <Reveal delay={0.15}>

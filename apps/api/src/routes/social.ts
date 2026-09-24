@@ -1,10 +1,12 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client";
-import { postLikes, posts } from "../db/schema";
-import { requireAuth, type AuthEnv } from "../middleware/auth";
-import { ago } from "../lib/time";
+import { db } from "../db/client.js";
+import { postLikes, posts } from "../db/schema.js";
+import { requireAuth, type AuthEnv } from "../middleware/auth.js";
+import { ago } from "../lib/time.js";
+import { uuid } from "../lib/validation.js";
 
 export const social = new Hono<AuthEnv>();
 
@@ -56,9 +58,9 @@ social.get("/posts", requireAuth, async (c) => {
 });
 
 const createPostSchema = z.object({
-  text: z.string().min(1),
-  image: z.string().optional(),
-  tags: z.array(z.string()).default([]),
+  text: z.string().trim().min(1).max(10000),
+  image: z.string().url().refine((url) => url.startsWith("https://"), "HTTPS erforderlich").optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
 });
 social.post("/posts", requireAuth, async (c) => {
   const body = createPostSchema.safeParse(await c.req.json().catch(() => ({})));
@@ -77,17 +79,15 @@ social.post("/posts", requireAuth, async (c) => {
 
 social.post("/posts/:id/like", requireAuth, async (c) => {
   const userId = c.get("userId");
-  const postId = c.req.param("id");
-  const existing = await db.query.postLikes.findFirst({
-    where: and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)),
+  const postId = uuid(c.req.param("id"));
+  await db.transaction(async (tx) => {
+    const [post] = await tx.select({ id: posts.id }).from(posts).where(eq(posts.id, postId)).for("update");
+    if (!post) throw new HTTPException(404, { message: "Beitrag nicht gefunden" });
+    const where = and(eq(postLikes.postId, postId), eq(postLikes.userId, userId));
+    const [existing] = await tx.select().from(postLikes).where(where);
+    if (existing) await tx.delete(postLikes).where(where);
+    else await tx.insert(postLikes).values({ postId, userId });
   });
-  if (existing) {
-    await db
-      .delete(postLikes)
-      .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)));
-  } else {
-    await db.insert(postLikes).values({ postId, userId });
-  }
   const p = await toPost(postId, userId);
   if (!p) return c.json({ error: "Nicht gefunden" }, 404);
   return c.json(p);

@@ -1,11 +1,12 @@
+import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client";
-import { grows, users } from "../db/schema";
-import { hashPassword, verifyPassword } from "../lib/password";
-import { signToken } from "../lib/jwt";
-import { requireAuth, type AuthEnv } from "../middleware/auth";
+import { db } from "../db/client.js";
+import { grows, users } from "../db/schema.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
+import { signToken } from "../lib/jwt.js";
+import { requireAuth, type AuthEnv } from "../middleware/auth.js";
 
 export const auth = new Hono<AuthEnv>();
 
@@ -25,6 +26,7 @@ async function toUser(id: string) {
     avatar: u.avatarUrl ?? "",
     level: u.level,
     title: u.title,
+    role: u.role,
     telegram: u.telegram,
     grows: g?.n ?? 0,
     harvests: h?.n ?? 0,
@@ -33,10 +35,10 @@ async function toUser(id: string) {
 }
 
 const registerSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(6),
-  handle: z.string().optional(),
+  name: z.string().trim().min(1).max(80),
+  email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  password: z.string().min(12).max(128),
+  handle: z.string().trim().regex(/^[a-zA-Z0-9_]{3,32}$/).transform((value) => value.toLowerCase()).optional(),
 });
 
 auth.post("/register", async (c) => {
@@ -47,17 +49,22 @@ auth.post("/register", async (c) => {
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) return c.json({ error: "E-Mail bereits registriert" }, 409);
 
-  const slug = handle ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const slug = handle ?? `${name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 20) || "grower"}_${randomBytes(4).toString("hex")}`;
   const [u] = await db
     .insert(users)
     .values({ email, name, handle: slug, passwordHash: await hashPassword(password) })
+    .onConflictDoNothing()
     .returning();
+  if (!u) return c.json({ error: "E-Mail oder Handle bereits vergeben" }, 409);
 
   const token = await signToken({ sub: u.id, role: u.role });
   return c.json({ token, user: await toUser(u.id) }, 201);
 });
 
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
+const loginSchema = z.object({
+  email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  password: z.string().min(1).max(128),
+});
 
 auth.post("/login", async (c) => {
   const body = loginSchema.safeParse(await c.req.json().catch(() => ({})));

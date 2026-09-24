@@ -12,9 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
+          node-version: 22
+      - run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
       - name: Typecheck (tsc --noEmit)
         run: npx tsc --noEmit
@@ -28,3 +27,38 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  api-security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: grow_test
+          POSTGRES_PASSWORD: grow_test
+          POSTGRES_DB: growobserver_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grow_test -d growobserver_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://grow_test:grow_test@127.0.0.1:5432/growobserver_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install frontend test runner and API dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f apps/api/package-lock.json ]; then npm ci --prefix apps/api; else npm install --prefix apps/api; fi
+      - name: API typecheck (runtime and tools)
+        working-directory: apps/api
+        run: |
+          npm run typecheck
+          npx --no-install tsc -p tsconfig.tools.json
+      - name: API build
+        run: npm run build --prefix apps/api
+      - name: Security integration tests against isolated PostgreSQL
+        run: npx --no-install vitest run --config vitest.backend.config.ts

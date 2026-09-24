@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client";
-import { comments, subs, threadVotes, threads } from "../db/schema";
-import { requireAuth, type AuthEnv } from "../middleware/auth";
-import { ago } from "../lib/time";
+import { db } from "../db/client.js";
+import { comments, subs, threadVotes, threads } from "../db/schema.js";
+import { requireAuth, type AuthEnv } from "../middleware/auth.js";
+import { ago } from "../lib/time.js";
+import { uuid } from "../lib/validation.js";
 
 export const forum = new Hono<AuthEnv>();
 
@@ -55,6 +56,7 @@ forum.get("/threads", async (c) => {
   const rows = await db.query.threads.findMany({
     with: { sub: true, user: true, votes: true, comments: true },
     orderBy: [desc(threads.createdAt)],
+    limit: 100,
   });
   return c.json(
     rows.map((t) => ({
@@ -74,12 +76,13 @@ forum.get("/threads", async (c) => {
 });
 
 forum.get("/threads/:id", async (c) => {
+  uuid(c.req.param("id"));
   const b = await brief(c.req.param("id"));
   if (!b) return c.json({ error: "Nicht gefunden" }, 404);
   const roots = await db
     .select({ id: comments.id })
     .from(comments)
-    .where(eq(comments.threadId, c.req.param("id")))
+    .where(and(eq(comments.threadId, c.req.param("id")), isNull(comments.parentId)))
     .orderBy(asc(comments.createdAt));
   const commentsList = await Promise.all(roots.map((r) => commentToNode(r.id)));
   return c.json({ ...b, commentsList });
@@ -87,6 +90,8 @@ forum.get("/threads/:id", async (c) => {
 
 const voteSchema = z.object({ delta: z.union([z.literal(1), z.literal(-1)]) });
 forum.post("/threads/:id/vote", requireAuth, async (c) => {
+  const threadId = uuid(c.req.param("id"));
+  if (!await brief(threadId)) return c.json({ error: "Thread nicht gefunden" }, 404);
   const body = voteSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
   await db
@@ -97,9 +102,9 @@ forum.post("/threads/:id/vote", requireAuth, async (c) => {
 });
 
 const createThreadSchema = z.object({
-  title: z.string().min(1),
-  sub: z.string().min(1),
-  text: z.string().default(""),
+  title: z.string().trim().min(1).max(200),
+  sub: z.string().min(1).max(100),
+  text: z.string().max(20000).default(""),
 });
 forum.post("/threads", requireAuth, async (c) => {
   const body = createThreadSchema.safeParse(await c.req.json().catch(() => ({})));
@@ -113,10 +118,16 @@ forum.post("/threads", requireAuth, async (c) => {
   return c.json(await brief(t.id), 201);
 });
 
-const addCommentSchema = z.object({ text: z.string().min(1), parentId: z.string().optional() });
+const addCommentSchema = z.object({ text: z.string().trim().min(1).max(10000), parentId: z.string().uuid().optional() });
 forum.post("/threads/:id/comments", requireAuth, async (c) => {
+  const threadId = uuid(c.req.param("id"));
   const body = addCommentSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
+  if (!await brief(threadId)) return c.json({ error: "Thread nicht gefunden" }, 404);
+  if (body.data.parentId) {
+    const parent = await db.query.comments.findFirst({ where: and(eq(comments.id, body.data.parentId), eq(comments.threadId, threadId)) });
+    if (!parent) return c.json({ error: "Antwortziel nicht gefunden" }, 404);
+  }
   const [cm] = await db
     .insert(comments)
     .values({

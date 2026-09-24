@@ -1,4 +1,5 @@
 node_modules/
 dist/
 .env
-drizzle/meta/
+.env.*
+!.env.example

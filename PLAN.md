@@ -6,6 +6,17 @@
 
 Dieses Dokument ist der **ausführbare Plan**. Arbeite Phasen in Reihenfolge. Eine Phase gilt erst als done, wenn ihre Acceptance Criteria erfüllt sind. Nicht mehrere Phasen parallel „ungefähr“ anschneiden.
 
+## Aktueller Prüfblock (Vorrang vor historischen Häkchen)
+
+Die Stabilisierung implementiert: Node-ESM-/Schema-Fixes, aktuelle DB-Rollen, Chat-Mitgliedschaft,
+private Community-Filter, transaktionale Invites/Last-Admin-Schutz, geschützte Upload-Signierung,
+öffentliche SW-Cache-Allowlist und echte Admin-Service-Abfragen. Neue Tests und API-CI sind
+vorbereitet. Frontend-Build wird separat protokolliert; Tests/Typechecks/Docker sind hier noch
+nicht ausgeführt. P4 bleibt bis zu diesen Abnahmen unvollständig.
+
+Nächste Schritte: TESTING.md ausführen, Migrationsbaseline mit bestehender Installation prüfen,
+Dependency-Audit, TLS/Rate-Limits/Backups und Session-Revocation klären; erst dann neue Module.
+
 ---
 
 ## 0. Zielbild
@@ -606,7 +617,7 @@ Nächste Schritte: Backend via Docker starten, Frontend auf VITE_API_URL umschal
   dann Community-Feed-Scope, Kick/Mod-Queue und SSE/Presence.
 Letzter Agent: claude-grow-dev
 Datum: 2026
-Blocker: keines (API-Typcheck läuft außerhalb des Vite-Builds — bei Erststart mit pnpm/npm in apps/api)
+Blocker: separate Typechecks, Integrationstests, Docker-/Browser-Abnahme und Security-Review fehlen noch
 Fokus: PWA + Self-Host-Backend; Editionen/Native zurückgestellt (MILESTONES.md)
 ```
 

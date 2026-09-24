@@ -88,17 +88,21 @@ function Router() {
 function AsyncPage({ view }: { view: ViewKey }) {
   const { isEnabled } = useFeatures();
   const { navigate } = useNav();
+  const { user } = useAuth();
   const feat = featureForView(view);
   const Page = views[view] ?? NotFound;
   const ready = useDelayedReady(usePrefersReducedMotion() ? 0 : 300);
   if (!ready) return <PageSkeleton />;
+  if (view === "devAdmin" && user?.role !== "platform_admin") {
+    return <EmptyState icon="Lock" title="Kein Betreiberzugang" desc="Dieser Bereich ist Plattform-Admins vorbehalten." action={<Button onClick={() => navigate("dashboard")}>Zum Dashboard</Button>} />;
+  }
   if (view !== "auth" && !isEnabled(feat)) {
     return (
       <EmptyState
         icon="Lock"
         title="Noch nicht freigeschaltet"
-        desc="Diese Funktion ist in der Feature-Config deaktiviert. Im Developer-Admin kannst du Flags umschalten."
-        action={<Button variant="soft" onClick={() => navigate("devAdmin")}>Zum Dev-Admin</Button>}
+        desc="Diese Funktion ist derzeit deaktiviert."
+        action={<Button variant="soft" onClick={() => navigate(user?.role === "platform_admin" ? "devAdmin" : "dashboard")}>{user?.role === "platform_admin" ? "Zum Dev-Admin" : "Zum Dashboard"}</Button>}
       />
     );
   }
@@ -133,7 +137,7 @@ function PageSkeleton() {
 
 function Shell() {
   const { view } = useNav();
-  const { user, loading } = useAuth();
+  const { user, loading, sessionError, retrySession, logout } = useAuth();
   const [onboard, setOnboard] = useState(false);
 
   useEffect(() => {
@@ -149,8 +153,9 @@ function Shell() {
     }
   }, []);
 
-  const authed = !!user || loading;
-  const showAuth = view === "auth" || !authed;
+  if (loading) return <div className="grid min-h-dvh place-items-center p-6" role="status"><p>Sitzung wird geprüft…</p></div>;
+  if (sessionError) return <div className="mx-auto max-w-lg px-4 py-20"><EmptyState icon="Cloud" title="Verbindung erforderlich" desc={sessionError} action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={retrySession}>Erneut versuchen</Button><Button variant="secondary" onClick={logout}>Abmelden</Button></div>} /></div>;
+  const showAuth = view === "auth" || !user;
 
   return (
     <>
@@ -160,7 +165,7 @@ function Shell() {
           {view === "auth" ? <Router /> : <Auth />}
         </div>
       ) : (
-        <AppShell>
+        <AppShell key={user?.id}>
           <Router />
         </AppShell>
       )}

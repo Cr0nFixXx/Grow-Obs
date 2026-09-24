@@ -13,9 +13,9 @@ createRoot(document.getElementById("root")!).render(
 );
 
 // PWA: register service worker + Background Sync on reconnect (defensive)
-if ("serviceWorker" in navigator) {
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
+    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {
       /* SW not available in this environment — app still works */
     });
   });

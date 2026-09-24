@@ -3,7 +3,7 @@
 Chronologisches Protokoll der **Code-Änderungen, Bugfixes und Fortschritte** an Grow|Observer.
 Wird nach jedem erfolgreichen Build aktualisiert.
 
-Signiert von `claude-grow-dev` (Claude · Anthropic).
+Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI).
 
 ---
 
@@ -11,6 +11,7 @@ Signiert von `claude-grow-dev` (Claude · Anthropic).
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-38 | Backend-/Auth-/PWA-Stabilisierung, Admin-Service-Anbindung, Regressionstests und API-CI | Vite-Build erfolgreich: 862.56 kB, gzip 310.29 kB; Tests/Typechecks/Docker hier nicht ausgeführt | Codex (OpenAI) |
 | — | Dokumentations-Audit: HANDOFF komplett, README/ARCHITECTURE/PLAN/MILESTONES/TODO/CLAUDE/MIGRATION/API-README synchronisiert | Docs only | claude-grow-dev |
 | B-37 | Communities MVP (UI + Mock/API Service + Backend CRUD/Invite/Rollen + Seed) | ✅ ~859 kB gzip 309 kB | claude-grow-dev |
 | B-36 | Runtime-/Registry-Audit: Admin-Service + Admin-Route wiederhergestellt, Social-Query fix, EdgeSwipe enabled-Guard | ✅ ~860 kB gzip 308 kB | claude-grow-dev |
@@ -56,6 +57,28 @@ Signiert von `claude-grow-dev` (Claude · Anthropic).
 ---
 
 ## Änderungs-Historie (detailliert)
+
+### B-38: Stabilisierung (Codex)
+
+- `apps/api`: NodeNext/Node 22, korrekte Imports/Drizzle-Relationen, Router-Konflikt beseitigt;
+  App-Factory vom Portstart getrennt, Initial-SQL-Migration und separater Tools-Typecheck.
+- Compose nutzt interne Dienstnamen; Presigned-URLs nutzen einen separaten Browser-Origin.
+  Runtime startet kompiliert als non-root. Migration/Bucket-Setup sind One-shot-Jobs; Demo-Seed
+  erfordert explizites Opt-in und eigenes Passwort.
+- Auth lädt Rollen je Request aus der DB; Chat prüft Mitgliedschaft; private Communities bleiben
+  für Nichtmitglieder unsichtbar. Invites sind gehasht, atomar einlösbar und konkurrierende
+  Admin-Änderungen schützen den letzten Admin. Presign erfordert Auth/Validierung.
+- `public/sw-policy.js` und `sw.js`: nur öffentliche Shell-Allowlist; APIs, Auth-Antworten,
+  externe Medien und signierte URLs werden nicht gespeichert. Alte App-Caches werden bereinigt.
+- Frontend: fail-closed Session-Restore, echter Logout, getrennte Mock/API-Token-Keys, Tab-Logout-
+  Synchronisation; HTTP no-store/Timeout/JSON-Fehler; zentrale last-request-wins-Ressource.
+- Dev-Admin: rollenbasierter Zugang, AdminService-Health/Stats/User, ehrliche Demo-Anzeige,
+  bestätigte Rollenänderung, read-only Diagnose-Allowlist, kein vorgetäuschter Sperr-Toast.
+- Neue Tests: HTTP, Cache-Policy, Flags, Diagnostics, Session, Ressourcen sowie PostgreSQL-Tests
+  für Rechte, Einladungen, konkurrierende Änderungen und API-Verträge. API-CI ergänzt.
+- Verifiziert: ausschließlich Frontend-Build via Build-Tool. Nicht verifiziert: Testausführung,
+  beide Typechecks, Docker/MinIO-Start, reale Geräte. Paketinstallation meldete 9 Advisories;
+  Details und nächste Prüfschritte in `TESTING.md`. Keine Produktionsfreigabe erteilt.
 
 ### Dev-Admin + Touch (B-35)
 - **`src/lib/diagnostics.ts`** (neu): `checkBackend()` (fetch mit Timeout → API/DB/Storage/AI;

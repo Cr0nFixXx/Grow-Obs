@@ -1,32 +1,38 @@
 import { Hono } from "hono";
-import { asc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ne } from "drizzle-orm";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { db } from "../db/client";
-import { conversationMembers, conversations, messages } from "../db/schema";
-import { requireAuth, type AuthEnv } from "../middleware/auth";
-import { ago } from "../lib/time";
+import { db } from "../db/client.js";
+import { conversationMembers, conversations, messages } from "../db/schema.js";
+import { requireAuth, type AuthEnv } from "../middleware/auth.js";
+import { ago } from "../lib/time.js";
+import { pageLimit, uuid } from "../lib/validation.js";
 
 export const chat = new Hono<AuthEnv>();
+chat.use("*", requireAuth);
 
-chat.get("/", requireAuth, async (c) => {
+async function requireMembership(id: string, userId: string) {
+  const [member] = await db.select().from(conversationMembers)
+    .where(and(eq(conversationMembers.conversationId, id), eq(conversationMembers.userId, userId))).limit(1);
+  if (!member) throw new HTTPException(404, { message: "Konversation nicht gefunden" });
+}
+
+chat.get("/", async (c) => {
   const userId = c.get("userId");
-  const memberships = await db
-    .select({ conversationId: conversationMembers.conversationId })
-    .from(conversationMembers)
-    .where(eq(conversationMembers.userId, userId));
-  const ids = memberships.map((m) => m.conversationId);
-  const convs = await db.select().from(conversations);
+  const convs = await db.select({ conversation: conversations }).from(conversationMembers)
+    .innerJoin(conversations, eq(conversations.id, conversationMembers.conversationId))
+    .where(eq(conversationMembers.userId, userId)).orderBy(desc(conversations.createdAt))
+    .limit(pageLimit(c.req.query("limit")));
   return c.json(
     await Promise.all(
-      convs
-        .filter((cv) => ids.includes(cv.id))
-        .map(async (cv) => {
-          const msgs = await db
+      convs.map(async ({ conversation: cv }) => {
+          const [last] = await db
             .select()
             .from(messages)
             .where(eq(messages.conversationId, cv.id))
-            .orderBy(asc(messages.createdAt));
-          const last = msgs.length ? msgs[msgs.length - 1] : null;
+            .orderBy(desc(messages.createdAt)).limit(1);
+          const [received] = await db.select({ n: count() }).from(messages)
+            .where(and(eq(messages.conversationId, cv.id), ne(messages.senderId, userId)));
           return {
             id: cv.id,
             name: cv.name,
@@ -34,31 +40,37 @@ chat.get("/", requireAuth, async (c) => {
             online: false,
             last: last ? last.text : "",
             time: last ? ago(last.createdAt) : "",
-            unread: msgs.filter((m) => m.senderId !== userId).length,
+            // Read positions are not implemented; do not label all history as unread.
+            unread: 0,
+            receivedMessages: received.n,
           };
         })
     )
   );
 });
 
-chat.get("/:id/messages", requireAuth, async (c) => {
+chat.get("/:id/messages", async (c) => {
   const userId = c.get("userId");
+  const id = uuid(c.req.param("id"));
+  await requireMembership(id, userId);
   const msgs = await db
     .select()
     .from(messages)
-    .where(eq(messages.conversationId, c.req.param("id")))
-    .orderBy(asc(messages.createdAt));
+    .where(eq(messages.conversationId, id))
+    .orderBy(desc(messages.createdAt)).limit(pageLimit(c.req.query("limit")));
   return c.json(
-    msgs.map((m) => ({ id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, time: ago(m.createdAt) }))
+    msgs.reverse().map((m) => ({ id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, time: ago(m.createdAt) }))
   );
 });
 
-chat.post("/:id/messages", requireAuth, async (c) => {
-  const body = z.object({ text: z.string().min(1) }).safeParse(await c.req.json().catch(() => ({})));
+chat.post("/:id/messages", async (c) => {
+  const id = uuid(c.req.param("id"));
+  await requireMembership(id, c.get("userId"));
+  const body = z.object({ text: z.string().trim().min(1).max(10000) }).safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
   const [m] = await db
     .insert(messages)
-    .values({ conversationId: c.req.param("id"), senderId: c.get("userId"), text: body.data.text })
+    .values({ conversationId: id, senderId: c.get("userId"), text: body.data.text })
     .returning();
   return c.json({ id: m.id, from: "me", text: m.text, time: "jetzt" }, 201);
 });

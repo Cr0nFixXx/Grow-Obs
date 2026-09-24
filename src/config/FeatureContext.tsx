@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -9,8 +10,11 @@ import {
 import {
   STORAGE_KEY,
   defaultFeatures,
+  featureMeta,
+  resolveFeatureFlags,
   type FeatureKey,
 } from "./features";
+import { useAuth } from "@/lib/auth";
 
 type FlagMap = Record<FeatureKey, boolean>;
 
@@ -24,10 +28,6 @@ function loadOverrides(): Partial<FlagMap> {
   }
 }
 
-function merge(over: Partial<FlagMap>): FlagMap {
-  return { ...defaultFeatures, ...over };
-}
-
 interface Ctx {
   flags: FlagMap;
   isEnabled: (key: FeatureKey) => boolean;
@@ -38,7 +38,8 @@ interface Ctx {
 const FeatureContext = createContext<Ctx | null>(null);
 
 export function FeatureProvider({ children }: { children: ReactNode }) {
-  const [flags, setFlags] = useState<FlagMap>(() => merge(loadOverrides()));
+  const { user } = useAuth();
+  const [flags, setFlags] = useState<FlagMap>(() => resolveFeatureFlags(loadOverrides()));
 
   const persist = (next: FlagMap) => {
     const over: Partial<FlagMap> = {};
@@ -54,23 +55,27 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
   };
 
   const setFlag = useCallback((key: FeatureKey, value: boolean) => {
+    if (user?.role !== "platform_admin" || featureMeta.find((feature) => feature.key === key)?.core) return;
     setFlags((prev) => {
       const next = { ...prev, [key]: value };
-      persist(next);
       return next;
     });
-  }, []);
+  }, [user?.role]);
+
+  useEffect(() => { persist(flags); }, [flags]);
 
   const reset = useCallback(() => {
+    if (user?.role !== "platform_admin") return;
     setFlags({ ...defaultFeatures });
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [user?.role]);
 
-  const isEnabled = useCallback((key: FeatureKey) => flags[key] !== false, [flags]);
+  const isEnabled = useCallback((key: FeatureKey) =>
+    flags[key] === true && (key !== "devAdmin" || user?.role === "platform_admin"), [flags, user?.role]);
 
   const value = useMemo(() => ({ flags, isEnabled, setFlag, reset }), [flags, isEnabled, setFlag, reset]);
   return <FeatureContext.Provider value={value}>{children}</FeatureContext.Provider>;

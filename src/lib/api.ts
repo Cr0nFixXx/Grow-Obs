@@ -22,27 +22,46 @@ interface RequestOptions {
 }
 
 async function request<T>({ method, path, body, signal }: RequestOptions): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  // Tokens may only be sent to configured API paths, never a caller-supplied origin.
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) throw new ApiError(0, "Ungueltiger API-Pfad");
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
   if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  const timer = globalThis.setTimeout(() => controller.abort(), 15000);
   let res: Response;
   try {
     res = await fetch(`${config.apiBaseUrl}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
+      signal: controller.signal,
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "error",
     });
-  } catch (err) {
-    throw new ApiError(0, err instanceof Error ? err.message : "Netzwerkfehler");
-  }
 
-  if (!res.ok) {
-    const message = await res.text().catch(() => res.statusText);
-    throw new ApiError(res.status, message || `HTTP ${res.status}`);
+    if (!res.ok) {
+      const payload: unknown = await res.json().catch(() => null);
+      const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+        ? payload.error : `Anfrage fehlgeschlagen (HTTP ${res.status})`;
+      throw new ApiError(res.status, message);
+    }
+    if (res.status === 204) return undefined as T;
+    if (!res.headers.get("content-type")?.includes("json")) throw new ApiError(res.status, "Die API lieferte kein JSON. Bitte API-URL pruefen.");
+    return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (signal?.aborted) throw err;
+    throw new ApiError(0, controller.signal.aborted ? "Zeitlimit der Anfrage erreicht" : "API nicht erreichbar");
+  } finally {
+    globalThis.clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
   }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
 }
 
 /**

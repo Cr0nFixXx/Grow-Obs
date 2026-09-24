@@ -1,26 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServices } from "./DataContext";
+import { useResource } from "./useResource";
 
 /** Generic async-data hook (loading/error/refresh) – Grundgerüst für alle Listen. */
 function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const run = useCallback(() => {
-    setLoading(true);
-    return fn()
-      .then((d) => {
-        setData(d);
-        setError(null);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  useEffect(() => {
-    run();
-  }, [run]);
-  return { data, loading, error, refresh: run };
+  // Existing hook callers supply stable service/id dependencies.
+  const load = useCallback(fn, deps);
+  return useResource(load);
 }
 
 export function useGrows() {
@@ -166,6 +152,7 @@ export function useChat() {
   const svc = useServices();
   const { data, loading, error, refresh } = useAsync(() => svc.chat.listConversations(), [svc]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const selectedInitially = useRef(false);
   const { data: messages, loading: msgLoading, refresh: reloadMessages } = useAsync(
     () => (activeId ? svc.chat.getMessages(activeId) : Promise.resolve([])),
     [svc, activeId]
@@ -179,8 +166,11 @@ export function useChat() {
     [svc, activeId, reloadMessages]
   );
   useEffect(() => {
-    if (!activeId && data && data.length) setActiveId(data[0].id);
-  }, [data, activeId]);
+    if (!selectedInitially.current && data?.length) {
+      selectedInitially.current = true;
+      setActiveId(data[0].id);
+    }
+  }, [data]);
   return {
     conversations: data ?? [],
     loading,

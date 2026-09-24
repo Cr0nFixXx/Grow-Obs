@@ -2,9 +2,28 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** Frontend Build **B-37** (Vite Single-File, grün) + Self-Host-API-Grundgerüst  
+**Stand:** B-38, Vite-Build erfolgreich (862.56 kB / gzip 310.29 kB). Tests, Typechecks und Docker-Laufzeit noch unbestätigt.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
+
+**Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
+dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## Aktuelle Stabilisierung
+
+- Backend: Node-22/NodeNext-kompatible `.js`-Imports und `dist/index.js`, Katalog-Namenskonflikt
+  korrigiert, Drizzle-Relationen vervollständigt, Initialmigration eingecheckt.
+- Docker: interne Hosts `db`/`minio`, getrennter Browser-Storage-Endpoint, One-shot-Migration und
+  Bucket-Setup. Kein automatischer Demo-Seed, keine Standardpasswörter.
+- Sicherheit: aktuelle DB-Rollen statt JWT-Rollen als Autorität; Chat-Mitgliedschaft,
+  private Community-Filter, atomare Einmal-Einladung, Last-Admin-Schutz, authentifizierter Presign.
+- PWA: nur explizite öffentliche Shell-Assets im Cache; keine APIs, privaten Antworten,
+  signierten URLs oder externen Fotos. Alte `go-*`-Caches werden beim SW-Upgrade entfernt.
+- Admin: die Seite nutzt nun `AdminService` für Health, Kennzahlen und Benutzerrollen;
+  unbekannte Zustände bleiben unbekannt. Keine beliebigen Diagnose-URLs mit Token.
+- Neue Tests/CI vorhanden, aber hier nicht ausgeführt. Dies ist kein Sicherheitszertifikat.
+
+**Vor einem Live-Deploy zuerst die Tests aus `TESTING.md` ausführen.**
 
 Lies zuerst dieses Dokument, danach `PLAN.md`, `ARCHITECTURE.md` und `apps/api/README.md`.
 `MILESTONES.md` enthält den Produkt-Nordstern; Native Apps, Editionen und E2EE sind derzeit
@@ -108,7 +127,7 @@ npx tsc --noEmit
 ```bash
 cd apps/api
 cp .env.example .env
-# JWT_SECRET ändern
+# JWT_SECRET, POSTGRES_PASSWORD und S3_SECRET_KEY mit getrennten Zufallswerten füllen.
 docker compose up --build
 ```
 
@@ -122,12 +141,9 @@ MinIO Console  http://localhost:9001
 PostgreSQL     localhost:5432
 ```
 
-Seed-Admin für lokale Entwicklung:
-
-```text
-admin@growobserver.app
-admin123
-```
+Ein Demo-Admin wird nicht automatisch angelegt. Für eine leere Entwicklungsdatenbank
+`SEED_ADMIN_EMAIL` und ein eigenes Passwort (mindestens 12 Zeichen) setzen und explizit
+`docker compose --profile demo run --rm seed` ausführen. Nicht für Produktion.
 
 Frontend in API-Modus:
 
@@ -259,14 +275,19 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 
 - Docker-Stack wurde in dieser Agent-Umgebung nicht real gestartet
 - `apps/api` wurde hier nicht separat installiert/typegecheckt
-- Communities: Community-Feed-Scope, Kick, Hide, Mod-Queue und Tests fehlen
+- Communities: Feed-Scope, Kick, Hide und Mod-Queue fehlen; Rechte-/Invite-Tests sind geschrieben,
+  ihre Ausführung gegen PostgreSQL steht aus
 - Realtime/Presence fehlen
 - AI ist weiterhin UI/Mock; kein Server-Proxy
-- Developer-Admin-Frontend nutzt noch lokale Diagnose-/Mockdaten; vollständige Umstellung auf
-  `AdminService`/`/admin/*` steht aus
-- Upload-Presign vor Produktion mit Auth schützen
+- Developer-Admin ist an `AdminService` angebunden; Feature-Overrides bleiben lokale Vorschau.
+  Globale Freigaben, revisionssicheres Audit und echte Kontosperren stehen aus
+- Upload-Presign ist jetzt geschützt; Byte-Prüfung, Scan, EXIF-Bereinigung, Download-Autorisierung
+  und Quota-Management fehlen
 - Next.js-Monorepo ist vorbereitet, nicht aktiv migriert
-- Backend-E2E-Tests fehlen
+- API-Integrationstests und CI-Job existieren; Browser-E2E, Docker und Geräteprüfung noch unbestätigt
+- Bearer-Token liegen weiterhin im Browser-Storage. Server-Logout/Revocation und HttpOnly-Session-
+  Migration sind nicht Bestandteil dieser Änderung
+- Abhängigkeiten-Audit offen: Paketinstallation meldete 9 Advisories; Details siehe TESTING.md
 
 ---
 
@@ -275,7 +296,7 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 1. `apps/api` installieren/typechecken und per Docker starten
 2. Frontend auf `VITE_API_URL=http://localhost:8787` schalten
 3. E2E: Register/Login -> Grow -> Post -> Forum -> Community-Invite
-4. DevAdmin vollständig auf `/admin/*` umstellen
+4. DevAdmin-Live-Checks verifizieren; serverseitige Flag-Freigaben und Audit ergänzen
 5. Communities: Kick, Hide, Mod-Queue und Community-Feed-Scope
 6. SSE/Realtime für Chat und Notifications
 7. AI-Proxy serverseitig
@@ -300,7 +321,11 @@ Backend:
 cd apps/api
 npm install
 npm run typecheck
+npx tsc -p tsconfig.tools.json
 ```
+
+PostgreSQL-Integration vom Root: `npx vitest run --config vitest.backend.config.ts`.
+Nur mit einer separaten `*_test`-Datenbank, da Testdaten gelöscht werden.
 
 Zusätzlich:
 
@@ -319,4 +344,4 @@ Zusätzlich:
 
 ---
 
-> Handoff aktualisiert von `claude-grow-dev` (Claude · Anthropic) · 2026
+> Diese Überarbeitung: Codex (OpenAI), 2026. Historische Einträge bleiben erhalten.

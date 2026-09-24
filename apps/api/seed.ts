@@ -1,6 +1,5 @@
-import { db } from "./src/db/client";
+import { client, db as database } from "./src/db/client.js";
 import {
-  comments,
   communities,
   communityMembers,
   conversations,
@@ -19,10 +18,11 @@ import {
   users,
   wikiArticles,
   breeders as breedersTable,
-} from "./src/db/schema";
-import { hashPassword } from "./src/lib/password";
-import { env } from "./src/env";
-import { CreateBucketCommand, S3Client } from "@aws-sdk/client-s3";
+} from "./src/db/schema.js";
+import { hashPassword } from "./src/lib/password.js";
+import { env } from "./src/env.js";
+import { z } from "zod";
+import { CreateBucketCommand, HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
 
 async function ensureBucket() {
   const s3 = new S3Client({
@@ -32,29 +32,36 @@ async function ensureBucket() {
     forcePathStyle: true,
   });
   try {
-    await s3.send(new CreateBucketCommand({ Bucket: env.S3_BUCKET }));
-    console.log(`✅ Bucket „${env.S3_BUCKET}“ bereit.`);
-  } catch {
-    console.log(`ℹ️  Bucket „${env.S3_BUCKET}“ existiert bereits.`);
-  }
+    try { await s3.send(new HeadBucketCommand({ Bucket: env.S3_BUCKET })); }
+    catch (error) {
+      if ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode !== 404) throw error;
+      await s3.send(new CreateBucketCommand({ Bucket: env.S3_BUCKET }));
+    }
+  } finally { s3.destroy(); }
 }
 
 async function main() {
+  if (env.NODE_ENV === "production" || env.ALLOW_DEMO_SEED !== "true") {
+    throw new Error("Demo seed requires development mode and ALLOW_DEMO_SEED=true");
+  }
+  const credentials = z.object({ email: z.string().email(), password: z.string().min(12).max(128) })
+    .parse({ email: env.SEED_ADMIN_EMAIL, password: env.SEED_ADMIN_PASSWORD });
   await ensureBucket();
+  await database.transaction(async (db) => {
   // Idempotenz: wenn schon Daten vorhanden, abbrechen.
   const existing = await db.select({ id: users.id }).from(users).limit(1);
   if (existing.length) {
     console.log("⏭  Seed übersprungen (Daten vorhanden).");
-    process.exit(0);
+    return;
   }
 
   const [admin] = await db
     .insert(users)
     .values({
-      email: env.SEED_ADMIN_EMAIL,
+      email: credentials.email.toLowerCase(),
       name: "Admin",
       handle: "admin",
-      passwordHash: await hashPassword(env.SEED_ADMIN_PASSWORD),
+      passwordHash: await hashPassword(credentials.password),
       role: "platform_admin",
       level: 20,
       title: "Grow Master",
@@ -171,10 +178,10 @@ async function main() {
   ]);
 
   console.log("✅ Katalog + Demo-Content eingespielt.");
-  process.exit(0);
+  });
 }
 
 main().catch((e) => {
-  console.error("❌ Seed fehlgeschlagen:", e);
-  process.exit(1);
-});
+  console.error("Seed fehlgeschlagen:", e instanceof Error ? e.name : "unknown");
+  process.exitCode = 1;
+}).finally(() => client.end());

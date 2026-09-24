@@ -19,6 +19,7 @@ export interface User {
   harvests: number;
   followers: number;
   telegram: boolean;
+  role: "member" | "moderator" | "admin" | "platform_admin";
 }
 
 /** Eingaben für neue Entitäten (Subset der Pflichtfelder). */

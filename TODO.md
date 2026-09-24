@@ -9,6 +9,24 @@ Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt.
 
 Pflege: `claude-grow-dev` (Claude · Anthropic).
 
+## Aktueller Stabilisierungsschritt (Codex)
+
+- [x] Backend-Import-/Router-Konflikte und NodeNext-Ausgabepfad korrigiert (Code).
+- [x] Chat-Mitgliedschaft, private Discovery, atomare Invites und Last-Admin-Schutz implementiert.
+- [x] Upload-Presign authentifiziert; MIME-/deklarierte Größen-Grenze und getrennte S3-Origins.
+- [x] Öffentliche Shell-Allowlist; keine privaten API-/Signed-URL-Caches.
+- [x] Admin-Rolle aus DB/Session, Health aus AdminService, Bestätigungsdialog für Rollenänderungen.
+- [x] Neue Unit-/Component-/PostgreSQL-Integrationstests sowie separater API-CI-Job geschrieben.
+- [ ] Neue Tests/Typechecks tatsächlich ausführen; Docker und MinIO Ende-zu-Ende abnehmen.
+- [ ] Abhängigkeiten-Audit: 9 gemeldete Advisories genauer prüfen und beheben (TESTING.md).
+- [ ] Auth/Abuse-Rate-Limits, Session-Revocation und sicheres Betreiber-Bootstrap.
+- [ ] Upload-Finalisierung/Byte-Prüfung, EXIF-Bereinigung, Downloadrechte und Storage-Quotas.
+- [ ] Migration einer bereits befüllten Installation testen; Images/Lockfiles pinnen.
+
+Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
+
+Prüfstand: **B-38 Frontend-Build erfolgreich**. Test-/Typecheck-/Docker-Gates bleiben offen.
+
 ---
 
 ## 🚀 Jetzt (PWA first)

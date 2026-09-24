@@ -1,4 +1,6 @@
 import { config } from "./config";
+import { ApiError, http } from "./api";
+import type { AdminService, SystemHealth } from "@/services/interfaces";
 
 export interface HealthResult {
   id: string;
@@ -9,74 +11,37 @@ export interface HealthResult {
   detail?: string;
 }
 
-/** fetch mit Timeout (damit Health-Checks nicht hängen). */
-async function ping(url: string, timeout = 2500): Promise<{ ok: boolean; ms: number; status?: number }> {
-  const started = performance.now();
-  const ctrl = new AbortController();
-  const t = window.setTimeout(() => ctrl.abort(), timeout);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
-    return { ok: res.ok, ms: Math.round(performance.now() - started), status: res.status };
-  } catch {
-    return { ok: false, ms: Math.round(performance.now() - started) };
-  } finally {
-    window.clearTimeout(t);
-  }
+const labels = { api: "API", db: "Datenbank", storage: "Object Storage", ai: "KI-Provider" } as const;
+
+/** Never infer database/storage health from an HTTP liveness response. */
+export function healthRows(report: SystemHealth): HealthResult[] {
+  return (Object.keys(labels) as Array<keyof typeof labels>).map((id) => {
+    const service = report.services?.[id];
+    const status = report.mode === "mock" || !service ? "unknown" : service.status ?? (service.ok ? "ok" : "unknown");
+    return { id, label: labels[id], status, hint: service?.hint ?? "Nicht geprüft", latencyMs: service?.latencyMs ?? undefined };
+  });
 }
 
-/**
- * Prüft die Erreichbarkeit des Backends (Mock-Modus → unknown/offline statt Fehler).
- * Ein einziger /health-Call deckt API + DB ab; Storage wird separat geprüft.
- */
-export async function checkBackend(): Promise<HealthResult[]> {
-  if (config.useMock) {
-    return [
-      { id: "api", label: "API", status: "unknown", hint: "Mock-Modus — kein Backend konfiguriert", detail: "VITE_API_URL setzen, um zu verbinden." },
-      { id: "db", label: "Datenbank", status: "unknown", hint: "Nur im API-Modus prüfbar" },
-      { id: "storage", label: "Object Storage", status: "unknown", hint: "Nur im API-Modus prüfbar" },
-      { id: "ai", label: "KI-Provider", status: "unknown", hint: "Server-seitig — per Feature-Flag freigeschaltet" },
-    ];
+export async function checkBackend(admin: Pick<AdminService, "health">): Promise<HealthResult[]> {
+  return healthRows(await admin.health());
+}
+
+export const diagnosticPaths = ["/health", "/admin/health", "/admin/stats"] as const;
+export type DiagnosticPath = typeof diagnosticPaths[number];
+
+/** Only known read-only paths, using the authenticated client. No arbitrary URL with tokens. */
+export async function runDiagnostic(path: string, admin: AdminService): Promise<string> {
+  if (!diagnosticPaths.includes(path as DiagnosticPath)) throw new Error("Diagnosepfad nicht erlaubt");
+  const start = performance.now();
+  try {
+    const response = config.useMock
+      ? path === "/admin/health" ? await admin.health() : path === "/admin/stats" ? await admin.stats() : { mode: "mock", status: "unknown", message: "Kein Server geprüft" }
+      : await http.get<unknown>(path);
+    return `${config.useMock ? "Demo" : "HTTP 200"} / ${Math.round(performance.now() - start)} ms\n\n${JSON.stringify(response, null, 2).slice(0, 5000)}`;
+  } catch (error) {
+    if (error instanceof ApiError) return `HTTP ${error.status || "nicht erreichbar"}\n${error.message}`;
+    throw error;
   }
-
-  const base = config.apiBaseUrl;
-  const health = await ping(`${base}/health`);
-
-  // /health liefert { ok, ts } — DB ist erreichbar, wenn der Endpoint antwortet.
-  const results: HealthResult[] = [
-    {
-      id: "api",
-      label: "API",
-      status: health.ok ? "ok" : "down",
-      hint: health.ok ? `Erreichbar (${health.ms} ms)` : `Nicht erreichbar (HTTP ${health.status ?? "—"})`,
-      latencyMs: health.ms,
-      detail: base,
-    },
-    {
-      id: "db",
-      label: "Datenbank",
-      status: health.ok ? "ok" : "down",
-      hint: health.ok ? "Über /health gemeldet" : "Kein Antwort vom API-Server",
-    },
-  ];
-
-  // Storage: Presign-Endpoint als Verfügbarkeitsindikator (ohne echten Upload).
-  const storage = await ping(`${base}/upload/presign`, 2000).catch(() => ({ ok: false, ms: 0 }));
-  results.push({
-    id: "storage",
-    label: "Object Storage",
-    status: storage.ok ? "ok" : "unknown",
-    hint: storage.ok ? "Presign-Endpoint antwortet" : "Presign nicht erreichbar (evtl. nicht implementiert)",
-    latencyMs: storage.ms,
-  });
-
-  results.push({
-    id: "ai",
-    label: "KI-Provider",
-    status: "unknown",
-    hint: "Key liegt serverseitig — hier nur per Feature-Flag steuerbar",
-  });
-
-  return results;
 }
 
 /** Umgebungs-/System-Infos für das Dev-Panel (nur Client-Daten, keine Secrets). */

@@ -4,11 +4,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { config } from "./config";
-import { http, setAuthToken } from "./api";
+import { ApiError, http, setAuthToken } from "./api";
+import { clearLegacyPrivateStorage, readSessionToken, sessionKey, writeSessionToken } from "./session-storage";
 import { currentUser } from "@/mocks/data";
 import type { User } from "@/types";
 
@@ -16,116 +18,129 @@ interface AuthValue {
   user: User | null;
   token: string | null;
   loading: boolean;
+  sessionError: string | null;
+  retrySession: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
-const TOKEN_KEY = "go-token";
-
-const mockUser: User = { ...currentUser, id: "u-me" };
+const mockUser: User = { ...currentUser, id: "u-me", role: "platform_admin" };
 
 /**
- * AuthProvider – Session-Management (Token in localStorage, Restore bei Reload).
+ * Session state is fail-closed while restoring. API mode still uses a bearer token;
+ * migration to revocable HttpOnly-cookie sessions is a separate server/API change.
  * Mock-Modus: Login/Register liefern sofort den Mock-User. API-Modus: `/auth/*`.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [token, setToken] = useState<string | null>(readSessionToken);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const revision = useRef(0);
+  const verifiedToken = useRef<string | null>(null);
+  const retrySession = useCallback(() => setRetry((value) => value + 1), []);
 
   useEffect(() => {
+    const request = ++revision.current;
+    const controller = new AbortController();
+    setSessionError(null);
     if (!token) {
+      setAuthToken(null);
+      setUser(null);
       setLoading(false);
       return;
     }
     setAuthToken(token);
+    if (verifiedToken.current === token) { setLoading(false); return; }
+    setLoading(true);
     const restore = config.useMock
       ? Promise.resolve<User>(mockUser)
-      : http.get<User>("/auth/me").catch(() => null);
+      : http.get<User>("/auth/me", controller.signal);
     restore
       .then((u) => {
-        if (u) setUser(u);
-        else {
+        if (request !== revision.current || controller.signal.aborted) return;
+        setUser(u);
+        verifiedToken.current = token;
+      })
+      .catch((error: unknown) => {
+        if (request !== revision.current || controller.signal.aborted) return;
+        setUser(null);
+        if (error instanceof ApiError && error.status === 401) {
           setAuthToken(null);
           setToken(null);
-          try {
-            localStorage.removeItem(TOKEN_KEY);
-          } catch {
-            /* ignore */
-          }
+          writeSessionToken(null);
+          void clearLegacyPrivateStorage();
+        } else {
+          setSessionError("Die Sitzung konnte nicht geprüft werden. Bitte Verbindung prüfen und erneut versuchen.");
         }
       })
-      .finally(() => setLoading(false));
-  }, [token]);
+      .finally(() => { if (request === revision.current && !controller.signal.aborted) setLoading(false); });
+    return () => { controller.abort(); revision.current += 1; };
+  }, [token, retry]);
+
+  const acceptSession = useCallback((result: { token: string; user: User }) => {
+    setAuthToken(result.token);
+    verifiedToken.current = result.token;
+    setToken(result.token);
+    setUser(result.user);
+    writeSessionToken(result.token);
+    setLoading(false);
+    setSessionError(null);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    if (config.useMock) {
-      const t = `mock-${Date.now()}`;
-      setAuthToken(t);
-      setToken(t);
-      setUser(mockUser);
-      try {
-        localStorage.setItem(TOKEN_KEY, t);
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-    const res = await http.post<{ token: string; user: User }>("/auth/login", { email, password });
-    setAuthToken(res.token);
-    setToken(res.token);
-    setUser(res.user);
-    try {
-      localStorage.setItem(TOKEN_KEY, res.token);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    const request = ++revision.current;
+    const res = config.useMock
+      ? { token: `mock-${Date.now()}`, user: mockUser }
+      : await http.post<{ token: string; user: User }>("/auth/login", { email, password });
+    if (request === revision.current) acceptSession(res);
+  }, [acceptSession]);
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
-      if (config.useMock) {
-        return login(email, password);
-      }
-      const res = await http.post<{ token: string; user: User }>("/auth/register", {
-        name,
-        email,
-        password,
-      });
-      setAuthToken(res.token);
-      setToken(res.token);
-      setUser(res.user);
-      try {
-        localStorage.setItem(TOKEN_KEY, res.token);
-      } catch {
-        /* ignore */
-      }
+      const request = ++revision.current;
+      const res = config.useMock
+        ? { token: `mock-${Date.now()}`, user: { ...mockUser, name } }
+        : await http.post<{ token: string; user: User }>("/auth/register", { name, email, password });
+      if (request === revision.current) acceptSession(res);
     },
-    [login]
+    [acceptSession]
   );
 
   const logout = useCallback(() => {
+    revision.current += 1;
+    verifiedToken.current = null;
     setAuthToken(null);
     setToken(null);
     setUser(null);
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      /* ignore */
-    }
+    setSessionError(null);
+    setLoading(false);
+    writeSessionToken(null);
+    void clearLegacyPrivateStorage();
+  }, []);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === sessionKey || event.key === null) {
+        revision.current += 1;
+        verifiedToken.current = null;
+        setUser(null);
+        setAuthToken(null);
+        setToken(readSessionToken());
+        setLoading(true);
+        setRetry((value) => value + 1);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout }),
-    [user, token, loading, login, register, logout]
+    () => ({ user, token, loading, sessionError, retrySession, login, register, logout }),
+    [user, token, loading, sessionError, retrySession, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

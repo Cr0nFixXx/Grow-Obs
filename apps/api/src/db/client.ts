@@ -1,7 +1,12 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema";
-import { env } from "../env";
+import * as schema from "./schema.js";
+import { env } from "../env.js";
 
-const client = postgres(env.DATABASE_URL, { max: 10 });
+export const client = postgres(env.DATABASE_URL, {
+  max: 10,
+  connect_timeout: 5,
+  idle_timeout: 20,
+  connection: { statement_timeout: 10000, lock_timeout: 5000 },
+});
 export const db = drizzle(client, { schema });

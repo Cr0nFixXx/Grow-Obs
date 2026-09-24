@@ -380,15 +380,15 @@ const adminService: AdminService = {
   async health() {
     await delay(200);
     return {
-      ok: true,
+      ok: false,
       mode: "mock",
-      latencyMs: 12,
+      latencyMs: 0,
       version: "0.1.0-mock",
       services: {
-        api: { ok: true, hint: "Mock-Modus (kein Server angebunden)" },
-        db: { ok: false, hint: "Nur im API-Modus prüfbar — Backend starten", latencyMs: null },
-        storage: { ok: false, hint: "MinIO nicht angebunden (Mock-Modus)" },
-        ai: { ok: false, hint: "Kein Provider angebunden" },
+        api: { ok: false, status: "unknown", hint: "Demo-Modus: kein Server geprüft" },
+        db: { ok: false, status: "unknown", hint: "Nur im API-Modus prüfbar", latencyMs: null },
+        storage: { ok: false, status: "unknown", hint: "Kein Storage geprüft" },
+        ai: { ok: false, status: "unknown", hint: "Kein Provider angebunden" },
       },
     };
   },

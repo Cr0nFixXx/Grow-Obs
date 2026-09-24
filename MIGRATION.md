@@ -5,6 +5,11 @@ Schritt-für-Schritt-Anleitung zur Umwandlung des aktuellen Vite-Frontends in ei
 
 ## Status
 
+Stabilisierungshinweis: `apps/api` ist jetzt auf Node 22/NodeNext mit expliziten `.js`-Imports
+ausgelegt. Der nächste Next.js-Umzug darf den API-Build nicht wieder in den Frontend-Typecheck
+mischen. Bei neuen Web-Routen die explizite SW-Cache-Allowlist prüfen, aber keine geschützten
+HTML-/API-Antworten als Offline-Shell freigeben. Next.js selbst wurde hier weiterhin nicht gebaut.
+
 | | Aktuell | Ziel |
 |---|---|---|
 | **Build** | Vite (Single-File `dist/index.html`) | Next.js (App Router) |

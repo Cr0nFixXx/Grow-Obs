@@ -1,130 +1,136 @@
 # Grow|Observer API
 
-Selbst hostbares REST-Backend (Hono + Drizzle + PostgreSQL + MinIO). Der REST-Vertrag
-passt exakt zum Frontend-Service-Layer (`apps/..` → `src/services/api.ts`).
+Self-hostable Hono/PostgreSQL/Drizzle API with MinIO storage. The frontend still runs through
+Vite; this package has its own runtime and typecheck. Current work is hardening, not a
+production-readiness certification. Docker and integration tests have not been run here.
 
-## Stack
+## Requirements
 
-| Baustein | Wahl |
-|---|---|
-| HTTP-Frame | [Hono](https://hono.dev) + `@hono/node-server` |
-| DB | PostgreSQL (16) |
-| ORM | Drizzle ORM |
-| Auth | JWT (HS256, `jose`) + Argon2-Passwort-Hash |
-| Storage | MinIO (S3-kompatibel), Presigned Uploads |
-| Validierung | Zod |
+- Node 22 for local tools and the compiled runtime.
+- PostgreSQL 16 and an S3-compatible private bucket.
+- Docker Compose for the provided local stack.
+- TLS reverse proxy, real secrets, backups and reviewed images before internet exposure.
 
-## Schnellstart (Docker)
+## Local Docker Setup
 
-```bash
+```sh
 cd apps/api
-cp .env.example .env        # JWT_SECRET anpassen!
+cp .env.example .env
+# Generate separate secrets, for example: openssl rand -hex 32
+# Fill JWT_SECRET, POSTGRES_PASSWORD and S3_SECRET_KEY in .env.
 docker compose up --build
 ```
 
-Das start PostgreSQL, MinIO und die API. Der API-Container generiert + führt Migrationen
-aus, seedet den Bucket + Demo-Daten und startet den Dev-Server auf `http://localhost:8787`.
+The supplied Compose stack is local by default and binds ports to `127.0.0.1`:
 
-- Health: `GET http://localhost:8787/health`
-- MinIO-Console: `http://localhost:9001` (minio / minioadmin)
+| Component | Local endpoint |
+| --- | --- |
+| API | http://localhost:8787 |
+| API liveness only | http://localhost:8787/health |
+| MinIO S3 API | http://localhost:9000 |
+| MinIO administration | http://localhost:9001 |
+| PostgreSQL | localhost:5432 |
 
-## Schnellstart (lokal, ohne Docker)
+Compose overrides database/storage hostnames to `db` and `minio` inside containers. The
+browser must use `S3_PUBLIC_ENDPOINT`, not `http://minio:9000`. Presigned URLs are generated
+for that exact browser-reachable endpoint; do not rewrite the hostname afterwards.
 
-```bash
+Startup order: healthy PostgreSQL -> committed migrations; healthy MinIO -> private bucket
+initialization; API starts only after both one-shot jobs succeed. The API runs compiled JS as
+a non-root user. It does not generate migrations, start a watch server or seed demo data.
+
+### Optional Demo Seed
+
+Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` of at least 12 characters. There is
+**no hardcoded admin password**. Then, only on an empty development database:
+
+```sh
+docker compose --profile demo run --rm seed
+```
+
+The demo seed is transactional, development-only and opt-in. It includes an operator account,
+catalog entries and example communities. It is not a production admin-provisioning workflow.
+
+### Local Node Setup
+
+```sh
 cd apps/api
 npm install
-cp .env.example .env        # DATABASE_URL + JWT_SECRET anpassen
-npm run db:generate         # SQL-Migrationen aus dem Schema erzeugen
-npm run db:migrate          # Migrationen ausführen
-npm run db:seed             # Bucket + Admin + Katalog + Demo-Daten
-npm run dev                 # Dev-Server (Hot-Reload)
+cp .env.example .env
+# Set DATABASE_URL, real secrets, and the local storage settings.
+npm run typecheck
+npx tsc -p tsconfig.tools.json
+npm run db:migrate
+npx tsx src/db/storage-init.ts
+npm run dev
 ```
 
-Admin-Login (Seed-Default): `admin@growobserver.app` / `admin123`
+For the compiled runtime, the existing build emits `dist/index.js` with Node-compatible `.js`
+imports. `npm start` then starts that file. `.env` loading is supported with Node 22; Docker
+injects variables directly. Production browser origins and upload endpoints must be HTTPS.
 
-## Endpunkte (Auszug)
+## Database Changes
 
-| Methode | Pfad | Auth | Beschreibung |
-|---|---|---|---|
-| POST | `/auth/register` | – | Konto anlegen → `{ token, user }` |
-| POST | `/auth/login` | – | Login → `{ token, user }` |
-| GET | `/auth/me` | Bearer | Aktuellen User |
-| GET/POST | `/grows` | Bearer | Eigene Grows |
-| GET | `/grows/:id` | Bearer | Grow (Ownership-Check) |
-| POST | `/grows/:id/logs` | Bearer | Log anlegen |
-| GET/POST | `/social/posts` | Bearer | Feed |
-| POST | `/social/posts/:id/like` | Bearer | Like toggle |
-| GET | `/forum/subs`, `/forum/threads` | – | Bereiche / Threads |
-| POST | `/forum/threads`, `/forum/threads/:id/comments` | Bearer | Thread / Kommentar |
-| POST | `/forum/threads/:id/vote` | Bearer | Up/Downvote |
-| GET | `/chat`, `/chat/:id/messages` | Bearer | Konversationen / Verlauf |
-| POST | `/chat/:id/messages` | Bearer | Nachricht senden |
-| GET | `/notifications` | Bearer | Liste |
-| POST | `/notifications/:id/read`, `/notifications/read-all` | Bearer | Gelesen |
-| GET | `/products`, `/products/categories`, `/offers` | – | Katalog |
-| GET | `/breeders`, `/strains`, `/hall`, `/wiki` | – | Katalog |
-| GET | `/me/activity` | Bearer | Abgeleitete Aktivität |
-| GET/POST | `/communities` | Bearer | Communities listen/erstellen |
-| GET | `/communities/:id` | Bearer | Detail + Mitglieder (private nur als Mitglied) |
-| POST | `/communities/:id/join` | Bearer | Öffentlicher Beitritt |
-| POST | `/communities/:id/invites`, `/communities/join` | Bearer | Einmal-Code erstellen/einlösen |
-| PATCH | `/communities/:id/members/:userId/role` | Bearer + Community-Admin | Rolle ändern |
-| GET | `/admin/health` | Bearer + platform_admin | API/DB/Storage/KI-Health |
-| GET | `/admin/stats` | Bearer + platform_admin | System-Kennzahlen |
-| GET | `/admin/users?q=` | Bearer + platform_admin | User-Suche + Grow-Counts |
-| PATCH | `/admin/users/:id/role` | Bearer + platform_admin | Rolle ändern |
-| GET | `/admin/content` | Bearer + platform_admin | Aktuelle Threads/Posts |
-| DELETE | `/admin/threads/:id`, `/admin/posts/:id` | Bearer + platform_admin | Moderation/Löschung |
-| POST | `/upload/presign` | – | Presigned-URL für Upload |
+- `src/db/schema.ts` is the ORM schema.
+- `drizzle/0000_initial.sql` is a handwritten initial migration, with a committed journal.
+- It is for an **empty** database. Do not replay it over tables created by earlier untracked
+  `drizzle-kit push` or generated migrations. Back up and baseline existing installations first.
+- New migrations must be reviewed, committed and explicitly deployed. No generation on startup.
+- The handwritten baseline has no generated Drizzle snapshot. Do not blindly run `db:generate`
+  and apply duplicate CREATE statements. Establish a matching snapshot in a disposable database
+  before adopting generated incremental migrations, or keep reviewed SQL migrations.
 
-## Schema & Migrationen
+## API Contracts
 
-- Schema: `src/db/schema.ts` (Drizzle, PostgreSQL)
-- Migrationen generieren: `npm run db:generate` (legt `./drizzle` an)
-- Ausführen: `npm run db:migrate` (liest `./drizzle`)
-- Nach Schema-Änderung: erneut `db:generate` + `db:migrate`
+All responses carry `Cache-Control: private, no-store`. A bearer JWT is required where shown.
 
-## Struktur
+| Method / path | Access / behavior |
+| --- | --- |
+| GET `/health` | Liveness only; does not imply DB/storage availability |
+| POST `/auth/register`, `/auth/login` | Credentials; role defaults to member; normalized email |
+| GET `/auth/me` | Current session user including explicit `role` |
+| GET/POST `/grows`, GET `/grows/:id`, POST `/grows/:id/logs` | Authenticated owner |
+| GET/POST `/social/posts`, POST `/social/posts/:id/like` | Authenticated global feed; community scoping still pending |
+| GET `/forum/subs`, `/forum/threads`, `/forum/threads/:id` | Public reads |
+| POST `/forum/threads`, `/:id/comments`, `/:id/vote` | Authenticated writes; reply parent belongs to same thread |
+| GET `/chat`, GET/POST `/chat/:id/messages` | Authenticated conversation member; outsider receives 404 |
+| GET `/notifications`, POST `/:id/read`, `/read-all` | Authenticated owner |
+| GET `/products`, `/products/categories`, `/offers`, `/breeders`, `/strains`, `/hall`, `/wiki` | Catalog reads |
+| GET `/me/activity` | Authenticated owner |
+| GET/POST `/communities` | Public discovery plus own private memberships / create |
+| GET `/communities/:id` | Private non-members receive 404; member list only for members |
+| POST `/communities/:id/join` | Public join; membership is idempotent |
+| POST `/communities/:id/invites` | Community admin; 24-hour one-use code, stored as SHA-256 hash |
+| POST `/communities/join` | Atomic membership + invite consumption; returns full CommunityDetail |
+| PATCH `/communities/:id/members/:userId/role` | Community admin; cannot remove the final admin |
+| GET `/admin/health`, `/stats`, `/users`, `/content` | Current DB role must be platform_admin |
+| PATCH `/admin/users/:id/role` | Current operator; cannot remove the final platform admin |
+| DELETE `/admin/threads/:id`, `/admin/posts/:id` | Transactional dependent-row deletion |
+| POST `/upload/presign` | Auth; `{ name, contentType, size }`; JPEG/PNG/WebP, declared size <=8 MB |
 
-```
-apps/api/
-  package.json, tsconfig.json, drizzle.config.ts
-  Dockerfile, docker-compose.yml, .env.example
-  seed.ts
-  src/
-    index.ts            # App + Route-Mount + CORS + Error-Handler
-    env.ts              # Validierte Umgebungsvariablen (Zod)
-    db/
-      client.ts         # Drizzle + Postgres-Client
-      schema.ts         # Tabellen + Relations
-      migrate.ts        # Migrations-Lauf
-    lib/
-      jwt.ts            # Sign/Verify (jose)
-      password.ts       # Argon2
-      s3.ts             # MinIO/Presign
-      time.ts           # relative Zeit (ago)
-    middleware/
-      auth.ts           # requireAuth, requirePlatformAdmin
-    routes/
-      auth.ts, grows.ts, forum.ts, social.ts, chat.ts,
-      notifications.ts, catalog.ts
-```
+Uploads return `{ key, url, method, headers, expiresIn }`, **not** an anonymous public URL.
+Objects remain private. Actual byte inspection/finalization, read URL authorization, quotas
+and deletion/retention are still required before exposing uploads publicly.
 
-## Sicherheit
+## Security Boundaries
 
-- Passwörter mit **Argon2id** gehasht.
-- JWT (HS256) als Bearer-Token; TTL via `JWT_TTL`.
-- Ownership-Checks auf User-Ressourcen (Grows, Notifications).
-- Presigned Uploads (Client lädt direkt zu MinIO, kein Upload über die API).
-- **Nicht vergessen:** `JWT_SECRET` in Production stark & zufällig setzen.
+- JWT algorithm/issuer/audience/expiry are validated. Existing older tokens must log in again.
+- JWT role is not the authorization source. Every authenticated request reloads the DB role.
+- Auth failures are 401; downstream database failures stay 5xx instead of being disguised as 401.
+- Chat membership and private-community visibility are checked server-side.
+- Community operations lock the community row, then the invite/member, in one transaction.
+- Single-use invitation codes are high-entropy and never logged or stored in plaintext.
+- Admin role changes are serialized and recheck the acting operator inside the transaction.
+- Health failures return sanitized hints, not raw database errors or secrets.
+- UI feature flags are local preview settings, **not** backend access control.
 
-## Hinweise / Ausbaustufen
+## Tests And Open Gates
 
-- `POST /upload/presign` ist aktuell ohne Auth (Fundament) — in Production per Bearer schützen.
-- Presence (Online-Status) und Read-Positionen im Chat sind noch nicht modelliert.
-- `followers` ist konstant 0 (keine Follows-Tabelle) — folgt mit Communities.
-- Realtime (WebSockets/SSE) ist noch nicht angebunden — Polling oder später SSE.
+See [../../TESTING.md](../../TESTING.md). CI contains a PostgreSQL integration job; its successful
+execution is still to be confirmed. Tests target a disposable database ending in `_test`.
 
----
+Before deployment: rate limiting, token/session revocation, production bootstrap, durable audit,
+upload verification, pinned images/lockfile, dependency audit and a restore drill are still open.
+Presence, real unread positions, community feed isolation, moderation queue and AI remain future work.
 
-> Teil des Grow|Observer-Monorepos. gepflegt von `claude-grow-dev`.
+Updated by Codex (OpenAI).

@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client";
-import { growEnv, growLogs, growPhotos, grows, strains } from "../db/schema";
-import { requireAuth, type AuthEnv } from "../middleware/auth";
+import { db } from "../db/client.js";
+import { growEnv, growLogs, growPhotos, grows, strains } from "../db/schema.js";
+import { requireAuth, type AuthEnv } from "../middleware/auth.js";
+import { uuid } from "../lib/validation.js";
 
 export const growsApi = new Hono<AuthEnv>();
 
@@ -52,6 +53,7 @@ async function toGrow(row: GrowRow) {
 }
 
 async function getOwnedGrow(id: string, userId: string) {
+  uuid(id);
   const row = await db.query.grows.findFirst({ where: and(eq(grows.id, id), eq(grows.userId, userId)) });
   return row ? toGrow(row) : null;
 }
@@ -61,7 +63,7 @@ growsApi.get("/", requireAuth, async (c) => {
     .select()
     .from(grows)
     .where(eq(grows.userId, c.get("userId")))
-    .orderBy(desc(grows.createdAt));
+    .orderBy(desc(grows.createdAt)).limit(200);
   return c.json(await Promise.all(rows.map(toGrow)));
 });
 
@@ -72,11 +74,11 @@ growsApi.get("/:id", requireAuth, async (c) => {
 });
 
 const createGrowSchema = z.object({
-  name: z.string().min(1),
-  strain: z.string().optional(),
-  breeder: z.string().default(""),
+  name: z.string().trim().min(1).max(100),
+  strain: z.string().max(100).optional(),
+  breeder: z.string().max(100).default(""),
   type: z.enum(["Sativa", "Indica", "Hybrid"]).default("Hybrid"),
-  medium: z.string().default(""),
+  medium: z.string().max(200).default(""),
 });
 
 growsApi.post("/", requireAuth, async (c) => {
@@ -102,11 +104,11 @@ growsApi.post("/", requireAuth, async (c) => {
 });
 
 const addLogSchema = z.object({
-  day: z.number().int().default(0),
-  date: z.string().default("heute"),
-  title: z.string().min(1),
-  text: z.string().default(""),
-  tag: z.string().default("Beobachtung"),
+  day: z.number().int().min(0).max(10000).default(0),
+  date: z.string().max(100).default("heute"),
+  title: z.string().trim().min(1).max(200),
+  text: z.string().max(20000).default(""),
+  tag: z.enum(["Gießen", "Dünger", "Training", "Beobachtung", "Schädling", "Ernte"]).default("Beobachtung"),
 });
 
 growsApi.post("/:id/logs", requireAuth, async (c) => {

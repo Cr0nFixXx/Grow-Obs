@@ -161,6 +161,7 @@ export interface CommunityService {
 /* ----------------------------- Dev-Admin (Betreiber) ----------------------------- */
 export interface ServiceHealth {
   ok: boolean;
+  status?: "ok" | "down" | "unknown";
   hint: string;
   latencyMs?: number | null;
 }

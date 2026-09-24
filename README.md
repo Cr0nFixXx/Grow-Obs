@@ -13,6 +13,14 @@ Mock-/API-Service-Layer, Feature-Flags, Developer-Admin und Communities-MVP.
 
 **Status:** PWA + Backend-Fundament + Communities-MVP · **Agents:** [`HANDOFF.md`](./HANDOFF.md) · [`PLAN.md`](./PLAN.md) · [`MILESTONES.md`](./MILESTONES.md)
 
+**Aktuelle Stabilisierung:** Backend-Startfehler und Zugriffsprüfungen korrigiert, private API-
+Antworten aus dem PWA-Cache ausgeschlossen und Betreiberansichten an den Admin-Service angebunden.
+Testdefinitionen sind ergänzt; deren Ausführung sowie Docker-/Browser-Abnahme stehen noch aus.
+Prüfmatrix und Befehle: [`TESTING.md`](./TESTING.md). Kein Anspruch auf Produktionsreife.
+
+Letzte Verifikation: **B-38**, Vite-Build erfolgreich; 862.56 kB HTML, 310.29 kB gzip.
+Backend-/Tests-Laufzeitergebnisse dürfen daraus nicht abgeleitet werden.
+
 ---
 
 ## ✨ Highlights
@@ -64,6 +72,7 @@ Backend:
 ```bash
 cd apps/api
 cp .env.example .env
+# JWT_SECRET, POSTGRES_PASSWORD und S3_SECRET_KEY eintragen (keine Default-Secrets).
 docker compose up --build
 ```
 
@@ -113,6 +122,7 @@ public/
 | Datei | Zweck |
 |-------|--------|
 | [HANDOFF.md](./HANDOFF.md) | Agent-Einstieg, Fallstricke, DoD |
+| [TESTING.md](./TESTING.md) | Ausführbare Prüfungen und offene Release-Gates |
 | [PLAN.md](./PLAN.md) | Code-Phasen P0–P10 (Next, Backend, CRUD) |
 | [MILESTONES.md](./MILESTONES.md) | Produkt-Nordstern: Editionen, Privacy, Native, Admin |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Service-Layer Mock/API |
@@ -186,4 +196,4 @@ Der atmosphärische Hero (Auth/Onboarding) ist eine KI-generierte, **inlined** J
 
 ---
 
-> **Dokumentation gepflegt von:** Claude (Anthropic) · Kennung `claude-grow-dev` · Stand 2026
+> Aktuelle Pflege: Codex (OpenAI), 2026. Frühere Signaturen sind historische Einträge.

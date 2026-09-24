@@ -3,11 +3,25 @@
 Alle nennenswerten Änderungen an **Grow|Observer**.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/).
 
-Jeder Eintrag ist signiert von `claude-grow-dev` (Claude · Anthropic).
+Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem tatsächlichen Agenten signiert.
 
 ---
 
 ## [Unreleased]
+
+### Stabilisierung B-38 (Codex / OpenAI)
+
+- Backend-Startpfade, ESM-Imports und Drizzle-Relationen korrigiert. Eingecheckte Initialmigration,
+  getrennte Node-Runtime/Tools und sicherere Compose-Defaults ohne automatischen Demo-Seed.
+- Autorisierung: aktuelle DB-Rolle, Chat-Mitgliedschaft, private Community-Discovery,
+  atomare Einladungs-Einlösung, Last-Admin-Schutz und authentifizierte Upload-Signierung.
+- Private API-Daten aus dem PWA-Cache entfernt; öffentliche Shell-Allowlist mit Upgrade-Bereinigung.
+- Dev-Admin an echte Service-Abfragen angebunden; Rollen statt Level/Titel; unbekannte Health-
+  Zustände bleiben unbekannt. Lokale Feature-Flags werden als Vorschau gekennzeichnet.
+- Session-Restore/Logout gegen verspätete Antworten abgesichert; HTTP-Timeout/no-store und
+  Regressionstests für Cache/Auth/Flags/Requests sowie PostgreSQL-Sicherheitsfälle ergänzt.
+- Frontend-Build bestätigt (862.56 kB, gzip 310.29 kB). Tests, API-Typecheck, Docker und Geräte-
+  Abnahme sind noch nicht ausgeführt. Siehe `TESTING.md`, auch zum offenen Abhängigkeiten-Audit.
 
 ### Documentation
 - `HANDOFF.md` vollständig auf Build B-37, Service-/Backend-/Communities-Stand aktualisiert.

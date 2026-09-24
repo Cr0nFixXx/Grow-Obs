@@ -70,3 +70,17 @@ export function featureForView(view: ViewKey): FeatureKey {
 }
 
 export const STORAGE_KEY = "go-features";
+
+export type FeatureFlags = Record<FeatureKey, boolean>;
+
+export function resolveFeatureFlags(overrides: unknown): FeatureFlags {
+  const flags: FeatureFlags = { ...defaultFeatures };
+  if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) return flags;
+  const values = overrides as Record<string, unknown>;
+  for (const feature of featureMeta) {
+    if (!feature.core && Object.prototype.hasOwnProperty.call(values, feature.key) && typeof values[feature.key] === "boolean") {
+      flags[feature.key] = values[feature.key] as boolean;
+    }
+  }
+  return flags;
+}

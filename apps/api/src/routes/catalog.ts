@@ -1,23 +1,23 @@
 import { Hono } from "hono";
 import { asc, desc, eq } from "drizzle-orm";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import {
   breeders,
   hallEntries,
   notifications,
   offers,
-  products,
+  products as productsTable,
   strains,
   wikiArticles,
-} from "../db/schema";
-import { requireAuth, type AuthEnv } from "../middleware/auth";
-import { ago } from "../lib/time";
+} from "../db/schema.js";
+import { requireAuth, type AuthEnv } from "../middleware/auth.js";
+import { ago } from "../lib/time.js";
 
 /* ----------------------------- Produkte & Angebote ----------------------------- */
 export const products = new Hono<AuthEnv>();
 
 products.get("/", async (c) => {
-  const rows = await db.select().from(products).orderBy(asc(products.name));
+  const rows = await db.select().from(productsTable).orderBy(asc(productsTable.name)).limit(200);
   return c.json(
     rows.map((p) => ({
       id: p.id, name: p.name, category: p.category, brand: p.brand, price: p.price,
@@ -27,7 +27,7 @@ products.get("/", async (c) => {
 });
 
 products.get("/categories", async (c) => {
-  const rows = await db.select({ category: products.category }).from(products);
+  const rows = await db.selectDistinct({ category: productsTable.category }).from(productsTable);
   const cats = Array.from(new Set(rows.map((r) => r.category)));
   return c.json(["Alles", ...cats]);
 });

@@ -3,6 +3,19 @@
 Anweisungen & Kontext für KI-Assistenten (und Entwickler), die an **Grow|Observer** arbeiten.
 Diese Datei ist die „Source of Truth" für Konventionen, Architektur und Fallstricke.
 
+## Aktuelle Prüfvorgaben
+
+`HANDOFF.md` und `TESTING.md` haben Vorrang vor historischen Fertig-Meldungen. Ein Vite-Build ist
+kein Typecheck und kein API-/Security-Test. Ergebnis nur als erfolgreich markieren, wenn der
+Befehl tatsächlich lief. Node 22 verwenden; API wird separat geprüft. Keine gleichen Dateien
+parallel ändern und keine Lint-Meldungen ungeprüft als "stale" abtun.
+
+Backend-Tests: `npx vitest run --config vitest.backend.config.ts` aus dem Root, nur mit einer
+disponiblen PostgreSQL-Datenbank auf `*_test`. Testlauf löscht Daten in dieser Testdatenbank.
+Die CI beinhaltet nun einen separaten API-Job. Diese Session hat weder CI noch Docker gestartet.
+
+Build-Stand nach dieser Änderung: **B-38** (Frontend erfolgreich). Autor: Codex (OpenAI).
+
 ---
 
 ## ⚙️ Build & Dev
@@ -105,6 +118,7 @@ daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` re
 | `CHANGELOG.md` | Versionierter Änderungsverlauf |
 | `PROGRESS.md` | Chronologische Code-Änderungen & Bugfixes |
 | `TODO.md` | Offene Punkte & Vorschläge |
+| `TESTING.md` | Regressionsprüfungen, CI, manuelle Abnahme, unbestätigte Checks |
 
 ---
 

@@ -1,16 +1,17 @@
-# Grow|Observer API
-FROM node:20
+# Separate tools/runtime targets; migrations and seeds are never generated at server startup.
+FROM node:22-bookworm-slim AS tools
 WORKDIR /app
-
-# Dependencies
 COPY package*.json ./
-RUN npm install
-
-# Source
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY . .
+RUN npm run build
 
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=tools /app/package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
+COPY --from=tools --chown=node:node /app/dist ./dist
+USER node
 EXPOSE 8787
-
-# Migrationen generieren + ausführen, seeden, dann Dev-Server starten.
-# Für Production: `npm run build` + `npm start` nutzen.
-CMD ["sh", "-c", "npm run db:generate && npm run db:migrate && npm run db:seed && npm run dev"]
+CMD ["node", "dist/index.js"]

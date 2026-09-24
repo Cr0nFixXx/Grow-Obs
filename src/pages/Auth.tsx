@@ -8,6 +8,7 @@ import { Button, Card, Checkbox, Field, Input } from "@/components/ui";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
+import { config } from "@/lib/config";
 import { n } from "@/lib/format";
 
 export default function Auth() {
@@ -16,11 +17,12 @@ export default function Auth() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("Max Grünfeld");
-  const [email, setEmail] = useState("max@growobserver.app");
-  const [password, setPassword] = useState("supersecret");
+  const [email, setEmail] = useState(config.useMock ? "max@growobserver.app" : "");
+  const [password, setPassword] = useState(config.useMock ? "demo-password-only" : "");
   const [busy, setBusy] = useState(false);
 
   const submit = () => {
+    if (busy || !email.trim() || !password) return;
     setBusy(true);
     const run = mode === "login" ? login(email, password) : register(name, email, password);
     run
@@ -71,7 +73,7 @@ export default function Auth() {
         </div>
 
         <div className="relative z-10 flex items-center gap-2 text-xs text-white/50">
-          <ShieldCheck className="size-4 text-leaf-300" /> Ende-zu-Ende verschlüsselt · DSGVO-konform · Made with 🌱
+          <ShieldCheck className="size-4 text-leaf-300" /> PWA in Entwicklung · Keine Ende-zu-Ende-Verschlüsselung
         </div>
       </div>
 
@@ -132,7 +134,7 @@ export default function Auth() {
               <div className="h-px flex-1 bg-border" /> oder <div className="h-px flex-1 bg-border" />
             </div>
 
-            <Button variant="secondary" className="w-full" onClick={submit}>
+            <Button variant="secondary" className="w-full" onClick={() => toast.push({ title: "Noch nicht verfügbar", desc: "Telegram-Anmeldung ist noch nicht angebunden.", tone: "info" })}>
               <span className="grid size-5 place-items-center rounded-full bg-[#2AABEE] text-white text-[10px] font-bold">T</span>
               Mit Telegram fortfahren
             </Button>

@@ -10,6 +10,10 @@
 **Status der Vision:** Nordstern beschlossen; Native/Editionen/E2EE bleiben zurückgestellt.  
 Aktueller Code: PWA-Frontend, Service-Layer, Self-Host-API-Grundgerüst und Communities-MVP.
 
+Aktueller Arbeitsblock: Start-/Berechtigungsfehler und privates PWA-Caching korrigieren, dann
+die neue Testmatrix (`TESTING.md`) auf CI/Server ausführen. Code vorhanden ist nicht gleich
+Live-Betrieb verifiziert. Editionen und Native Apps bleiben zurückgestellt.
+
 ---
 
 ## Aktueller Fokus — PWA first

@@ -2,6 +2,24 @@
 
 Backend-/Daten-Anbindung für Grow|Observer.
 
+## Sicherheits- und Laufzeitstand
+
+- Hono-App-Factory: `apps/api/src/app.ts`; Portstart getrennt in `src/index.ts`.
+- API-Build: NodeNext und explizite `.js`-Imports; Runtime-Ausgabe `dist/index.js`.
+- JWT identifiziert den User; Rechte werden aus der aktuellen DB-Rolle geladen, nicht aus
+  Gamification-Werten oder alten JWT-Rollen abgeleitet.
+- Private Community-Discovery und Chat-Verlauf sind mitgliedschaftsgebunden. Invite-Einlösung
+  und letzte Admin-Rolle werden durch Transaktion/Zeilensperren geschützt.
+- Initialmigration: `apps/api/drizzle/0000_initial.sql`; bestehende Datenbanken benötigen ein
+  geprüftes Baseline-Verfahren, keine automatische Wiederanlage.
+- `ServiceHealth.status` unterscheidet `ok`, `down`, `unknown`. `/health` ist nur Liveness,
+  `/admin/health` prüft die Abhängigkeiten. Admin-Content liefert ein Array gemäß Frontend-Vertrag.
+- `public/sw-policy.js` definiert eine statische Cache-Allowlist. Auth/API-Daten sind network-only;
+  Offline-Writes/Account-Caches sind damit ausdrücklich noch nicht implementiert.
+- Mock-Sitzungen sind als Demo getrennt. API-Sitzungen enthalten eine explizite Rolle und müssen
+  vor dem Rendern geschützter Views bestätigt sein.
+- Neue Regressionstests siehe `TESTING.md`; Laufzeitergebnisse hier noch nicht vorhanden.
+
 Die UI spricht niemals direkt `fetch` oder die Mock-Arrays an, sondern eine **Service-Layer**.
 Diese hat zwei Implementierungen (Mock & API), die über eine Konfiguration ausgetauscht werden.
 So bleibt die UI stabil, während das Backend schrittweise angebunden wird.
