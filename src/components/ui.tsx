@@ -12,7 +12,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { Check, ChevronDown, ChevronRight, Search, Star, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useBodyScrollLock, useFocusTrap, useMediaQuery } from "@/lib/hooks";
@@ -636,6 +636,8 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   const widths = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
+  // Auf Mobile verhält sich das Modal wie ein Sheet → gleicher Handle-Drag.
+  const dragControls = useDragControls();
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -649,12 +651,28 @@ export function Modal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={isMobile ? { opacity: 0.5, y: "100%" } : { opacity: 0, scale: 0.97, y: 8 }}
             transition={{ type: "spring", stiffness: 340, damping: 34 }}
+            drag={isMobile ? "y" : false}
+            dragListener={false}
+            dragControls={dragControls}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.06, bottom: 0.6 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 96 || info.velocity.y > 620) onClose();
+            }}
             className={cn(
               "card glass relative z-10 w-full overflow-hidden elev-3 rounded-b-none sm:rounded-2xl",
               widths[size]
             )}
           >
-            {isMobile && <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-surface-3" aria-hidden />}
+            {isMobile && (
+              <div
+                className="flex cursor-grab touch-none justify-center py-2.5 active:cursor-grabbing"
+                onPointerDown={(e) => dragControls.start(e)}
+                aria-hidden
+              >
+                <div className="h-1.5 w-10 rounded-full bg-surface-3" />
+              </div>
+            )}
             {title && (
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <h3 className="pr-4 text-lg font-semibold leading-snug">{title}</h3>
@@ -717,7 +735,9 @@ export function Drawer({
               if (away) onClose();
             }}
             className={cn("card absolute top-0 bottom-0 z-10 flex flex-col border-0 elev-3", side === "left" ? "left-0" : "right-0")}
-            style={{ width, paddingTop: "env(safe-area-inset-top)" }}
+            // touchAction: pan-y hält vertikales Scrollen im Drawer-Inhalt nativ —
+            // Framer übernimmt nur die horizontale Achse (dragDirectionLock).
+            style={{ width, paddingTop: "env(safe-area-inset-top)", touchAction: "pan-y" }}
           >
             {title && (
               <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
@@ -750,6 +770,9 @@ export function BottomSheet({
   useBodyScrollLock(open);
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
+  // Drag NUR über den Griff: `drag="y"` auf dem ganzen Panel würde dem Browser
+  // das native Scrollen des Sheet-Inhalts wegnehmen (touch-action: none).
+  const dragControls = useDragControls();
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -764,15 +787,22 @@ export function BottomSheet({
             exit={{ y: "100%", opacity: 0.6 }}
             transition={{ type: "spring", stiffness: 320, damping: 36 }}
             drag="y"
+            dragListener={false}
+            dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0.06, bottom: 0.6 }}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 100 || info.velocity.y > 650) onClose();
+              if (info.offset.y > 96 || info.velocity.y > 620) onClose();
             }}
-            className="card relative z-10 w-full max-w-lg touch-pan-y overflow-hidden rounded-b-none elev-3 sm:rounded-2xl"
+            className="card relative z-10 w-full max-w-lg overflow-hidden rounded-b-none elev-3 sm:rounded-2xl"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            <div className="flex justify-center py-2.5 sm:hidden" aria-hidden>
+            {/* Griff: großzügige Trefferfläche, Drag-Start nur hier */}
+            <div
+              className="flex cursor-grab touch-none justify-center py-3 active:cursor-grabbing sm:hidden"
+              onPointerDown={(e) => dragControls.start(e)}
+              aria-hidden
+            >
               <div className="h-1.5 w-12 rounded-full bg-surface-3" />
             </div>
             {title && (

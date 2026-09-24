@@ -147,6 +147,71 @@ export interface ActivityService {
   list(): Promise<ActivityItem[]>;
 }
 
+/* ----------------------------- Dev-Admin (Betreiber) ----------------------------- */
+export interface ServiceHealth {
+  ok: boolean;
+  hint: string;
+  latencyMs?: number | null;
+}
+
+export interface SystemHealth {
+  ok: boolean;
+  mode: string;
+  latencyMs: number;
+  version: string;
+  services: {
+    api: ServiceHealth;
+    db: ServiceHealth;
+    storage: ServiceHealth;
+    ai: ServiceHealth;
+  };
+}
+
+export interface AdminStats {
+  users: number;
+  grows: number;
+  activeGrows: number;
+  posts: number;
+  threads: number;
+  comments: number;
+  strains: number;
+  products: number;
+  wikiArticles: number;
+  hallEntries: number;
+  notifications: number;
+}
+
+export type AdminRole = "member" | "moderator" | "admin" | "platform_admin";
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  handle: string;
+  email: string;
+  role: AdminRole;
+  level: number;
+  grows: number;
+  status: string;
+}
+
+export interface AdminContentItem {
+  id: string;
+  type: "thread" | "post";
+  title?: string;
+  text?: string;
+  createdAt: string;
+}
+
+export interface AdminService {
+  health(): Promise<SystemHealth>;
+  stats(): Promise<AdminStats>;
+  users(q?: string): Promise<AdminUser[]>;
+  setRole(userId: string, role: AdminRole): Promise<void>;
+  content(): Promise<AdminContentItem[]>;
+  deleteThread(id: string): Promise<void>;
+  deletePost(id: string): Promise<void>;
+}
+
 /** Die gesamte Service-Registry (Dependency-Container). */
 export interface Services {
   grows: GrowService;
@@ -160,4 +225,5 @@ export interface Services {
   breeders: BreederService;
   hall: HallService;
   activity: ActivityService;
+  admin: AdminService;
 }

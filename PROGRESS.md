@@ -11,6 +11,7 @@ Signiert von `claude-grow-dev` (Claude · Anthropic).
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-35 | Dev-Admin-Dashboard ausgebaut (Tabs, echte Health-Checks, System, User, Protokoll, Diagnose, Export) + 6 Touch-Fixes | ✅ ~857 kB gzip 307 kB | claude-grow-dev |
 | B-33 | Backend-Grundgerüst: apps/api (Hono+Drizzle+Postgres+MinIO), Schema, Auth, CRUD, Docker, Seed | ✅ Frontend-Build grün | claude-grow-dev |
 | B-32 | Quick-Wins-Batch: Service-Abschluss (7 Pages) + Auth-Gate + Forum-Actions + ⌘K-Inhaltssuche + Button-Busy + ErrorBoundary | ✅ ~847 kB gzip 304 kB | claude-grow-dev |
 | B-31 | Optimierungen/Touch-UX/Code-Checks + InlineIcon + EdgeSwipe refinements | ✅ ~834 kB gzip 300 kB | claude-grow-dev |
@@ -52,6 +53,18 @@ Signiert von `claude-grow-dev` (Claude · Anthropic).
 ---
 
 ## Änderungs-Historie (detailliert)
+
+### Dev-Admin + Touch (B-35)
+- **`src/lib/diagnostics.ts`** (neu): `checkBackend()` (fetch mit Timeout → API/DB/Storage/AI;
+  Mock-Modus → unknown), `systemInfo()` (nur Client-Daten, keine Secrets).
+- **`src/pages/DevAdmin.tsx`** (neu geschrieben): Tabs Übersicht/Flags/User/Protokoll/Diagnose,
+  Status-Banner, Health-Karten mit Latenz, System-Übersicht, User-Tabelle mit Rollen-/Sperr-Aktionen,
+  lokales Audit-Log (`go-dev-log`, max 40), Endpoint-Diagnose (Pfad-Chips + Live-Antwort),
+  Flags-Export (JSON) + Overrides kopieren.
+- **Touch-Fixes:** BottomSheet-Drag nur am Griff (`dragListener=false` + `dragControls`) → Inhalt
+  scrollt; Modal am Mobile mit gleichem Handle-Drag; Drawer `touchAction: "pan-y"`;
+  `useEdgeSwipeToOpen` (passiv, kein Overlay-DOM) ersetzt blockierende Kante; `useLongPress` bricht
+  bei Bewegung/Leave/Cancel ab; `usePullToRefresh` mit Overlay- & Formular-Guard.
 
 ### Docs — MILESTONES + Vision (kein App-Build)
 - **`MILESTONES.md`**: Nordstern Native Android/iOS, Editionen Free/Pro/CSC/Enterprise, E2EE,

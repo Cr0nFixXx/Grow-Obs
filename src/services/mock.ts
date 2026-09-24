@@ -21,6 +21,9 @@ import { dbGet, dbSet } from "@/lib/db";
 import type { Grow, SocialPost } from "@/types";
 import type {
   ActivityService,
+  AdminContentItem,
+  AdminService,
+  AdminUser,
   BreederService,
   ChatMessage,
   ChatService,
@@ -293,6 +296,81 @@ const activityService: ActivityService = {
   },
 };
 
+/* ---------- Dev-Admin (Mock, lokal simuliert) ---------- */
+const adminUsers: AdminUser[] = [
+  { id: "u-me", name: currentUser.name, handle: currentUser.handle, email: "admin@growobserver.app", role: "platform_admin", level: 20, grows: seedGrows.length, status: "aktiv" },
+  { id: "u-2", name: "Lena B.", handle: "@lena_grows", email: "lena@example.com", role: "member", level: 8, grows: 2, status: "aktiv" },
+  { id: "u-3", name: "soilWizard", handle: "@soilwizard", email: "soil@example.com", role: "moderator", level: 12, grows: 4, status: "aktiv" },
+  { id: "u-4", name: "NebulaGrow", handle: "@nebula", email: "nebula@example.com", role: "member", level: 5, grows: 1, status: "gesperrt" },
+];
+
+const adminThreads: AdminContentItem[] = seedThreads.map((t) => ({
+  id: t.id, type: "thread" as const, title: t.title, createdAt: new Date().toISOString(),
+}));
+const adminPosts: AdminContentItem[] = seedPosts.map((p) => ({
+  id: p.id, type: "post" as const, text: p.text, createdAt: new Date().toISOString(),
+}));
+
+const adminService: AdminService = {
+  async health() {
+    await delay(200);
+    return {
+      ok: true,
+      mode: "mock",
+      latencyMs: 12,
+      version: "0.1.0-mock",
+      services: {
+        api: { ok: true, hint: "Mock-Modus (kein Server angebunden)" },
+        db: { ok: false, hint: "Nur im API-Modus prüfbar — Backend starten", latencyMs: null },
+        storage: { ok: false, hint: "MinIO nicht angebunden (Mock-Modus)" },
+        ai: { ok: false, hint: "Kein Provider angebunden" },
+      },
+    };
+  },
+  async stats() {
+    await delay(220);
+    return {
+      users: adminUsers.length,
+      grows: seedGrows.length,
+      activeGrows: seedGrows.filter((g) => g.phase !== "Ernte").length,
+      posts: seedPosts.length,
+      threads: seedThreads.length,
+      comments: sampleComments.length,
+      strains: myStrainCollection.length,
+      products: seedProducts.length,
+      wikiArticles: wikiArticles.length,
+      hallEntries: seedHall.length,
+      notifications: seedNotifications.length,
+    };
+  },
+  async users(q) {
+    await delay(180);
+    const needle = (q ?? "").toLowerCase();
+    return adminUsers
+      .filter((u) => !needle || `${u.name} ${u.handle} ${u.email}`.toLowerCase().includes(needle))
+      .map((u) => ({ ...u }));
+  },
+  async setRole(userId, role) {
+    await delay(140);
+    const i = adminUsers.findIndex((u) => u.id === userId);
+    if (i >= 0) adminUsers[i] = { ...adminUsers[i], role };
+  },
+  async content() {
+    await delay(180);
+    return [...adminThreads, ...adminPosts];
+  },
+  async deleteThread(id) {
+    await delay(140);
+    const i = adminThreads.findIndex((t) => t.id === id);
+    if (i >= 0) adminThreads.splice(i, 1);
+  },
+  async deletePost(id) {
+    await delay(140);
+    const i = adminPosts.findIndex((p) => p.id === id);
+    if (i >= 0) adminPosts.splice(i, 1);
+  },
+};
+
 export const mockServices: Services = {
   grows: growService,
   social: socialService,
@@ -305,4 +383,5 @@ export const mockServices: Services = {
   breeders: breederService,
   hall: hallService,
   activity: activityService,
+  admin: adminService,
 };

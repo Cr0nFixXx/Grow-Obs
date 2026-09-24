@@ -39,8 +39,20 @@ Jeder Eintrag ist signiert von `claude-grow-dev` (Claude · Anthropic).
 
 Build: `dist/index.html` ✅ (P0b).
 
-### Changed
-- **Mobile Touch:** Drawer per Horizontal-Swipe schließen; Bottom-Sheet am Griff nach unten ziehen (robustere Velocity/Offset-Schwelle, `touch-pan-y`); linker Screen-Rand öffnet das Menü (Richtungs-Lock + Velocity-Guard). — *claude-grow-dev*
+### Fixed — Touch-Gesten (überall sauber)
+- **BottomSheet:** `drag="y"` auf dem ganzen Panel nahm dem Browser das native Scrollen des
+  Sheet-Inhalts (framer setzt `touch-action: none`). Drag jetzt **nur über den Griff** via
+  `dragListener={false}` + `dragControls` — Inhalt scrollt wieder, Sheet lässt sich am Griff schließen.
+- **Modal (Mobile):** sah aus wie ein Sheet, hatte aber nur einen dekorativen Griff → gleicher
+  Handle-Drag wie BottomSheet (`drag={isMobile ? "y" : false}`).
+- **Edge-Swipe (Menü öffnen):** Overlay-DOM (20 px, `z-35`, `touch-none`) blockierte Klicks und
+  horizontales Scrollen am linken Rand (Tabs, Segmented, Ticker, Stories). Ersetzt durch **passiven
+  window-Listener** (`useEdgeSwipeToOpen`) mit Richtungs-Priorität — kein DOM, keine Blockade.
+- **Long-Press (Hall of Fame):** Kontextmenü feuerte bereits beim **Scrollen** über eine Karte.
+  Bricht jetzt bei Bewegung > 10 px, Verlassen, Abbruch und Nicht-Primärkontakt ab.
+- **Pull-to-Refresh:** löste in offenen Overlays und in Formular-Feldern aus. Prüft jetzt
+  Body-Scroll-Lock (Overlay offen) und `input/textarea/select/contenteditable`.
+- **Drawer:** explizites `touchAction: "pan-y"` — vertikales Scrollen im Drawer-Inhalt bleibt nativ.
 - **Code-Optimierung:** ungenutzte Imports bereinigt (`Grows`), unnötigen Drag-Controls-Import entfernt (`ui.tsx`), Inline-Icon-Platzierung in Text korrigiert. — *claude-grow-dev*
 - **P1 Service-Verdrahtung:** Social (`useSocialPosts`, IndexedDB nur noch im Mock-Service), Grows (`useGrows`), Sorten (`useStrains`), Dashboard (aktive Grows aus Service), Auth (`useAuth().login/register`), **Forum/Chat/Wiki/Notifications auf Hooks (keine direkten Mock-Imports)**. — *claude-grow-dev*
 

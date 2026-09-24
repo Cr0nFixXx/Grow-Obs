@@ -136,7 +136,20 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
 
   useEffect(() => {
     const r = ref.current;
+
+    /** PTR nur auf „freier“ Seite: kein Overlay offen, kein Formular-Fokus. */
+    const allowed = (target: EventTarget | null) => {
+      const el = target as HTMLElement | null;
+      if (!el || !el.tagName) return false;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || el.isContentEditable) return false;
+      // Overlays setzen Body-Scroll-Lock (overflow: hidden) → kein PTR.
+      if (document.body.style.overflow === "hidden") return false;
+      return true;
+    };
+
     const onStart = (e: TouchEvent) => {
+      if (!allowed(e.target)) return;
       if (window.scrollY <= 0 && !r.refreshing) {
         r.startY = e.touches[0].clientY;
         r.pulling = true;
@@ -192,20 +205,91 @@ export function useDelayedReady(delay = 300) {
   return ready;
 }
 
-/** Long-press detection; `wasLongPress()` lets the click handler skip navigation. */
+/**
+ * Erkennt „vom linken Displayrand nach rechts wischen" (iOS-Back-Geste), um das
+ * Menü zu öffnen. Arbeitet als **passiver** window-Listener — kein Overlay-DOM,
+ * dadurch werden Klicks und horizontales Scrollen (Tabs, Ticker) nicht blockiert.
+ * Die Geste muss horizontal dominant sein, damit vertikales Scrollen nicht triggert.
+ */
+export function useEdgeSwipeToOpen(onOpen: () => void, edgeWidth = 28) {
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      tracking = t.clientX <= edgeWidth;
+      startX = t.clientX;
+      startY = t.clientY;
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = Math.abs(t.clientY - startY);
+      // Horizontal dominant und deutlich gezogen.
+      if (dx > 46 && dy < 24) {
+        tracking = false;
+        onOpen();
+      }
+    };
+
+    const onEnd = () => {
+      tracking = false;
+    };
+
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [onOpen, edgeWidth]);
+}
+
+/**
+ * Long-press detection; `wasLongPress()` lets the click handler skip navigation.
+ * Bricht bei Bewegung (>10 px), Verlassen oder Multi-Touch ab — sonst würde das
+ * Kontextmenü bereits beim Scrollen auslösen.
+ */
 export function useLongPress(cb: () => void, ms = 480) {
   const timer = useRef(0);
   const fired = useRef(false);
-  const start = () => {
+  const origin = useRef({ x: 0, y: 0 });
+
+  const cancel = () => window.clearTimeout(timer.current);
+
+  const start = (e: React.PointerEvent) => {
+    // Nur Primärkontakt (Daumen), kein Stift-rechts-Klick.
+    if (e.button !== 0 && e.pointerType === "mouse") return;
     fired.current = false;
+    origin.current = { x: e.clientX, y: e.clientY };
+    cancel();
     timer.current = window.setTimeout(() => {
       fired.current = true;
       cb();
     }, ms);
   };
-  const cancel = () => window.clearTimeout(timer.current);
+
+  const move = (e: React.PointerEvent) => {
+    if (fired.current) return;
+    const dx = Math.abs(e.clientX - origin.current.x);
+    const dy = Math.abs(e.clientY - origin.current.y);
+    if (dx > 10 || dy > 10) cancel();
+  };
+
   return {
-    handlers: { onPointerDown: start, onPointerUp: cancel, onPointerLeave: cancel, onPointerCancel: cancel },
+    handlers: {
+      onPointerDown: start,
+      onPointerMove: move,
+      onPointerUp: cancel,
+      onPointerLeave: cancel,
+      onPointerCancel: cancel,
+    },
     wasLongPress: () => fired.current,
   };
 }

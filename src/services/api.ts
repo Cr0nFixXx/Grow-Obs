@@ -5,14 +5,18 @@ import type {
 } from "@/types";
 import type {
   ActivityService,
+  AdminContentItem,
+  AdminService,
+  AdminStats,
+  AdminUser,
   BreederService,
   ChatMessage,
   ChatService,
   ConversationItem,
   ForumComment,
   ForumService,
-  ForumThreadDetail,
   ForumThreadBrief,
+  ForumThreadDetail,
   GrowService,
   HallService,
   NotificationItem,
@@ -21,6 +25,7 @@ import type {
   Services,
   SocialService,
   StrainService,
+  SystemHealth,
   WikiArticleBrief,
   WikiArticleDetail,
   WikiService,
@@ -94,6 +99,16 @@ const activityService: ActivityService = {
   list: () => http.get<ActivityItem[]>("/me/activity"),
 };
 
+const adminService: AdminService = {
+  health: () => http.get<SystemHealth>("/admin/health"),
+  stats: () => http.get<AdminStats>("/admin/stats"),
+  users: (q) => http.get<AdminUser[]>(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  setRole: (userId, role) => http.patch<void>(`/admin/users/${userId}/role`, { role }),
+  content: () => http.get<AdminContentItem[]>("/admin/content"),
+  deleteThread: (id) => http.delete<void>(`/admin/threads/${id}`),
+  deletePost: (id) => http.delete<void>(`/admin/posts/${id}`),
+};
+
 export const apiServices: Services = {
   grows: growService,
   social: socialService,
@@ -106,4 +121,5 @@ export const apiServices: Services = {
   breeders: breederService,
   hall: hallService,
   activity: activityService,
+  admin: adminService,
 };

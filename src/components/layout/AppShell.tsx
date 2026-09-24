@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -7,7 +7,13 @@ import {
 import { cn } from "@/utils/cn";
 import { useNav, type ViewKey } from "@/lib/nav";
 import { useTheme } from "@/lib/theme";
-import { useAutoHideScroll, useMediaQuery, usePullToRefresh, useScrollProgress } from "@/lib/hooks";
+import {
+  useAutoHideScroll,
+  useEdgeSwipeToOpen,
+  useMediaQuery,
+  usePullToRefresh,
+  useScrollProgress,
+} from "@/lib/hooks";
 import { vibrate } from "@/lib/format";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
@@ -591,23 +597,18 @@ function PullToRefresh() {
   );
 }
 
-/* ----------------------------- Shell ----------------------------- */
+/* ----------------------------- Edge-Swipe: Menü öffnen ----------------------------- */
+/**
+ * Passiver window-Listener statt Overlay-DOM: blockiert keine Klicks und kein
+ * horizontales Scrollen (Tabs/Ticker/Stories) am linken Rand mehr.
+ */
 function EdgeSwipeOpen() {
   const { setMobileNavOpen, mobileNavOpen } = useNav();
-  if (mobileNavOpen) return null;
-  return (
-    <motion.div
-      className="fixed inset-y-0 left-0 z-[35] w-5 touch-none lg:hidden"
-      drag="x"
-      dragDirectionLock
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={{ left: 0, right: 0.9 }}
-      onDragEnd={(_, info) => {
-        if (info.offset.x > 54 || info.velocity.x > 520) setMobileNavOpen(true);
-      }}
-      aria-hidden
-    />
-  );
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const open = useCallback(() => setMobileNavOpen(true), [setMobileNavOpen]);
+  const enabled = !isDesktop && !mobileNavOpen;
+  useEdgeSwipeToOpen(enabled ? open : () => {});
+  return null;
 }
 
 export default function AppShell({ children }: { children: ReactNode }) {
