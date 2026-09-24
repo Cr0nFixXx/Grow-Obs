@@ -13,8 +13,10 @@ Schritt-für-Schritt-Anleitung zur Umwandlung des aktuellen Vite-Frontends in ei
 | **SSR** | Nein (SPA) | Optional (RSC für Landing/SEO, CSR für Dashboard) |
 | **Native** | — | Expo `apps/mobile` ab M7 (`MILESTONES.md`) |
 
-Das Next.js-Skeleton (`app/layout.tsx`, `app/page.tsx`, `next.config.js`, `postcss.config.mjs`,
+Das Next.js-Skeleton (`app/layout.tsx`, `app/page.tsx`, `next.config.js`,
 `pnpm-workspace.yaml`) ist **bereits erstellt** und nutzt das bestehende `src/` via `@`-Alias.
+Eine Next-spezifische `postcss.config.mjs` gehört später nach `apps/web/`; im Root existiert sie
+bewusst nicht, weil sie den aktiven Vite-Build stören würde.
 
 ---
 
@@ -39,7 +41,7 @@ pnpm init
 │   └── web/                      # Next.js App
 │       ├── package.json          ("next", "react", "react-dom", "@grow-observer/*")
 │       ├── next.config.js        ✅ vorhanden (root – für Dev verschieben)
-│       ├── postcss.config.mjs    ✅ vorhanden
+│       ├── postcss.config.mjs    (später in apps/web erstellen)
 │       ├── tsconfig.json         (extends root, "next" types)
 │       └── app/
 │           ├── layout.tsx        ✅ vorhanden
@@ -152,7 +154,7 @@ module.exports = nextConfig;
 ```
 
 ### Tailwind v4
-`postcss.config.mjs` ist bereits vorhanden (`@tailwindcss/postcss`).
+`postcss.config.mjs` wird erst in `apps/web/` erstellt (`@tailwindcss/postcss`).
 `apps/web/app/globals.css`:
 ```css
 @import "tailwindcss";
@@ -239,7 +241,7 @@ export function SWRegister() {
 ## 6. Schritt-für-Schritt Checkliste
 
 1. ✅ Next.js-Skeleton (`app/layout.tsx`, `app/page.tsx`) — vorhanden
-2. ✅ Config (`next.config.js`, `postcss.config.mjs`, `pnpm-workspace.yaml`) — vorhanden
+2. ◐ Config: `next.config.js` + `pnpm-workspace.yaml` vorhanden; PostCSS erst in `apps/web`
 3. ⬜ pnpm-Monorepo initialisieren + `apps/web/package.json` erstellen
 4. ⬜ `next` installieren: `pnpm --filter @grow-observer/web add next react react-dom`
 5. ⬜ `packages/ui` + `packages/shared` erstellen + Code verschieben

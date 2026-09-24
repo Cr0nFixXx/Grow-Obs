@@ -1,6 +1,6 @@
 import { http } from "@/lib/api";
 import type {
-  ActivityItem, Breeder, CreateThreadInput, Grow, HallEntry, Product, SeedOffer,
+  ActivityItem, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, Grow, HallEntry, Product, SeedOffer,
   SocialPost, Strain,
 } from "@/types";
 import type {
@@ -10,6 +10,7 @@ import type {
   AdminStats,
   AdminUser,
   BreederService,
+  CommunityService,
   ChatMessage,
   ChatService,
   ConversationItem,
@@ -99,6 +100,16 @@ const activityService: ActivityService = {
   list: () => http.get<ActivityItem[]>("/me/activity"),
 };
 
+const communityService: CommunityService = {
+  list: () => http.get<Community[]>("/communities"),
+  get: (id) => http.get<CommunityDetail>(`/communities/${id}`),
+  create: (input: CreateCommunityInput) => http.post<CommunityDetail>("/communities", input),
+  joinPublic: (id) => http.post<void>(`/communities/${id}/join`),
+  createInvite: (id) => http.post<{ code: string; expiresAt: string }>(`/communities/${id}/invites`),
+  joinByCode: (code) => http.post<CommunityDetail>("/communities/join", { code }),
+  setMemberRole: (communityId, userId, role) => http.patch<void>(`/communities/${communityId}/members/${userId}/role`, { role }),
+};
+
 const adminService: AdminService = {
   health: () => http.get<SystemHealth>("/admin/health"),
   stats: () => http.get<AdminStats>("/admin/stats"),
@@ -121,5 +132,6 @@ export const apiServices: Services = {
   breeders: breederService,
   hall: hallService,
   activity: activityService,
+  communities: communityService,
   admin: adminService,
 };

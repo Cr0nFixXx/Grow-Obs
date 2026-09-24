@@ -11,6 +11,9 @@ Signiert von `claude-grow-dev` (Claude · Anthropic).
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| — | Dokumentations-Audit: HANDOFF komplett, README/ARCHITECTURE/PLAN/MILESTONES/TODO/CLAUDE/MIGRATION/API-README synchronisiert | Docs only | claude-grow-dev |
+| B-37 | Communities MVP (UI + Mock/API Service + Backend CRUD/Invite/Rollen + Seed) | ✅ ~859 kB gzip 309 kB | claude-grow-dev |
+| B-36 | Runtime-/Registry-Audit: Admin-Service + Admin-Route wiederhergestellt, Social-Query fix, EdgeSwipe enabled-Guard | ✅ ~860 kB gzip 308 kB | claude-grow-dev |
 | B-35 | Dev-Admin-Dashboard ausgebaut (Tabs, echte Health-Checks, System, User, Protokoll, Diagnose, Export) + 6 Touch-Fixes | ✅ ~857 kB gzip 307 kB | claude-grow-dev |
 | B-33 | Backend-Grundgerüst: apps/api (Hono+Drizzle+Postgres+MinIO), Schema, Auth, CRUD, Docker, Seed | ✅ Frontend-Build grün | claude-grow-dev |
 | B-32 | Quick-Wins-Batch: Service-Abschluss (7 Pages) + Auth-Gate + Forum-Actions + ⌘K-Inhaltssuche + Button-Busy + ErrorBoundary | ✅ ~847 kB gzip 304 kB | claude-grow-dev |

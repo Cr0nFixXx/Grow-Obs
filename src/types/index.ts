@@ -46,6 +46,37 @@ export interface ActivityItem {
   icon: string;
   color: string;
 }
+
+export type CommunityRole = "member" | "moderator" | "admin";
+
+export interface Community {
+  id: string;
+  name: string;
+  description: string;
+  isPrivate: boolean;
+  members: number;
+  role?: CommunityRole;
+  joined: boolean;
+  createdAt: string;
+}
+
+export interface CommunityMember {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  role: CommunityRole;
+}
+
+export interface CommunityDetail extends Community {
+  membersList: CommunityMember[];
+}
+
+export interface CreateCommunityInput {
+  name: string;
+  description: string;
+  isPrivate: boolean;
+}
 export interface CreatePostInput {
   text: string;
   image?: string;

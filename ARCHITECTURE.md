@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-Backend-/Daten-Anbindung – **Grundgerüst** für Grow|Observer.
+Backend-/Daten-Anbindung für Grow|Observer.
 
 Die UI spricht niemals direkt `fetch` oder die Mock-Arrays an, sondern eine **Service-Layer**.
 Diese hat zwei Implementierungen (Mock & API), die über eine Konfiguration ausgetauscht werden.
@@ -17,10 +17,10 @@ So bleibt die UI stabil, während das Backend schrittweise angebunden wird.
  Data-Layer (src/data/)
    │  useServices() / Hooks (loading/error/refresh, CRUD-Aktionen)
    ▼
- Service-Layer (src/services/)
+  Service-Layer (src/services/)
    │  Verträge: GrowService, SocialService, StrainService …
    ├─► mock.ts   → statische Mock-Daten (+ IndexedDB, künstl. Latenz)
-   └─► api.ts    → echtes Backend via HTTP-Client
+    └─► api.ts    → `apps/api` via HTTP-Client
             ▲
  config.useMock (src/lib/config.ts) wählt aus
             ▲
@@ -48,13 +48,21 @@ Implementierungen: `mock` | `api` (Free-Cloud) | `local` (Paid local-first). UI 
 | `src/lib/config.ts` | `apiBaseUrl` + `useMock` (gesteuert über `VITE_API_URL`) |
 | `src/lib/api.ts` | HTTP-Client `http.get/post/put/patch/delete`, `ApiError`, `setAuthToken` (Bearer-Token) |
 | `src/lib/auth.tsx` | `AuthProvider` + `useAuth()` (login/register/logout, Token-Persistenz, Session-Restore) |
-| `src/services/interfaces.ts` | Service-Verträge (`GrowService`, `SocialService`, `StrainService`, `Services`) |
+| `src/services/interfaces.ts` | Verträge für Grows, Social, Forum, Chat, Wiki, Katalog, Communities, Admin |
 | `src/services/mock.ts` | Mock-Implementierung (Mock-Daten, IndexedDB, simulierte Latenz) |
 | `src/services/api.ts` | API-Implementierung (REST-Endpunkte) |
 | `src/services/index.ts` | Factory: wählt Mock ↔ API (`config.useMock`) |
 | `src/data/DataContext.tsx` | `DataProvider` + `useServices()` (stellt Registry bereit) |
-| `src/data/hooks.ts` | `useGrows`, `useStrains`, `useSocialPosts` (async-Listen + Aktionen) |
+| `src/data/hooks.ts` | Async-Hooks für alle produktiven Domänen inkl. Communities |
 | `.env.example` | `VITE_API_URL` (leer = Mock) |
+| `apps/api/src` | Hono-API, Drizzle-Schema, Auth, Routes, MinIO |
+| `apps/api/docker-compose.yml` | Postgres + MinIO + API |
+
+Aktive Service-Registry: Grows, Social, Strains, Wiki, Forum, Chat, Notifications, Products,
+Breeders, Hall, Activity, Communities und Admin.
+
+Backend-Routen liegen in `apps/api/src/routes/`. Admin-Routen sind mit `requireAuth` und
+`requirePlatformAdmin` geschützt. Community-Routen benötigen JWT; private Details nur für Mitglieder.
 
 ---
 
@@ -114,6 +122,23 @@ im API-Modus ein `POST /social/posts`, im Mock-Modus IndexedDB + Latenz.
 | GET/POST | `/social/posts` | `listPosts` / `createPost` |
 | POST | `/social/posts/:id/like` | `toggleLike` |
 | GET | `/strains` | `list` |
+| GET/POST | `/communities` | `list` / `create` |
+| GET | `/communities/:id` | `get` |
+| POST | `/communities/:id/join` | `joinPublic` |
+| POST | `/communities/:id/invites` | `createInvite` |
+| POST | `/communities/join` | `joinByCode` |
+| PATCH | `/communities/:id/members/:userId/role` | `setMemberRole` |
+| GET | `/admin/health`, `/admin/stats`, `/admin/users`, `/admin/content` | Developer-Admin |
+
+### Backend lokal starten
+
+```bash
+cd apps/api
+cp .env.example .env
+docker compose up --build
+```
+
+Der API-Modus des Frontends wird mit `VITE_API_URL=http://localhost:8787` aktiviert.
 
 ---
 

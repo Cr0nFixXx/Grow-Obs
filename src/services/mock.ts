@@ -1,5 +1,6 @@
 import {
   activityFeed,
+  AVATARS,
   breeders as seedBreeders,
   categories as productCategories,
   conversations as seedConversations,
@@ -19,12 +20,14 @@ import {
 } from "@/mocks/data";
 import { dbGet, dbSet } from "@/lib/db";
 import type { Grow, SocialPost } from "@/types";
+import type { CommunityDetail } from "@/types";
 import type {
   ActivityService,
   AdminContentItem,
   AdminService,
   AdminUser,
   BreederService,
+  CommunityService,
   ChatMessage,
   ChatService,
   ConversationItem,
@@ -296,6 +299,68 @@ const activityService: ActivityService = {
   },
 };
 
+/* ---------- Communities (Mock, Session-persistent) ---------- */
+const communityStore: CommunityDetail[] = [
+  {
+    id: "co-1", name: "Berlin Living Soil", description: "No-Till, Komposttee und regionale Treffen.",
+    isPrivate: false, members: 284, joined: true, role: "member", createdAt: "2026-01-12",
+    membersList: [
+      { id: "u-me", name: currentUser.name, handle: currentUser.handle, avatar: currentUser.avatar, role: "member" },
+      { id: "u-2", name: "Lena B.", handle: "@lena_grows", avatar: AVATARS[5], role: "admin" },
+    ],
+  },
+  {
+    id: "co-2", name: "Haze Collective", description: "Sativa-Genetiken, Phänotypen und Klima.",
+    isPrivate: false, members: 143, joined: false, createdAt: "2026-02-01", membersList: [],
+  },
+  {
+    id: "co-3", name: "Grow-Crew Privat", description: "Geschlossener Kreis für gemeinsame Runs.",
+    isPrivate: true, members: 8, joined: true, role: "admin", createdAt: "2026-02-18",
+    membersList: [
+      { id: "u-me", name: currentUser.name, handle: currentUser.handle, avatar: currentUser.avatar, role: "admin" },
+      { id: "u-3", name: "soilWizard", handle: "@soilwizard", avatar: AVATARS[3], role: "moderator" },
+    ],
+  },
+];
+
+const inviteStore = new Map<string, string>();
+
+const communityService: CommunityService = {
+  async list() { await delay(); return communityStore.map(({ membersList: _m, ...c }) => ({ ...c })); },
+  async get(id) { await delay(120); const c = communityStore.find((x) => x.id === id); return c ? structuredClone(c) : undefined; },
+  async create(input) {
+    await delay();
+    const c: CommunityDetail = {
+      id: `co-${Date.now()}`, ...input, members: 1, joined: true, role: "admin",
+      createdAt: new Date().toISOString(),
+      membersList: [{ id: "u-me", name: currentUser.name, handle: currentUser.handle, avatar: currentUser.avatar, role: "admin" }],
+    };
+    communityStore.unshift(c);
+    return structuredClone(c);
+  },
+  async joinPublic(id) {
+    await delay(120); const c = communityStore.find((x) => x.id === id);
+    if (!c || c.isPrivate) throw new Error("Community nicht öffentlich");
+    if (!c.joined) { c.joined = true; c.role = "member"; c.members += 1; }
+  },
+  async createInvite(id) {
+    await delay(100); const code = `go-inv_${Math.random().toString(36).slice(2, 10)}`;
+    inviteStore.set(code, id);
+    return { code, expiresAt: new Date(Date.now() + 86400000).toISOString() };
+  },
+  async joinByCode(code) {
+    await delay(); const id = inviteStore.get(code) ?? (code === "demo-private" ? "co-3" : undefined);
+    const c = communityStore.find((x) => x.id === id);
+    if (!c) throw new Error("Einladung ungültig oder abgelaufen");
+    if (!c.joined) { c.joined = true; c.role = "member"; c.members += 1; }
+    return structuredClone(c);
+  },
+  async setMemberRole(communityId, userId, role) {
+    await delay(100); const c = communityStore.find((x) => x.id === communityId);
+    const m = c?.membersList.find((x) => x.id === userId); if (m && role) m.role = role;
+  },
+};
+
 /* ---------- Dev-Admin (Mock, lokal simuliert) ---------- */
 const adminUsers: AdminUser[] = [
   { id: "u-me", name: currentUser.name, handle: currentUser.handle, email: "admin@growobserver.app", role: "platform_admin", level: 20, grows: seedGrows.length, status: "aktiv" },
@@ -383,5 +448,6 @@ export const mockServices: Services = {
   breeders: breederService,
   hall: hallService,
   activity: activityService,
+  communities: communityService,
   admin: adminService,
 };

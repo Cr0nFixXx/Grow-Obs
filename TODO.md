@@ -4,7 +4,7 @@ Offene Punkte für **Grow|Observer**.
 Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt.
 
 - **Template-Scope (UI)** ist vollständig `[x]`.
-- **Nächste Code-Arbeit:** `PLAN.md` ab P1.
+- **Nächste Code-Arbeit:** Backend real starten/E2E, dann Communities/Realtime (PLAN P5).
 - **Produkt-Nordstern:** `MILESTONES.md` (nicht an M7 Native beginnen vor M1–M3).
 
 Pflege: `claude-grow-dev` (Claude · Anthropic).
@@ -14,10 +14,15 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 ## 🚀 Jetzt (PWA first)
 
 - [x] **Feature-Flags** `src/config/features.ts` + Nav/View-Gates. *(PLAN P0b)*
-- [x] **Developer-Admin-Panel** (Betreiber: Flags, Health, User-Mock). *(P0b)*
+- [x] **Developer-Admin-Panel** (Flags, Diagnose, Health, User/Content-UI, Audit-Log); echte
+  `/admin/*`-Routen vorhanden, vollständige Frontend-Umstellung darauf noch offen. *(P0b/P4)*
 - [x] **Pages → Services** (Auth, Grows, Social, Strains, Dashboard). *(P1)*
-- [ ] **Self-Host-Backend** (Docker: API, Postgres, MinIO) + Auth/Grows/Communities. *(P4–P6)*
-- [ ] **Community-Funktionen** auf dem Server (Invite, Rollen, Mod). *(P7)*
+- [~] **Self-Host-Backend**: API/Docker/Schema/Auth/Grows/Communities implementiert; realer
+  Docker-/API-E2E-Test in dieser Umgebung noch offen. *(P4–P6)*
+- [~] **Community-Funktionen** auf dem Server: Create/List/Join/Invite/Rollen umgesetzt; Feed-Scope,
+  Kick/Hide/Mod-Queue und Tests noch offen. *(P5/P7)*
+- [ ] **Backend-E2E**: Docker starten, Frontend mit `VITE_API_URL` verbinden, Auth/Grow/Social/
+  Forum/Community-Invite/Admin gegen echte DB testen.
 - [ ] **AI-Proxy** serverseitig, per Flag. *(P9)*
 - [ ] **PWA-Härtung** (SW, Offline-Shell). *(P10)*
 

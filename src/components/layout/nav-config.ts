@@ -32,6 +32,7 @@ export const navGroups: NavGroup[] = [
       { key: "forum", label: "Forum", icon: "MessagesSquare" },
       { key: "hallOfFame", label: "Hall of Fame", icon: "Trophy" },
       { key: "social", label: "Community-Feed", icon: "Users" },
+      { key: "communities", label: "Communities", icon: "Globe" },
     ],
   },
   {

@@ -211,8 +211,9 @@ export function useDelayedReady(delay = 300) {
  * dadurch werden Klicks und horizontales Scrollen (Tabs, Ticker) nicht blockiert.
  * Die Geste muss horizontal dominant sein, damit vertikales Scrollen nicht triggert.
  */
-export function useEdgeSwipeToOpen(onOpen: () => void, edgeWidth = 28) {
+export function useEdgeSwipeToOpen(onOpen: () => void, enabled = true, edgeWidth = 28) {
   useEffect(() => {
+    if (!enabled) return;
     let startX = 0;
     let startY = 0;
     let tracking = false;
@@ -248,7 +249,7 @@ export function useEdgeSwipeToOpen(onOpen: () => void, edgeWidth = 28) {
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onEnd);
     };
-  }, [onOpen, edgeWidth]);
+  }, [onOpen, enabled, edgeWidth]);
 }
 
 /**

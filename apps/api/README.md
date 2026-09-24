@@ -64,6 +64,17 @@ Admin-Login (Seed-Default): `admin@growobserver.app` / `admin123`
 | GET | `/products`, `/products/categories`, `/offers` | – | Katalog |
 | GET | `/breeders`, `/strains`, `/hall`, `/wiki` | – | Katalog |
 | GET | `/me/activity` | Bearer | Abgeleitete Aktivität |
+| GET/POST | `/communities` | Bearer | Communities listen/erstellen |
+| GET | `/communities/:id` | Bearer | Detail + Mitglieder (private nur als Mitglied) |
+| POST | `/communities/:id/join` | Bearer | Öffentlicher Beitritt |
+| POST | `/communities/:id/invites`, `/communities/join` | Bearer | Einmal-Code erstellen/einlösen |
+| PATCH | `/communities/:id/members/:userId/role` | Bearer + Community-Admin | Rolle ändern |
+| GET | `/admin/health` | Bearer + platform_admin | API/DB/Storage/KI-Health |
+| GET | `/admin/stats` | Bearer + platform_admin | System-Kennzahlen |
+| GET | `/admin/users?q=` | Bearer + platform_admin | User-Suche + Grow-Counts |
+| PATCH | `/admin/users/:id/role` | Bearer + platform_admin | Rolle ändern |
+| GET | `/admin/content` | Bearer + platform_admin | Aktuelle Threads/Posts |
+| DELETE | `/admin/threads/:id`, `/admin/posts/:id` | Bearer + platform_admin | Moderation/Löschung |
 | POST | `/upload/presign` | – | Presigned-URL für Upload |
 
 ## Schema & Migrationen

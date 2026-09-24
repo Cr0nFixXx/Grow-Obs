@@ -304,6 +304,7 @@ const moreNav: { key: ViewKey; label: string; icon: string }[] = [
   { key: "wiki", label: "Wiki", icon: "BookOpen" },
   { key: "hallOfFame", label: "Hall of Fame", icon: "Trophy" },
   { key: "social", label: "Community-Feed", icon: "Users" },
+  { key: "communities", label: "Communities", icon: "Globe" },
   { key: "chat", label: "Chat", icon: "MessageCircle" },
   { key: "calculator", label: "Kostenrechner", icon: "Euro" },
   { key: "showcase", label: "Design-System", icon: "Layers" },
@@ -607,7 +608,7 @@ function EdgeSwipeOpen() {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const open = useCallback(() => setMobileNavOpen(true), [setMobileNavOpen]);
   const enabled = !isDesktop && !mobileNavOpen;
-  useEdgeSwipeToOpen(enabled ? open : () => {});
+  useEdgeSwipeToOpen(open, enabled);
   return null;
 }
 

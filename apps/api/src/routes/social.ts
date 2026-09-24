@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client";
 import { postLikes, posts } from "../db/schema";
@@ -79,10 +79,12 @@ social.post("/posts/:id/like", requireAuth, async (c) => {
   const userId = c.get("userId");
   const postId = c.req.param("id");
   const existing = await db.query.postLikes.findFirst({
-    where: (l, f) => [f.eq(l.postId, postId), f.eq(l.userId, userId)],
+    where: and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)),
   });
   if (existing) {
-    await db.delete(postLikes).where((l, f) => [f.eq(l.postId, postId), f.eq(l.userId, userId)]);
+    await db
+      .delete(postLikes)
+      .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)));
   } else {
     await db.insert(postLikes).values({ postId, userId });
   }

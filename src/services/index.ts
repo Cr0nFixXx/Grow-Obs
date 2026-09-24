@@ -6,7 +6,13 @@ import { apiServices } from "./api";
 export type {
   Services,
   ActivityService,
+  AdminContentItem,
+  AdminRole,
+  AdminService,
+  AdminStats,
+  AdminUser,
   BreederService,
+  CommunityService,
   ChatService,
   ForumService,
   GrowService,
@@ -15,6 +21,7 @@ export type {
   ProductService,
   SocialService,
   StrainService,
+  SystemHealth,
   WikiService,
 } from "./interfaces";
 

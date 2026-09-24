@@ -1,5 +1,6 @@
 import type {
-  ActivityItem, Breeder, CreateGrowInput, CreatePostInput, CreateThreadInput,
+  ActivityItem, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
+  CreateGrowInput, CreatePostInput, CreateThreadInput,
   Grow, GrowLog, HallEntry, Product, SeedOffer, SocialPost, Strain,
 } from "@/types";
 
@@ -147,6 +148,16 @@ export interface ActivityService {
   list(): Promise<ActivityItem[]>;
 }
 
+export interface CommunityService {
+  list(): Promise<Community[]>;
+  get(id: string): Promise<CommunityDetail | undefined>;
+  create(input: CreateCommunityInput): Promise<CommunityDetail>;
+  joinPublic(id: string): Promise<void>;
+  createInvite(id: string): Promise<{ code: string; expiresAt: string }>;
+  joinByCode(code: string): Promise<CommunityDetail>;
+  setMemberRole(communityId: string, userId: string, role: CommunityRole): Promise<void>;
+}
+
 /* ----------------------------- Dev-Admin (Betreiber) ----------------------------- */
 export interface ServiceHealth {
   ok: boolean;
@@ -225,5 +236,6 @@ export interface Services {
   breeders: BreederService;
   hall: HallService;
   activity: ActivityService;
+  communities: CommunityService;
   admin: AdminService;
 }

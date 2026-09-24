@@ -11,6 +11,8 @@ import { social } from "./routes/social";
 import { chat } from "./routes/chat";
 import { notificationsApi } from "./routes/notifications";
 import { activity, breedersApi, hall, offersApi, products, strainsApi, wiki } from "./routes/catalog";
+import { admin } from "./routes/admin";
+import { communitiesApi } from "./routes/communities";
 import { presignUpload } from "./lib/s3";
 
 const app = new Hono();
@@ -19,6 +21,8 @@ app.use(logger());
 app.use("*", cors({ origin: corsOrigins }));
 
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
+app.route("/admin", admin);
+app.route("/communities", communitiesApi);
 
 // Kern-Ressourcen
 app.route("/auth", auth);

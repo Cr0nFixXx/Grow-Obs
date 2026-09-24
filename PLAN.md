@@ -87,11 +87,11 @@ SaaS (Vercel/Neon) bleibt **optional**, nicht Default.
 | Phase | Name | Ergebnis | Abhängigkeit |
 |------|------|----------|--------------|
 | P0 | Guardrails | Vite-App bleibt grün, Docs aktuell | — |
-| P1 | Pages → Services | UI spricht nur noch Hooks/Services | P0 |
+| P1 | Pages → Services | ✅ Kern- und Katalog-Pages service-basiert | P0 |
 | P2 | Monorepo + Next.js | `apps/web` startet, Vite optional | P1 |
 | P3 | File-based Routing | `useNav` tot, URLs echt | P2 |
 | P4 | Backend-Fundament | ✅ `apps/api` (DB, Auth, Storage, CRUD, Docker) — vorausbauend, unabhängig von Next | — |
-| P5 | Communities & Realtime | Follows, Communities/Invites, SSE/WS, Presence | P4 |
+| P5 | Communities & Realtime | ◐ MVP: Create/List/Join/Invite/Rollen; offen: Feed-Scope, Kick/Mod, SSE/Presence | P4 |
 | P6 | Social Graph | Feed, Follow, Likes | P5 |
 | P7 | Community | Forum, Chat, Notifications, Wiki | P6 |
 | P8 | Commerce & Tools | Marktplatz, Calculator persist, Report PDF | P5 |
@@ -195,12 +195,11 @@ REST-Pfade analog `ARCHITECTURE.md` (`GET/POST /grows`, `POST /grows/:id/logs`, 
 ### P1.3 Loading/Error überall
 Nutze vorhandene `Skeleton`, `SkeletonCard`, `EmptyState`, `PageSkeleton`. Keine Blank-Screens.
 
-### Done wenn
-- Kein `from "@/mocks/data"` mehr in `src/pages/*` (Ausnahme: Showcase-Demos).
-- `Social.tsx` hat keine eigenen `dbGet/dbSet`-Calls.
-- `Auth.tsx` ruft `login()` / `register()` auf.
-- Mock-Modus unverändert nutzbar ohne Backend.
-- Build + Tests grün.
+### Status
+
+Kern-Pages und Katalog-Pages sind über Services/Hooks angebunden. Direkte Mock-Imports bleiben
+für statische UI-Vorschläge, Reviews, Story-Demos, Klima-/Simulationsdaten und Showcase-Inhalte.
+Social-IndexedDB liegt ausschließlich im Mock-Service. Auth nutzt `login/register`.
 
 ---
 
@@ -261,6 +260,7 @@ Ersetze `useNav()` vollständig.
 | wiki | `/(app)/wiki` + `[id]` |
 | forum | `/(app)/forum` + `[id]` |
 | social | `/(app)/social` |
+| communities | `/(app)/communities` + `[id]` |
 | hallOfFame | `/(app)/hall-of-fame` |
 | chat | `/(app)/chat` |
 | ai | `/(app)/ai` |
@@ -269,6 +269,7 @@ Ersetze `useNav()` vollständig.
 | profile | `/(app)/settings` |
 | telegram | `/(app)/settings/telegram` |
 | showcase | `/(app)/dev/showcase` (dev-only oder hinter flag) |
+| devAdmin | `/(app)/dev` (platform_admin) |
 | auth | `/(marketing)/login` |
 
 ### Layouts
@@ -301,10 +302,11 @@ noch Vite ist und Self-Hosting (Docker) priorisiert war. REST-Vertrag = `src/ser
 Details + Setup: **`apps/api/README.md`**. Start: `cd apps/api && docker compose up --build`.
 
 Erledigt: Drizzle-Schema (alle Kern-Tabellen + Relations), Auth (Argon2+JWT), Grows-CRUD mit
-Ownership, Forum, Social, Chat, Notifications, Katalog-Routen, Presigned S3-Uploads,
+Ownership, Forum, Social, Chat, Notifications, Katalog-Routen, Communities (Create/List/Join/
+Invite/Rollen), Admin-Routen, Presigned S3-Uploads,
 `docker-compose.yml` (Postgres+MinIO+API), `seed.ts` (Bucket+Admin+Katalog+Demo), validierte Env.
 
-Offen für P4: Realtime (SSE/WS), Presence, Follows-Tabelle, Auth-Schutz auf `/upload/presign`,
+Offen für P4/P5: Realtime (SSE/WS), Presence, Follows-Tabelle, Auth-Schutz auf `/upload/presign`,
 Production-Build-Flow (build+start statt dev), Tests/E2E für die API.
 
 ### Ursprüngliches Stack-Setup (Referenz)
@@ -599,9 +601,9 @@ Blocker:
 ## Status
 
 ```
-Aktuelle Phase: P4 (Backend-Fundament) umgesetzt — apps/api (Hono+Drizzle+Postgres+MinIO).
-Nächste Schritte: Backend via Docker starten, Frontend auf VITE_API_URL umschalten,
-  dann P5 (Communities/Realtime) ausbauen.
+Aktuelle Phase: P4 umgesetzt; P5 Communities-MVP teilweise umgesetzt.
+Nächste Schritte: Backend via Docker starten, Frontend auf VITE_API_URL umschalten, E2E testen,
+  dann Community-Feed-Scope, Kick/Mod-Queue und SSE/Presence.
 Letzter Agent: claude-grow-dev
 Datum: 2026
 Blocker: keines (API-Typcheck läuft außerhalb des Vite-Builds — bei Erststart mit pnpm/npm in apps/api)

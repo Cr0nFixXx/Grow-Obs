@@ -9,7 +9,29 @@ Jeder Eintrag ist signiert von `claude-grow-dev` (Claude · Anthropic).
 
 ## [Unreleased]
 
+### Documentation
+- `HANDOFF.md` vollständig auf Build B-37, Service-/Backend-/Communities-Stand aktualisiert.
+- README, ARCHITECTURE, PLAN, MILESTONES, TODO, CLAUDE, MIGRATION und API-README synchronisiert;
+  beschädigte doppelte MILESTONES-Sektion entfernt. — *claude-grow-dev*
+
+### Fixed
+- **Runtime/Registry-Audit:** fehlenden `useEdgeSwipeToOpen`-Import sowie durch frühere parallele
+  Edits verlorene Admin-Service-Typen/-Registrierungen wiederhergestellt. `AdminService` ist jetzt
+  in Mock + API + `Services` Registry vollständig vorhanden. — *claude-grow-dev*
+- **Backend:** zuvor dokumentierte, aber nicht persistierte `apps/api/src/routes/admin.ts` jetzt
+  tatsächlich vorhanden und in `/admin` gemountet; Social-Like-Query auf korrektes
+  `and(eq(...), eq(...))` umgestellt. — *claude-grow-dev*
+- **Touch:** Edge-Swipe-Hook hat nun einen stabilen `enabled`-Parameter statt wechselnder No-op-
+  Callbacks (keine unnötigen Listener-Neuregistrierungen). — *claude-grow-dev*
+
 ### Added
+- **Communities MVP**: neue View `communities` (Feature-Flag + Sidebar/Mehr/⌘K), öffentliche und
+  private Gruppen, Suche, Erstellen, öffentlicher Beitritt, Invite-Code-Beitritt (`demo-private`
+  im Mock), Detail mit Mitglieder-/Rollenverwaltung und Invite-Code-Erstellung. Vollständig über
+  `CommunityService` (Mock + API) / `useCommunities` / `useCommunity`. — *claude-grow-dev*
+- **Backend Communities**: `/communities` (list/get/create), `/:id/join`, `/:id/invites`, `/join`,
+  Member-Rollen-Patch — JWT, Private-Access-Check, Admin-Check, TTL/MaxUses für Invites; Seed enthält
+  eine öffentliche und eine private Test-Community. — *claude-grow-dev*
 - **Backend-Grundgerüst** (`apps/api`): selbst hostbares REST-Backend (Hono + Drizzle +
   PostgreSQL + MinIO) mit REST-Vertrag exakt passend zum Frontend-Service-Layer. Enthält:
   - Drizzle-Schema (users, grows/logs/photos/env, strains, breeders, products, offers, hall,

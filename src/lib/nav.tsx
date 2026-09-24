@@ -20,6 +20,7 @@ export type ViewKey =
   | "forum"
   | "hallOfFame"
   | "social"
+  | "communities"
   | "showcase"
   | "calculator"
   | "consumption"

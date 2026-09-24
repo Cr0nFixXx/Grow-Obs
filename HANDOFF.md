@@ -2,256 +2,321 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** Frontend B-33 (Vite Single-File, grün) + Backend-Grundgerüst `apps/api`  
+**Stand:** Frontend Build **B-37** (Vite Single-File, grün) + Self-Host-API-Grundgerüst  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
-Lies **dieses Dokument zuerst**, dann `PLAN.md`. `MILESTONES.md`: **PWA-first** oben, Native/Editionen unten (zurückgestellt). Nicht raten — die Fallstricke unten sind echt.
+Lies zuerst dieses Dokument, danach `PLAN.md`, `ARCHITECTURE.md` und `apps/api/README.md`.
+`MILESTONES.md` enthält den Produkt-Nordstern; Native Apps, Editionen und E2EE sind derzeit
+bewusst zurückgestellt.
 
 ---
 
-## 1. Was das Projekt IST
+## 1. Aktueller Produktfokus
 
-Ein **produktionsreifes Frontend-Design-Template** (React 19 + Vite + Tailwind v4 + TypeScript) für eine Community-Cannabis-Grow-PWA.
+Jetzt wird eine **voll funktionsfähige PWA** mit selbst gehostetem Backend gebaut:
 
-- Alle 22 Screens existieren und sind visuell vollständig.
-- **Service-Layer verdrahtet:** Core-Pages (Grows, Social, Forum, Chat, Wiki, Notifications,
-  Marketplace, Breeders, Hall, Planner, Report, Profile, Dashboard) laufen über `src/data/hooks.ts`.
-  Statische Katalog-/Ableitungsdaten bleiben Mock-Imports.
-- **Auth-Gate** aktiv (ungeloggte Views zeigen Auth); `useAuth()` liefert die Session.
-- **Backend-Grundgerüst vorhanden:** `apps/api` (Hono + Drizzle + PostgreSQL + MinIO), REST-Vertrag
-  exakt passend zum Frontend. Start via `apps/api/docker-compose.yml`. Details: `apps/api/README.md`.
-- Frontend schaltet über `VITE_API_URL` (leer = Mock) um — `src/lib/config.ts` + `src/services/api.ts`.
-- Next.js-Skeleton existiert (`app/`, `next.config.js`, `pnpm-workspace.yaml`) — **aktiver Build ist Vite**.
+- Auth, Grow-Tagebuch, öffentliche/private Communities, Social Feed, Forum, Chat, Wiki
+- Notifications, Marktplatz/Katalog, Tools und später serverseitige KI
+- Feature-Flags aus Datei, Laufzeit-Overrides im Developer-Admin
+- Developer-Admin für App-/Backend-Management
+- Offline-fähige PWA-Shell und IndexedDB-Fallbacks
 
-**Ziel jetzt:** Backend live bringen (Docker), Frontend auf `VITE_API_URL` umschalten, dann
-Communities/Realtime ausbauen (`PLAN.md` P4 → P5).
-
-**Zurückgestellt:** Native, Editionen, P2P/E2EE-Gerätecloud (`MILESTONES.md` ab §0).
+Zurückgestellt: Editionen, Native Android/iOS, E2EE/P2P und In-App-Purchases.
 
 ---
 
-## 2. Sofort starten
+## 2. Was bereits implementiert ist
 
-**Frontend (aktiver Build):**
+### Frontend
+
+- React 19, TypeScript, Vite, Tailwind CSS v4
+- Über 22 Screens inklusive Developer-Admin und Communities
+- Mobile Shell, Bottom-Sheets, Swipe-/Long-Press-/Pull-to-Refresh-Gesten, Safe-Area
+- Auth-Gate und Session-Provider
+- Feature-Flags in `src/config/features.ts` + Overrides im `FeatureProvider`
+- Global Search über Navigation, Sorten, Threads und Produkte
+- Error Boundary, Skeletons, Empty/Error States, Toasts und Focus-Traps
+
+### Service- und Data-Layer
+
+Die produktiven Pages greifen über `src/data/hooks.ts` auf `src/services/index.ts` zu.
+Die Factory wählt anhand von `VITE_API_URL`:
+
+```text
+leer    -> mockServices
+gesetzt -> apiServices
+```
+
+Implementierte Service-Domänen:
+
+- Grows, Social, Strains, Wiki, Forum, Chat, Notifications
+- Products/Offers, Breeders, Hall of Fame, Activity
+- Communities
+- Developer-Admin-Vertrag
+
+### Communities-MVP
+
+- Neue View `communities`
+- Öffentliche/private Communities
+- Suche, Erstellen, öffentlich beitreten
+- Privater Beitritt per Einladungscode
+- Mitglieder/Rollen in der Detailansicht
+- Invite-Code-Erstellung durch Admins
+- Mock-Code: `demo-private`
+- Backend-Routen für List/Get/Create/Join/Invite/Rolle
+
+### Self-Host-Backend
+
+Pfad: `apps/api`
+
+| Bereich | Technologie |
+|---|---|
+| HTTP | Hono + Node Server |
+| Datenbank | PostgreSQL 16 |
+| ORM | Drizzle ORM |
+| Auth | JWT (`jose`) + Argon2 |
+| Storage | MinIO / S3-kompatibel |
+| Betrieb | Docker Compose |
+
+Vorhandene Backend-Domänen:
+
+- Auth, Grows, Social, Forum, Chat, Notifications
+- Products, Offers, Breeders, Strains, Hall, Wiki, Activity
+- Communities inklusive Invite/Rollen
+- Admin-Routen für Health, Stats, User und Content
+- Presigned S3/MinIO Upload
+
+`apps/api/README.md` ist die operative Backend-Dokumentation.
+
+---
+
+## 3. Sofort starten
+
+### Frontend (Mock-Modus)
+
 ```bash
 npm install
-npm run dev          # Vite Dev-Server (aktueller aktiver Stack)
-npm run build        # Single-File → dist/index.html (MUSS grün bleiben, solange Vite aktiv ist)
-npx vitest run       # Unit-Tests (format.ts + charts.smooth)
-npx tsc --noEmit     # Typecheck (nicht im npm-script, aber in CI)
+npm run dev
+npm run build
+npx vitest run
+npx tsc --noEmit
 ```
 
-**Backend (selbst gehostet):**
+### Backend (Docker)
+
 ```bash
 cd apps/api
-cp .env.example .env   # JWT_SECRET anpassen
-docker compose up --build   # Postgres + MinIO + API auf :8787
+cp .env.example .env
+# JWT_SECRET ändern
+docker compose up --build
 ```
 
-Frontend auf das Backend umschalten: in der Vite-Env `VITE_API_URL=http://localhost:8787` setzen
-(leer = Mock-Modus). CORS-Origins in `apps/api/.env` unter `CORS_ORIGINS` pflegen.
+Erwartete Dienste:
+
+```text
+API            http://localhost:8787
+Health         http://localhost:8787/health
+MinIO API      http://localhost:9000
+MinIO Console  http://localhost:9001
+PostgreSQL     localhost:5432
+```
+
+Seed-Admin für lokale Entwicklung:
+
+```text
+admin@growobserver.app
+admin123
+```
+
+Frontend in API-Modus:
+
+```bash
+VITE_API_URL=http://localhost:8787
+```
+
+`apps/api/.env`:
+
+```bash
+CORS_ORIGINS=http://localhost:5173
+```
 
 ---
 
-## 3. Tech-Stack (IST)
+## 4. Wichtige Pfade
 
-| Schicht | Ist |
-|---|---|
-| UI | React 19.2, TypeScript 5.9, Vite 7, Tailwind CSS **v4** (`@tailwindcss/vite`) |
-| Animation | Framer Motion |
-| Icons | lucide-react via `src/components/Icon.tsx` Registry |
-| Charts | Eigenbau SVG (`src/components/charts.tsx`) — **kein Recharts** |
-| Routing | View-State Context `useNav()` (`src/lib/nav.tsx`) — **kein react-router, kein Next-Router** |
-| State | Nur UI-State (Theme, Nav, Modals). Kein Redux/Zustand/TanStack Query |
-| PWA | `public/manifest.webmanifest`, `public/sw.js`, PNG-Icons 192/512 |
-| Tests | Vitest (`vitest.config.ts`), Dateien `*.test.ts` |
-| Lint | ESLint flat config (`eslint.config.js`) |
-| CI | `.github/workflows/ci.yml` (tsc + eslint + vitest + build) |
-
-**Abhängigkeiten in `package.json`:** react, react-dom, framer-motion, lucide-react, clsx, tailwind-merge, vitest, eslint, typescript-eslint. **Kein Next.js installiert.** `next.config.js` existiert, aber `next` ist **kein** dependency.
-
----
-
-## 4. Projektstruktur (wichtigste Pfade)
-
-```
+```text
 src/
-  App.tsx                 # "use client" + Provider-Hierarchie + View-Router
-  pages/                  # 22 Screens (Dashboard, Grows, Social, AI, …)
-  components/
-    ui.tsx                # ALLE Primitives (groß)
-    charts.tsx            # SVG-Charts
-    layout/AppShell.tsx   # Sidebar, TopBar, BottomNav, FAB, Drawer, CommandPalette
-    layout/nav-config.ts  # Nav-Gruppen
-    Icon.tsx              # String→Lucide Registry — neue Icons HIER eintragen
-    Particles.tsx         # Canvas-Pollen + Background
-    Toast.tsx
-    motion.tsx            # Reveal, Stagger, CountUp
-  lib/
-    nav.tsx               # ViewKey + navigate(view, params)
-    theme.tsx             # Light/Dark + particles toggle
-    i18n.tsx              # de/en + EUR/USD (nur Settings verdrahtet)
-    auth.tsx              # AuthProvider (Mock + API-Pfad)
-    api.ts                # HTTP-Client + ApiError + setAuthToken
-    config.ts             # useMock = !VITE_API_URL
-    db.ts                 # IndexedDB KV (dbGet/dbSet/dbDel)
-    hooks.ts              # media, scroll, focus-trap, PTR, long-press, …
-    format.ts             # eur, pct, timeAgo, vibrate
-    tokens.ts             # Tone-Klassen (leaf/soil/info/warning/danger)
-  services/
-    interfaces.ts         # GrowService, SocialService, StrainService
-    mock.ts / api.ts / index.ts
-  data/
-    DataContext.tsx       # DataProvider + useServices()
-    hooks.ts              # useGrows, useStrains, useSocialPosts
-  mocks/data.ts           # ALLE Mock-Daten + Typen
-  types/index.ts          # Re-export + User + Create*Input
-  index.css               # Design-Tokens (Tailwind v4 @theme)
+  App.tsx
+  config/features.ts
+  config/FeatureContext.tsx
+  data/DataContext.tsx
+  data/hooks.ts
+  services/interfaces.ts
+  services/mock.ts
+  services/api.ts
+  services/index.ts
+  lib/api.ts
+  lib/auth.tsx
+  lib/config.ts
+  lib/db.ts
+  lib/diagnostics.ts
+  lib/hooks.ts
+  pages/Communities.tsx
+  pages/DevAdmin.tsx
 
-app/                      # Next.js Skeleton (Vite ignoriert das)
-  layout.tsx / page.tsx   # page.tsx: dynamic(() => import("@/App"), { ssr: false })
-public/                   # PWA + Icons
-docs: README, CLAUDE, DESIGN, ARCHITECTURE, MIGRATION, CHANGELOG, PROGRESS, TODO
+apps/api/
+  docker-compose.yml
+  Dockerfile
+  seed.ts
+  src/index.ts
+  src/db/schema.ts
+  src/middleware/auth.ts
+  src/routes/*.ts
 ```
 
-Provider-Hierarchie (`App.tsx`):
+Provider-Hierarchie:
 
-```
-ThemeProvider → I18nProvider → AuthProvider → DataProvider → ToastProvider → NavProvider → Shell
+```text
+ThemeProvider
+  I18nProvider
+    AuthProvider
+      DataProvider
+        FeatureProvider
+          ToastProvider
+            NavProvider
+              Shell
 ```
 
 ---
 
-## 5. Screens / ViewKeys
+## 5. Views und Feature-Flags
 
-Alle in `src/lib/nav.tsx` `ViewKey` und `src/App.tsx` `views`-Map:
-
-`dashboard` `grows` `strains` `ai` `planner` `breeders` `marketplace` `wiki` `forum` `hallOfFame` `social` `showcase` `calculator` `consumption` `simulation` `report` `chat` `notifications` `profile` `telegram` `auth`
-
-Detail-Params (gleicher View, andere Params): `growId`, `breederId`, `threadId`, `articleId`.
-
-Mobile Bottom-Nav: Home, Grows, Forum, Profil + **„Mehr"-Sheet** (Marktplatz, KI, Wiki, HoF, Social, Chat, Rechner, Showcase).
-
----
-
-## 6. Was BEREITS fertig ist (nicht neu bauen)
-
-- Vollständiges Design-System (Light/Dark, Tokens, Glass, Charts, Overlays)
-- Alle Screens als UI mit Mock-Daten
-- PWA (Manifest, SW mit SWR für Bilder, Background-Sync Tag `go-sync`, PNG-Icons)
-- Accessibility: Focus-Trap, Skip-Link, aria-live, role=list, reduced-motion
-- Mobile: PTR, Skeleton-Flash, Long-Press (HoF), Auto-Hide-Scrollbar, Bottom-Sheets
-- i18n-Grundgerüst (`t()`, `money()`) — **nur Profile-Settings verdrahtet**
-- Service-Layer + Auth-Provider + HTTP-Client — **Pages nutzen das fast nicht**
-- IndexedDB: Social-Posts in `Social.tsx` UND in `services/mock.ts` (doppelte Persistenz — vereinheitlichen)
-- Next.js Skeleton + `MIGRATION.md` + `ARCHITECTURE.md`
-- Tests: `src/lib/format.test.ts`, `src/components/charts.test.ts`
-- TODO.md ist **100 % abgehakt** (Template-Scope). Offene Arbeit steht in `PLAN.md`.
-
----
-
-## 7. Was NICHT fertig ist (echte Arbeit)
-
-1. Pages importieren weiter `from "@/mocks/data"` statt `useGrows()` / `useSocialPosts()`.
-2. Service-Interfaces decken nur **3 Domänen** ab (grows, social, strains). Rest fehlt.
-3. Auth-UI (`pages/Auth.tsx`) ruft **nicht** `useAuth().login()` — nur Toast + navigate.
-4. Next.js ist Skeleton, `next` ist nicht in dependencies, kein File-based Routing.
-5. Kein Backend, keine DB, kein Storage, kein Realtime, kein AI-Backend.
-6. Keine echte Telegram-Bot-Anbindung.
-7. PDF-Export = `window.print()`, kein serverseitiges PDF.
-8. Chat / Forum / Notifications sind rein lokal/UI.
-
----
-
-## 8. Harte Constraints & Fallstricke
-
-Agents **müssen** das beachten. Verstöße brechen den Build oder die UX.
-
-### Tailwind v4
-- Config ist **CSS-basiert** (`src/index.css` `@import "tailwindcss"`, `@theme`, `@theme inline`).
-- **Kein** `tailwind.config.js`. Semantische Farben: `bg-surface`, `text-fg-muted`, `text-accent`, `border-border`.
-- Dark Mode: `html[data-theme="dark"]` + `@custom-variant dark`.
-
-### Custom CSS-Properties brauchen Einheiten
-```ts
-// FALSCH — padding-left: 272 ist ungültig
-style={{ "--sb-w": 272 }}
-// RICHTIG
-style={{ "--sb-w": "272px" }}
+```text
+dashboard grows strains ai planner breeders marketplace wiki forum hallOfFame
+social communities showcase calculator consumption simulation report chat
+notifications profile telegram auth devAdmin
 ```
-React hängt bei Custom Properties **kein** `px` an. Das war ein echter Desktop-Sidebar-Overlap-Bug.
 
-### `overflow-x: hidden` auf body bricht sticky
-Aktuell `overflow-x: clip`. Nicht zurückändern.
+Feature-Defaults: `src/config/features.ts`.
 
-### Icons
-Niemals Lucide-Komponenten in Loops per String. Registry `src/components/Icon.tsx` erweitern, dann `<Icon name="Foo" />`.
-
-### Single-File Vite-Build
-`vite-plugin-singlefile` inlined JS/CSS in `dist/index.html`. Assets aus `public/` bleiben **separate Dateien**. Sichtbare kritische Bilder aus `src/` importieren (werden base64). **Kein Recharts** (Bundle-Bloat).
-
-### PostCSS
-**Kein** `postcss.config.mjs` im Root anlegen, solange Vite der aktive Build ist. Vite lädt es und crasht ohne `@tailwindcss/postcss`. Next.js-PostCSS gehört nach `apps/web/` (siehe `MIGRATION.md`).
-
-### `"use client"`
-Steht in `App.tsx` für Next.js. Vite ignoriert es. Beibehalten.
-
-### Parallele Same-File-Edits
-Nicht dieselbe Datei in parallelen Tool-Calls editieren — erzeugt Race-Conditions/kaputten Code.
-
-### `noUnusedLocals` / `noUnusedParameters`
-tsconfig ist strict. Ungenutzte Imports zerbrechen `tsc --noEmit`.
-
-### Canvas / window / IndexedDB
-Kein SSR. Next.js-Pages, die die SPA einbinden, brauchen `dynamic(..., { ssr: false })` (bereits in `app/page.tsx`).
-
-### Mobile TopBar
-Dauerhaft **Burger-Menü**, kein Back-Button in der TopBar. Zurück nur über PageHeader der Detail-Pages oder Nav.
+Ausgeschaltete Features verschwinden aus Nav, Mobile-„Mehr“ und Command-Palette. Direkter
+View-Zugriff zeigt einen EmptyState. Das ist keine Security Boundary; der Server muss später
+dasselbe Flag/Policy-Gate prüfen.
 
 ---
 
-## 9. Konventionen (weiterführen)
+## 6. Touch-UX: nicht zurückbauen
 
-- UI-Sprache Deutsch. Code-Kommentare Deutsch oder Englisch, konsistent.
-- Neue Domäne: Pattern in `ARCHITECTURE.md` (Typ → Interface → mock.ts → api.ts → Hook → Page).
-- Navigation: solange Vite aktiv ist, `useNav().navigate("grows", { growId })`. Nach Next.js: `router.push("/grows/[id]")`.
-- Toasts: `useToast().push({ title, desc?, tone, icon })`.
-- Haptik: `vibrate()` aus `src/lib/format.ts`.
-- Doku nach erfolgreichem Build aktualisieren: `CHANGELOG.md`, `PROGRESS.md`. Signatur: Agent-Name + Datum.
+- BottomSheet: Drag startet nur am Griff über `dragControls`; Inhalt bleibt scrollbar
+- Mobile Modal: gleicher Handle-Drag
+- Drawer: horizontales Drag mit `touchAction: "pan-y"`
+- Menü öffnen: `useEdgeSwipeToOpen` als passiver Window-Listener, kein Overlay-Element
+- Long-Press: bricht bei mehr als 10 px Bewegung ab
+- Pull-to-Refresh: deaktiviert in Overlays und Formularfeldern
+- Mobile TopBar: dauerhaft Burger-Menü
 
----
-
-## 10. Definition of Done (für JEDE Änderung)
-
-1. `npm run build` grün, solange Vite der aktive App-Build ist.
-2. `npx tsc --noEmit` grün.
-3. `npx vitest run` grün.
-4. Keine ungenutzten Imports.
-5. Mobile + Desktop nicht regressieren (Sidebar-Padding, Bottom-Nav, Safe-Area).
-6. CHANGELOG + PROGRESS um den Build ergänzen.
-
-Wenn du auf Next.js umgestellt hast: Vite-Build darf entfallen, dann `next build` ist DoD.
+Weiter testen auf echten Geräten: iOS Safari, Android Chrome, lange Sheets, horizontale Scroller.
 
 ---
 
-## 11. Empfohlene Lesereihenfolge
+## 7. Harte Fallstricke
 
-1. **dieses File** (`HANDOFF.md`)
-2. `PLAN.md` — nächste Code-Phasen (P0–P10)
-3. `MILESTONES.md` — Produkt-Nordstern (Editionen, Privacy, Native)
-4. `ARCHITECTURE.md` — Service-Layer
-5. `MIGRATION.md` — Next.js / Monorepo
-6. `CLAUDE.md` — Konventionen / Fallstricke
-7. `DESIGN.md` — Tokens / Komponenten
-8. `src/services/interfaces.ts` + `src/lib/nav.tsx` + `src/App.tsx`
+### Vite-Build prüft keine Typen
+
+`npm run build` kann grün sein, obwohl ein Import fehlt. Nach Import-/Registry-Änderungen immer:
+
+```bash
+npx tsc --noEmit
+```
+
+### Keine parallelen Edits derselben Datei
+
+Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Routen verloren.
+
+### Tailwind v4 / PostCSS
+
+- CSS-basierte Config in `src/index.css`
+- kein Root-`postcss.config.mjs`, solange Vite aktiv ist
+- kein `tailwind.config.js`
+
+### Layout
+
+- Custom CSS Properties immer mit Einheit: `"272px"`
+- `body` nutzt `overflow-x: clip`, nicht `hidden`
+- neue String-Icons in `src/components/Icon.tsx` registrieren
+
+### Backend
+
+- Secrets nur in `apps/api/.env`
+- `/admin/*`: `requireAuth` und `requirePlatformAdmin`
+- Ownership-Checks auf User-Ressourcen
+- Feature-Flags später auch serverseitig prüfen
 
 ---
 
-## 12. Kontakt zum Ist-Zustand in einem Satz
+## 8. Noch offen
 
-> **UI ist fertig und poliert. Daten sind Fake. Service-Layer und Next-Skeleton liegen bereit, sind aber nicht die laufende App. Nächster Job: Pages auf Services (P1), dann Monorepo/Next/Backend. Nordstern Native + E2EE-Communities steht in MILESTONES.md — erst nach M3.**
+- Docker-Stack wurde in dieser Agent-Umgebung nicht real gestartet
+- `apps/api` wurde hier nicht separat installiert/typegecheckt
+- Communities: Community-Feed-Scope, Kick, Hide, Mod-Queue und Tests fehlen
+- Realtime/Presence fehlen
+- AI ist weiterhin UI/Mock; kein Server-Proxy
+- Developer-Admin-Frontend nutzt noch lokale Diagnose-/Mockdaten; vollständige Umstellung auf
+  `AdminService`/`/admin/*` steht aus
+- Upload-Presign vor Produktion mit Auth schützen
+- Next.js-Monorepo ist vorbereitet, nicht aktiv migriert
+- Backend-E2E-Tests fehlen
 
 ---
 
-> Handoff erstellt von `claude-grow-dev` (Claude · Anthropic) · 2026
+## 9. Nächste Schritte
+
+1. `apps/api` installieren/typechecken und per Docker starten
+2. Frontend auf `VITE_API_URL=http://localhost:8787` schalten
+3. E2E: Register/Login -> Grow -> Post -> Forum -> Community-Invite
+4. DevAdmin vollständig auf `/admin/*` umstellen
+5. Communities: Kick, Hide, Mod-Queue und Community-Feed-Scope
+6. SSE/Realtime für Chat und Notifications
+7. AI-Proxy serverseitig
+8. PWA Offline-Queue und Sync-Härtung
+9. Danach Next.js-Migration
+
+---
+
+## 10. Definition of Done
+
+Frontend:
+
+```bash
+npm run build
+npx tsc --noEmit
+npx vitest run
+```
+
+Backend:
+
+```bash
+cd apps/api
+npm install
+npm run typecheck
+```
+
+Zusätzlich:
+
+- Mobile und Desktop prüfen
+- Mock- und API-Modus testen
+- CHANGELOG und PROGRESS aktualisieren
+- API-Vertrag in `apps/api/README.md` und `ARCHITECTURE.md` nachziehen
+
+---
+
+## 11. Ein-Satz-Handoff
+
+> Die PWA-UI ist weitgehend fertig und service-basiert; Self-Host-API und Communities-MVP
+> existieren. Als Nächstes muss der Docker-Stack real gestartet, der API-Modus end-to-end geprüft
+> und Communities/Realtime/AI produktiv ausgebaut werden.
+
+---
+
+> Handoff aktualisiert von `claude-grow-dev` (Claude · Anthropic) · 2026

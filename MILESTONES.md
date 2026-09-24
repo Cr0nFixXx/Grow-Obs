@@ -4,15 +4,29 @@
 **Projekt:** Grow|Observer  
 **Lies zuerst:** `HANDOFF.md` → `PLAN.md` → **dieses File** (Produkt-Nordstern)
 
-`PLAN.md` = *wie* der nächste Code gebaut wird (P0–P10).  
+`PLAN.md` = *wie* der nächste Code gebaut wird (P0–P14).  
 `MILESTONES.md` = *was* das Produkt werden soll und welche Meilensteine in welcher Reihenfolge.
 
-**Status der Vision:** beschlossen als Zielbild, **noch nicht implementiert**.  
-Aktueller Code: Design-Template + Service-Grundgerüst (Vite SPA). Keine Native App, kein P2P, keine Editionen.
+**Status der Vision:** Nordstern beschlossen; Native/Editionen/E2EE bleiben zurückgestellt.  
+Aktueller Code: PWA-Frontend, Service-Layer, Self-Host-API-Grundgerüst und Communities-MVP.
 
 ---
 
-## 0. Nordstern
+## Aktueller Fokus — PWA first
+
+Jetzt aktiv:
+
+- Self-Host-PWA und REST-Backend
+- Auth, Grow-Tagebuch, Social/Forum/Chat/Wiki
+- Communities (öffentlich/privat, Invite-Code, Rollen)
+- Developer-Admin und Feature-Flags
+- als Nächstes: realer API-E2E-Test, Community-Moderation, Feed-Scope und Realtime
+
+Nicht jetzt: Editionen, Native Apps, E2EE/P2P und In-App-Purchases.
+
+---
+
+## 0. Nordstern (zurückgestellt)
 
 Eine **vermarktungsfähige native App** (zuerst Android, dann iOS) plus **optimierte Desktop-Web-Version**.
 
@@ -412,113 +426,9 @@ Zusätzlich zu HANDOFF DoD:
 ```
 Vision (später): Native, Editionen, E2EE — dieses File ab §0
 Jetzt:           PWA + Self-Host-Backend + Feature-Flags + Dev-Admin
-Implementiert:   M0 (Template)
-Nächster Schritt: Feature-Config + Dev-Admin-UI (Mock) + PLAN P1
-Blocker:         keines; Editionen/Native explizit verschoben
-```
-
----
-
-> gepflegt von `claude-grow-dev` (Claude · Anthropic) · 2026
-), Löschen auf A entfernt auf B nach Refresh/Sync.
-
-### M6 — Invite QR / Hash
-
-- Einmal-Codes, TTL, QR in App/Web  
-- Join auf zweitem Gerät  
-
-**Akzeptanz:** Scan (oder Paste Hash) → Mitglied; Code danach ungültig.
-
-### M7 — Android Native MVP (`apps/mobile`)
-
-- Expo App: Journal offline, Join QR, Feed, Foto, Tombstone  
-- Play-Internal-Testing Track (nicht zwingend Production)  
-
-**Akzeptanz:** Flugmodus: Grow anlegen. Online: Sync. Delete propagiert auf Web-Client derselben Community.
-
-### M8 — CSC-Edition
-
-- Club-Raum, Mitglieder-Admin, Chargen-Felder (minimal)  
-- Lizenz-Gate  
-
-**Akzeptanz:** Club-Owner lädt 5 Members per QR, sieht Mod-Queue.
-
-### M9 — IAP Free + Paywall Pro
-
-- RevenueCat (Android) + Stripe (Web)  
-- Restore Purchases  
-
-**Akzeptanz:** Free-User kauft Pro-Mock/Sandbox → `privateCommunities: true`.
-
-### M10 — Enterprise-light
-
-- Org-Admin, mehrere Spaces, Export  
-- Noch kein SCIM  
-
-### M11 — iOS
-
-- Dieselbe Expo-Codebase, TestFlight  
-- Store-Gate separat  
-
-### M12 — Mesh-P2P (optional, nach Relay-Stabilität)
-
-- WebRTC / local network sync ohne Relay, wenn beide online  
-- BLE nur wenn Bedarf (hohe Komplexität)
-
-**Nicht** vor M5–M7.
-
----
-
-## 8. Mapping PLAN.md ↔ MILESTONES.md
-
-| PLAN | Milestone | Hinweis |
-|---|---|---|
-| P0–P1 | M0–M1 | Jetzt starten |
-| P2–P3 | M2 | Next + Desktop-Web |
-| P4–P6 | M3 | Free-Cloud |
-| P7 | M4 + Chat später | Forum/Wiki vor P2P |
-| P8 | Teil von M3/M9 | IAP, Marktplatz nur Free-Cloud |
-| P9 | KI hinter Quota; Paid: Kontext **nicht** an LLM ohne Opt-in | |
-| P10 | Harden vor M7 Store | |
-| — | M5–M6 | **Neues Arbeitspaket** `packages/sync` — in PLAN nicht enthalten, hier führen |
-| — | M7–M11 | Native / Editionen |
-| — | M12 | Echtes P2P Mesh |
-
-Agents in den nächsten Wochen: **nicht** M7 anfangen, bevor M1–M3 stehen. Local-First ohne stabile Domain-Hooks wird weggeworfen.
-
----
-
-## 9. Risiken (Agents nicht schönreden)
-
-1. **App-Store-Policy** kann Android/iOS-Distribution blockieren. Parallel: PWA + Direct APK für CSC.  
-2. **E2EE vs. Moderation:** Mods können E2EE-Inhalte nicht serverseitig scannen. Hide ist client-enforced.  
-3. **Löschen ≠ forensisch unwiederbringlich** (Backups, Screenshots). Copy schreiben: „best effort sync delete“.  
-4. **Key-Loss:** ohne Recovery-Key ist Community-Daten weg. UX dafür bauen, bevor Launch.  
-5. **Relay-Metadaten:** IPs, Timing. Anonymität ist nicht Tor. Optional später: Tor/I2P nur Enterprise-Forschung.  
-6. **CRDT-Merge von Bildern** ist sinnlos — Blobs sind immutable, Delete ist Tombstone.  
-7. **Vier Editionen** verleiten zu if-else-Hölle. Nur `entitlements` abfragen.
-
----
-
-## 10. DoD für Vision-Arbeit
-
-Zusätzlich zu HANDOFF DoD:
-
-- Keine Klartext-Community-Inhalte in Paid-Relays (Test: mitzulesen in Devtools/Network).  
-- Tombstone-Test mit 2 Clients automatisiert.  
-- Edition-Matrix in Tests (`entitlements.privateCommunities === false` → API 403).  
-- Datenschutz-Text (kurz) in `/legal/privacy` aktualisieren, wenn Sync-Modell sich ändert.
-
----
-
-## 11. Status
-
-```
-Vision:     beschlossen (dieses File)
-Implementiert: M0
-Nächster Produkt-Meilenstein: M1 (Entitlements + Service-Verdrahtung)
-Nächster Code-Plan: PLAN.md Phase P1
-Blocker: Store-Policy und Crypto-Review vor M7 Public Release
+Implementiert:   M0 + Self-Host-API-Grundgerüst + Developer-Admin + Communities-MVP
+Nächster Schritt: API-Modus E2E, Community-Moderation, Feed-Scope und Realtime (PLAN P5)
+Blocker:         Docker/API wurde in dieser Agent-Umgebung nicht real gestartet
 ```
 
 ---

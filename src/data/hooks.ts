@@ -135,6 +135,27 @@ export function useActivity() {
   return { activity: data ?? [], loading, error, refresh };
 }
 
+export function useCommunities() {
+  const svc = useServices();
+  const { data, loading, error, refresh } = useAsync(() => svc.communities.list(), [svc]);
+  const create = useCallback(async (input: { name: string; description: string; isPrivate: boolean }) => {
+    const c = await svc.communities.create(input); await refresh(); return c;
+  }, [svc, refresh]);
+  const joinPublic = useCallback(async (id: string) => { await svc.communities.joinPublic(id); await refresh(); }, [svc, refresh]);
+  const joinByCode = useCallback(async (code: string) => { const c = await svc.communities.joinByCode(code); await refresh(); return c; }, [svc, refresh]);
+  return { communities: data ?? [], loading, error, refresh, create, joinPublic, joinByCode };
+}
+
+export function useCommunity(id: string) {
+  const svc = useServices();
+  const { data, loading, error, refresh } = useAsync(() => svc.communities.get(id), [svc, id]);
+  const createInvite = useCallback(() => svc.communities.createInvite(id), [svc, id]);
+  const setRole = useCallback(async (userId: string, role: "member" | "moderator" | "admin") => {
+    await svc.communities.setMemberRole(id, userId, role); await refresh();
+  }, [svc, id, refresh]);
+  return { community: data, loading, error, refresh, createInvite, setRole };
+}
+
 export function useWikiArticles() {
   const svc = useServices();
   const { data, loading, error, refresh } = useAsync(() => svc.wiki.list(), [svc]);

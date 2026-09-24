@@ -1,14 +1,17 @@
 # 🌿 Grow|Observer
 
-**Jetzt:** produktionsreifes Frontend-Design-Template (React 19 + Vite + Tailwind v4) — PWA-UI mit Mock-Daten.
+**Jetzt:** funktionsfähige PWA-UI (React 19 + Vite + Tailwind v4) mit austauschbarer
+Mock-/API-Service-Layer, Feature-Flags, Developer-Admin und Communities-MVP.
 
-**Jetzt:** voll funktionsfähige **PWA** + selbst gehostetes Backend, Feature-Flags, Developer-Admin. → [`PLAN.md`](./PLAN.md)
+**Self-Host-Backend:** `apps/api` (Hono + Drizzle + PostgreSQL + MinIO + Docker Compose).
+→ [`apps/api/README.md`](./apps/api/README.md)
 
 **Später:** Native Apps, Editionen, E2EE/P2P. → [`MILESTONES.md`](./MILESTONES.md)
 
-> Aktueller Code: Design-System & UI/UX, statische Mocks (`src/mocks/data.ts`). Service-Layer und Next-Skeleton liegen bereit, sind noch nicht die laufende App.
+> Der aktive Frontend-Build ist weiterhin Vite. `VITE_API_URL` leer = Mock; gesetzt = Self-Host-API.
+> Das Next.js-Skeleton ist vorbereitet, aber nicht der aktive Build.
 
-**Version:** `v0.12.0` · **Status:** Template freeze (M0) · **Agents:** [`HANDOFF.md`](./HANDOFF.md) · [`PLAN.md`](./PLAN.md) · [`MILESTONES.md`](./MILESTONES.md)
+**Status:** PWA + Backend-Fundament + Communities-MVP · **Agents:** [`HANDOFF.md`](./HANDOFF.md) · [`PLAN.md`](./PLAN.md) · [`MILESTONES.md`](./MILESTONES.md)
 
 ---
 
@@ -30,12 +33,16 @@
 
 | Bereich      | Wahl                                              |
 | ------------ | ------------------------------------------------- |
-| Framework    | React 19 + TypeScript + Vite                       |
+| Frontend     | React 19 + TypeScript + Vite                       |
 | Styling      | Tailwind CSS v4 (CSS-Variablen/`@theme`)           |
 | Animation    | Framer Motion                                     |
 | Icons        | lucide-react                                       |
 | Charts       | Eigenbau (SVG) – Recharts-frei & Single-File-tauglich |
 | PWA          | `manifest.webmanifest` + `public/sw.js`           |
+| API          | Hono + Node (`apps/api`)                           |
+| DB / ORM     | PostgreSQL + Drizzle                              |
+| Storage      | MinIO / S3-kompatibel                             |
+| Auth         | JWT + Argon2                                      |
 
 > **Warum keine Recharts?** Der Build nutzt `vite-plugin-singlefile`. Eine Chart-Lib würde das
 > Single-File-Bundle massiv aufblähen. Die eigenen SVG-Charts sind klein, vollständig theme-bar
@@ -50,6 +57,20 @@ npm install      # Abhängigkeiten installieren
 npm run dev      # Dev-Server (Vite)
 npm run build    # Production-Build (Single-File: dist/index.html)
 npm run preview  # Build lokal vorschau
+```
+
+Backend:
+
+```bash
+cd apps/api
+cp .env.example .env
+docker compose up --build
+```
+
+API-Modus im Frontend:
+
+```bash
+VITE_API_URL=http://localhost:8787
 ```
 
 ---
@@ -79,7 +100,8 @@ src/
 │   └── layout/
 │       ├── AppShell.tsx     # Sidebar, TopBar, BottomNav, FAB, Drawer, CommandPalette, Notifications
 │       └── nav-config.ts    # Navigations-Struktur
-└── pages/                   # 20+ Screens (Dashboard, Grows, AI, Wiki, Forum …)
+└── pages/                   # Screens inkl. Communities & Developer-Admin
+apps/api/                    # Self-Host REST API + DB/Storage/Docker
 public/
 ├── manifest.webmanifest
 ├── icon.svg
@@ -94,6 +116,7 @@ public/
 | [PLAN.md](./PLAN.md) | Code-Phasen P0–P10 (Next, Backend, CRUD) |
 | [MILESTONES.md](./MILESTONES.md) | Produkt-Nordstern: Editionen, Privacy, Native, Admin |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Service-Layer Mock/API |
+| [apps/api/README.md](./apps/api/README.md) | Backend-Setup, Endpunkte, Sicherheit |
 | [MIGRATION.md](./MIGRATION.md) | Vite → Next.js Monorepo |
 | [DESIGN.md](./DESIGN.md) | Tokens, Komponenten, Bewegung |
 | [CLAUDE.md](./CLAUDE.md) | Konventionen für KI-Agents |
@@ -118,11 +141,13 @@ Theme-Umschaltung: `<html data-theme="dark|light">` (no-FOUC via Inline-Script i
 
 ## 📱 Responsive / Mobile
 
-- **Mobile**: Bottom-Nav (5 Tabs, animierter Indikator), FAB (rechts-unten), Scroll-to-Top, Slide-in-Drawer.
+- **Mobile**: Bottom-Nav (4 Haupt-Tabs + „Mehr“), FAB, Scroll-to-Top, Swipe-Drawer.
 - **Desktop**: persistente Sidebar (kollaborierbar), Top-Bar mit Suche.
 - **Overlays**: Modal → auf Mobile Bottom-Sheet; Notifications → auf Mobile Slide-Up-Sheet.
 - **Safe-Area**: `env(safe-area-inset-*)` auf TopBar, BottomNav, FAB, Content-Padding.
 - **Touch**: Tap-Highlight entfernt, `touch-action: manipulation`, Card-`:active`-Feedback.
+- **Gesten**: Drawer horizontal schließen, Sheets/Modals am Griff schließen, passiver Edge-Swipe,
+  Long-Press mit Bewegungs-Guard, Pull-to-Refresh mit Overlay-/Formular-Guard.
 
 ---
 
@@ -132,11 +157,12 @@ Dashboard · Auth (Split-Layout + Partikel-Hero) · Meine Grows (Liste + Detail 
 Umwelt-Charts, Masonry-Galerie + Lightbox, Logs) · Sorten-Sammlung (+ Detail-Modal) ·
 Breeder & Seeds (Verzeichnis + Detail) · Marktplatz (Ticker + Grid + Detail) · Wiki (Bibliothek +
 Reader, editierbar) · Forum (Feed + Thread/Kommentare) · Chat (Split + Live-Window) ·
-Community-Feed (Social: Stories, Posts, Like/Teilen, Follow) ·
+Community-Feed (Social: Stories, Posts, Like/Teilen, Follow) · Communities (öffentlich/privat,
+Invite-Code, Rollen) ·
 Hall of Fame (Masonry-Showcase) · Kostenrechner (interaktiv) · Verbrauch (Charts + Vergleich) ·
 Simulation (Wachstumskurven) · Grow-Planung (Vergleichstabelle) · Grow-Report (Export-UI) ·
 KI-Assistent (Chat-Streaming + Agenten + Mixture-of-Erd's mit Git-Diff) · Benachrichtigungen ·
-Profil & Einstellungen · Telegram-Integration · Onboarding/Splash · 404.
+Profil & Einstellungen · Developer-Admin · Telegram-Integration · Onboarding/Splash · 404.
 
 ---
 

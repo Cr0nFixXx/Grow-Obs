@@ -27,6 +27,7 @@ import Wiki from "@/pages/Wiki";
 import Forum from "@/pages/Forum";
 import HallOfFame from "@/pages/HallOfFame";
 import Social from "@/pages/Social";
+import Communities from "@/pages/Communities";
 import Showcase from "@/pages/Showcase";
 import Calculator from "@/pages/Calculator";
 import Consumption from "@/pages/Consumption";
@@ -52,6 +53,7 @@ const views: Record<ViewKey, ComponentType> = {
   forum: Forum,
   hallOfFame: HallOfFame,
   social: Social,
+  communities: Communities,
   showcase: Showcase,
   calculator: Calculator,
   consumption: Consumption,

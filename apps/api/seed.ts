@@ -1,6 +1,8 @@
 import { db } from "./src/db/client";
 import {
   comments,
+  communities,
+  communityMembers,
   conversations,
   conversationMembers,
   growEnv,
@@ -140,6 +142,23 @@ async function main() {
 
   await db.insert(posts).values([
     { userId: admin.id, text: "Woche 7 Blüte – Trichome werden bernsteinfarben 🌿", tags: ["Blüte"] },
+  ]);
+
+  const [publicCommunity] = await db.insert(communities).values({
+    name: "Grow|Observer Public",
+    description: "Öffentliche Community für Grow-Tagebücher, Wissen und Austausch.",
+    isPrivate: false,
+    createdBy: admin.id,
+  }).returning();
+  const [privateCommunity] = await db.insert(communities).values({
+    name: "Admin Test Circle",
+    description: "Private Test-Community für Invite- und Rollen-Flows.",
+    isPrivate: true,
+    createdBy: admin.id,
+  }).returning();
+  await db.insert(communityMembers).values([
+    { communityId: publicCommunity.id, userId: admin.id, role: "admin" },
+    { communityId: privateCommunity.id, userId: admin.id, role: "admin" },
   ]);
 
   const [conv] = await db
