@@ -28,6 +28,7 @@ Regression coverage added in this iteration:
 - `src/config/features.test.ts`: malformed overrides cannot disable core features.
 - `src/lib/auth.test.tsx`: session restoration is fail-closed; late responses cannot undo logout.
 - `src/data/useResource.test.tsx`: last-request-wins; refresh errors do not discard visible data.
+- `src/lib/touch-hooks.test.tsx`: gestapelte Scroll-Locks und Long-Press-Abbruch beim Scrollen.
 - Existing format and chart-path tests remain in place.
 
 ## API Integration
@@ -71,6 +72,10 @@ proof that it has run successfully. Record the actual run/result before approvin
 6. Test an invite from two accounts concurrently; exactly one new membership for a one-use code.
 7. On Android Chrome/iOS Safari, test sheet scrolling, handle drag, drawer scroll, keyboard,
    landscape and 320/375/414 px widths. These are still unverified on devices.
+8. Test Grow/Hall lightboxes: short drag snaps back, fast flick changes image, down swipe closes;
+   browser zoom/OS gestures must not trap the user (close button remains available).
+9. Test the offer ticker on a coarse-pointer device: no autoplay, manual horizontal snap works,
+   no duplicate items; desktop retains the marquee.
 
 ## Remaining Release Gates
 

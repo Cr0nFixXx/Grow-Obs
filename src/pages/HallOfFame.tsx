@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Heart, MessageCircle } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, BottomSheet, Button, Card, EmptyState, Modal, PageHeader, SkeletonCard, SmartImage } from "@/components/ui";
+import { Avatar, Badge, BottomSheet, Button, Card, EmptyState, PageHeader, SkeletonCard, SmartImage, SwipeLightbox } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { useToast } from "@/components/Toast";
 import { useLongPress } from "@/lib/hooks";
@@ -107,17 +107,17 @@ export default function HallOfFame() {
         <Button variant="secondary" onClick={() => toast.push({ title: "Weitere Showcases", desc: "Neue Top-Grows werden regelmäßig kuratiert.", tone: "leaf", icon: "Trophy" })}>Mehr anzeigen</Button>
       </div>
 
-      <Modal open={!!lightbox} onClose={() => setLightbox(null)} size="xl" title={lightbox?.title}>
-        {lightbox && (
-          <div>
-            <SmartImage src={lightbox.image} alt={lightbox.title} className="max-h-[70vh] w-full rounded-xl object-contain bg-black/5" />
-            <div className="mt-3 flex items-center justify-between">
-              <div className="flex items-center gap-2"><Avatar src={lightbox.avatar} size={32} /><div><div className="text-sm font-medium">{lightbox.grower}</div><div className="text-xs text-fg-subtle">{lightbox.strain}</div></div></div>
-              <Badge tone="warning"><Icon name="Trophy" size={12} /> {lightbox.award}</Badge>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <SwipeLightbox
+        open={!!lightbox}
+        images={entries.map((entry) => ({
+          src: entry.image,
+          alt: entry.title,
+          caption: <span>{entry.grower} · {entry.strain} · {entry.award}</span>,
+        }))}
+        index={Math.max(0, entries.findIndex((entry) => entry.id === lightbox?.id))}
+        onIndexChange={(itemIndex) => setLightbox(entries[itemIndex] ?? null)}
+        onClose={() => setLightbox(null)}
+      />
 
       {/* Long-press context menu */}
       <BottomSheet open={!!menuFor} onClose={() => setMenuFor(null)} title={menuFor?.title}>

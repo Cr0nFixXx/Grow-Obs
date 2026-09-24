@@ -28,6 +28,9 @@ Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauscha
 Prüfstand: **B-39** — Frontend-Build erfolgreich, Doku gegen Code verifiziert.
 **API-Typecheck, Integrationstests und Docker wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
+Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-
+Abnahme und die neuen Touch-Tests bleiben offen (`TESTING.md`).
+
 ---
 
 ## 🚀 Jetzt (PWA first)

@@ -13,7 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { Check, ChevronDown, ChevronRight, Search, Star, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, Star, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useBodyScrollLock, useFocusTrap, useMediaQuery } from "@/lib/hooks";
 import { Icon } from "@/components/Icon";
@@ -26,7 +26,7 @@ type ButtonSize = "sm" | "md" | "lg" | "icon";
 const btnBase =
   "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-200 select-none disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none whitespace-nowrap";
 const btnSizes: Record<ButtonSize, string> = {
-  sm: "h-9 px-3.5 text-sm",
+  sm: "min-h-11 px-3.5 text-sm sm:h-9 sm:min-h-0",
   md: "h-11 px-5 text-sm",
   lg: "h-12 px-6 text-[15px]",
   icon: "h-10 w-10",
@@ -74,7 +74,7 @@ export function IconButton({
       whileTap={{ scale: 0.92 }}
       aria-label={label}
       className={cn(
-        "grid size-10 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-none",
+        "grid size-11 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-none sm:size-10",
         className
       )}
       {...(props as React.ComponentProps<typeof motion.button>)}
@@ -319,12 +319,14 @@ export function Slider({
   ...props
 }: InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <input
-      type="range"
-      className={cn("h-1.5 w-full cursor-pointer appearance-none rounded-full bg-surface-3", className)}
-      style={{ accentColor: "var(--accent)" }}
-      {...props}
-    />
+    <span className="flex min-h-11 w-full items-center touch-pan-y">
+      <input
+        type="range"
+        className={cn("touch-slider h-11 w-full cursor-pointer appearance-none bg-transparent", className)}
+        style={{ accentColor: "var(--accent)" }}
+        {...props}
+      />
+    </span>
   );
 }
 
@@ -341,13 +343,13 @@ export function Segmented<T extends string>({
 }) {
   const lid = useId();
   return (
-    <div className={cn("inline-flex max-w-full overflow-x-auto no-scrollbar rounded-xl bg-surface-2 p-1", className)}>
+    <div className={cn("inline-flex max-w-full touch-pan-x snap-x snap-proximity overscroll-x-contain overflow-x-auto no-scrollbar rounded-xl bg-surface-2 p-1", className)}>
       {options.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "relative shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+            "relative min-h-11 shrink-0 snap-start whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors sm:min-h-0",
             value === o.value ? "text-accent-fg" : "text-fg-muted hover:text-fg"
           )}
         >
@@ -548,12 +550,12 @@ export function Tabs<T extends string>({
   const lid = useId();
   if (variant === "pill")
     return (
-      <div className={cn("inline-flex rounded-xl bg-surface-2 p-1", className)}>
+      <div className={cn("inline-flex max-w-full touch-pan-x snap-x snap-proximity overscroll-x-contain overflow-x-auto no-scrollbar rounded-xl bg-surface-2 p-1", className)}>
         {tabs.map((t) => (
           <button
             key={t.value}
             onClick={() => onChange(t.value)}
-            className={cn("relative rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors", value === t.value ? "text-accent-fg" : "text-fg-muted hover:text-fg")}
+            className={cn("relative min-h-11 shrink-0 snap-start rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors sm:min-h-0", value === t.value ? "text-accent-fg" : "text-fg-muted hover:text-fg")}
           >
             {value === t.value && <motion.span layoutId={`tab-${lid}`} className="absolute inset-0 rounded-lg bg-accent" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
             <span className="relative z-10 flex items-center gap-1.5">
@@ -565,12 +567,12 @@ export function Tabs<T extends string>({
       </div>
     );
   return (
-    <div className={cn("flex gap-1 overflow-x-auto no-scrollbar border-b border-border", className)}>
+    <div className={cn("flex touch-pan-x snap-x snap-proximity overscroll-x-contain gap-1 overflow-x-auto no-scrollbar border-b border-border", className)}>
       {tabs.map((t) => (
         <button
           key={t.value}
           onClick={() => onChange(t.value)}
-          className={cn("relative whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-colors", value === t.value ? "text-fg" : "text-fg-muted hover:text-fg")}
+          className={cn("relative min-h-11 shrink-0 snap-start whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-colors", value === t.value ? "text-fg" : "text-fg-muted hover:text-fg")}
         >
           <span className="flex items-center gap-1.5">
             {t.label}
@@ -654,34 +656,29 @@ export function Modal({
             drag={isMobile ? "y" : false}
             dragListener={false}
             dragControls={dragControls}
+            dragSnapToOrigin
+            dragMomentum={false}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0.06, bottom: 0.6 }}
             onDragEnd={(_, info) => {
               if (info.offset.y > 96 || info.velocity.y > 620) onClose();
             }}
             className={cn(
-              "card glass relative z-10 w-full overflow-hidden elev-3 rounded-b-none sm:rounded-2xl",
+              "card glass relative z-10 flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full flex-col overflow-hidden elev-3 rounded-b-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl",
               widths[size]
             )}
           >
-            {isMobile && (
-              <div
-                className="flex cursor-grab touch-none justify-center py-2.5 active:cursor-grabbing"
-                onPointerDown={(e) => dragControls.start(e)}
-                aria-hidden
-              >
-                <div className="h-1.5 w-10 rounded-full bg-surface-3" />
-              </div>
-            )}
-            {title && (
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <h3 className="pr-4 text-lg font-semibold leading-snug">{title}</h3>
-                <IconButton label="Schließen" onClick={onClose} className="shrink-0">
-                  <X className="size-5" />
-                </IconButton>
-              </div>
-            )}
-            <div className="max-h-[68vh] overflow-y-auto p-5">{children}</div>
+            <div
+              className={cn(isMobile && "cursor-grab touch-none select-none active:cursor-grabbing", title && "border-b border-border")}
+              onPointerDown={(event) => {
+                if (!isMobile || (event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
+                dragControls.start(event);
+              }}
+            >
+              {isMobile && <div className="flex justify-center py-2.5" aria-hidden><div className="h-1.5 w-10 rounded-full bg-surface-3" /></div>}
+              {title && <div className="flex min-h-11 items-center justify-between px-5 pb-3 sm:py-4"><h3 className="pr-4 text-lg font-semibold leading-snug">{title}</h3><IconButton label="Schließen" onClick={onClose} className="shrink-0"><X className="size-5" /></IconButton></div>}
+            </div>
+            <div className="min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-auto p-5">{children}</div>
             {footer && (
               <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-surface/80 px-5 py-4 backdrop-blur">
                 {footer}
@@ -728,6 +725,8 @@ export function Drawer({
             transition={{ type: "spring", stiffness: 360, damping: 36 }}
             drag="x"
             dragDirectionLock
+            dragSnapToOrigin
+            dragMomentum={false}
             dragConstraints={side === "left" ? { left: -width, right: 0 } : { left: 0, right: width }}
             dragElastic={0.08}
             onDragEnd={(_, info) => {
@@ -737,7 +736,7 @@ export function Drawer({
             className={cn("card absolute top-0 bottom-0 z-10 flex flex-col border-0 elev-3", side === "left" ? "left-0" : "right-0")}
             // touchAction: pan-y hält vertikales Scrollen im Drawer-Inhalt nativ —
             // Framer übernimmt nur die horizontale Achse (dragDirectionLock).
-            style={{ width, paddingTop: "env(safe-area-inset-top)", touchAction: "pan-y" }}
+            style={{ width, maxWidth: "calc(100vw - 2.5rem)", paddingTop: "env(safe-area-inset-top)", touchAction: "pan-y" }}
           >
             {title && (
               <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
@@ -747,7 +746,7 @@ export function Drawer({
                 </IconButton>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto p-4">{children}</div>
+            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto p-4">{children}</div>
           </motion.div>
         </div>
       )}
@@ -789,36 +788,103 @@ export function BottomSheet({
             drag="y"
             dragListener={false}
             dragControls={dragControls}
+            dragSnapToOrigin
+            dragMomentum={false}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0.06, bottom: 0.6 }}
             onDragEnd={(_, info) => {
               if (info.offset.y > 96 || info.velocity.y > 620) onClose();
             }}
-            className="card relative z-10 w-full max-w-lg overflow-hidden rounded-b-none elev-3 sm:rounded-2xl"
+            className="card relative z-10 flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-lg flex-col overflow-hidden rounded-b-none elev-3 sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            {/* Griff: großzügige Trefferfläche, Drag-Start nur hier */}
             <div
-              className="flex cursor-grab touch-none justify-center py-3 active:cursor-grabbing sm:hidden"
-              onPointerDown={(e) => dragControls.start(e)}
-              aria-hidden
+              className={cn("sm:hidden", title && "border-b border-border", "cursor-grab touch-none select-none active:cursor-grabbing")}
+              onPointerDown={(event) => {
+                if ((event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
+                dragControls.start(event);
+              }}
             >
-              <div className="h-1.5 w-12 rounded-full bg-surface-3" />
+              <div className="flex justify-center py-3" aria-hidden><div className="h-1.5 w-12 rounded-full bg-surface-3" /></div>
+              {title && <div className="flex min-h-11 items-center justify-between px-5 pb-3"><h3 className="text-lg font-semibold">{title}</h3><IconButton label="Schließen" onClick={onClose}><X className="size-5" /></IconButton></div>}
             </div>
             {title && (
-              <div className="flex items-center justify-between px-5 pt-4">
+              <div className="hidden items-center justify-between px-5 pt-4 sm:flex">
                 <h3 className="text-lg font-semibold">{title}</h3>
                 <IconButton label="Schließen" onClick={onClose}>
                   <X className="size-5" />
                 </IconButton>
               </div>
             )}
-            <div className="max-h-[80vh] overflow-y-auto p-5">{children}</div>
+            <div className="min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-auto p-5">{children}</div>
           </motion.div>
         </div>
       )}
     </AnimatePresence>,
     document.body
+  );
+}
+
+export interface LightboxImage {
+  src: string;
+  alt: string;
+  caption?: ReactNode;
+}
+
+/**
+ * Shared mobile image viewer: horizontal swipe/flick changes images; downward swipe closes.
+ * The image surface owns the gesture while Modal itself only drags from its header handle.
+ */
+export function SwipeLightbox({
+  open,
+  images,
+  index,
+  onIndexChange,
+  onClose,
+}: {
+  open: boolean;
+  images: LightboxImage[];
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}) {
+  const safeIndex = images.length ? Math.min(Math.max(index, 0), images.length - 1) : 0;
+  const current = images[safeIndex];
+  const previous = () => images.length > 1 && onIndexChange((safeIndex + images.length - 1) % images.length);
+  const next = () => images.length > 1 && onIndexChange((safeIndex + 1) % images.length);
+  return (
+    <Modal open={open && !!current} onClose={onClose} size="xl" title={current ? `${safeIndex + 1} / ${images.length}` : undefined}>
+      {current && (
+        <motion.div
+          key={`${current.src}-${safeIndex}`}
+          drag
+          dragDirectionLock
+          dragSnapToOrigin
+          dragMomentum={false}
+          dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+          dragElastic={{ left: 0.2, right: 0.2, top: 0.08, bottom: 0.18 }}
+          onDragEnd={(_, info) => {
+            const horizontal = Math.abs(info.offset.x) > Math.abs(info.offset.y);
+            if (horizontal && (info.offset.x < -56 || info.velocity.x < -480)) next();
+            else if (horizontal && (info.offset.x > 56 || info.velocity.x > 480)) previous();
+            else if (!horizontal && (info.offset.y > 96 || info.velocity.y > 620)) onClose();
+          }}
+          className="relative touch-none select-none"
+        >
+          <img src={current.src} alt={current.alt} draggable={false} className="pointer-events-none max-h-[68vh] w-full rounded-xl bg-black/5 object-contain" />
+          {images.length > 1 && (
+            <>
+              <IconButton label="Vorheriges Bild" className="absolute left-2 top-1/2 -translate-y-1/2 bg-surface/90" onClick={previous}><ChevronLeft className="size-5" /></IconButton>
+              <IconButton label="Nächstes Bild" className="absolute right-2 top-1/2 -translate-y-1/2 bg-surface/90" onClick={next}><ChevronRight className="size-5" /></IconButton>
+              <div className="mt-3 flex justify-center gap-1.5" aria-label={`Bild ${safeIndex + 1} von ${images.length}`}>
+                {images.map((image, itemIndex) => <button key={`${image.src}-${itemIndex}`} aria-label={`Bild ${itemIndex + 1}`} aria-current={itemIndex === safeIndex ? "true" : undefined} onClick={() => onIndexChange(itemIndex)} className={cn("min-h-11 min-w-5 rounded-full", itemIndex === safeIndex ? "text-accent" : "text-fg-subtle")}><span className="mx-auto block size-2 rounded-full bg-current" /></button>)}
+              </div>
+            </>
+          )}
+          {current.caption && <div className="mt-2 text-center text-xs text-fg-muted">{current.caption}</div>}
+        </motion.div>
+      )}
+    </Modal>
   );
 }
 
@@ -993,7 +1059,7 @@ export function DataTable<T>({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-x-auto", className)}>
+    <div className={cn("touch-pan-x overscroll-x-contain overflow-x-auto", className)}>
       <table className="w-full min-w-[560px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border">

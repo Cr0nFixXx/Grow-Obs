@@ -106,6 +106,12 @@ Daten.
 **Safe-Area:** `env(safe-area-inset-*)` auf TopBar/BottomNav/FAB/Content. **Touch:**
 `-webkit-tap-highlight-color: transparent`, `touch-action: manipulation`.
 
+**Touch B-41:** Drawer/Sheets/Modals haben Snapback; Drag startet in Sheet/Modal über den gesamten
+Header (außer Controls), nicht über den Inhalt. Slider und Hauptaktionen nutzen mindestens 44 px.
+Lightboxen unterstützen Flick/Swipe, Pull-to-Refresh hat Richtungs- und Overlay-Guards. Der Edge-
+Swipe ist auf iOS deaktiviert, weil dort die System-Back-Geste Vorrang hat. Mobile Ticker sind
+manuelle Snap-Carousels. Reale Geräte- und Bildschirmtastatur-Abnahme steht noch aus.
+
 ---
 
 ## 9. Atmosphäre

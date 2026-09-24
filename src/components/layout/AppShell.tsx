@@ -236,7 +236,7 @@ function TopBar() {
         {/* Mobile: always burger menu (dauerhaft) */}
         <button
           onClick={() => setMobileNavOpen(true)}
-          className="-ml-1 grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 lg:hidden"
+          className="-ml-1 grid size-11 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 lg:hidden"
           aria-label="Menü öffnen"
         >
           <Menu className="size-5" />
@@ -263,7 +263,7 @@ function TopBar() {
         <div className="flex items-center gap-0.5 sm:gap-1">
           <button
             onClick={() => setCommandOpen(true)}
-            className="grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 md:hidden"
+            className="grid size-11 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 md:hidden"
             aria-label="Suchen"
           >
             <Search className="size-5" />
@@ -271,7 +271,7 @@ function TopBar() {
           {/* Theme toggle — hidden on mobile (available in drawer & profile) */}
           <button
             onClick={toggle}
-            className="hidden size-10 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg sm:grid"
+            className="hidden min-h-11 min-w-11 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg sm:grid"
             aria-label="Theme wechseln"
           >
             {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
@@ -279,7 +279,7 @@ function TopBar() {
           <div className="relative">
             <button
               onClick={() => setNotifOpen(!notifOpen)}
-              className="relative grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+              className="relative grid size-11 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
               aria-label="Benachrichtigungen"
               aria-expanded={notifOpen}
             >
@@ -288,7 +288,7 @@ function TopBar() {
             </button>
             <NotificationsMenu />
           </div>
-          <button onClick={() => navigate("profile")} className="ml-0.5 shrink-0 rounded-full sm:ml-1" aria-label="Profil öffnen">
+          <button onClick={() => navigate("profile")} className="ml-0.5 grid size-11 shrink-0 place-items-center rounded-full sm:ml-1" aria-label="Profil öffnen">
             <Avatar src={currentUser.avatar} size={38} />
           </button>
         </div>
@@ -515,7 +515,7 @@ function MobileDrawer() {
         <Brand />
         <button
           onClick={toggle}
-          className="grid size-10 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg sm:hidden"
+          className="grid size-11 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg sm:hidden"
           aria-label="Theme wechseln"
         >
           {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
@@ -584,8 +584,8 @@ function PullToRefresh() {
   const active = distance > 0 || refreshing;
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center"
-      style={{ transform: `translateY(${Math.max(0, distance - 42)}px)`, opacity: active ? 1 : 0, transition: refreshing ? "none" : "transform .25s ease, opacity .2s ease" }}
+      className="pointer-events-none fixed inset-x-0 top-[calc(4rem+env(safe-area-inset-top))] z-50 flex justify-center"
+      style={{ transform: `translateY(${Math.max(0, distance - 36)}px)`, opacity: active ? 1 : 0, transition: refreshing ? "none" : "transform .25s ease, opacity .2s ease" }}
     >
       <div className="mt-2 grid size-9 place-items-center rounded-full border border-border bg-surface elev-2">
         {refreshing ? (
@@ -606,8 +606,12 @@ function PullToRefresh() {
 function EdgeSwipeOpen() {
   const { setMobileNavOpen, mobileNavOpen } = useNav();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isCoarse = useMediaQuery("(pointer: coarse)");
+  const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
   const open = useCallback(() => setMobileNavOpen(true), [setMobileNavOpen]);
-  const enabled = !isDesktop && !mobileNavOpen;
+  // iOS/Android reserve the extreme edge for OS navigation. iOS is disabled entirely;
+  // other coarse pointers use a narrow 16px activation strip and strict direction-lock.
+  const enabled = !isDesktop && isCoarse && !isIOS && !mobileNavOpen;
   useEdgeSwipeToOpen(open, enabled);
   return null;
 }

@@ -6,6 +6,8 @@
  */
 @import "tailwindcss" source(none);
 @source ".";
+@source not "./**/*.test.ts";
+@source not "./**/*.test.tsx";
 @source "../index.html";
 @source "../app";
 
@@ -153,6 +155,7 @@
     color-scheme: light dark;
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    overscroll-behavior-y: contain;
   }
 
   body {
@@ -164,6 +167,7 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     overflow-x: clip;
+    overscroll-behavior-y: contain;
   }
 
   h1, h2, h3, h4, h5 {
@@ -221,6 +225,39 @@
       height: 0;
     }
   }
+}
+
+/* Range slider: 44px touch hitbox, horizontal gesture reserved for value changes. */
+.touch-slider {
+  touch-action: pan-y;
+}
+.touch-slider::-webkit-slider-runnable-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.touch-slider::-webkit-slider-thumb {
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-top: -0.5rem;
+  appearance: none;
+  border: 3px solid var(--surface);
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: var(--sh-1);
+}
+.touch-slider::-moz-range-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.touch-slider::-moz-range-thumb {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 3px solid var(--surface);
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: var(--sh-1);
 }
 
 /* ===================== COMPONENT UTILITIES ===================== */
@@ -337,6 +374,21 @@
 @keyframes shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
+}
+
+/* On touch screens the offer ticker becomes a user-controlled snap carousel. */
+@media (max-width: 639px), (pointer: coarse) {
+  .ticker-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .ticker-scroll::-webkit-scrollbar { display: none; }
+  .ticker-track {
+    animation: none !important;
+    transform: none !important;
+  }
+  .ticker-copy { display: none !important; }
 }
 
 /* Smooth theme toggle: temporarily enable color transitions globally */

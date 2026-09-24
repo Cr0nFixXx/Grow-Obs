@@ -54,9 +54,9 @@ export default function Social() {
           {/* Stories */}
           <Reveal>
             <Card className="p-3 sm:p-4">
-              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 no-scrollbar">
+              <div className="-mx-1 flex touch-pan-x snap-x snap-mandatory overscroll-x-contain gap-3 overflow-x-auto px-1 no-scrollbar">
                 {stories.map((s) => (
-                  <button key={s.id} onClick={() => { vibrate(8); toast.push({ title: s.isYou ? "Story aufnehmen" : `${s.name}s Story`, tone: "info", icon: "Camera" }); }} className="relative flex shrink-0 flex-col items-center gap-1.5">
+                  <button key={s.id} onClick={() => { vibrate(8); toast.push({ title: s.isYou ? "Story aufnehmen" : `${s.name}s Story`, tone: "info", icon: "Camera" }); }} className="relative flex min-h-11 shrink-0 snap-start flex-col items-center gap-1.5">
                     <span className={cn("relative rounded-full p-[3px]", s.isYou ? "ring-1 ring-dashed ring-fg-subtle" : "bg-gradient-to-br from-leaf-400 to-soil-600")}>
                       <Avatar src={s.avatar} size={56} className="ring-2 ring-surface" />
                       {s.isYou && <span className="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full bg-accent text-xs font-bold text-accent-fg ring-2 ring-surface">+</span>}
@@ -158,12 +158,12 @@ function PostCard({ p, liked, bookmarked, onLike, onBookmark }: { p: SocialPost;
       <p className="px-4 pb-3 text-[15px] leading-relaxed text-fg/90">{p.text}</p>
       {p.image && <SmartImage src={p.image} alt="" className="aspect-video w-full" />}
       <div className="flex items-center gap-0.5 px-1.5 py-1.5 sm:gap-1 sm:px-2">
-        <button onClick={onLike} className={cn("flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition active:scale-95 sm:gap-1.5 sm:px-3", liked ? "text-danger" : "text-fg-muted hover:bg-surface-2")} aria-pressed={liked}>
+        <button onClick={onLike} className={cn("flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-sm transition active:scale-95 sm:gap-1.5 sm:px-3", liked ? "text-danger" : "text-fg-muted hover:bg-surface-2")} aria-pressed={liked}>
           <Heart size={18} className={cn(liked && "fill-current")} /> <span className="tnum">{p.likes}</span>
         </button>
-        <button onClick={() => { vibrate(); toast.push({ title: "Kommentare", desc: `${p.comments} Antworten`, tone: "info", icon: "MessageCircle" }); }} className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-fg-muted transition hover:bg-surface-2 sm:gap-1.5 sm:px-3"><MessageCircle size={18} /> <span className="tnum">{p.comments}</span></button>
-        <button onClick={() => { vibrate(); toast.push({ title: "Geteilt", tone: "leaf", icon: "Share2" }); }} className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-fg-muted transition hover:bg-surface-2 sm:gap-1.5 sm:px-3"><Share2 size={18} /> <span className="tnum">{p.shares}</span></button>
-        <button onClick={onBookmark} className={cn("ml-auto grid size-8 place-items-center rounded-lg transition hover:bg-surface-2 sm:size-9", bookmarked ? "text-accent" : "text-fg-muted")} aria-label="Merken"><Bookmark size={18} className={cn(bookmarked && "fill-current")} /></button>
+        <button onClick={() => { vibrate(); toast.push({ title: "Kommentare", desc: `${p.comments} Antworten`, tone: "info", icon: "MessageCircle" }); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-sm text-fg-muted transition hover:bg-surface-2 sm:gap-1.5 sm:px-3"><MessageCircle size={18} /> <span className="tnum">{p.comments}</span></button>
+        <button onClick={() => { vibrate(); toast.push({ title: "Geteilt", tone: "leaf", icon: "Share2" }); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-sm text-fg-muted transition hover:bg-surface-2 sm:gap-1.5 sm:px-3"><Share2 size={18} /> <span className="tnum">{p.shares}</span></button>
+        <button onClick={onBookmark} className={cn("ml-auto grid size-11 place-items-center rounded-lg transition hover:bg-surface-2 sm:size-10", bookmarked ? "text-accent" : "text-fg-muted")} aria-label="Merken"><Bookmark size={18} className={cn(bookmarked && "fill-current")} /></button>
       </div>
       {p.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 pb-4 pt-1">{p.tags.map((t) => <Badge key={t} tone="leaf">#{t}</Badge>)}</div>

@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Calendar, ChevronLeft, ChevronRight, Image as ImageIcon, Plus } from "lucide-react";
+import { Calendar, Plus } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Badge, Button, Card, EmptyState, IconButton, Modal, PageHeader, ProgressBar, SkeletonCard, SmartImage } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, PageHeader, ProgressBar, SkeletonCard, SmartImage, SwipeLightbox } from "@/components/ui";
 import { Gauge, SeriesChart } from "@/components/charts";
 import { Reveal } from "@/components/motion";
 import { type Grow } from "@/types";
@@ -264,30 +263,13 @@ function GrowDetail({ grow }: { grow: Grow }) {
         </div>
       </div>
 
-      <Modal open={lightbox !== null} onClose={() => setLightbox(null)} size="xl" title={lightbox !== null ? `Foto ${lightbox + 1} / ${grow.gallery.length}` : ""}>
-        {lightbox !== null && (
-          <motion.div
-            className="relative"
-            drag="x"
-            dragSnapToOrigin
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.2}
-            onDragEnd={(_, info) => {
-              if (info.offset.x < -90) setLightbox((lightbox + 1) % grow.gallery.length);
-              else if (info.offset.x > 90) setLightbox((lightbox + grow.gallery.length - 1) % grow.gallery.length);
-            }}
-          >
-            <img src={grow.gallery[lightbox]} alt="Galerie" className="max-h-[70vh] w-full rounded-xl object-contain bg-black/5" />
-            <IconButton label="Zurück" className="absolute left-2 top-1/2 -translate-y-1/2 bg-surface/90" onClick={() => setLightbox((lightbox + grow.gallery.length - 1) % grow.gallery.length)}>
-              <ChevronLeft className="size-5" />
-            </IconButton>
-            <IconButton label="Weiter" className="absolute right-2 top-1/2 -translate-y-1/2 bg-surface/90" onClick={() => setLightbox((lightbox + 1) % grow.gallery.length)}>
-              <ChevronRight className="size-5" />
-            </IconButton>
-            <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-fg-subtle"><ImageIcon className="size-3.5" /> Wische oder tippe zum Blättern</div>
-          </motion.div>
-        )}
-      </Modal>
+      <SwipeLightbox
+        open={lightbox !== null}
+        images={grow.gallery.map((src, i) => ({ src, alt: `${grow.name}, Foto ${i + 1}`, caption: "Wische seitlich zum Blättern, nach unten zum Schließen" }))}
+        index={lightbox ?? 0}
+        onIndexChange={setLightbox}
+        onClose={() => setLightbox(null)}
+      />
     </div>
   );
 }

@@ -111,15 +111,15 @@ export default function Dashboard() {
               </span>
             }
           />
-          <div className="group/ticker mask-fade-x overflow-hidden">
-            <div className="flex w-max gap-3 animate-marquee">
+          <div className="group/ticker ticker-scroll mask-fade-x overflow-hidden">
+            <div className="ticker-track flex w-max touch-pan-x snap-x snap-mandatory gap-3 animate-marquee">
               {[...offers, ...offers].map((o, i) => {
                 const discount = o.oldPrice ? Math.round((1 - o.price / o.oldPrice) * 100) : 0;
                 return (
                   <button
                     key={i}
                     onClick={() => navigate("marketplace")}
-                    className="flex w-60 shrink-0 items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left transition hover:border-border-strong hover:elev-2"
+                    className={cn("flex min-h-11 w-60 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left transition hover:border-border-strong hover:elev-2", i >= offers.length && "ticker-copy")}
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
                       <Icon name="Leaf" size={18} />

@@ -23,14 +23,46 @@ export function usePrefersReducedMotion(): boolean {
   return useMediaQuery("(prefers-reduced-motion: reduce)");
 }
 
-/** Locks body scroll while a modal/drawer is open. */
+let bodyLockCount = 0;
+let bodyScrollY = 0;
+let bodyStyleSnapshot: Partial<Record<"overflow" | "position" | "top" | "width" | "paddingRight", string>> = {};
+
+/**
+ * Ref-counted, iOS-safe body scroll lock. Multiple stacked overlays no longer
+ * unlock each other; the exact page position is restored after the final close.
+ */
 export function useBodyScrollLock(locked: boolean) {
   useEffect(() => {
     if (!locked) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const body = document.body;
+    if (bodyLockCount === 0) {
+      bodyScrollY = window.scrollY;
+      bodyStyleSnapshot = {
+        overflow: body.style.overflow,
+        position: body.style.position,
+        top: body.style.top,
+        width: body.style.width,
+        paddingRight: body.style.paddingRight,
+      };
+      const scrollbar = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+      body.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${bodyScrollY}px`;
+      body.style.width = "100%";
+      if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
+      body.dataset.scrollLock = "true";
+    }
+    bodyLockCount += 1;
     return () => {
-      document.body.style.overflow = prev;
+      bodyLockCount = Math.max(0, bodyLockCount - 1);
+      if (bodyLockCount > 0) return;
+      body.style.overflow = bodyStyleSnapshot.overflow ?? "";
+      body.style.position = bodyStyleSnapshot.position ?? "";
+      body.style.top = bodyStyleSnapshot.top ?? "";
+      body.style.width = bodyStyleSnapshot.width ?? "";
+      body.style.paddingRight = bodyStyleSnapshot.paddingRight ?? "";
+      delete body.dataset.scrollLock;
+      window.scrollTo(0, bodyScrollY);
     };
   }, [locked]);
 }
@@ -132,7 +164,7 @@ export function useAutoHideScroll() {
 /** Pull-to-Refresh: tracks touch pull at scroll-top, reports distance + refreshing flag. */
 export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshold = 70) {
   const [state, setState] = useState({ distance: 0, refreshing: false });
-  const ref = useRef({ startY: 0, pulling: false, distance: 0, refreshing: false });
+  const ref = useRef({ startX: 0, startY: 0, pulling: false, distance: 0, refreshing: false, armed: false });
 
   useEffect(() => {
     const r = ref.current;
@@ -144,23 +176,42 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
       const tag = el.tagName.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select" || el.isContentEditable) return false;
       // Overlays setzen Body-Scroll-Lock (overflow: hidden) → kein PTR.
-      if (document.body.style.overflow === "hidden") return false;
+      if (document.body.dataset.scrollLock === "true") return false;
       return true;
     };
 
     const onStart = (e: TouchEvent) => {
       if (!allowed(e.target)) return;
       if (window.scrollY <= 0 && !r.refreshing) {
+        r.startX = e.touches[0].clientX;
         r.startY = e.touches[0].clientY;
         r.pulling = true;
+        r.distance = 0;
+        r.armed = false;
       }
     };
     const onMove = (e: TouchEvent) => {
       if (!r.pulling || r.refreshing) return;
+      const dx = Math.abs(e.touches[0].clientX - r.startX);
       const delta = e.touches[0].clientY - r.startY;
+      // Horizontal intent belongs to carousels/tabs, not pull-to-refresh.
+      if (dx > Math.abs(delta) && dx > 12) {
+        r.pulling = false;
+        r.distance = 0;
+        setState((s) => ({ ...s, distance: 0 }));
+        return;
+      }
       if (delta > 0 && window.scrollY <= 0) {
         r.distance = Math.min(threshold + 30, delta * 0.5);
+        if (r.distance >= threshold && !r.armed) {
+          r.armed = true;
+          try { navigator.vibrate?.(12); } catch { /* optional haptic */ }
+        } else if (r.distance < threshold - 8) {
+          r.armed = false;
+        }
         setState((s) => ({ ...s, distance: r.distance }));
+      } else if (delta < 0) {
+        r.pulling = false;
       }
     };
     const onEnd = () => {
@@ -174,21 +225,25 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
           window.setTimeout(() => {
             r.refreshing = false;
             r.distance = 0;
+            r.armed = false;
             setState({ distance: 0, refreshing: false });
           }, 600);
         });
       } else {
         r.distance = 0;
+        r.armed = false;
         setState((s) => ({ ...s, distance: 0 }));
       }
     };
     window.addEventListener("touchstart", onStart, { passive: true });
     window.addEventListener("touchmove", onMove, { passive: true });
     window.addEventListener("touchend", onEnd);
+    window.addEventListener("touchcancel", onEnd);
     return () => {
       window.removeEventListener("touchstart", onStart);
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", onEnd);
     };
   }, [onRefresh, threshold]);
 
@@ -211,7 +266,7 @@ export function useDelayedReady(delay = 300) {
  * dadurch werden Klicks und horizontales Scrollen (Tabs, Ticker) nicht blockiert.
  * Die Geste muss horizontal dominant sein, damit vertikales Scrollen nicht triggert.
  */
-export function useEdgeSwipeToOpen(onOpen: () => void, enabled = true, edgeWidth = 28) {
+export function useEdgeSwipeToOpen(onOpen: () => void, enabled = true, edgeWidth = 16) {
   useEffect(() => {
     if (!enabled) return;
     let startX = 0;

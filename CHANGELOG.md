@@ -9,6 +9,26 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### Mobile Touch B-41 (Codex / OpenAI)
+
+- Drawer/Sheet/Modal: `dragSnapToOrigin` + deaktiviertes Momentum; kurze, nicht ausreichende
+  Ziehbewegungen federn zuverlässig zurück. Sheet-/Modal-Header sind jetzt große Drag-Zonen,
+  Schließen-Buttons bleiben unabhängig bedienbar. Drawer ist viewport-sicher und intern scrollbar.
+- Neue `SwipeLightbox` für Grow-Galerie und Hall of Fame: Flick/Offset links-rechts blättert,
+  Swipe nach unten schließt, Pfeile und Punktnavigation bleiben als zugängliche Alternativen.
+- Slider: 44-px-Hitbox, 22-px-Thumb und Touch-Achsensteuerung. Tabs/Segmented/DataTable/Stories
+  nutzen Snap-/Overscroll-Verhalten; Social-Actions und Topbar-Controls erfüllen mobile Touch-Ziele.
+- Live-Ticker: Desktop-Marquee bleibt; auf Touch-Geräten wird er zum manuell scrollbaren Snap-
+  Carousel, die duplizierte Marquee-Kopie ist dort verborgen.
+- Pull-to-Refresh: horizontale Gesten werden ignoriert, Schwelle gibt einmaliges Haptik-Feedback,
+  Indikator sitzt unter der Safe-Area/Topbar; `touchcancel` wird behandelt.
+- Edge-Swipe: schmalere Kante, nur Coarse Pointer, auf iOS wegen System-Back-Geste deaktiviert;
+  Burger-Menü bleibt dauerhaft verfügbar.
+- Scroll-Lock: ref-counted und iOS-sicher (`position: fixed`, Scrollposition-Restore), sodass
+  gestapelte Overlays einander nicht entsperren. Long-Press/Scroll-Lock-Tests hinzugefügt.
+- Verifiziert: Frontend-Build B-41 erfolgreich (867,61 kB / gzip 311,75 kB). Neue Tests und reale
+  Geräte wurden in dieser Tool-Session nicht ausgeführt.
+
 ### Build-Determinismus B-40 (Codex / OpenAI)
 
 - **Tailwind-v4-Scan-Scope begrenzt:** `src/index.css` nutzt jetzt `@import "tailwindcss" source(none)`

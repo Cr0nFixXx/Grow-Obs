@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { cn } from "@/utils/cn";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
 import { Badge, Button, Card, Chip, EmptyState, Modal, PageHeader, Popover, PopoverItem, RatingStars, SearchInput, Segmented, SkeletonCard, Slider } from "@/components/ui";
@@ -57,10 +58,10 @@ export default function Marketplace() {
               LIVE
             </span>
           </div>
-          <div className="group/ticker mask-fade-x overflow-hidden">
-            <div className="flex w-max gap-3 animate-marquee">
+          <div className="group/ticker ticker-scroll mask-fade-x overflow-hidden">
+            <div className="ticker-track flex w-max touch-pan-x snap-x snap-mandatory gap-3 animate-marquee">
               {[...offers, ...offers].map((o, i) => (
-                <div key={i} className="flex w-56 shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
+                <div key={i} className={cn("flex min-h-11 w-56 shrink-0 snap-start items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2", i >= offers.length && "ticker-copy")}>
                   <Icon name="Leaf" size={16} className="text-accent" />
                   <div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{o.strain}</div><div className="truncate text-[10px] text-fg-subtle">{o.shop}</div></div>
                   <span className="text-sm font-bold text-accent">{eur(o.price)}</span>

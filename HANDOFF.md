@@ -2,7 +2,7 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-40. Frontend-Build grün (861,90 kB / gzip 310,15 kB); **API nie compiliert/gestartet** → §9.1.  
+**Stand:** B-41. Frontend-Build grün (867,61 kB / gzip 311,75 kB); **API nie compiliert/gestartet**, Touch nicht auf realen Geräten getestet → §9.1 / TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
@@ -246,6 +246,10 @@ dasselbe Flag/Policy-Gate prüfen.
 - Long-Press: bricht bei mehr als 10 px Bewegung ab
 - Pull-to-Refresh: deaktiviert in Overlays und Formularfeldern
 - Mobile TopBar: dauerhaft Burger-Menü
+- Drawer/Sheet/Modal: Snapback bei abgebrochener Geste; Sheet/Modal-Drag nur aus der großen
+  Headerzone, Inhalt bleibt scrollbar. Scroll-Lock ist ref-counted/iOS-sicher.
+- Gemeinsame `SwipeLightbox`: Grow + Hall; seitlich wechseln, nach unten schließen, Pfeile als Fallback.
+- Edge-Swipe ist auf iOS deaktiviert (System-Back); Burger ist der verlässliche Öffnungsweg.
 
 Weiter testen auf echten Geräten: iOS Safari, Android Chrome, lange Sheets, horizontale Scroller.
 

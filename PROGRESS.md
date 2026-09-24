@@ -11,6 +11,7 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-41 | Mobile Touch: Snapback, große Drag-Zonen, SwipeLightbox, Slider/Targets, PTR-Haptik, iOS Scroll-Lock, Touch-Ticker | Vite-Build erfolgreich: 867.61 kB, gzip 311.75 kB; Tests/Geräte offen | Codex (OpenAI) |
 | B-40 | Tailwind-Scan-Scope auf `src/`+`index.html`+`app/` begrenzt (`source(none)`) → Bundle unabhängig von Doku/API | Vite-Build erfolgreich: **861.90 kB, gzip 310.15 kB** (kleiner als B-38); Klassen verifiziert | Codex (OpenAI) |
 | B-39 | Doku-Verifikation gegen Code; `.env.example`-Falle, Test-Typecheck und API-DevDep korrigiert | Vite-Build erfolgreich: 862.56 kB, gzip 310.29 kB (unverändert); API weiterhin uncompiled | Codex (OpenAI) |
 | B-38 | Backend-/Auth-/PWA-Stabilisierung, Admin-Service-Anbindung, Regressionstests und API-CI | Vite-Build erfolgreich: 862.56 kB, gzip 310.29 kB; Tests/Typechecks/Docker hier nicht ausgeführt | Codex (OpenAI) |
@@ -59,6 +60,19 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 ---
 
 ## Änderungs-Historie (detailliert)
+
+### B-41: Mobile Touch (Codex)
+
+- `ui.tsx`: Drawer/Modal/BottomSheet mit Snapback und größeren Handle-Zonen; viewport-sichere
+  Flex-/Scroll-Struktur. `SwipeLightbox` als gemeinsame Galerie-Interaktion.
+- `Grows.tsx` / `HallOfFame.tsx`: individuelle Lightboxen durch `SwipeLightbox` ersetzt.
+- `hooks.ts`: iOS-sicherer, ref-counted Scroll-Lock; PTR-Richtungs-Guard, Haptik und cancel;
+  Edge-Swipe auf 16 px verengt. `AppShell`: Edge-Swipe nur Coarse/non-iOS, PTR unter Topbar.
+- `ui.tsx` / `index.css`: 44-px Slider, custom Thumb, Snap-Scroller; Topbar-/Social-Touchziele.
+- Dashboard/Marketplace: Mobile Touch-Carousel statt laufender Marquee-Animation.
+- `touch-hooks.test.tsx`: gestapelte Locks sowie Long-Press-vs-Scroll Regressionstests.
+- Tailwind scannt Testdateien explizit nicht. Verifiziert wurde nur der Vite-Build; Testlauf und
+  reale Geräte bleiben offen.
 
 ### B-40: Build-Determinismus (Codex)
 
