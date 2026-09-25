@@ -31,7 +31,8 @@ export type ViewKey =
   | "profile"
   | "telegram"
   | "auth"
-  | "devAdmin";
+  | "devAdmin"
+  | "create";
 
 export interface NavParams {
   id?: string;
@@ -76,8 +77,16 @@ const NavContext = createContext<NavContextValue | null>(null);
  * Lightweight view-based router. Avoids react-router to keep the
  * single-file build self-contained while still enabling page transitions.
  */
+/** Deep-Links: `/?view=social#post-…` öffnet die View (nur bekannte, öffentliche Keys). */
+const LINKABLE_VIEWS: ViewKey[] = ["dashboard", "grows", "strains", "wiki", "forum", "hallOfFame", "social", "communities", "marketplace", "planner", "breeders"];
+function initialView(): ViewKey {
+  if (typeof window === "undefined") return "dashboard";
+  const requested = new URLSearchParams(window.location.search).get("view") as ViewKey | null;
+  return requested && LINKABLE_VIEWS.includes(requested) ? requested : "dashboard";
+}
+
 export function NavProvider({ children }: { children: ReactNode }) {
-  const [view, setView] = useState<ViewKey>("dashboard");
+  const [view, setView] = useState<ViewKey>(initialView);
   const [params, setParams] = useState<NavParams | null>(null);
   const [stack, setStack] = useState<StackEntry[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

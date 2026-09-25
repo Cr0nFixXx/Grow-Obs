@@ -1,5 +1,5 @@
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { client, db } from "./client.js";
+import { client, db } from "./client.ts";
 
 /** Führt generierte Drizzle-Migrationen aus (ordner: ./drizzle). */
 async function main() {
@@ -8,7 +8,7 @@ async function main() {
   await client.end();
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error("Migration fehlgeschlagen:", e instanceof Error ? e.name : "unknown");
   await client.end();
   process.exitCode = 1;

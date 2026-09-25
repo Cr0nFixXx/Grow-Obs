@@ -1,12 +1,5 @@
-/**
- * Zentrale Domänen-Typen (Single Source of Truth).
- * Werden aktuell aus den Mocks re-exportiert; beim Backend-Umstieg bleiben diese stabil.
- */
-export type {
-  Type, Strain, Breeder, SeedOffer, Product, WikiArticle, Comment, ForumThread,
-  ChatMessage, Conversation, GrowPhase, EnvPoint, GrowLog, Grow, HallEntry,
-  NotificationItem, AIAgent, SoilComponent, SoilRecipe, SocialPost,
-} from "@/mocks/data";
+/** Zentrale Typen: Domäne (domain.ts) + Eingaben/Session (hier). */
+export type * from "./domain";
 
 export interface User {
   id: string;
@@ -28,6 +21,46 @@ export interface CreateGrowInput {
   strain: string;
   breeder: string;
   medium: string;
+}
+
+export interface CreateStrainInput {
+  name: string;
+  breeder: string;
+  type: "Sativa" | "Indica" | "Hybrid";
+  thc: number;
+  cbd: number;
+  flowering: number;
+  yield: string;
+  difficulty: 1 | 2 | 3;
+  price: number;
+  notes: string;
+  effects: string[];
+}
+
+export interface CreateWikiInput {
+  title: string;
+  category: string;
+  excerpt: string;
+  body: string[];
+  tags: string[];
+}
+
+export type TaskPriority = "hoch" | "mittel" | "niedrig";
+
+export interface Task {
+  id: string;
+  title: string;
+  grow: string;
+  when: string;
+  prio: TaskPriority;
+  done: boolean;
+}
+
+export interface CreateTaskInput {
+  title: string;
+  grow: string;
+  when: string;
+  prio: TaskPriority;
 }
 
 export interface CreateThreadInput {

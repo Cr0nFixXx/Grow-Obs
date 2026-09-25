@@ -1,5 +1,12 @@
 # MIGRATION.md — Vite SPA → Next.js Monorepo
 
+> **Stand B-42:** Der erste Schritt ist erledigt – aber **im Repo-Root statt in `apps/web`**:
+> `next` installiert, `app/layout.tsx` + `app/page.tsx` (SPA via `dynamic(ssr:false)`),
+> `app/api/health`, `next.config.ts`, Root-`postcss.config.mjs`, `src/pages` → `src/views`.
+> `pnpm-workspace.yaml` wurde entfernt. Der Monorepo-Umzug unten ist optional; offen bleibt vor allem
+> **File-based-Routing statt `useNav`** und danach das Entfernen des Vite-Legacy-Builds.
+
+
 Schritt-für-Schritt-Anleitung zur Umwandlung des aktuellen Vite-Frontends in ein
 **Next.js-Paket innerhalb einer pnpm-Monorepo**.
 
@@ -246,9 +253,9 @@ export function SWRegister() {
 ## 6. Schritt-für-Schritt Checkliste
 
 1. ✅ Next.js-Skeleton (`app/layout.tsx`, `app/page.tsx`) — vorhanden
-2. ◐ Config: `next.config.js` + `pnpm-workspace.yaml` vorhanden; PostCSS erst in `apps/web`
+2. ✅ Config (B-42, Root): `next.config.ts`, `postcss.config.mjs`, `tsconfig` mit Next-Plugin
 3. ⬜ pnpm-Monorepo initialisieren + `apps/web/package.json` erstellen
-4. ⬜ `next` installieren: `pnpm --filter @grow-observer/web add next react react-dom`
+4. ✅ `next` installiert (B-42, Root-`package.json`)
 5. ⬜ `packages/ui` + `packages/shared` erstellen + Code verschieben
 6. ⬜ `app/page.tsx` von `dynamic(ssr:false)` auf echtes File-Routing umstellen
 7. ⬜ Pro View ein `app/.../page.tsx` mit `useNav()` → `useRouter()` Migration

@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  customType,
   date,
   doublePrecision,
   integer,
@@ -19,6 +20,10 @@ export const growTypeEnum = pgEnum("grow_type", ["Sativa", "Indica", "Hybrid"]);
 export const conditionEnum = pgEnum("condition", ["Neu", "Wie neu", "Gebraucht"]);
 export const notifTypeEnum = pgEnum("notif_type", ["grow", "task", "forum", "shop", "ai", "system"]);
 export const memberRoleEnum = pgEnum("member_role", ["member", "moderator", "admin"]);
+/** PostgreSQL bytea ↔ Node Buffer (Media-Speicher im Embedded-Betrieb). */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+
+export const taskPriorityEnum = pgEnum("task_priority", ["hoch", "mittel", "niedrig"]);
 
 /* ----------------------------- Identität ----------------------------- */
 export const users = pgTable("users", {
@@ -67,6 +72,8 @@ export const strains = pgTable("strains", {
   color: text("color").notNull().default("leaf"),
   notes: text("notes").notNull().default(""),
   effects: jsonb("effects").$type<string[]>().notNull().default([]),
+  /** Community-Beitrag (0001): null = kuratierter Katalog-Eintrag. */
+  createdBy: uuid("created_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
 });
 
 export const products = pgTable("products", {
@@ -116,6 +123,67 @@ export const wikiArticles = pgTable("wiki_articles", {
   readMin: integer("read_min").notNull().default(3),
   tags: jsonb("tags").$type<string[]>().notNull().default([]),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Autor-Konto (0001): null = redaktioneller Artikel. */
+  createdBy: uuid("created_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+});
+
+/* ----------------------------- Feature-Flags (0004) ----------------------------- */
+/** Globale Overrides zu den Datei-Defaults. Fehlende Zeile = Default (an). */
+export const featureFlags = pgTable("feature_flags", {
+  key: text("key").primaryKey(),
+  enabled: boolean("enabled").notNull(),
+  updatedBy: uuid("updated_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ----------------------------- App-Releases (0005) ----------------------------- */
+/**
+ * Release-Notes / Update-Ankündigungen. `severity`:
+ *  optional = still (Badge), recommended = Banner, required = Pflicht-Update (blockierend).
+ */
+export const appReleases = pgTable("app_releases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  version: text("version").notNull(),
+  title: text("title").notNull(),
+  notes: jsonb("notes").$type<string[]>().notNull().default([]),
+  severity: text("severity").$type<"optional" | "recommended" | "required">().notNull().default("recommended"),
+  features: jsonb("features").$type<string[]>().notNull().default([]),
+  createdBy: uuid("created_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+  publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ----------------------------- Media (0002) ----------------------------- */
+/** Bilder direkt in PostgreSQL (kein S3 nötig). Max. 2 MB je Datei, Quote pro User in der Route. */
+export const media = pgTable("media", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  contentType: text("content_type").notNull(),
+  size: integer("size").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ----------------------------- Sammlung (0002) ----------------------------- */
+export const strainCollection = pgTable(
+  "strain_collection",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    strainId: uuid("strain_id").notNull().references(() => strains.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("strain_collection_user_strain").on(t.userId, t.strainId)]
+);
+
+/* ----------------------------- Tasks (0001) ----------------------------- */
+export const tasks = pgTable("tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  grow: text("grow").notNull().default("Allgemein"),
+  dueLabel: text("due_label").notNull().default("Heute"),
+  prio: taskPriorityEnum("prio").notNull().default("mittel"),
+  done: boolean("done").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /* ----------------------------- Grows ----------------------------- */
@@ -264,6 +332,27 @@ export const comments = pgTable("comments", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Votes auf Forum-Kommentare (0003). */
+export const commentVotes = pgTable(
+  "comment_votes",
+  {
+    commentId: uuid("comment_id").notNull().references(() => comments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    delta: integer("delta").notNull().default(1),
+  },
+  (t) => [uniqueIndex("comment_votes_uq").on(t.commentId, t.userId)]
+);
+
+/** Kommentare zu Social-Posts und Hall-of-Fame-Einträgen (0003). `kind` + `itemId` = Ziel. */
+export const itemComments = pgTable("item_comments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: text("kind").$type<"post" | "hall">().notNull(),
+  itemId: uuid("item_id").notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ----------------------------- Chat ----------------------------- */
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -288,6 +377,8 @@ export const messages = pgTable("messages", {
   senderId: uuid("sender_id").notNull().references(() => users.id),
   text: text("text").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Bild-Anhang (0002): /media/<id> */
+  imageUrl: text("image_url"),
 });
 
 /* ----------------------------- Benachrichtigungen ----------------------------- */
@@ -326,6 +417,11 @@ export const commentsRelations = relations(comments, ({ one, many }) => ({
   user: one(users, { fields: [comments.userId], references: [users.id] }),
   parent: one(comments, { fields: [comments.parentId], references: [comments.id], relationName: "commentReplies" }),
   replies: many(comments, { relationName: "commentReplies" }),
+  votes: many(commentVotes),
+}));
+
+export const commentVotesRelations = relations(commentVotes, ({ one }) => ({
+  comment: one(comments, { fields: [commentVotes.commentId], references: [comments.id] }),
 }));
 
 export const postsRelations = relations(posts, ({ one, many }) => ({

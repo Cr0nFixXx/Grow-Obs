@@ -39,6 +39,20 @@ Startup order: healthy PostgreSQL -> committed migrations; healthy MinIO -> priv
 initialization; API starts only after both one-shot jobs succeed. The API runs compiled JS as
 a non-root user. It does not generate migrations, start a watch server or seed demo data.
 
+### Embedded Mode (Next.js, B-46)
+
+The same app is served by the root Next.js project under `/api/*` (`app/api/[...route]` →
+`src/server/embedded-api.ts`). Migrations run on the first request. Object storage is optional there
+(`API_EMBEDDED=true` → presign returns `503`). Seed an **empty** embedded database from `apps/api`:
+
+```bash
+export $(grep -v '^#' ../../.env | xargs) $(grep -v '^#' ../../.env.local | xargs)
+API_EMBEDDED=true NODE_ENV=development ALLOW_DEMO_SEED=true \
+SEED_ADMIN_EMAIL=admin@example.local SEED_ADMIN_PASSWORD='<min. 12 Zeichen>' npx tsx seed.ts
+```
+
+Relative imports use the `.ts` extension; `rewriteRelativeImportExtensions` emits `.js` into `dist/`.
+
 ### Optional Demo Seed
 
 Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` of at least 12 characters. There is

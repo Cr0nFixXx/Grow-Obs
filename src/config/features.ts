@@ -2,10 +2,11 @@ import type { ViewKey } from "@/lib/nav";
 
 /**
  * Feature-Flags — Default aus dieser Datei.
- * Laufzeit-Overrides (Dev-Admin) liegen in localStorage `go-features`
- * und werden von FeatureProvider drübergelegt. Später: Server-Override.
+ * Globale Overrides (Dev-Admin) liegen serverseitig in `feature_flags` (B-49) und werden vom
+ * FeatureProvider drübergelegt; im Demo-Modus nur lokal (localStorage `go-features`).
  *
- * false = aus Nav + View (EmptyState). Services/API sollen denselben Key prüfen.
+ * false = aus Nav + View (EmptyState); die API sperrt zugehörige Routen zusätzlich (403).
+ * Schlüssel/Kern-Liste müssen mit `apps/api/src/lib/features.ts` übereinstimmen (Test).
  */
 export const defaultFeatures = {
   dashboard: true,

@@ -22,10 +22,6 @@ export function healthRows(report: SystemHealth): HealthResult[] {
   });
 }
 
-export async function checkBackend(admin: Pick<AdminService, "health">): Promise<HealthResult[]> {
-  return healthRows(await admin.health());
-}
-
 export const diagnosticPaths = ["/health", "/admin/health", "/admin/stats"] as const;
 export type DiagnosticPath = typeof diagnosticPaths[number];
 

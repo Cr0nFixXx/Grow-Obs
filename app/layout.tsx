@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "../src/index.css";
 
 export const metadata: Metadata = {
+  // Öffentliche Basis-URL für OG-/Twitter-Bilder; in Produktion NEXT_PUBLIC_SITE_URL setzen.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: "Grow|Observer — Community Grow Dashboard",
   description:
     "Community-getriebenes Cannabis-Grow-Dashboard mit persönlichem Tagebuch, Kostenoptimierung und KI-Assistenz.",

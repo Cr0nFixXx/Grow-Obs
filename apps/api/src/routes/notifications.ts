@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { and, desc, eq } from "drizzle-orm";
-import { db } from "../db/client.js";
-import { notifications } from "../db/schema.js";
-import { requireAuth, type AuthEnv } from "../middleware/auth.js";
-import { ago } from "../lib/time.js";
-import { uuid } from "../lib/validation.js";
+import { db } from "../db/client.ts";
+import { notifications } from "../db/schema.ts";
+import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { ago } from "../lib/time.ts";
+import { uuid } from "../lib/validation.ts";
 
 export const notificationsApi = new Hono<AuthEnv>();
 

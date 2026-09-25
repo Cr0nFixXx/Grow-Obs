@@ -12,11 +12,17 @@ export const environmentSchema = z.object({
   S3_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_PUBLIC_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),
-  S3_ACCESS_KEY: z.string().min(1),
-  S3_SECRET_KEY: z.string().min(8),
+  /** Optional nur im Embedded-Modus (ohne Storage → Uploads liefern 503). */
+  S3_ACCESS_KEY: z.string().min(1).optional(),
+  S3_SECRET_KEY: z.string().min(8).optional(),
   S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/).default("growobserver"),
-  CORS_ORIGINS: z.string().default("http://localhost:5173"),
+  CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:5173"),
   ALLOW_DEMO_SEED: z.enum(["true", "false"]).default("false"),
+  /**
+   * "true", wenn die API in Next.js unter /api läuft (same-origin, siehe app/api/[...route]).
+   * Dann sind CORS-Header wirkungslos und Object Storage ist optional.
+   */
+  API_EMBEDDED: z.enum(["true", "false"]).default("false"),
   SEED_ADMIN_EMAIL: z.string().optional(),
   SEED_ADMIN_PASSWORD: z.string().optional(),
 }).superRefine((env, ctx) => {
@@ -25,10 +31,16 @@ export const environmentSchema = z.object({
     try { const url = new URL(origin); return !["http:", "https:"].includes(url.protocol) || url.origin !== origin; }
     catch { return true; }
   })) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["CORS_ORIGINS"], message: "Provide explicit HTTP(S) origins without paths" });
-  if (env.NODE_ENV === "production" && origins.some((origin) => !origin.startsWith("https://"))) {
+  const embedded = env.API_EMBEDDED === "true";
+  const storageConfigured = !!(env.S3_ACCESS_KEY && env.S3_SECRET_KEY);
+  if (!embedded && !storageConfigured) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["S3_ACCESS_KEY"], message: "Standalone API requires object storage credentials" });
+  }
+  // Same-origin (embedded) sendet keine Cross-Origin-Requests → Regel nur für Standalone.
+  if (!embedded && env.NODE_ENV === "production" && origins.some((origin) => !origin.startsWith("https://"))) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["CORS_ORIGINS"], message: "Production browser origins must use HTTPS" });
   }
-  if (env.NODE_ENV === "production" && !env.S3_PUBLIC_ENDPOINT.startsWith("https://")) {
+  if (storageConfigured && env.NODE_ENV === "production" && !env.S3_PUBLIC_ENDPOINT.startsWith("https://")) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["S3_PUBLIC_ENDPOINT"], message: "Production uploads must use HTTPS" });
   }
 });

@@ -9,6 +9,105 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-50 – App-Updates (Claude / Anthropic)
+
+- **Neu:** App erkennt neue Versionen (Build-ID vs. `/api/version`) und aktualisiert je nach Einstellung
+  automatisch, per Banner oder manuell; „Was ist neu“ nach Updates.
+- **Neu:** Developer-Admin „Updates“: Release-Notes mit Dringlichkeit, Features hervorheben und
+  gleichzeitig freischalten, Pflicht-Updates.
+- Migration `0005_app_releases.sql`; Version 0.50.0.
+
+### B-49 – Globale Feature-Flags + echtes Aktualisieren (Claude / Anthropic)
+
+- **Fix:** Im Dev-Admin deaktivierte Features gelten jetzt für alle Nutzer und Geräte (vorher nur im
+  Browser des Admins). Server speichert die Flags (`feature_flags`) und sperrt deaktivierte APIs (403).
+- **Fix:** Pull-to-Refresh lädt Daten, Flags und Profil tatsächlich neu und erkennt App-Updates.
+- Migration `0004_feature_flags.sql`; Paritätstest Frontend ↔ API; Tests API 23/23, Frontend 76/76.
+
+### B-48 – UI/UX-Fixes (Claude / Anthropic)
+
+- Slider verstellen sich beim Scrollen nicht mehr; neue Seitengesten (unten Tabs, Mitte zurück);
+  Tab-Wischen in Developer-Admin und Profil.
+- „Angemeldet bleiben“ funktioniert; Abmelden im Drawer/Sidebar; AGB-Zustimmung Pflicht.
+- Glocke/Badges zeigen echte Zahlen; Benachrichtigungen führen zum Ziel.
+- „App installieren“ funktioniert (Install-Prompt, iOS-Anleitung); Icons auf echte 192/512 px korrigiert.
+- Forum: Votes (inkl. Zurücknehmen), Kommentar-Votes, Antworten. Kommentare für Hall of Fame und Social.
+- Migration `0003_votes_item_comments.sql`; Tests API 22/22, Frontend 71/71.
+
+### B-47 – Foto-Uploads, Profil, Emoji, Teilen, Sammlung (Claude / Anthropic)
+
+- **Uploads ohne S3:** Bilder in PostgreSQL (`/media`), Magic-Byte-Prüfung, Quote, sichere Auslieferung;
+  Client verkleinert und entfernt EXIF. Genutzt für Social-Posts, Chat, Grow-Galerie und Avatar.
+- **Profil bearbeiten** (Name, Titel, Avatar) über `PATCH /auth/me`.
+- **Emoji-Auswahl** in Social und Chat; **Teilen/Link kopieren** kopiert jetzt wirklich (Share-Sheet).
+- **Sortensammlung** mit Backend (`strain_collection`) und Filter „Meine Sammlung“.
+- **Deep-Links** `/?view=…` (Allowlist). Migration `0002_media_collection.sql`.
+- Tests: API 20/20, Frontend 64/64; Skript `npm run test:api:local`.
+
+### B-46 – Backend verbunden, dauerhafte Speicherung (Claude / Anthropic)
+
+- **Neu:** Eingebettete Self-Host-API unter `/api/*` (`app/api/[...route]`), automatische Migrationen,
+  API-Modus als Standard. Daten liegen in PostgreSQL und überleben Neustarts.
+- **API:** `API_EMBEDDED`-Modus (Storage optional, Upload `503`), Standalone-Regeln unverändert;
+  relative Imports auf `.ts` + `rewriteRelativeImportExtensions` (Turbopack-kompatibel).
+- **Sandbox-DB** migriert und mit Demo-Inhalten befüllt.
+- `/api/health` liefert zusätzlich `ok`/`check` und `dataMode: "api-embedded"`.
+
+### B-45 – Paket 3 + Backend-Routen (Claude / Anthropic)
+
+- **API:** `POST /strains`, `POST /wiki`, `/tasks` (list/create/toggle, pro User isoliert);
+  Migration `0001_tasks_authoring.sql`; +2 Integrationstests (15/15).
+- **Frontend-Daten:** `useCurrentUser()`, Benachrichtigungen, Breeder-Katalog und Wiki-Kategorien über
+  den Service-Layer statt Mock-Imports (API-Modus zeigt keine Demo-Personendaten mehr).
+- **Typen:** Domänen-Typen nach `src/types/domain.ts` verschoben.
+- **Performance:** Views per `React.lazy` + Idle-Prefetch der Bottom-Nav-Views.
+- **Sicherheit:** `next` 16.3.6 (kritisch), `vite`, `postcss`, `vitest` aktualisiert → Frontend 0
+  Advisories; API `drizzle-orm` 0.45.3 (SQL-Injection-Fix), `drizzle-kit` 0.31.11.
+- **Tooling:** Root-`.npmrc` `legacy-peer-deps=true` (Workaround npm-10-Absturz bei vitest-Peers).
+
+### B-44 – Gesten, Schnellaktionen, Galerie, Sortenvergleich (Claude / Anthropic)
+
+- **Gesten:** Drawer, BottomSheet und Mobile-Modal lassen sich im gesamten Panel wegwischen
+  (`src/lib/gestures.ts`); Toasts auf ganzer Fläche wischbar; Tab-Wischen für die Bottom-Nav mit
+  Randzonen-Schutz gegen den Drawer-Edge-Swipe.
+- **Schnellaktionen:** neue View `create` mit Formularen für Grow, Log-Eintrag, Sorte, Task und
+  Wiki-Artikel (statt Demo-Toast). Neue Service-Methoden inkl. `TaskService`; Dashboard-Tasks laufen
+  über den Service-Layer.
+- **Galerie:** `SwipeLightbox` als Vollbild-Viewer (zentriert, Swipe, Zoom, Thumbnails, Tastatur).
+- **Sortenvergleich:** funktioniert jetzt Ende-zu-Ende (Sorten → Vergleichsleiste → Planer).
+- **Hall of Fame:** einheitliche Featured-Karte, keine Doppelung, kein Spaltenbruch.
+- Tests: +9 (Gesten-Entscheidungen, Vergleichs-Toggle, Mock-Create-Flows).
+
+### B-43 – Aufräumen (Claude / Anthropic)
+
+- **Entfernt:** `src/components/InlineIcon.tsx` (nie importiert), `pnpm-workspace.yaml` (npm-Projekt,
+  `packages/` existierte nicht), `public/images/hero.jpg` (Duplikat von `src/assets/hero.jpg`, nur im
+  SW-Cache referenziert), `checkBackend()` (durch `AdminService`/`healthRows` ersetzt),
+  `simulationCurve` (Mock ohne Nutzer).
+- **Bewusst behalten:** `Accordion`, `Divider`, `Tooltip`, `toneText/toneDot/toneColor` – in
+  `DESIGN.md` dokumentierte Design-System-API; ungenutzte Exporte werden per Tree-Shaking entfernt.
+  `.A` = Branch-Marker des Owners.
+- **package.json:** `eslint`, `@eslint/js`, `typescript-eslint`, `vitest`, `jsdom`,
+  `@testing-library/react`, `rollup-plugin-visualizer` → `devDependencies`.
+- **CI:** läuft zusätzlich bei Push auf Branch `A`.
+- **Doku:** PLAN/MIGRATION mit B-42-Statusbanner, veraltete Regeln (kein Root-PostCSS, pnpm) korrigiert.
+
+### B-42 – Blocker-Fixes + Next.js-Hülle (Claude / Anthropic)
+
+- **Fix (API):** `src/db/migrate.ts` – `await` im nicht-async `.catch`-Callback (TS1308) verhinderte
+  Build und Migration.
+- **Fix (API):** `npm install` in `apps/api` brach ab (npm-Arborist `edgesOut`); Ursache war
+  `vitest` als devDependency. Entfernt – API-Tests laufen über den Root-Runner. Lockfile eingecheckt.
+- **Neu:** Next.js 16 als primärer Build (`npm run dev|build|start`), SPA via `dynamic(ssr:false)`,
+  `app/api/health`, `next.config.ts` (ersetzt das CommonJS-`next.config.js`), `postcss.config.mjs`.
+- **Umbenannt:** `src/pages/` → `src/views/` (Next reserviert `pages/`).
+- **Neu:** `src/lib/config.ts` liest `NEXT_PUBLIC_API_URL` und `VITE_API_URL`; `src/lib/pwa.ts`
+  (SW-Registrierung), `src/lib/asset.ts` (Bild-Import Vite/Next).
+- **PWA:** gehashte `/_next/static/*`-Assets werden MIME-geprüft gecacht; Offline-Fallback `/`;
+  Cache `go-shell-v4-next`. +4 Policy-Tests.
+- **Tooling:** `eslint-plugin-react-hooks`, CI-Lint blockierend, CI baut Next + Vite, npm-Scripts
+  `typecheck`/`lint`/`test`/`test:api`, Root-`.gitignore`, API-CORS-Default inkl. Port 3000.
+
 ### Mobile Touch B-41 (Codex / OpenAI)
 
 - Drawer/Sheet/Modal: `dragSnapToOrigin` + deaktiviertes Momentum; kurze, nicht ausreichende

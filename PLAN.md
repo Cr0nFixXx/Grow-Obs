@@ -1,5 +1,11 @@
 # PLAN.md
 
+> **Stand B-42 (Abweichung vom Plan):** Next.js 16 läuft bereits als **SPA-Hülle im Repo-Root**
+> (`app/`, `next.config.ts`, `postcss.config.mjs`), nicht in `apps/web`. Vite bleibt als Legacy
+> (`npm run build:vite`). `pnpm-workspace.yaml` wurde entfernt (Projekt nutzt npm). Die P2-Schritte
+> unten zu `apps/web`/pnpm sind damit **optional** – maßgeblich ist `HANDOFF.md`.
+
+
 **Für:** Claude Code, OpenCode, Codex, Hermes  
 **Projekt:** Grow|Observer  
 **Lies zuerst:** `HANDOFF.md` · Produkt-Nordstern: `MILESTONES.md`
@@ -126,12 +132,12 @@ Jede Phase: **kleine PRs**, nach jeder: Tests + Build + CHANGELOG-Eintrag.
 **Ziel:** Nichts kaputt machen, während Architektur wechselt.
 
 ### Tasks
-1. `npm run build && npx tsc --noEmit && npx vitest run` — Baseline grün halten.
-2. Kein `postcss.config.mjs` im **Repo-Root** (bricht Vite). Next-PostCSS nur in `apps/web/`.
+1. `npx next typegen && npm run typecheck && npm run lint && npm test && npm run build` — Baseline grün halten.
+2. Root-`postcss.config.mjs` gehört Next; `vite.config.ts` hält `css.postcss` inline (B-42).
 3. `HANDOFF.md` Fallstricke befolgen (Custom Props + `px`, Icon-Registry, `overflow-x: clip`).
 
 ### Done wenn
-- Vite-Build weiterhin grün.
+- Next-Build grün; Vite-Legacy-Build (`build:vite`) weiterhin grün.
 - Self-Host als Default akzeptiert (nicht Vercel-Pflicht).
 
 ---
@@ -219,7 +225,7 @@ Social-IndexedDB liegt ausschließlich im Mock-Service. Auth nutzt `login/regist
 Folge `MIGRATION.md`. Kurzfassung:
 
 ### Tasks
-1. Root auf **pnpm** umstellen. `pnpm-workspace.yaml` existiert (`apps/*`, `packages/*`).
+1. Optional: Root auf **pnpm** umstellen (`pnpm-workspace.yaml` wurde in B-42 entfernt, bei Bedarf neu anlegen).
 2. Packages anlegen:
    - `packages/ui` ← `src/components/**`
    - `packages/shared` ← `src/{lib,services,data,types,mocks}`
@@ -535,7 +541,7 @@ Client → POST /api/ai/chat { agentId, messages[], growId? }
 - Request-ID + structured logs auf API-Routen.
 
 ### PWA
-- SW an Next-Build anpassen (kein Vite-index.html-Fallback).
+- ✅ B-42: SW an Next-Build angepasst (`/_next/static`-Assets, Offline-Fallback `/`).
 - Offline: App-Shell + letzte Grows aus IndexedDB (Service mock-Pfad wiederverwenden).
 - Install-Prompt (Onboarding Step 2) an `beforeinstallprompt` koppeln.
 
@@ -576,13 +582,13 @@ Immer diese Reihenfolge, auch innerhalb einer Phase:
 ## 4. Explizite Nicht-Tun-Liste
 
 - Kein Recharts, kein jsPDF im Client, solange Bundle-Disziplin gilt.
-- Kein `postcss.config.mjs` im Repo-Root neben Vite.
+- Root-`postcss.config.mjs` nur für Next; Vite nutzt inline `css.postcss` (sonst doppelte Tailwind-Verarbeitung).
 - Kein `overflow-x: hidden` auf `body`.
 - Keine Custom Properties ohne Einheit (`"272px"`).
 - Keine Secrets im Client / in `NEXT_PUBLIC_*`.
 - Kein Socket.io auf Vercel Serverless.
 - Pages nicht weiter mit neuen direkten Mock-Imports aufblasen — immer Service/Hook.
-- `package.json` der Vite-App nicht mit Next-Deps überladen; Next gehört nach `apps/web`.
+- Next läuft im Root (B-42). Bei späterem Umzug nach `apps/web` Vite-Deps dort nicht mitnehmen.
 
 ---
 
@@ -613,7 +619,7 @@ Blocker:
 
 ```
 Aktuelle Phase: P4 umgesetzt; P5 Communities-MVP teilweise umgesetzt.
-Nächste Schritte: Backend via Docker starten, Frontend auf VITE_API_URL umschalten, E2E testen,
+Nächste Schritte: Backend via Docker starten, Frontend mit NEXT_PUBLIC_API_URL bauen, E2E testen,
   dann Community-Feed-Scope, Kick/Mod-Queue und SSE/Presence.
 Letzter Agent: claude-grow-dev
 Datum: 2026

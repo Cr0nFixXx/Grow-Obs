@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { Suspense, lazy, useEffect, useState, type ComponentType } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
@@ -10,36 +10,51 @@ import { DataProvider } from "@/data/DataContext";
 import { FeatureProvider, useFeatures } from "@/config/FeatureContext";
 import { featureForView } from "@/config/features";
 import { ToastProvider } from "@/components/Toast";
+import { UpdateProvider } from "@/lib/update";
+import { UpdateLayer } from "@/components/UpdateUI";
 import { NavProvider, useNav, type ViewKey } from "@/lib/nav";
 import { Background } from "@/components/Particles";
 import AppShell from "@/components/layout/AppShell";
 import { Button, EmptyState, Skeleton, SkeletonCard } from "@/components/ui";
 import { useDelayedReady, usePrefersReducedMotion } from "@/lib/hooks";
-import Onboarding from "@/pages/Onboarding";
-import Dashboard from "@/pages/Dashboard";
-import Grows from "@/pages/Grows";
-import Strains from "@/pages/Strains";
-import AIAssistant from "@/pages/AIAssistant";
-import Planner from "@/pages/Planner";
-import Breeders from "@/pages/Breeders";
-import Marketplace from "@/pages/Marketplace";
-import Wiki from "@/pages/Wiki";
-import Forum from "@/pages/Forum";
-import HallOfFame from "@/pages/HallOfFame";
-import Social from "@/pages/Social";
-import Communities from "@/pages/Communities";
-import Showcase from "@/pages/Showcase";
-import Calculator from "@/pages/Calculator";
-import Consumption from "@/pages/Consumption";
-import Simulation from "@/pages/Simulation";
-import Report from "@/pages/Report";
-import Chat from "@/pages/Chat";
-import Notifications from "@/pages/Notifications";
-import Profile from "@/pages/Profile";
-import Telegram from "@/pages/Telegram";
-import Auth from "@/pages/Auth";
-import DevAdmin from "@/pages/DevAdmin";
-import NotFound from "@/pages/NotFound";
+import Onboarding from "@/views/Onboarding";
+import Auth from "@/views/Auth";
+import NotFound from "@/views/NotFound";
+
+/* Views werden einzeln nachgeladen (Code-Splitting). Shell-kritische Views bleiben eager. */
+const Dashboard = lazy(() => import("@/views/Dashboard"));
+const Grows = lazy(() => import("@/views/Grows"));
+const Strains = lazy(() => import("@/views/Strains"));
+const AIAssistant = lazy(() => import("@/views/AIAssistant"));
+const Planner = lazy(() => import("@/views/Planner"));
+const Breeders = lazy(() => import("@/views/Breeders"));
+const Marketplace = lazy(() => import("@/views/Marketplace"));
+const Wiki = lazy(() => import("@/views/Wiki"));
+const Forum = lazy(() => import("@/views/Forum"));
+const HallOfFame = lazy(() => import("@/views/HallOfFame"));
+const Social = lazy(() => import("@/views/Social"));
+const Communities = lazy(() => import("@/views/Communities"));
+const Showcase = lazy(() => import("@/views/Showcase"));
+const Calculator = lazy(() => import("@/views/Calculator"));
+const Consumption = lazy(() => import("@/views/Consumption"));
+const Simulation = lazy(() => import("@/views/Simulation"));
+const Report = lazy(() => import("@/views/Report"));
+const Chat = lazy(() => import("@/views/Chat"));
+const Notifications = lazy(() => import("@/views/Notifications"));
+const Profile = lazy(() => import("@/views/Profile"));
+const Telegram = lazy(() => import("@/views/Telegram"));
+const DevAdmin = lazy(() => import("@/views/DevAdmin"));
+const Create = lazy(() => import("@/views/Create"));
+
+/** Häufige Ziele (Bottom-Nav) im Leerlauf vorladen → Tab-Wechsel ohne Ladepause. */
+function usePrefetchPrimaryViews() {
+  useEffect(() => {
+    const load = () => { void import("@/views/Dashboard"); void import("@/views/Grows"); void import("@/views/Forum"); void import("@/views/Profile"); };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    const id = w.requestIdleCallback ? w.requestIdleCallback(load) : window.setTimeout(load, 1200);
+    return () => { if (!w.requestIdleCallback) window.clearTimeout(id); };
+  }, []);
+}
 
 const views: Record<ViewKey, ComponentType> = {
   dashboard: Dashboard,
@@ -65,6 +80,7 @@ const views: Record<ViewKey, ComponentType> = {
   telegram: Telegram,
   auth: Auth,
   devAdmin: DevAdmin,
+  create: Create,
 };
 
 function Router() {
@@ -106,7 +122,11 @@ function AsyncPage({ view }: { view: ViewKey }) {
       />
     );
   }
-  return <Page />;
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Page />
+    </Suspense>
+  );
 }
 
 function PageSkeleton() {
@@ -136,6 +156,7 @@ function PageSkeleton() {
 }
 
 function Shell() {
+  usePrefetchPrimaryViews();
   const { view } = useNav();
   const { user, loading, sessionError, retrySession, logout } = useAuth();
   const [onboard, setOnboard] = useState(false);
@@ -192,9 +213,12 @@ export default function App() {
           <DataProvider>
             <FeatureProvider>
               <ToastProvider>
-                <NavProvider>
-                  <Shell />
-                </NavProvider>
+                <UpdateProvider>
+                  <NavProvider>
+                    <Shell />
+                    <UpdateLayer />
+                  </NavProvider>
+                </UpdateProvider>
               </ToastProvider>
             </FeatureProvider>
           </DataProvider>

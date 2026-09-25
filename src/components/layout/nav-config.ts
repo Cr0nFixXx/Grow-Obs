@@ -18,7 +18,7 @@ export const navGroups: NavGroup[] = [
     title: "Übersicht",
     items: [
       { key: "dashboard", label: "Dashboard", icon: "Home" },
-      { key: "grows", label: "Meine Grows", icon: "Sprout", badge: "2" },
+      { key: "grows", label: "Meine Grows", icon: "Sprout" },
       { key: "strains", label: "Sorten-Sammlung", icon: "Leaf" },
       { key: "ai", label: "KI-Assistent", icon: "Sparkles" },
     ],

@@ -20,9 +20,13 @@ interface AuthValue {
   loading: boolean;
   sessionError: string | null;
   retrySession: () => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember?: boolean) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Eigenes Profil ändern (Name, Titel, Avatar). Mock: nur Session. */
+  updateProfile: (patch: { name?: string; title?: string; avatar?: string }) => Promise<void>;
+  /** Eigenes Profil/Rolle leise neu laden (Pull-to-Refresh). */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -81,22 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { controller.abort(); revision.current += 1; };
   }, [token, retry]);
 
-  const acceptSession = useCallback((result: { token: string; user: User }) => {
+  const acceptSession = useCallback((result: { token: string; user: User }, remember = true) => {
     setAuthToken(result.token);
     verifiedToken.current = result.token;
     setToken(result.token);
     setUser(result.user);
-    writeSessionToken(result.token);
+    writeSessionToken(result.token, remember);
     setLoading(false);
     setSessionError(null);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, remember = true) => {
     const request = ++revision.current;
     const res = config.useMock
       ? { token: `mock-${Date.now()}`, user: mockUser }
       : await http.post<{ token: string; user: User }>("/auth/login", { email, password });
-    if (request === revision.current) acceptSession(res);
+    if (request === revision.current) acceptSession(res, remember);
   }, [acceptSession]);
 
   const register = useCallback(
@@ -138,12 +142,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  const updateProfile = useCallback(async (patch: { name?: string; title?: string; avatar?: string }) => {
+    if (config.useMock) {
+      setUser((current) => (current ? { ...current, ...patch } : current));
+      return;
+    }
+    const updated = await http.patch<User>("/auth/me", patch);
+    setUser(updated);
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (config.useMock || !token) return;
+    try {
+      setUser(await http.get<User>("/auth/me"));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) logout();
+    }
+  }, [token, logout]);
+
   const value = useMemo(
-    () => ({ user, token, loading, sessionError, retrySession, login, register, logout }),
-    [user, token, loading, sessionError, retrySession, login, register, logout]
+    () => ({ user, token, loading, sessionError, retrySession, login, register, logout, updateProfile, refreshUser }),
+    [user, token, loading, sessionError, retrySession, login, register, logout, updateProfile, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** Anzeige-Platzhalter, solange (noch) keine Session existiert – nie Mock-Personendaten im API-Modus. */
+const guestUser: User = { id: "guest", name: "Gast", handle: "@gast", avatar: "", level: 1, title: "Nicht angemeldet", grows: 0, harvests: 0, followers: 0, telegram: false, role: "member" };
+
+/** Aktueller Nutzer für die UI (Session-User; Mock-Modus: Demo-User; sonst Gast). */
+export function useCurrentUser(): User {
+  const { user } = useAuth();
+  return user ?? (config.useMock ? mockUser : guestUser);
 }
 
 export function useAuth() {

@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client.js";
-import { growEnv, growLogs, growPhotos, grows, strains } from "../db/schema.js";
-import { requireAuth, type AuthEnv } from "../middleware/auth.js";
-import { uuid } from "../lib/validation.js";
+import { db } from "../db/client.ts";
+import { growEnv, growLogs, growPhotos, grows, strains } from "../db/schema.ts";
+import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { uuid } from "../lib/validation.ts";
+import { imageRef } from "../lib/media-ref.ts";
 
 export const growsApi = new Hono<AuthEnv>();
 
@@ -109,6 +110,18 @@ const addLogSchema = z.object({
   title: z.string().trim().min(1).max(200),
   text: z.string().max(20000).default(""),
   tag: z.enum(["Gießen", "Dünger", "Training", "Beobachtung", "Schädling", "Ernte"]).default("Beobachtung"),
+});
+
+growsApi.post("/:id/photos", requireAuth, async (c) => {
+  const body = z.object({ url: imageRef }).strict().safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
+  const grow = await getOwnedGrow(c.req.param("id"), c.get("userId"));
+  if (!grow) return c.json({ error: "Nicht gefunden" }, 404);
+  await db.insert(growPhotos).values({ growId: grow.id, url: body.data.url });
+  // Erstes Foto wird Cover, sofern noch keins gesetzt ist.
+  await db.update(grows).set({ coverUrl: body.data.url })
+    .where(and(eq(grows.id, grow.id), sql`${grows.coverUrl} IS NULL`));
+  return c.json(await toGrow((await db.query.grows.findFirst({ where: eq(grows.id, grow.id) }))!), 201);
 });
 
 growsApi.post("/:id/logs", requireAuth, async (c) => {

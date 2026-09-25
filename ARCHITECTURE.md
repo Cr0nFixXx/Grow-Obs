@@ -29,7 +29,7 @@ So bleibt die UI stabil, während das Backend schrittweise angebunden wird.
 ## Schichten-Modell
 
 ```
- UI (pages/)
+ UI (views/)
    │  nutzt Hooks: useGrows(), useSocialPosts(), useStrains() …
    ▼
  Data-Layer (src/data/)
@@ -42,7 +42,7 @@ So bleibt die UI stabil, während das Backend schrittweise angebunden wird.
             ▲
  config.useMock (src/lib/config.ts) wählt aus
             ▲
- VITE_API_URL (leer = Mock, gesetzt = API)
+ NEXT_PUBLIC_API_URL (leer = Mock, gesetzt = API)
 ```
 
 Langfristig zwei Speicher-Pfade (siehe `MILESTONES.md`):
@@ -63,7 +63,7 @@ Implementierungen: `mock` | `api` (Free-Cloud) | `local` (Paid local-first). UI 
 | Datei | Rolle |
 |-------|-------|
 | `src/types/index.ts` | Domänen-Typen (Single Source of Truth) + Eingabe-Typen (`CreateGrowInput` …) |
-| `src/lib/config.ts` | `apiBaseUrl` + `useMock` (gesteuert über `VITE_API_URL`) |
+| `src/lib/config.ts` | `apiBaseUrl` + `useMock` (gesteuert über `NEXT_PUBLIC_API_URL`, Vite-Legacy: `VITE_API_URL`) |
 | `src/lib/api.ts` | HTTP-Client `http.get/post/put/patch/delete`, `ApiError`, `setAuthToken` (Bearer-Token) |
 | `src/lib/auth.tsx` | `AuthProvider` + `useAuth()` (login/register/logout, Token-Persistenz, Session-Restore) |
 | `src/services/interfaces.ts` | Verträge für Grows, Social, Forum, Chat, Wiki, Katalog, Communities, Admin |
@@ -72,7 +72,7 @@ Implementierungen: `mock` | `api` (Free-Cloud) | `local` (Paid local-first). UI 
 | `src/services/index.ts` | Factory: wählt Mock ↔ API (`config.useMock`) |
 | `src/data/DataContext.tsx` | `DataProvider` + `useServices()` (stellt Registry bereit) |
 | `src/data/hooks.ts` | Async-Hooks für alle produktiven Domänen inkl. Communities |
-| `.env.example` | `VITE_API_URL` (leer = Mock) |
+| `.env.example` | `NEXT_PUBLIC_API_URL` (leer = Mock) |
 | `apps/api/src` | Hono-API, Drizzle-Schema, Auth, Routes, MinIO |
 | `apps/api/docker-compose.yml` | Postgres + MinIO + API |
 
@@ -88,10 +88,10 @@ Backend-Routen liegen in `apps/api/src/routes/`. Admin-Routen sind mit `requireA
 
 ```bash
 # Mock (Default – kein Server nötig)
-VITE_API_URL=
+NEXT_PUBLIC_API_URL=
 
 # API (echtes Backend)
-VITE_API_URL=https://api.growobserver.app
+NEXT_PUBLIC_API_URL=https://api.growobserver.app
 ```
 Die `services`-Factory liefert automatisch die passende Implementierung. Das Bearer-Token
 wird vom `AuthProvider` via `setAuthToken()` gesetzt und vom HTTP-Client gesendet.
@@ -148,6 +148,82 @@ im API-Modus ein `POST /social/posts`, im Mock-Modus IndexedDB + Latenz.
 | PATCH | `/communities/:id/members/:userId/role` | `setMemberRole` |
 | GET | `/admin/health`, `/admin/stats`, `/admin/users`, `/admin/content` | Developer-Admin |
 
+### Betriebsarten (B-46)
+
+| Modus | `NEXT_PUBLIC_API_URL` | Backend | Speicherung |
+|---|---|---|---|
+| **Embedded (Standard)** | nicht gesetzt → `/api` | Hono-App in Next.js (`app/api/[...route]`) | PostgreSQL (`DATABASE_URL`) |
+| Extern (Docker) | `https://api.example.com` | `apps/api` als eigener Dienst | PostgreSQL + MinIO |
+| Demo/Mock | leer (`NEXT_PUBLIC_API_URL=`) | keins | nur Session (Speicher) |
+
+Embedded: Migrationen beim ersten Request, S3 optional (Uploads `503`), JWT-Secret aus `.env.local`.
+
+### App-Updates (B-50)
+
+| Methode | Endpoint | Auth | Zweck |
+|---|---|---|---|
+| GET | `/api/version` | nein | `{ version, build, builtAt }` der laufenden Instanz (Next-Route) |
+| GET | `/releases` | nein | Release-Notes, neueste zuerst |
+| POST / DELETE | `/admin/releases[/:id]` | Plattform-Admin | veröffentlichen / löschen |
+
+Update verfügbar ⇔ `build` ≠ eingebetteter Client-Build. Pflicht ⇔ zusätzlich `required`-Release nach
+dem Client-Build. Anwenden = SW-Update + Reload (HTML ist network-first, Chunks sind gehasht).
+
+### Feature-Flags (B-49)
+
+| Methode | Endpoint | Auth | Zweck |
+|---|---|---|---|
+| GET | `/features` | nein | `{ overrides: { forum: false, … } }` – fehlender Key = Default (an) |
+| PUT | `/admin/features/:key` | Plattform-Admin | `{ enabled }`; Kern-Feature → 409 |
+| DELETE | `/admin/features` | Plattform-Admin | alle Overrides löschen |
+
+Deaktivierte Features: API antwortet auf zugehörige Pfade mit `403 { error, feature }`; der Client lädt
+daraufhin die Flags neu. Pfad-Zuordnung: `apps/api/src/lib/features.ts`.
+
+### Endpunkte B-48
+
+| Methode | Endpoint | Auth | Zweck |
+|---|---|---|---|
+| POST | `/forum/threads/:id/vote` | ja | `delta` 1/-1/0 → `{ votes, myVote }` |
+| POST | `/forum/comments/:id/vote` | ja | wie oben, für Kommentare |
+| POST | `/forum/threads/:id/comments` | ja | `parentId?` = Antwort |
+| GET | `/forum/threads[/:id]` | optional | liefert `myVote` für angemeldete Nutzer |
+| GET / POST | `/hall/:id/comments` | nein / ja | Kommentare zu Hall-of-Fame-Einträgen |
+| GET / POST | `/social/posts/:id/comments` | ja | Kommentare zu Posts |
+
+### Endpunkte B-47
+
+| Methode | Endpoint | Auth | Zweck |
+|---|---|---|---|
+| POST | `/media` | ja | Bild hochladen (roher Body, ≤ 2 MB) → `{ path: "/media/<id>" }` |
+| GET / DELETE | `/media/:id` | nein / Eigentümer | Bild ausliefern / löschen |
+| POST | `/grows/:id/photos` | Eigentümer | `{ url }` zur Galerie, erstes Foto = Cover |
+| PATCH | `/auth/me` | ja | `{ name?, title?, avatar? }` |
+| GET | `/strains/collection` | ja | eigene Sammlung |
+| POST | `/strains/:id/collect` | ja | Sammeln umschalten → `{ collected }` |
+| POST | `/chat/:id/messages` | Mitglied | zusätzlich `image?` (Text oder Bild erforderlich) |
+
+### Neue Endpunkte (B-45)
+
+| Service | Methode | Endpoint | Auth |
+|---|---|---|---|
+| `strains.create` | POST | `/strains` | ja (Community-Sorte, `tag: "Community"`) |
+| `strains.catalog` | GET | `/strains` | nein |
+| `wiki.create` | POST | `/wiki` | ja (Entwurf `version: "0.1"`) |
+| `tasks.list` / `create` | GET / POST | `/tasks` | ja, nur eigene |
+| `tasks.toggle` | POST | `/tasks/:id/toggle` | ja, fremde IDs → 404 |
+
+Hinweis: Im API-Modus liefert `strains.list()` den Katalog, da das Backend (noch) keine persönliche
+Sammlung kennt.
+
+### Bewusst statische Demo-Inhalte (keine Backend-Domäne)
+
+Direkt aus `src/mocks/data.ts` gelesen, in beiden Modi identisch: KI-Agenten/Vorschläge/Bodenrezepte
+(AIAssistant), Kostenrechner-Defaults (Calculator), Verbrauchs-/Klima-Charts und Quick-Stats
+(Consumption, Dashboard, Showcase), Wachstumsphasen (Simulation), Stories/Trends/Vorschläge (Social),
+Bewertungsverteilung/Reviews (Strains-Modal), Autoren-Avatare (Wiki). Bei neuer Backend-Domäne:
+Service + Hook ergänzen und den Import ersetzen.
+
 ### Backend lokal starten
 
 ```bash
@@ -156,7 +232,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Der API-Modus des Frontends wird mit `VITE_API_URL=http://localhost:8787` aktiviert.
+Der API-Modus des Frontends wird mit `NEXT_PUBLIC_API_URL=http://localhost:8787` (Build-Zeit) aktiviert.
 
 ---
 

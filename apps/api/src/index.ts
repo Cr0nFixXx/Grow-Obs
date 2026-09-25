@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
-import { app } from "./app.js";
-import { env } from "./env.js";
-import { client } from "./db/client.js";
+import { app } from "./app.ts";
+import { env } from "./env.ts";
+import { client } from "./db/client.ts";
 
 const server = serve({ fetch: app.fetch, port: env.PORT, hostname: "0.0.0.0" }, (info) => {
   console.log(`Grow|Observer API listening on port ${info.port}`);

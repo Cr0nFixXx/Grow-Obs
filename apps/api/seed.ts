@@ -1,4 +1,4 @@
-import { client, db as database } from "./src/db/client.js";
+import { client, db as database } from "./src/db/client.ts";
 import {
   communities,
   communityMembers,
@@ -18,13 +18,17 @@ import {
   users,
   wikiArticles,
   breeders as breedersTable,
-} from "./src/db/schema.js";
-import { hashPassword } from "./src/lib/password.js";
-import { env } from "./src/env.js";
+} from "./src/db/schema.ts";
+import { hashPassword } from "./src/lib/password.ts";
+import { env } from "./src/env.ts";
 import { z } from "zod";
 import { CreateBucketCommand, HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
 
 async function ensureBucket() {
+  if (!env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) {
+    console.log("⏭  Kein Object Storage konfiguriert – Bucket-Setup übersprungen.");
+    return;
+  }
   const s3 = new S3Client({
     endpoint: env.S3_ENDPOINT,
     region: env.S3_REGION,

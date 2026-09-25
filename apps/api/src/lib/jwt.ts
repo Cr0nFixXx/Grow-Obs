@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { z } from "zod";
-import { env } from "../env.js";
+import { env } from "../env.ts";
 
 const secret = new TextEncoder().encode(env.JWT_SECRET);
 

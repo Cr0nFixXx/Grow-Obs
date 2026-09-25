@@ -2,11 +2,12 @@ import { Hono } from "hono";
 import { and, count, desc, eq, ne } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { db } from "../db/client.js";
-import { conversationMembers, conversations, messages } from "../db/schema.js";
-import { requireAuth, type AuthEnv } from "../middleware/auth.js";
-import { ago } from "../lib/time.js";
-import { pageLimit, uuid } from "../lib/validation.js";
+import { imageRef } from "../lib/media-ref.ts";
+import { db } from "../db/client.ts";
+import { conversationMembers, conversations, messages } from "../db/schema.ts";
+import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { ago } from "../lib/time.ts";
+import { pageLimit, uuid } from "../lib/validation.ts";
 
 export const chat = new Hono<AuthEnv>();
 chat.use("*", requireAuth);
@@ -59,18 +60,20 @@ chat.get("/:id/messages", async (c) => {
     .where(eq(messages.conversationId, id))
     .orderBy(desc(messages.createdAt)).limit(pageLimit(c.req.query("limit")));
   return c.json(
-    msgs.reverse().map((m) => ({ id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, time: ago(m.createdAt) }))
+    msgs.reverse().map((m) => ({ id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined, time: ago(m.createdAt) }))
   );
 });
 
 chat.post("/:id/messages", async (c) => {
   const id = uuid(c.req.param("id"));
   await requireMembership(id, c.get("userId"));
-  const body = z.object({ text: z.string().trim().min(1).max(10000) }).safeParse(await c.req.json().catch(() => ({})));
+  const body = z.object({ text: z.string().trim().max(10000).default(""), image: imageRef.optional() })
+    .refine((v) => v.text.length > 0 || !!v.image, "Text oder Bild erforderlich")
+    .safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
   const [m] = await db
     .insert(messages)
-    .values({ conversationId: id, senderId: c.get("userId"), text: body.data.text })
+    .values({ conversationId: id, senderId: c.get("userId"), text: body.data.text, imageUrl: body.data.image ?? null })
     .returning();
-  return c.json({ id: m.id, from: "me", text: m.text, time: "jetzt" }, 201);
+  return c.json({ id: m.id, from: "me", text: m.text, image: m.imageUrl ?? undefined, time: "jetzt" }, 201);
 });

@@ -2,11 +2,46 @@
 
 ## Status
 
-The test suites below are implemented, not yet executed in this agent environment.
-Frontend build B-39 succeeded: 862.56 kB HTML / 310.29 kB gzip.
-**The API has never been compiled or started here** — run the API section below before trusting it.
-The available build tool checks the Vite frontend bundle only. It does not run TypeScript,
-Vitest, the Hono API, PostgreSQL, MinIO, Docker or real-device gesture tests.
+**B-42 (Claude / Anthropic) – actually executed, all green (Node 22, PostgreSQL 16):**
+`npx next typegen`, `npm run typecheck`, `npm run lint` (0 errors / 0 warnings), `npm test`
+(52/52), `npm run build` (Next.js), `npm run build:vite` (870.33 kB / 312.65 kB gzip),
+API `npm run typecheck`, `npx tsc -p tsconfig.tools.json`, `npm run build`,
+`npm run test:api` (13/13 against a throwaway `growobserver_test` DB), smoke test of `next start`
+(`/`, `/api/health`, CSS, `sw.js`, manifest).
+
+**B-43:** same suite re-run after cleanup, plus `npm ci` from the lockfile (clean install).
+
+**B-44:** 61/61 unit tests (new: `src/lib/gestures.test.ts`, `src/services/mock-create.test.ts`). Gesture
+behaviour itself (touch, scroll hand-over, tab swipe vs. edge swipe) still needs real-device checks.
+
+**B-45:** API integration 15/15 (new: task isolation, strain/wiki authoring). Migration upgrade path
+0000 → 0001 verified on a database containing data. `npm audit`: frontend 0; API 4 moderate
+(drizzle-kit's bundled esbuild, CLI-only). Fresh `npm ci` from the new lockfile succeeds.
+
+**B-46 (embedded API):** real `next start` against PostgreSQL: first request runs migrations
+(26 tables); register → task + grow → server restart → login → data still present; `401` without token;
+upload presign `503` without storage. All 37 endpoints used by `src/services/api.ts` return 2xx against
+the seeded sandbox DB (contract data removed afterwards). Browser click-through in API mode still pending
+(no headless browser available in this sandbox).
+
+**B-47:** API 20/20 (media magic bytes/size/owner delete/headers, grow photo ownership, chat image,
+profile edit without role escalation, per-user strain collection). Frontend 64/64. Live check against
+the preview (upload → serve → attach) documented in PROGRESS. Real-device camera upload untested.
+
+**B-48:** API 22/22 (vote toggle incl. `myVote`, anonymous listing, threaded replies, comment votes,
+hall/post comments with counts). Frontend 71/71 (swipe zones, remember-me storage, notification targets,
+mock forum/comments). Real-device checks pending: slider vs. scroll, page swipe zones, install prompt.
+
+**B-49:** API 23/23 (flags: non-admin 403, core 409, unknown 404, other user sees override, API route
+blocked with `feature`, reset). Frontend 76/76 (key parity, `refreshAllResources` background reload,
+failure keeps content, unmount cleanup). Live: admin disables feature → second account blocked (see PROGRESS).
+
+**B-50:** API 24/24 (releases: admin-only, validation, public order, delete). Update logic unit-tested
+(available/mandatory/unseen/prefs/auto-apply). Two consecutive production builds verified: client bundle
+build ID matches `/api/version`, and a new build is reported as a different ID.
+
+**Still unverified:** Docker Compose stack, MinIO upload, browser E2E in API mode, real-device
+gesture tests, `npm audit` advisories.
 
 ## Frontend
 

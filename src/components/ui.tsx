@@ -12,10 +12,12 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useDragControls } from "framer-motion";
+import { AnimatePresence, motion, useDragControls, useMotionValue, useTransform } from "framer-motion";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, Star, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useBodyScrollLock, useFocusTrap, useMediaQuery } from "@/lib/hooks";
+import { useSwipeToDismiss } from "@/lib/gestures";
+import { resolveMedia } from "@/lib/media";
 import { Icon } from "@/components/Icon";
 import { toneSoft, type Tone } from "@/lib/tokens";
 
@@ -162,7 +164,7 @@ export function Avatar({
   return (
     <span className={cn("relative inline-block shrink-0", className)} style={{ width: size, height: size }}>
       <img
-        src={src}
+        src={resolveMedia(src) || undefined}
         alt={alt ?? "Avatar"}
         loading="lazy"
         width={size}
@@ -220,7 +222,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   }
 );
 
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: React.Ref<HTMLTextAreaElement> }) {
   return (
     <textarea
       className={cn(
@@ -314,15 +316,74 @@ export function Checkbox({
   );
 }
 
+/**
+ * Slider mit Scroll-Schutz (B-48): natives `<input type="range">` springt beim ersten Touch an die
+ * Fingerposition – beim Scrollen wurden so Werte verstellt. Jetzt:
+ *  - Maus/Stift: sofort (wie gewohnt).
+ *  - Touch: erst nach eindeutig horizontaler Bewegung (> 6 px, |dx| > |dy|) oder bei kurzem Tipp.
+ *    Vertikal → Browser scrollt (`touch-action: pan-y`), Wert bleibt unverändert.
+ * Das native Input bleibt für Tastatur/Screenreader bedienbar; `onChange` erhält ein echtes Input-Event.
+ */
 export function Slider({
   className,
   ...props
 }: InputHTMLAttributes<HTMLInputElement>) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const gesture = useRef<{ id: number; x: number; y: number; dragging: boolean } | null>(null);
+
+  const setFromClientX = (clientX: number, target: HTMLElement) => {
+    const input = inputRef.current;
+    if (!input || props.disabled) return;
+    const rect = target.getBoundingClientRect();
+    const min = Number(props.min ?? 0), max = Number(props.max ?? 100);
+    const step = Number(props.step ?? 1) || 1;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const decimals = (String(step).split(".")[1] ?? "").length;
+    const value = Math.min(max, Math.max(min, min + Math.round((ratio * (max - min)) / step) * step));
+    const next = value.toFixed(decimals);
+    if (input.value === next) return;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, next);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+
   return (
-    <span className="flex min-h-11 w-full items-center touch-pan-y">
+    <span
+      className="flex min-h-11 w-full touch-pan-y items-center"
+      data-no-swipe
+      onPointerDown={(e) => {
+        if (e.button !== 0 || props.disabled) return;
+        gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, dragging: e.pointerType !== "touch" };
+        if (e.pointerType !== "touch") {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          inputRef.current?.focus({ preventScroll: true });
+          setFromClientX(e.clientX, e.currentTarget);
+        }
+      }}
+      onPointerMove={(e) => {
+        const g = gesture.current;
+        if (!g || g.id !== e.pointerId) return;
+        if (!g.dragging) {
+          const dx = Math.abs(e.clientX - g.x), dy = Math.abs(e.clientY - g.y);
+          if (dy > 6 && dy >= dx) { gesture.current = null; return; } // Scrollen
+          if (dx <= 6 || dx <= dy) return;
+          g.dragging = true;
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }
+        setFromClientX(e.clientX, e.currentTarget);
+      }}
+      onPointerUp={(e) => {
+        const g = gesture.current;
+        gesture.current = null;
+        if (!g || g.id !== e.pointerId) return;
+        // Kurzer Tipp ohne Bewegung setzt den Wert (Touch).
+        if (!g.dragging && Math.abs(e.clientX - g.x) <= 6 && Math.abs(e.clientY - g.y) <= 6) setFromClientX(e.clientX, e.currentTarget);
+      }}
+      onPointerCancel={() => { gesture.current = null; }}
+    >
       <input
+        ref={inputRef}
         type="range"
-        className={cn("touch-slider h-11 w-full cursor-pointer appearance-none bg-transparent", className)}
+        className={cn("touch-slider pointer-events-none h-11 w-full appearance-none bg-transparent", className)}
         style={{ accentColor: "var(--accent)" }}
         {...props}
       />
@@ -522,7 +583,7 @@ export function SmartImage({ src, alt, className }: { src: string; alt: string; 
         </span>
       )}
       <img
-        src={src}
+        src={resolveMedia(src)}
         alt={alt}
         loading="lazy"
         onLoad={() => setStatus("loaded")}
@@ -610,6 +671,11 @@ export function Accordion({ items }: { items: { q: string; a: string }[] }) {
 }
 
 /* ============================== Overlays ============================== */
+/**
+ * Gesten (B-44): Touch-Drag funktioniert im GESAMTEN Panel, nicht nur am Griff.
+ * `useSwipeToDismiss` übernimmt nur, wenn in Schließ-Richtung gezogen wird und der Inhalt am
+ * Anschlag steht – sonst scrollt der Inhalt nativ. Maus: Header-Drag über Framer `dragControls`.
+ */
 export function Modal({
   open,
   onClose,
@@ -629,16 +695,18 @@ export function Modal({
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
   const isMobile = useMediaQuery("(max-width: 639px)");
+  const y = useMotionValue(0);
+  useSwipeToDismiss({ ref: panelRef, value: y, axis: "y", direction: 1, enabled: open && isMobile, onDismiss: onClose });
   useEffect(() => {
     if (!open) return;
+    y.set(0);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, y]);
   const widths = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
-  // Auf Mobile verhält sich das Modal wie ein Sheet → gleicher Handle-Drag.
   const dragControls = useDragControls();
   return createPortal(
     <AnimatePresence>
@@ -649,6 +717,7 @@ export function Modal({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
+            style={{ y }}
             initial={isMobile ? { opacity: 0.6, y: "100%" } : { opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={isMobile ? { opacity: 0.5, y: "100%" } : { opacity: 0, scale: 0.97, y: 8 }}
@@ -669,9 +738,10 @@ export function Modal({
             )}
           >
             <div
-              className={cn(isMobile && "cursor-grab touch-none select-none active:cursor-grabbing", title && "border-b border-border")}
+              className={cn(isMobile && "cursor-grab select-none active:cursor-grabbing", title && "border-b border-border")}
               onPointerDown={(event) => {
-                if (!isMobile || (event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
+                // Touch läuft über useSwipeToDismiss; hier nur Maus/Stift.
+                if (!isMobile || event.pointerType === "touch" || (event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
                 dragControls.start(event);
               }}
             >
@@ -710,6 +780,16 @@ export function Drawer({
   useBodyScrollLock(open);
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
+  const x = useMotionValue(0);
+  // Wischen zum Schließen im gesamten Drawer (auch über Nav-Einträgen), vertikal bleibt Scrollen nativ.
+  useSwipeToDismiss({ ref: panelRef, value: x, axis: "x", direction: side === "left" ? -1 : 1, enabled: open, onDismiss: onClose, threshold: 72 });
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  const closedX = side === "left" ? "-100%" : "100%";
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -719,24 +799,12 @@ export function Drawer({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            initial={{ x: side === "left" ? "-100%" : "100%" }}
+            initial={{ x: closedX }}
             animate={{ x: 0 }}
-            exit={{ x: side === "left" ? "-100%" : "100%" }}
+            exit={{ x: closedX }}
             transition={{ type: "spring", stiffness: 360, damping: 36 }}
-            drag="x"
-            dragDirectionLock
-            dragSnapToOrigin
-            dragMomentum={false}
-            dragConstraints={side === "left" ? { left: -width, right: 0 } : { left: 0, right: width }}
-            dragElastic={0.08}
-            onDragEnd={(_, info) => {
-              const away = side === "left" ? info.offset.x < -72 || info.velocity.x < -480 : info.offset.x > 72 || info.velocity.x > 480;
-              if (away) onClose();
-            }}
-            className={cn("card absolute top-0 bottom-0 z-10 flex flex-col border-0 elev-3", side === "left" ? "left-0" : "right-0")}
-            // touchAction: pan-y hält vertikales Scrollen im Drawer-Inhalt nativ —
-            // Framer übernimmt nur die horizontale Achse (dragDirectionLock).
-            style={{ width, maxWidth: "calc(100vw - 2.5rem)", paddingTop: "env(safe-area-inset-top)", touchAction: "pan-y" }}
+            className={cn("card absolute top-0 bottom-0 z-10 flex flex-col border-0 elev-3", side === "left" ? "left-0 rounded-l-none" : "right-0 rounded-r-none")}
+            style={{ x, width, maxWidth: "calc(100vw - 2.5rem)", paddingTop: "env(safe-area-inset-top)", touchAction: "pan-y" }}
           >
             {title && (
               <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
@@ -769,8 +837,16 @@ export function BottomSheet({
   useBodyScrollLock(open);
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
-  // Drag NUR über den Griff: `drag="y"` auf dem ganzen Panel würde dem Browser
-  // das native Scrollen des Sheet-Inhalts wegnehmen (touch-action: none).
+  const isMobile = useMediaQuery("(max-width: 639px)");
+  const y = useMotionValue(0);
+  useSwipeToDismiss({ ref: panelRef, value: y, axis: "y", direction: 1, enabled: open && isMobile, onDismiss: onClose });
+  useEffect(() => {
+    if (!open) return;
+    y.set(0);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose, y]);
   const dragControls = useDragControls();
   return createPortal(
     <AnimatePresence>
@@ -781,6 +857,7 @@ export function BottomSheet({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
+            style={{ y, paddingBottom: "env(safe-area-inset-bottom)" }}
             initial={{ y: "100%", opacity: 0.6 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0.6 }}
@@ -796,12 +873,11 @@ export function BottomSheet({
               if (info.offset.y > 96 || info.velocity.y > 620) onClose();
             }}
             className="card relative z-10 flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-lg flex-col overflow-hidden rounded-b-none elev-3 sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl"
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <div
-              className={cn("sm:hidden", title && "border-b border-border", "cursor-grab touch-none select-none active:cursor-grabbing")}
+              className={cn("sm:hidden", title && "border-b border-border", "cursor-grab select-none active:cursor-grabbing")}
               onPointerDown={(event) => {
-                if ((event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
+                if (event.pointerType === "touch" || (event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
                 dragControls.start(event);
               }}
             >
@@ -832,8 +908,10 @@ export interface LightboxImage {
 }
 
 /**
- * Shared mobile image viewer: horizontal swipe/flick changes images; downward swipe closes.
- * The image surface owns the gesture while Modal itself only drags from its header handle.
+ * Vollbild-Galerie (B-44): Bild zentriert auf schwarzem Grund, kein Sheet.
+ * Touch: seitlich wischen = blättern, nach unten = schließen (Hintergrund blendet mit aus),
+ * Doppeltipp/Doppelklick = 2× Zoom (dann frei verschiebbar). Tastatur: ←/→/Esc.
+ * Thumbnails unten, Pfeile ab `sm`.
  */
 export function SwipeLightbox({
   open,
@@ -850,41 +928,132 @@ export function SwipeLightbox({
 }) {
   const safeIndex = images.length ? Math.min(Math.max(index, 0), images.length - 1) : 0;
   const current = images[safeIndex];
-  const previous = () => images.length > 1 && onIndexChange((safeIndex + images.length - 1) % images.length);
-  const next = () => images.length > 1 && onIndexChange((safeIndex + 1) % images.length);
-  return (
-    <Modal open={open && !!current} onClose={onClose} size="xl" title={current ? `${safeIndex + 1} / ${images.length}` : undefined}>
-      {current && (
+  const visible = open && !!current;
+  const [dir, setDir] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const thumbsRef = useRef<HTMLDivElement>(null);
+  const dragY = useMotionValue(0);
+  const backdrop = useTransform(dragY, [0, 320], [1, 0.25]);
+  useBodyScrollLock(visible);
+  useFocusTrap(visible, panelRef);
+
+  const go = (step: 1 | -1) => {
+    if (images.length < 2) return;
+    setDir(step);
+    onIndexChange((safeIndex + step + images.length) % images.length);
+  };
+  const goRef = useRef(go);
+  goRef.current = go;
+
+  useEffect(() => { setZoomed(false); dragY.set(0); }, [safeIndex, open, dragY]);
+  useEffect(() => {
+    if (!visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") goRef.current(1);
+      else if (e.key === "ArrowLeft") goRef.current(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible, onClose]);
+  useEffect(() => {
+    const thumb = thumbsRef.current?.children[safeIndex] as HTMLElement | undefined;
+    thumb?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [safeIndex, visible]);
+
+  return createPortal(
+    <AnimatePresence>
+      {visible && (
         <motion.div
-          key={`${current.src}-${safeIndex}`}
-          drag
-          dragDirectionLock
-          dragSnapToOrigin
-          dragMomentum={false}
-          dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-          dragElastic={{ left: 0.2, right: 0.2, top: 0.08, bottom: 0.18 }}
-          onDragEnd={(_, info) => {
-            const horizontal = Math.abs(info.offset.x) > Math.abs(info.offset.y);
-            if (horizontal && (info.offset.x < -56 || info.velocity.x < -480)) next();
-            else if (horizontal && (info.offset.x > 56 || info.velocity.x > 480)) previous();
-            else if (!horizontal && (info.offset.y > 96 || info.velocity.y > 620)) onClose();
-          }}
-          className="relative touch-none select-none"
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Bild ${safeIndex + 1} von ${images.length}`}
+          className="fixed inset-0 z-[120] flex flex-col text-white"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          data-no-tab-swipe
         >
-          <img src={current.src} alt={current.alt} draggable={false} className="pointer-events-none max-h-[68vh] w-full rounded-xl bg-black/5 object-contain" />
-          {images.length > 1 && (
-            <>
-              <IconButton label="Vorheriges Bild" className="absolute left-2 top-1/2 -translate-y-1/2 bg-surface/90" onClick={previous}><ChevronLeft className="size-5" /></IconButton>
-              <IconButton label="Nächstes Bild" className="absolute right-2 top-1/2 -translate-y-1/2 bg-surface/90" onClick={next}><ChevronRight className="size-5" /></IconButton>
-              <div className="mt-3 flex justify-center gap-1.5" aria-label={`Bild ${safeIndex + 1} von ${images.length}`}>
-                {images.map((image, itemIndex) => <button key={`${image.src}-${itemIndex}`} aria-label={`Bild ${itemIndex + 1}`} aria-current={itemIndex === safeIndex ? "true" : undefined} onClick={() => onIndexChange(itemIndex)} className={cn("min-h-11 min-w-5 rounded-full", itemIndex === safeIndex ? "text-accent" : "text-fg-subtle")}><span className="mx-auto block size-2 rounded-full bg-current" /></button>)}
+          <motion.div aria-hidden className="absolute inset-0 bg-black" style={{ opacity: backdrop }} onClick={onClose} />
+
+          {/* Top bar */}
+          <div className="relative z-10 flex items-center justify-between gap-3 px-3 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:px-5">
+            <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-medium tnum backdrop-blur">{safeIndex + 1} / {images.length}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setZoomed((z) => !z)} className="grid size-11 place-items-center rounded-full text-white/85 transition hover:bg-white/10" aria-label={zoomed ? "Zoom zurücksetzen" : "Vergrößern"}>
+                <Icon name={zoomed ? "ZoomOut" : "ZoomIn"} size={20} />
+              </button>
+              <button onClick={onClose} className="grid size-11 place-items-center rounded-full text-white/85 transition hover:bg-white/10" aria-label="Galerie schließen">
+                <X className="size-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Stage */}
+          <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 sm:px-16">
+            <AnimatePresence initial={false} custom={dir} mode="popLayout">
+              <motion.img
+                key={`${current.src}-${safeIndex}`}
+                src={resolveMedia(current.src)}
+                alt={current.alt}
+                draggable={false}
+                custom={dir}
+                initial={{ opacity: 0, x: dir * 80, scale: 0.98 }}
+                animate={{ opacity: 1, x: 0, scale: zoomed ? 2 : 1 }}
+                exit={{ opacity: 0, x: dir * -80, scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 360, damping: 34 }}
+                style={zoomed ? undefined : { y: dragY }}
+                drag
+                dragDirectionLock={!zoomed}
+                dragSnapToOrigin={!zoomed}
+                dragMomentum={zoomed}
+                dragConstraints={zoomed ? { left: -400, right: 400, top: -400, bottom: 400 } : { left: 0, right: 0, top: 0, bottom: 0 }}
+                dragElastic={zoomed ? 0.15 : { left: 0.35, right: 0.35, top: 0.05, bottom: 0.9 }}
+                onDragEnd={(_, info) => {
+                  if (zoomed) return;
+                  const horizontal = Math.abs(info.offset.x) > Math.abs(info.offset.y);
+                  if (horizontal && (info.offset.x < -56 || info.velocity.x < -480)) go(1);
+                  else if (horizontal && (info.offset.x > 56 || info.velocity.x > 480)) go(-1);
+                  else if (!horizontal && (info.offset.y > 110 || info.velocity.y > 700)) onClose();
+                }}
+                onDoubleClick={() => setZoomed((z) => !z)}
+                className={cn("max-h-full max-w-full touch-none select-none rounded-lg object-contain shadow-2xl", zoomed ? "cursor-grab" : "cursor-zoom-in")}
+              />
+            </AnimatePresence>
+            {images.length > 1 && (
+              <>
+                <button onClick={() => go(-1)} className="absolute left-3 top-1/2 hidden size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 backdrop-blur transition hover:bg-white/20 sm:grid" aria-label="Vorheriges Bild"><ChevronLeft className="size-6" /></button>
+                <button onClick={() => go(1)} className="absolute right-3 top-1/2 hidden size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 backdrop-blur transition hover:bg-white/20 sm:grid" aria-label="Nächstes Bild"><ChevronRight className="size-6" /></button>
+              </>
+            )}
+          </div>
+
+          {/* Caption + thumbnails */}
+          <div className="relative z-10 space-y-3 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 sm:px-5">
+            {current.caption && <div className="text-center text-sm text-white/80">{current.caption}</div>}
+            {images.length > 1 && (
+              <div ref={thumbsRef} className="no-scrollbar mx-auto flex max-w-3xl snap-x gap-2 overflow-x-auto" data-no-swipe>
+                {images.map((image, itemIndex) => (
+                  <button
+                    key={`${image.src}-${itemIndex}`}
+                    onClick={() => { setDir(itemIndex > safeIndex ? 1 : -1); onIndexChange(itemIndex); }}
+                    aria-label={`Bild ${itemIndex + 1}`}
+                    aria-current={itemIndex === safeIndex ? "true" : undefined}
+                    className={cn("relative size-14 shrink-0 snap-center overflow-hidden rounded-lg ring-2 transition", itemIndex === safeIndex ? "opacity-100 ring-white" : "opacity-55 ring-transparent hover:opacity-90")}
+                  >
+                    <img src={resolveMedia(image.src)} alt="" className="size-full object-cover" draggable={false} />
+                  </button>
+                ))}
               </div>
-            </>
-          )}
-          {current.caption && <div className="mt-2 text-center text-xs text-fg-muted">{current.caption}</div>}
+            )}
+          </div>
         </motion.div>
       )}
-    </Modal>
+    </AnimatePresence>,
+    document.body
   );
 }
 

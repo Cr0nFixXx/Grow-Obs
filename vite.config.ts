@@ -11,6 +11,9 @@ const __dirname = path.dirname(__filename);
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile()],
+  // Inline-PostCSS verhindert, dass Vite die Next-Datei postcss.config.mjs lädt
+  // (Tailwind läuft hier über @tailwindcss/vite, sonst doppelte Verarbeitung).
+  css: { postcss: { plugins: [] } },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

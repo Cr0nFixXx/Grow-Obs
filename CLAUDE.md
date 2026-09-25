@@ -14,8 +14,8 @@ Backend-Tests: `npx vitest run --config vitest.backend.config.ts` aus dem Root, 
 disponiblen PostgreSQL-Datenbank auf `*_test`. Testlauf löscht Daten in dieser Testdatenbank.
 Die CI beinhaltet nun einen separaten API-Job. Diese Session hat weder CI noch Docker gestartet.
 
-Build-Stand: **B-39** (Frontend erfolgreich, Doku verifiziert). `apps/api` wurde noch nie
-compiliert/gestartet — vor Backend-Arbeit zwingend `HANDOFF.md` §9.1 abarbeiten.
+Build-Stand: **B-42** — Next.js ist primärer Build (SPA-Hülle), Vite nur Legacy. `apps/api`
+kompiliert, baut und besteht 13/13 Integrationstests; Docker weiterhin ungetestet (`HANDOFF.md` §9.1).
 API-Tests liegen in `apps/api/tests/` und werden über `tsconfig.tools.json` mitgeprüft.
 Autor: Codex (OpenAI).
 
@@ -24,9 +24,15 @@ Autor: Codex (OpenAI).
 ## ⚙️ Build & Dev
 
 ```bash
-npm run dev       # Vite Dev-Server
-npm run build     # Production → dist/index.html (Single-File via vite-plugin-singlefile)
-npm run preview   # Build vorschauen
+npm run dev          # Next.js Dev-Server (primär)
+npm run build        # Next.js Production-Build (inkl. TypeScript-Check)
+npm run start        # Next.js Production-Server
+npx next typegen     # Route-Typen erzeugen (vor tsc)
+npm run typecheck    # tsc --noEmit
+npm run lint         # ESLint (inkl. react-hooks), CI-blockierend
+npm test             # Vitest (Frontend)
+npm run test:api     # API-Integrationstests (nur *_test-DB!)
+npm run build:vite   # Vite-Legacy → dist/index.html (Single-File)
 ```
 
 **Tests** (Vitest – nicht Teil des Production-Builds, separate Config `vitest.config.ts`):
@@ -37,12 +43,12 @@ npx vitest        # Watch-Modus
 Abgedeckt: `format.ts` (eur/n/pct/clamp/timeAgo) & Charts-`smooth` (Edge-Cases). Test-Dateien
 (`*.test.ts`) werden vom Vite-Build ignoriert (nicht in den App-Bundle importiert).
 
-**Wichtig:** Der Build ist ein **Single-File-Build** (`vite-plugin-singlefile`) – JS & CSS werden
+**Nur Vite-Legacy (`build:vite`):** Der Build ist ein **Single-File-Build** (`vite-plugin-singlefile`) – JS & CSS werden
 in `dist/index.html` inlined. Assets aus `public/` werden **separat** emittiert und sind bei
 reiner `index.html`-Auslieferung **nicht verfügbar**. Kritische, sichtbare Assets (z. B. der Hero)
 daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` referenzieren.
 
-> `npm run build` führt **kein** `tsc` aus (nur `vite build` / esbuild). Type-Fehler brechen den
+> `npm run build:vite` führt **kein** `tsc` aus (nur `vite build` / esbuild). Type-Fehler brechen den
 > Build also nicht – saubere Typen dennoch pflegen. Lint-Hinweise bei Datei-Erstellung beachten.
 
 ---
@@ -96,17 +102,33 @@ daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` re
    `drizzle/*.sql`) → CSS wächst bei jeder Doku-Änderung. Deshalb steht in `src/index.css`
    `@import "tailwindcss" source(none);` plus `@source "."`, `"../index.html"`, `"../app"`.
    Neue UI-Ordner außerhalb `src/` dort registrieren, sonst fehlen Klassen stillschweigend.
-8. **`npm run build` prüft keine Typen** und erfasst `apps/api` gar nicht. Ein grüner
+9. **Bild-Imports** (`import x from "*.jpg"`): Vite = String, Next = `StaticImageData` → immer
+   `assetSrc(x)` aus `src/lib/asset.ts`.
+10. **Env:** `NEXT_PUBLIC_API_URL` wird zur Build-Zeit eingebettet (Vite-Legacy: `VITE_API_URL`).
+8. **`npm run build:vite` prüft keine Typen**; kein Frontend-Build erfasst `apps/api`. Ein grüner
    Frontend-Build ist kein Beleg für eine funktionierende API.
 
 ---
 
 ## 🧠 Wann was tun
 
-- **Neuer Screen**: `ViewKey` in `nav.tsx` ergänzen, in `nav-config.ts` einordnen, Page in
-  `src/pages/`, in `App.tsx` `views`-Map + Import aufnehmen.
+- **Neue Schnellaktion/Formular**: `src/config/create-kinds.ts` + Formular in `src/views/Create.tsx`.
+- **Wischgesten**: `src/lib/gestures.ts` (`useSwipeToDismiss`, `useTabSwipe`); kein Framer `drag` auf
+  scrollbaren Panels (setzt `touch-action: none`). Opt-out: `data-no-swipe` / `data-no-tab-swipe`.
+- **Neuer Screen**: `ViewKey` in `nav.tsx` ergänzen, in `nav-config.ts` einordnen, View in
+  `src/views/` (**nicht** `src/pages/` – in Next reserviert), in `App.tsx` `views`-Map + Import aufnehmen.
 - **Neue Komponente**: zu `ui.tsx` (Primitives) oder eigenem File; `cn()` für Klassen-Merge nutzen.
-- **Mock-Daten**: zentral in `mocks/data.ts` inkl. Typen.
+- **Mock-Daten**: zentral in `mocks/data.ts`; **Typen** in `src/types/domain.ts` (Import über `@/types`).
+- **Backend**: läuft eingebettet unter `/api` (`src/server/embedded-api.ts`). Neue API-Route in
+  `apps/api/src/routes` genügt – kein Frontend-Proxy nötig. Relative Imports dort mit `.ts`-Endung.
+- **Bilder**: Upload über `ImagePickButton`/`useImageUpload` (`src/components/media.tsx`); gespeicherte
+  Pfade `/media/<id>` immer über `resolveMedia()` anzeigen (SmartImage/Avatar machen das automatisch).
+- **Feature-Flags**: neuer Key → `src/config/features.ts` **und** `apps/api/src/lib/feature-keys.ts`
+  (+ Pfad-Zuordnung in `apps/api/src/lib/features.ts`); Paritätstest schlägt sonst fehl.
+- **Releases**: `package.json` `version` anheben; Neuigkeiten im Dev-Admin → „Updates“ veröffentlichen.
+  Update-Erkennung läuft automatisch über die Build-ID (`/api/version`).
+- **Aktueller Nutzer**: `useCurrentUser()` aus `@/lib/auth` – nie `currentUser` aus den Mocks.
+- **npm**: Root-`.npmrc` (`legacy-peer-deps=true`) ist ein bewusster Workaround – nicht löschen.
 - **Neuer Icon**: in `Icon.tsx` Registry ergänzen (Import + Record).
 - **Bugfix**: in `PROGRESS.md` + `CHANGELOG.md` dokumentieren.
 

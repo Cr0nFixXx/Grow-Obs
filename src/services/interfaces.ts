@@ -1,6 +1,6 @@
 import type {
   ActivityItem, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
-  CreateGrowInput, CreatePostInput, CreateThreadInput,
+  CreateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
   Grow, GrowLog, HallEntry, Product, SeedOffer, SocialPost, Strain,
 } from "@/types";
 
@@ -26,14 +26,39 @@ export interface ForumComment {
   avatar: string;
   body: string;
   votes: number;
+  /** Eigener Vote (-1/0/1), nur wenn angemeldet. */
+  myVote?: number;
   ago: string;
   replies?: ForumComment[];
+}
+
+export interface VoteResult {
+  votes: number;
+  myVote: number;
+}
+
+/** Kommentar zu Social-Post bzw. Hall-of-Fame-Eintrag. */
+export interface ItemComment {
+  id: string;
+  author: string;
+  avatar: string;
+  body: string;
+  ago: string;
+}
+
+export type CommentKind = "post" | "hall";
+
+export interface CommentService {
+  list(kind: CommentKind, itemId: string): Promise<ItemComment[]>;
+  add(kind: CommentKind, itemId: string, text: string): Promise<ItemComment>;
 }
 
 export interface ChatMessage {
   id: string;
   from: "me" | "them";
   text: string;
+  /** Bild-Anhang: `/media/<id>` (API) bzw. blob:-URL (Mock). */
+  image?: string;
   time: string;
 }
 
@@ -60,15 +85,20 @@ export interface WikiService {
   categories(): Promise<string[]>;
   list(): Promise<WikiArticleBrief[]>;
   get(id: string): Promise<WikiArticleDetail | undefined>;
+  /** Neuer Artikel (Community-Entwurf, Version 0.1). */
+  create(input: CreateWikiInput): Promise<WikiArticleBrief>;
 }
 
 export interface ForumService {
   subs(): Promise<string[]>;
   listThreads(): Promise<ForumThreadBrief[]>;
   getThread(id: string): Promise<ForumThreadDetail | undefined>;
-  vote(threadId: string, delta: 1 | -1): Promise<void>;
+  /** 1/-1 = Vote, 0 = zurücknehmen. */
+  vote(threadId: string, delta: 1 | -1 | 0): Promise<VoteResult>;
+  voteComment(commentId: string, delta: 1 | -1 | 0): Promise<VoteResult>;
   createThread(input: CreateThreadInput): Promise<ForumThreadBrief>;
-  addComment(threadId: string, text: string): Promise<ForumComment>;
+  /** `parentId` = Antwort auf einen Kommentar. */
+  addComment(threadId: string, text: string, parentId?: string): Promise<ForumComment>;
 }
 
 export interface ForumThreadBrief {
@@ -78,9 +108,12 @@ export interface ForumThreadBrief {
   author: string;
   avatar: string;
   votes: number;
+  myVote?: number;
   comments: number;
   ago: string;
   excerpt: string;
+  /** Voller Text (Detailansicht); fehlt bei älteren Mock-Daten. */
+  body?: string;
   tag: string;
   top?: boolean;
 }
@@ -92,7 +125,7 @@ export interface ForumThreadDetail extends ForumThreadBrief {
 export interface ChatService {
   listConversations(): Promise<ConversationItem[]>;
   getMessages(conversationId: string): Promise<ChatMessage[]>;
-  sendMessage(conversationId: string, text: string): Promise<ChatMessage>;
+  sendMessage(conversationId: string, text: string, image?: string): Promise<ChatMessage>;
 }
 
 export interface NotificationService {
@@ -117,6 +150,8 @@ export interface GrowService {
   get(id: string): Promise<Grow | undefined>;
   create(input: CreateGrowInput): Promise<Grow>;
   addLog(growId: string, log: Omit<GrowLog, "id">): Promise<void>;
+  /** Foto zur Galerie (erstes Foto wird Cover). Liefert den aktualisierten Grow. */
+  addPhoto(growId: string, url: string): Promise<Grow>;
 }
 
 export interface SocialService {
@@ -126,7 +161,56 @@ export interface SocialService {
 }
 
 export interface StrainService {
+  /** Persönliche Sammlung. */
   list(): Promise<Strain[]>;
+  /** Gesamter Katalog (Breeder-Detail, Suche). */
+  catalog(): Promise<Strain[]>;
+  /** Eigene Sammlung (IDs reichen für Markierungen). */
+  collection(): Promise<Strain[]>;
+  /** Sammeln/Entfernen; liefert den neuen Zustand. */
+  toggleCollect(id: string): Promise<boolean>;
+  create(input: CreateStrainInput): Promise<Strain>;
+}
+
+export interface MediaUpload {
+  /** Referenz zum Speichern (`/media/<id>` bzw. blob:-URL im Mock). */
+  path: string;
+}
+
+export interface MediaService {
+  upload(image: Blob): Promise<MediaUpload>;
+}
+
+export interface ProfileUpdate {
+  name?: string;
+  title?: string;
+  avatar?: string;
+}
+
+/** Globale Feature-Overrides (Server = Quelle der Wahrheit; Mock = lokale Vorschau). */
+export interface FeatureService {
+  get(): Promise<Record<string, boolean>>;
+  set(key: string, enabled: boolean): Promise<Record<string, boolean>>;
+  reset(): Promise<Record<string, boolean>>;
+  /** true = wirkt für alle Nutzer (Server), false = nur dieser Browser (Demo). */
+  readonly global: boolean;
+}
+
+export type { Release, ReleaseSeverity } from "@/lib/update-logic";
+import type { Release } from "@/lib/update-logic";
+export type CreateReleaseInput = Omit<Release, "id" | "publishedAt">;
+
+/** Release-Notes / Update-Ankündigungen (B-50). */
+export interface ReleaseService {
+  list(): Promise<Release[]>;
+  create(input: CreateReleaseInput): Promise<Release>;
+  remove(id: string): Promise<void>;
+}
+
+export interface TaskService {
+  list(): Promise<Task[]>;
+  create(input: CreateTaskInput): Promise<Task>;
+  toggle(id: string): Promise<Task>;
 }
 
 export interface ProductService {
@@ -229,6 +313,11 @@ export interface Services {
   grows: GrowService;
   social: SocialService;
   strains: StrainService;
+  tasks: TaskService;
+  media: MediaService;
+  comments: CommentService;
+  features: FeatureService;
+  releases: ReleaseService;
   wiki: WikiService;
   forum: ForumService;
   chat: ChatService;

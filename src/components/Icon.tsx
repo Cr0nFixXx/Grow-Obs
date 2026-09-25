@@ -8,7 +8,7 @@ import {
   Newspaper, NotebookPen, Package, Paperclip, Pencil, Percent, Plus, Power, QrCode, Quote,
   Rocket, Scale, Search, Send, Settings, Share2, ShieldCheck, ShoppingBag, Sigma, Smile,
   SlidersHorizontal, Sparkles, Sprout, Star, Store, Sun, SunMedium, Thermometer, Trash2,
-  TrendingDown, TrendingUp, Trophy, Users, Wand2, Wind, Zap, type LucideIcon,
+  TrendingDown, TrendingUp, Trophy, Users, Wand2, Wind, Zap, ZoomIn, ZoomOut, Save, X, type LucideIcon,
 } from "lucide-react";
 
 /** Curated icon registry — lets mock data reference icons by string name. */
@@ -22,7 +22,7 @@ export const icons: Record<string, LucideIcon> = {
   Newspaper, NotebookPen, Package, Paperclip, Pencil, Percent, Plus, Power, QrCode, Quote,
   Rocket, Scale, Search, Send, Settings, Share2, ShieldCheck, ShoppingBag, Sigma, Smile,
   SlidersHorizontal, Sparkles, Sprout, Star, Store, Sun, SunMedium, Thermometer, Trash2,
-  TrendingDown, TrendingUp, Trophy, Users, Wand2, Wind, Zap,
+  TrendingDown, TrendingUp, Trophy, Users, Wand2, Wind, Zap, ZoomIn, ZoomOut, Save, X,
 };
 
 export function Icon({

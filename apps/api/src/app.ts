@@ -5,18 +5,23 @@ import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
-import { corsOrigins } from "./env.js";
-import { requireAuth, type AuthEnv } from "./middleware/auth.js";
-import { auth } from "./routes/auth.js";
-import { growsApi } from "./routes/grows.js";
-import { forum } from "./routes/forum.js";
-import { social } from "./routes/social.js";
-import { chat } from "./routes/chat.js";
-import { notificationsApi } from "./routes/notifications.js";
-import { activity, breedersApi, hall, offersApi, products, strainsApi, wiki } from "./routes/catalog.js";
-import { admin } from "./routes/admin.js";
-import { communitiesApi } from "./routes/communities.js";
-import { presignUpload } from "./lib/s3.js";
+import { corsOrigins } from "./env.ts";
+import { requireAuth, type AuthEnv } from "./middleware/auth.ts";
+import { auth } from "./routes/auth.ts";
+import { growsApi } from "./routes/grows.ts";
+import { forum } from "./routes/forum.ts";
+import { social } from "./routes/social.ts";
+import { chat } from "./routes/chat.ts";
+import { notificationsApi } from "./routes/notifications.ts";
+import { activity, breedersApi, hall, offersApi, products, strainsApi, wiki } from "./routes/catalog.ts";
+import { admin } from "./routes/admin.ts";
+import { communitiesApi } from "./routes/communities.ts";
+import { tasksApi } from "./routes/tasks.ts";
+import { mediaApi } from "./routes/media.ts";
+import { adminFeaturesApi, featuresApi } from "./routes/features.ts";
+import { requireFeature } from "./lib/features.ts";
+import { adminReleasesApi, releasesApi } from "./routes/releases.ts";
+import { presignUpload } from "./lib/s3.ts";
 
 // Export without starting a port so integration tests can use app.request().
 export const app = new Hono<AuthEnv>();
@@ -27,10 +32,18 @@ app.use("*", async (c, next) => {
   await next();
 });
 app.use("*", cors({ origin: corsOrigins, allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] }));
-app.use("*", bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "Anfrage zu gross" }, 413) }));
+const jsonLimit = bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "Anfrage zu gross" }, 413) });
+// /media hat ein eigenes, größeres Limit (2 MB) direkt an der Route.
+app.use("*", (c, next) => (c.req.method === "POST" && c.req.path === "/media" ? next() : jsonLimit(c, next)));
 
 // Liveness only. Detailed dependency status requires a platform-admin session.
 app.get("/health", (c) => c.json({ ok: true, check: "liveness", ts: new Date().toISOString() }));
+// Deaktivierte Features serverseitig sperren (vor allen Fach-Routen).
+app.use("*", requireFeature);
+app.route("/features", featuresApi);
+app.route("/admin/features", adminFeaturesApi);
+app.route("/releases", releasesApi);
+app.route("/admin/releases", adminReleasesApi);
 app.route("/auth", auth);
 app.route("/grows", growsApi);
 app.route("/forum", forum);
@@ -46,6 +59,8 @@ app.route("/wiki", wiki);
 app.route("/me/activity", activity);
 app.route("/admin", admin);
 app.route("/communities", communitiesApi);
+app.route("/tasks", tasksApi);
+app.route("/media", mediaApi);
 
 const uploadSchema = z.object({
   name: z.string().trim().min(1).max(180),

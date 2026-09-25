@@ -1,11 +1,13 @@
 /* Shared by the classic service worker and its Node regression tests. */
 (() => {
-  const shellPaths = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/sw-policy.js"];
-  const assetPaths = new Set([...shellPaths, "/images/hero.jpg", "/images/og.jpg"]);
+  const shellPaths = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/sw-policy.js"];
+  const assetPaths = new Set([...shellPaths, "/images/og.jpg"]);
   const classify = (request, origin) => {
     const url = new URL(request.url);
     if (request.method !== "GET" || request.headers.has("authorization") || request.cache === "no-store") return "network";
-    if (url.origin !== origin || url.search || !assetPaths.has(url.pathname)) return "network";
+    // Next.js-Build-Chunks sind content-gehasht (immutable) und öffentlich → offline-fähige Shell.
+    const isBuildAsset = url.pathname.startsWith("/_next/static/");
+    if (url.origin !== origin || url.search || !(assetPaths.has(url.pathname) || isBuildAsset)) return "network";
     if (request.mode === "navigate") return ["/", "/index.html"].includes(url.pathname) ? "navigation" : "network";
     return "asset";
   };
@@ -19,6 +21,8 @@
     if (["/", "/index.html"].includes(path)) return /text\/html/i.test(mime);
     if (path.endsWith(".webmanifest")) return /application\/(manifest\+json|json)/i.test(mime);
     if (path.endsWith(".js")) return /javascript/i.test(mime);
+    if (path.endsWith(".css")) return /text\/css/i.test(mime);
+    if (path.endsWith(".woff2")) return /font\/woff2|application\/font-woff2|octet-stream/i.test(mime);
     return /^image\//i.test(mime);
   };
   globalThis.GrowCachePolicy = Object.freeze({ shellPaths, classify, canStore });

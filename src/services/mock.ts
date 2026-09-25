@@ -10,16 +10,18 @@ import {
   grows as seedGrows,
   hallOfFame as seedHall,
   myStrainCollection,
+  strains as catalogStrains,
   notifications as seedNotifications,
   products as seedProducts,
   sampleComments,
   seedOffers,
   socialPosts as seedPosts,
+  upcomingTasks,
   wikiArticles,
   wikiCategories,
 } from "@/mocks/data";
 import { dbGet, dbSet } from "@/lib/db";
-import type { Grow, SocialPost } from "@/types";
+import type { Grow, SocialPost, Strain, Task } from "@/types";
 import type { CommunityDetail } from "@/types";
 import type {
   ActivityService,
@@ -36,6 +38,13 @@ import type {
   ForumThreadBrief,
   ForumThreadDetail,
   GrowService,
+  TaskService,
+  MediaService,
+  Release,
+  ReleaseService,
+  FeatureService,
+  CommentService,
+  ItemComment,
   HallService,
   NotificationService,
   ProductService,
@@ -94,18 +103,21 @@ const socialService: SocialService = {
   },
 };
 
+/** Session-Store: neue Grows/Logs bleiben bis zum Reload sichtbar. */
+const growStore: Grow[] = seedGrows.map((g) => ({ ...g, logs: [...g.logs] }));
+
 const growService: GrowService = {
   async list() {
     await delay();
-    return [...seedGrows];
+    return [...growStore];
   },
   async get(id) {
     await delay(140);
-    return seedGrows.find((g) => g.id === id);
+    return growStore.find((g) => g.id === id);
   },
   async create(input) {
     await delay();
-    return {
+    const grow = {
       id: `g-${Date.now()}`,
       name: input.name,
       strain: input.strain,
@@ -126,17 +138,148 @@ const growService: GrowService = {
       env: [],
       logs: [],
     } as Grow;
+    growStore.unshift(grow);
+    return grow;
   },
-  async addLog(_growId, _log) {
+  async addPhoto(growId, url) {
     await delay(150);
-    /* Mock: no-op (später: Grow-Logs im Backend persistieren) */
+    const grow = growStore.find((g) => g.id === growId);
+    if (!grow) throw new Error("Grow nicht gefunden");
+    grow.gallery = [...grow.gallery, url];
+    return { ...grow };
+  },
+  async addLog(growId, log) {
+    await delay(150);
+    const grow = growStore.find((g) => g.id === growId);
+    if (!grow) throw new Error("Grow nicht gefunden");
+    grow.logs = [{ ...log, id: `l-${Date.now()}` }, ...grow.logs];
   },
 };
+
+/** Mock-Uploads: blob:-URLs, gültig bis zum Neuladen (kein Server). */
+const mediaService: MediaService = {
+  async upload(image) {
+    await delay(200);
+    return { path: URL.createObjectURL(image) };
+  },
+};
+
+/** Demo: Overrides nur in diesem Browser (localStorage `go-features`). */
+const FEATURE_STORAGE = "go-features";
+const readOverrides = (): Record<string, boolean> => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FEATURE_STORAGE) ?? "{}");
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  } catch { return {}; }
+};
+const writeOverrides = (next: Record<string, boolean>) => {
+  try {
+    if (Object.keys(next).length) localStorage.setItem(FEATURE_STORAGE, JSON.stringify(next));
+    else localStorage.removeItem(FEATURE_STORAGE);
+  } catch { /* storage blocked */ }
+  return next;
+};
+const featureService: FeatureService = {
+  global: false,
+  async get() { return readOverrides(); },
+  async set(key, enabled) { return writeOverrides({ ...readOverrides(), [key]: enabled }); },
+  async reset() { return writeOverrides({}); },
+};
+
+/** Demo-Releases (Session). Seed = aktuelle Version, damit „Was ist neu“ etwas zeigt. */
+const releaseStore: Release[] = [{
+  id: "rel-0.50.0", version: "0.50.0", title: "App-Updates & Neuigkeiten", severity: "recommended", features: [],
+  notes: ["Die App erkennt neue Versionen selbst", "Update-Verhalten in den Einstellungen wählbar", "„Was ist neu“ nach jedem Update"],
+  publishedAt: "2026-09-24T00:00:00.000Z",
+}];
+const releaseService: ReleaseService = {
+  async list() { await delay(80); return [...releaseStore].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)); },
+  async create(input) {
+    await delay(120);
+    const r: Release = { ...input, id: `rel-${Date.now()}`, publishedAt: new Date().toISOString() };
+    releaseStore.unshift(r);
+    return r;
+  },
+  async remove(id) { await delay(80); const i = releaseStore.findIndex((r) => r.id === id); if (i >= 0) releaseStore.splice(i, 1); },
+};
+
+/** Kommentare zu Posts/Hall (Session). */
+const itemCommentStore: Record<string, ItemComment[]> = {};
+const commentService: CommentService = {
+  async list(kind, id) {
+    await delay(120);
+    return [...(itemCommentStore[`${kind}:${id}`] ?? [])];
+  },
+  async add(kind, id, text) {
+    await delay(120);
+    const c: ItemComment = { id: `ic-${Date.now()}`, author: currentUser.name, avatar: currentUser.avatar, body: text, ago: "gerade eben" };
+    (itemCommentStore[`${kind}:${id}`] ??= []).push(c);
+    return c;
+  },
+};
+
+/** Gesendete Chat-Nachrichten je Konversation (Session). */
+const chatStore: Record<string, ChatMessage[]> = {};
+
+const taskStore: Task[] = upcomingTasks.map((t) => ({ ...t, prio: t.prio as Task["prio"] }));
+
+const taskService: TaskService = {
+  async list() {
+    await delay(160);
+    return taskStore.map((t) => ({ ...t }));
+  },
+  async create(input) {
+    await delay(160);
+    const task: Task = { id: `tk-${Date.now()}`, done: false, ...input };
+    taskStore.unshift(task);
+    return { ...task };
+  },
+  async toggle(id) {
+    await delay(80);
+    const task = taskStore.find((t) => t.id === id);
+    if (!task) throw new Error("Task nicht gefunden");
+    task.done = !task.done;
+    return { ...task };
+  },
+};
+
+/** Katalog + selbst angelegte Sorten; Sammlung als ID-Set (wie im Backend). */
+const strainStore: Strain[] = [...catalogStrains];
+const collected = new Set(myStrainCollection.map((s) => s.id));
 
 const strainService: StrainService = {
   async list() {
     await delay();
-    return [...myStrainCollection];
+    return [...strainStore];
+  },
+  async catalog() {
+    await delay();
+    return [...strainStore];
+  },
+  async collection() {
+    await delay(120);
+    return strainStore.filter((s) => collected.has(s.id));
+  },
+  async toggleCollect(id) {
+    await delay(80);
+    if (!strainStore.some((s) => s.id === id)) throw new Error("Sorte nicht gefunden");
+    if (collected.has(id)) collected.delete(id); else collected.add(id);
+    return collected.has(id);
+  },
+  async create(input) {
+    await delay();
+    const palette = { Sativa: "info", Indica: "soil", Hybrid: "leaf" } as const;
+    const strain: Strain = {
+      ...input,
+      id: `s-${Date.now()}`,
+      rating: 0,
+      reviews: 0,
+      tag: "Eigene",
+      color: palette[input.type],
+    };
+    strainStore.unshift(strain);
+    collected.add(strain.id);
+    return strain;
   },
 };
 
@@ -153,6 +296,21 @@ const wikiService: WikiService = {
     await delay();
     return wikiArticles.find((a) => a.id === id);
   },
+  async create(input) {
+    await delay();
+    const words = input.body.join(" ").split(/\s+/).filter(Boolean).length;
+    const article = {
+      ...input,
+      id: `w-${Date.now()}`,
+      readMin: Math.max(1, Math.round(words / 200)),
+      author: currentUser.name,
+      updated: "gerade eben",
+      version: "0.1",
+    };
+    wikiArticles.unshift(article);
+    const { body: _b, ...brief } = article;
+    return brief;
+  },
 };
 
 /** In-Memory-Store: erstellte Threads/Kommentare überleben View-Wechsel (Session). */
@@ -164,9 +322,12 @@ const threadStore: { threads: ForumThreadBrief[]; comments: Record<string, Forum
   comments: {},
 };
 
+/** Kommentare je Thread; Seed wird beim ersten Zugriff kopiert (Votes/Antworten pro Thread getrennt). */
 function commentsFor(threadId: string): ForumComment[] {
-  if (threadId in threadStore.comments) return threadStore.comments[threadId];
-  return seedThreads.some((t) => t.id === threadId) ? sampleComments : [];
+  if (!(threadId in threadStore.comments)) {
+    threadStore.comments[threadId] = seedThreads.some((t) => t.id === threadId) ? structuredClone(sampleComments) : [];
+  }
+  return threadStore.comments[threadId];
 }
 
 const forumService: ForumService = {
@@ -184,9 +345,30 @@ const forumService: ForumService = {
     if (!t) return undefined;
     return { ...t, commentsList: commentsFor(id) } satisfies ForumThreadDetail;
   },
-  async vote(_threadId, _delta) {
-    await delay(120);
-    // Mock: no-op
+  async vote(threadId, delta) {
+    await delay(100);
+    const t = threadStore.threads.find((x) => x.id === threadId);
+    if (!t) throw new Error("Thread nicht gefunden");
+    t.votes += delta - (t.myVote ?? 0);
+    t.myVote = delta;
+    return { votes: t.votes, myVote: delta };
+  },
+  async voteComment(commentId, delta) {
+    await delay(80);
+    const find = (list: ForumComment[]): ForumComment | undefined => {
+      for (const c of list) { if (c.id === commentId) return c; const hit = find(c.replies ?? []); if (hit) return hit; }
+      return undefined;
+    };
+    let c: ForumComment | undefined;
+    for (const t of threadStore.threads) {
+      const list = commentsFor(t.id);
+      c = find(list);
+      if (c) { threadStore.comments[t.id] = list; break; }
+    }
+    if (!c) throw new Error("Kommentar nicht gefunden");
+    c.votes += delta - (c.myVote ?? 0);
+    c.myVote = delta;
+    return { votes: c.votes, myVote: delta };
   },
   async createThread(input) {
     await delay();
@@ -205,7 +387,7 @@ const forumService: ForumService = {
     threadStore.threads = [t, ...threadStore.threads];
     return { ...t };
   },
-  async addComment(threadId, text) {
+  async addComment(threadId, text, parentId) {
     await delay(140);
     const t = threadStore.threads.find((x) => x.id === threadId);
     if (!t) throw new Error("Thread nicht gefunden");
@@ -216,8 +398,16 @@ const forumService: ForumService = {
       body: text,
       votes: 0,
       ago: "gerade eben",
+      replies: [],
     };
-    threadStore.comments[threadId] = [...commentsFor(threadId), c];
+    const list = commentsFor(threadId);
+    if (parentId) {
+      const attach = (nodes: ForumComment[]): boolean => nodes.some((n) => (n.id === parentId ? ((n.replies = [...(n.replies ?? []), c]), true) : attach(n.replies ?? [])));
+      if (!attach(list)) throw new Error("Antwortziel nicht gefunden");
+      threadStore.comments[threadId] = list;
+    } else {
+      threadStore.comments[threadId] = [...list, c];
+    }
     t.comments += 1;
     return { ...c };
   },
@@ -231,28 +421,32 @@ const chatService: ChatService = {
   async getMessages(conversationId) {
     await delay();
     const c = seedConversations.find((x) => x.id === conversationId);
-    return c ? [...c.messages] : [];
+    return c ? [...c.messages, ...(chatStore[conversationId] ?? [])] : [];
   },
-  async sendMessage(_conversationId, text) {
+  async sendMessage(conversationId, text, image) {
     await delay(140);
-    const msg: ChatMessage = { id: String(Date.now()), from: "me", text, time: "jetzt" };
-    // Mock: no persistence
+    const msg: ChatMessage = { id: String(Date.now()), from: "me", text, image, time: "jetzt" };
+    (chatStore[conversationId] ??= []).push(msg);
     return msg;
   },
 };
 
+/** Gelesen-Status bleibt für die Session erhalten. */
+const notificationStore = seedNotifications.map((n) => ({ ...n }));
+
 const notificationService: NotificationService = {
   async list() {
     await delay();
-    return [...seedNotifications];
+    return notificationStore.map((n) => ({ ...n }));
   },
-  async markRead(_id) {
+  async markRead(id) {
     await delay(80);
-    // Mock: no-op
+    const n = notificationStore.find((x) => x.id === id);
+    if (n) n.read = true;
   },
   async markAllRead() {
     await delay(100);
-    // Mock: no-op
+    notificationStore.forEach((n) => { n.read = true; });
   },
 };
 
@@ -440,6 +634,11 @@ export const mockServices: Services = {
   grows: growService,
   social: socialService,
   strains: strainService,
+  tasks: taskService,
+  media: mediaService,
+  comments: commentService,
+  features: featureService,
+  releases: releaseService,
   wiki: wikiService,
   forum: forumService,
   chat: chatService,

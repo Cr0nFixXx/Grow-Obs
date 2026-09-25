@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+bundle-stats.html
+
+# Env / Secrets (nur .env.example wird committed)
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+coverage/

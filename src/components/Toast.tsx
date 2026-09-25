@@ -37,6 +37,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setToasts((s) => s.filter((x) => x.id !== id)), 4000);
   }, []);
 
+  const dismiss = useCallback((id: number) => setToasts((s) => s.filter((x) => x.id !== id)), []);
   const value = useMemo(() => ({ push }), [push]);
 
   return (
@@ -51,8 +52,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 layout
                 initial={{ opacity: 0, y: 20, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 50 }}
-                className="card glass pointer-events-auto flex items-start gap-3 p-3.5 elev-2"
+                exit={{ opacity: 0, x: 80 }}
+                // Wischen auf der gesamten Toast-Fläche (links/rechts oder nach unten) schließt ihn.
+                drag
+                dragDirectionLock
+                dragSnapToOrigin
+                dragMomentum={false}
+                dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                dragElastic={{ left: 0.9, right: 0.9, top: 0.05, bottom: 0.6 }}
+                onDragEnd={(_, info) => {
+                  const away = Math.abs(info.offset.x) > 72 || Math.abs(info.velocity.x) > 500 || info.offset.y > 48 || info.velocity.y > 500;
+                  if (away) dismiss(t.id);
+                }}
+                className="card glass pointer-events-auto flex cursor-grab touch-none select-none items-start gap-3 p-3.5 elev-2 active:cursor-grabbing"
               >
                 <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", toneSoft[t.tone ?? "leaf"])}>
                   <Icon name={t.icon ?? "Sparkles"} size={16} />
@@ -62,7 +74,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   {t.desc && <div className="text-xs text-fg-muted">{t.desc}</div>}
                 </div>
                 <button
-                  onClick={() => setToasts((s) => s.filter((x) => x.id !== t.id))}
+                  onClick={() => dismiss(t.id)}
                   className="text-fg-subtle transition-colors hover:text-fg"
                   aria-label="Schließen"
                 >

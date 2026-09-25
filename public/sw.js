@@ -1,6 +1,6 @@
 /* Static shell only. APIs, external media and signed/private URLs are network-only. */
 importScripts("/sw-policy.js");
-const CACHE = "go-shell-v3-public-only";
+const CACHE = "go-shell-v4-next";
 const policy = self.GrowCachePolicy;
 const origin = self.location.origin;
 
@@ -47,7 +47,8 @@ self.addEventListener("fetch", (event) => {
   if (strategy === "navigation") {
     event.respondWith(fetchAndStore(request).catch(async () => {
       const cache = await caches.open(CACHE);
-      return await cache.match("/index.html") || new Response("Grow|Observer ist offline. Bitte einmal online oeffnen.", {
+      // Next.js liefert die Shell unter "/", der Vite-Legacy-Build unter "/index.html".
+      return await cache.match("/") || await cache.match("/index.html") || new Response("Grow|Observer ist offline. Bitte einmal online oeffnen.", {
         status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" },
       });
     }));

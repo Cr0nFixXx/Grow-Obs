@@ -3,10 +3,10 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { and, count, desc, eq, exists, gt, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client.js";
-import { communities, communityMembers, invites, users } from "../db/schema.js";
-import { requireAuth, type AuthEnv } from "../middleware/auth.js";
-import { pageLimit, uuid } from "../lib/validation.js";
+import { db } from "../db/client.ts";
+import { communities, communityMembers, invites, users } from "../db/schema.ts";
+import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { pageLimit, uuid } from "../lib/validation.ts";
 
 export const communitiesApi = new Hono<AuthEnv>();
 communitiesApi.use("*", requireAuth);

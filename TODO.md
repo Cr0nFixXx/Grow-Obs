@@ -25,7 +25,7 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 
 Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
 
-Prüfstand: **B-39** — Frontend-Build erfolgreich, Doku gegen Code verifiziert.
+Prüfstand: **B-45** — Next-Build, Typecheck, Lint, 52 Frontend-Tests, API-Build und 13 API-Integrationstests grün.
 **API-Typecheck, Integrationstests und Docker wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
 Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-
@@ -43,7 +43,7 @@ Abnahme und die neuen Touch-Tests bleiben offen (`TESTING.md`).
   Docker-/API-E2E-Test in dieser Umgebung noch offen. *(P4–P6)*
 - [~] **Community-Funktionen** auf dem Server: Create/List/Join/Invite/Rollen umgesetzt; Feed-Scope,
   Kick/Hide/Mod-Queue und Tests noch offen. *(P5/P7)*
-- [ ] **Backend-E2E**: Docker starten, Frontend mit `VITE_API_URL` verbinden, Auth/Grow/Social/
+- [ ] **Backend-E2E**: Docker starten, Frontend mit `NEXT_PUBLIC_API_URL` bauen, Auth/Grow/Social/
   Forum/Community-Invite/Admin gegen echte DB testen.
 - [ ] **AI-Proxy** serverseitig, per Flag. *(P9)*
 - [ ] **PWA-Härtung** (SW, Offline-Shell). *(P10)*

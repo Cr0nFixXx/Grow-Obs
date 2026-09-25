@@ -22,6 +22,7 @@ export type {
   SocialService,
   StrainService,
   SystemHealth,
+  TaskService,
   WikiService,
 } from "./interfaces";
 

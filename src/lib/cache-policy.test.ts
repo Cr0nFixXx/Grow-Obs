@@ -30,4 +30,15 @@ describe("actual service-worker cache policy", () => {
     expect(policy.canStore(req, new Response("<html/>", { headers: { "Content-Type": "text/html" } }), origin)).toBe(false);
     expect(policy.canStore(req, new Response("", { status: 401 }), origin)).toBe(false);
   });
+  it("caches hashed Next.js build assets only with the matching MIME type", () => {
+    const js = request("/_next/static/chunks/app-abc123.js");
+    const css = request("/_next/static/css/app-abc123.css");
+    expect(policy.classify(js, origin)).toBe("asset");
+    expect(policy.canStore(js, new Response("x", { headers: { "Content-Type": "application/javascript" } }), origin)).toBe(true);
+    expect(policy.canStore(js, new Response("<html/>", { headers: { "Content-Type": "text/html" } }), origin)).toBe(false);
+    expect(policy.canStore(css, new Response("a{}", { headers: { "Content-Type": "text/css; charset=utf-8" } }), origin)).toBe(true);
+  });
+  it.each(["/_next/data/build/page.json", "/_next/image?url=%2Fimages%2Fog.jpg", "/_next/static/chunks/app.js?token=x"])("keeps %s network-only", (path) => {
+    expect(policy.classify(request(path), origin)).toBe("network");
+  });
 });

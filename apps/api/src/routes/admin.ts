@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client.js";
+import { db } from "../db/client.ts";
 import {
   comments,
   grows,
@@ -17,10 +17,10 @@ import {
   threads,
   users,
   wikiArticles,
-} from "../db/schema.js";
-import { requireAuth, requirePlatformAdmin, type AuthEnv } from "../middleware/auth.js";
-import { systemHealth } from "../lib/health.js";
-import { uuid } from "../lib/validation.js";
+} from "../db/schema.ts";
+import { requireAuth, requirePlatformAdmin, type AuthEnv } from "../middleware/auth.ts";
+import { systemHealth } from "../lib/health.ts";
+import { uuid } from "../lib/validation.ts";
 
 /** Betreiber-Routen: immer Auth + platform_admin. */
 export const admin = new Hono<AuthEnv>();

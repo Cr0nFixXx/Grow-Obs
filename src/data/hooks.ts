@@ -1,10 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServices } from "./DataContext";
 import { useResource } from "./useResource";
+
+/**
+ * Invalidierung über Hook-Instanzen hinweg (z. B. Glocke, Drawer-Badge und Benachrichtigungsseite
+ * laden getrennt). `invalidate("notifications")` lässt alle Instanzen neu laden.
+ */
+type DataKey = "notifications" | "grows";
+const EVENT = "go:data-changed";
+export function invalidate(key: DataKey) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EVENT, { detail: key }));
+}
+function useInvalidation(key: DataKey, refresh: () => unknown) {
+  useEffect(() => {
+    const onChange = (e: Event) => { if ((e as CustomEvent).detail === key) void refresh(); };
+    window.addEventListener(EVENT, onChange);
+    return () => window.removeEventListener(EVENT, onChange);
+  }, [key, refresh]);
+}
 
 /** Generic async-data hook (loading/error/refresh) – Grundgerüst für alle Listen. */
 function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
   // Existing hook callers supply stable service/id dependencies.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- generischer Hook, deps kommen vom Aufrufer
   const load = useCallback(fn, deps);
   return useResource(load);
 }
@@ -12,6 +30,7 @@ function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
 export function useGrows() {
   const svc = useServices();
   const { data, loading, error, refresh } = useAsync(() => svc.grows.list(), [svc]);
+  useInvalidation("grows", refresh);
   return { grows: data ?? [], loading, error, refresh };
 }
 
@@ -19,6 +38,30 @@ export function useStrains() {
   const svc = useServices();
   const { data, loading, error, refresh } = useAsync(() => svc.strains.list(), [svc]);
   return { strains: data ?? [], loading, error, refresh };
+}
+
+export function useStrainCatalog() {
+  const svc = useServices();
+  const { data, loading, error } = useAsync(() => svc.strains.catalog(), [svc]);
+  return { strains: data ?? [], loading, error };
+}
+
+export function useStrainCollection() {
+  const svc = useServices();
+  const { data, loading, refresh } = useAsync(() => svc.strains.collection().catch(() => []), [svc]);
+  const ids = useMemo(() => new Set((data ?? []).map((s) => s.id)), [data]);
+  const toggle = useCallback(async (id: string) => {
+    const collected = await svc.strains.toggleCollect(id);
+    await refresh();
+    return collected;
+  }, [svc, refresh]);
+  return { collection: data ?? [], ids, loading, toggle };
+}
+
+export function useTasks() {
+  const svc = useServices();
+  const { data, loading, error, refresh } = useAsync(() => svc.tasks.list(), [svc]);
+  return { tasks: data ?? [], loading, error, refresh };
 }
 
 export function useSocialPosts() {
@@ -69,15 +112,16 @@ export function useThread(id: string) {
   const svc = useServices();
   const { data, loading, error, refresh } = useAsync(() => svc.forum.getThread(id), [svc, id]);
   const vote = useCallback(
-    async (delta: 1 | -1) => {
-      await svc.forum.vote(id, delta);
+    async (delta: 1 | -1 | 0) => {
+      const result = await svc.forum.vote(id, delta);
       refresh();
+      return result;
     },
     [svc, id, refresh]
   );
   const addComment = useCallback(
-    async (text: string) => {
-      await svc.forum.addComment(id, text);
+    async (text: string, parentId?: string) => {
+      await svc.forum.addComment(id, text, parentId);
       refresh();
     },
     [svc, id, refresh]
@@ -142,6 +186,12 @@ export function useCommunity(id: string) {
   return { community: data, loading, error, refresh, createInvite, setRole };
 }
 
+export function useWikiCategories() {
+  const svc = useServices();
+  const { data, loading, error } = useAsync(() => svc.wiki.categories(), [svc]);
+  return { categories: data ?? [], loading, error };
+}
+
 export function useWikiArticles() {
   const svc = useServices();
   const { data, loading, error, refresh } = useAsync(() => svc.wiki.list(), [svc]);
@@ -158,9 +208,9 @@ export function useChat() {
     [svc, activeId]
   );
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, image?: string) => {
       if (!activeId) return;
-      await svc.chat.sendMessage(activeId, text);
+      await svc.chat.sendMessage(activeId, text, image);
       await reloadMessages();
     },
     [svc, activeId, reloadMessages]
@@ -188,16 +238,17 @@ export function useChat() {
 export function useNotifications() {
   const svc = useServices();
   const { data, loading, error, refresh } = useAsync(() => svc.notifications.list(), [svc]);
+  useInvalidation("notifications", refresh);
   const markRead = useCallback(
     async (id: string) => {
       await svc.notifications.markRead(id);
-      refresh();
+      invalidate("notifications");
     },
-    [svc, refresh]
+    [svc]
   );
   const markAllRead = useCallback(async () => {
     await svc.notifications.markAllRead();
-    refresh();
-  }, [svc, refresh]);
+    invalidate("notifications");
+  }, [svc]);
   return { items: data ?? [], loading, error, refresh, markRead, markAllRead };
 }

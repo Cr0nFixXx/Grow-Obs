@@ -1,11 +1,25 @@
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
 
-/** Flat-Config (ESLint v9). Ausführen: `npx eslint .` (CI: non-blocking). */
+/** Flat-Config. Ausführen: `npm run lint` (CI: blockierend). */
 export default tseslint.config(
-  { ignores: ["dist/**", "public/**", "node_modules/**", "*.config.ts", "vitest.config.ts"] },
+  {
+    ignores: [
+      "dist/**", ".next/**", "public/**", "node_modules/**", "apps/api/dist/**",
+      "next-env.d.ts", "*.config.ts", "*.config.js", "*.config.mjs",
+    ],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    // Nur die klassischen Hook-Regeln; die v7-Compiler-Regeln sind bewusst (noch) nicht aktiv.
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

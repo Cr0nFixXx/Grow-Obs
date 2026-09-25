@@ -1,7 +1,7 @@
 import { http } from "@/lib/api";
 import type {
   ActivityItem, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, Grow, HallEntry, Product, SeedOffer,
-  SocialPost, Strain,
+  SocialPost, Strain, Task,
 } from "@/types";
 import type {
   ActivityService,
@@ -18,6 +18,16 @@ import type {
   ForumService,
   ForumThreadBrief,
   ForumThreadDetail,
+  TaskService,
+  MediaService,
+  Release,
+  ReleaseService,
+  FeatureService,
+  CommentKind,
+  CommentService,
+  ItemComment,
+  VoteResult,
+  MediaUpload,
   GrowService,
   HallService,
   NotificationItem,
@@ -42,6 +52,7 @@ const growService: GrowService = {
   get: (id) => http.get<Grow>(`/grows/${id}`),
   create: (input) => http.post<Grow>("/grows", input),
   addLog: (growId, log) => http.post<void>(`/grows/${growId}/logs`, log),
+  addPhoto: (growId, url) => http.post<Grow>(`/grows/${growId}/photos`, { url }),
 };
 
 const socialService: SocialService = {
@@ -51,28 +62,67 @@ const socialService: SocialService = {
 };
 
 const strainService: StrainService = {
+  // Backend kennt (noch) keine persönliche Sammlung → Katalog inkl. Community-Sorten.
   list: () => http.get<Strain[]>("/strains"),
+  catalog: () => http.get<Strain[]>("/strains"),
+  collection: () => http.get<Strain[]>("/strains/collection"),
+  toggleCollect: async (id) => (await http.post<{ collected: boolean }>(`/strains/${id}/collect`)).collected,
+  create: (input) => http.post<Strain>("/strains", input),
+};
+
+/** Bilder in PostgreSQL (apps/api/src/routes/media.ts). */
+const mediaService: MediaService = {
+  upload: (image) => http.upload<MediaUpload>("/media", image),
+};
+
+const commentPath = (kind: CommentKind, id: string) => (kind === "post" ? `/social/posts/${id}/comments` : `/hall/${id}/comments`);
+const commentService: CommentService = {
+  list: (kind, id) => http.get<ItemComment[]>(commentPath(kind, id)),
+  add: (kind, id, text) => http.post<ItemComment>(commentPath(kind, id), { text }),
+};
+
+type Overrides = { overrides: Record<string, boolean> };
+const featureService: FeatureService = {
+  global: true,
+  get: async () => (await http.get<Overrides>("/features")).overrides,
+  set: async (key, enabled) => (await http.put<Overrides>(`/admin/features/${encodeURIComponent(key)}`, { enabled })).overrides,
+  reset: async () => (await http.delete<Overrides>("/admin/features")).overrides,
+};
+
+const releaseService: ReleaseService = {
+  list: () => http.get<Release[]>("/releases"),
+  create: (input) => http.post<Release>("/admin/releases", input),
+  remove: async (id) => { await http.delete<void>(`/admin/releases/${id}`); },
+};
+
+/** Persönliche Tasks (apps/api/src/routes/tasks.ts). */
+const taskService: TaskService = {
+  list: () => http.get<Task[]>("/tasks"),
+  create: (input) => http.post<Task>("/tasks", input),
+  toggle: (id) => http.post<Task>(`/tasks/${id}/toggle`),
 };
 
 const wikiService: WikiService = {
   categories: () => http.get<string[]>("/wiki/categories"),
   list: () => http.get<WikiArticleBrief[]>("/wiki"),
   get: (id) => http.get<WikiArticleDetail>(`/wiki/${id}`),
+  create: (input) => http.post<WikiArticleBrief>("/wiki", input),
 };
 
 const forumService: ForumService = {
   subs: () => http.get<string[]>("/forum/subs"),
   listThreads: () => http.get<ForumThreadBrief[]>("/forum/threads"),
   getThread: (id) => http.get<ForumThreadDetail>(`/forum/threads/${id}`),
-  vote: (threadId, delta) => http.post<void>(`/forum/threads/${threadId}/vote`, { delta }),
+  vote: (threadId, delta) => http.post<VoteResult>(`/forum/threads/${threadId}/vote`, { delta }),
+  voteComment: (commentId, delta) => http.post<VoteResult>(`/forum/comments/${commentId}/vote`, { delta }),
   createThread: (input: CreateThreadInput) => http.post<ForumThreadBrief>("/forum/threads", input),
-  addComment: (threadId, text) => http.post<ForumComment>(`/forum/threads/${threadId}/comments`, { text }),
+  addComment: (threadId, text, parentId) => http.post<ForumComment>(`/forum/threads/${threadId}/comments`, parentId ? { text, parentId } : { text }),
 };
 
 const chatService: ChatService = {
   listConversations: () => http.get<ConversationItem[]>("/chat"),
   getMessages: (id) => http.get<ChatMessage[]>(`/chat/${id}/messages`),
-  sendMessage: (id, text) => http.post<ChatMessage>(`/chat/${id}/messages`, { text }),
+  sendMessage: (id, text, image) => http.post<ChatMessage>(`/chat/${id}/messages`, image ? { text, image } : { text }),
 };
 
 const notificationService: NotificationService = {
@@ -124,6 +174,11 @@ export const apiServices: Services = {
   grows: growService,
   social: socialService,
   strains: strainService,
+  tasks: taskService,
+  media: mediaService,
+  comments: commentService,
+  features: featureService,
+  releases: releaseService,
   wiki: wikiService,
   forum: forumService,
   chat: chatService,

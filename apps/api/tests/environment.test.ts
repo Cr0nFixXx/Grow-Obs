@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { environmentSchema } from "../src/config/environment.js";
+import { environmentSchema } from "../src/config/environment.ts";
 
 const base = {
   DATABASE_URL: "postgres://test:test@localhost:5432/example_test",
@@ -16,6 +16,13 @@ describe("deployment environment", () => {
     expect(environmentSchema.safeParse({ ...base, NODE_ENV: "production" }).success).toBe(false);
     expect(environmentSchema.safeParse({ ...base, CORS_ORIGINS: "*" }).success).toBe(false);
     expect(environmentSchema.safeParse({ ...base, NODE_ENV: "production", CORS_ORIGINS: "https://app.example.test", S3_PUBLIC_ENDPOINT: "https://media.example.test" }).success).toBe(true);
+  });
+  it("allows the same-origin embedded mode without storage, but not a storage-less standalone API", () => {
+    const { S3_ACCESS_KEY: _a, S3_SECRET_KEY: _s, ...noStorage } = base;
+    expect(environmentSchema.safeParse(noStorage).success).toBe(false);
+    expect(environmentSchema.safeParse({ ...noStorage, API_EMBEDDED: "true", NODE_ENV: "production" }).success).toBe(true);
+    // Mit Storage gilt auch embedded weiterhin HTTPS für signierte Uploads.
+    expect(environmentSchema.safeParse({ ...base, API_EMBEDDED: "true", NODE_ENV: "production" }).success).toBe(false);
   });
   it("keeps internal storage and browser signing origins separate", () => {
     const parsed = environmentSchema.parse({ ...base, S3_ENDPOINT: "http://minio:9000", S3_PUBLIC_ENDPOINT: "https://media.example.test" });

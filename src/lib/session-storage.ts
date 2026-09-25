@@ -4,12 +4,17 @@ import { dbDel } from "./db";
 // Separate demo sessions from server sessions. Never send a mock token to the API.
 export const sessionKey = config.useMock ? "go-session:mock" : `go-session:api:${config.apiBaseUrl}`;
 export function readSessionToken(): string | null {
-  try { return localStorage.getItem(sessionKey); } catch { return null; }
+  try { return localStorage.getItem(sessionKey) ?? sessionStorage.getItem(sessionKey); } catch { return null; }
 }
-export function writeSessionToken(token: string | null): void {
+/**
+ * `remember = true` → localStorage (bleibt nach Browser-Neustart); `false` → sessionStorage
+ * (endet mit dem Tab/Browser). Der jeweils andere Speicher wird geleert.
+ */
+export function writeSessionToken(token: string | null, remember = true): void {
   try {
-    if (token) localStorage.setItem(sessionKey, token);
-    else localStorage.removeItem(sessionKey);
+    localStorage.removeItem(sessionKey);
+    sessionStorage.removeItem(sessionKey);
+    if (token) (remember ? localStorage : sessionStorage).setItem(sessionKey, token);
     localStorage.removeItem("go-token");
   } catch { /* In-memory login still works when browser storage is blocked. */ }
 }
@@ -22,7 +27,7 @@ export async function clearLegacyPrivateStorage(): Promise<void> {
   await dbDel("social-posts").catch(() => undefined);
   if (typeof caches !== "undefined") {
     const names = await caches.keys().catch(() => [] as string[]);
-    await Promise.all(names.filter((name) => /^go-(shell|runtime|images)-/.test(name) && name !== "go-shell-v3-public-only")
+    await Promise.all(names.filter((name) => /^go-(shell|runtime|images)-/.test(name) && name !== "go-shell-v4-next")
       .map((name) => caches.delete(name).catch(() => false)));
   }
   if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {

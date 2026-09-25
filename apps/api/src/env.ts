@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { environmentSchema } from "./config/environment.js";
+import { environmentSchema } from "./config/environment.ts";
 
 // Docker injects environment variables; local Node 22 tooling can use apps/api/.env.
 if (process.env.NODE_ENV !== "test" && existsSync(".env")) loadEnvFile(".env");

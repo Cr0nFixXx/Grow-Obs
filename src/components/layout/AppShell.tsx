@@ -16,13 +16,21 @@ import {
 } from "@/lib/hooks";
 import { vibrate } from "@/lib/format";
 import { useToast } from "@/components/Toast";
+import { usePageSwipe } from "@/lib/gestures";
+import { createKinds, type CreateKind } from "@/config/create-kinds";
 import { Icon } from "@/components/Icon";
 import { Avatar, BottomSheet, Button, Drawer, Spinner } from "@/components/ui";
 import { navGroups, bottomNav, type NavItem } from "@/components/layout/nav-config";
 import { useFeatures } from "@/config/FeatureContext";
 import { featureForView } from "@/config/features";
-import { useForumThreads, useProducts, useStrains } from "@/data/hooks";
-import { currentUser, notifications } from "@/mocks/data";
+import { useForumThreads, useGrows, useNotifications, useProducts, useStrains } from "@/data/hooks";
+import { notificationTarget } from "@/lib/notification-target";
+import { useAuth } from "@/lib/auth";
+import { useInstallApp } from "@/components/InstallApp";
+import { refreshAllResources } from "@/data/useResource";
+import { useAppUpdate } from "@/lib/update";
+import { UpdateMenuHint } from "@/components/UpdateUI";
+import { useCurrentUser } from "@/lib/auth";
 import { toneSoft } from "@/lib/tokens";
 
 /* ----------------------------- Brand ----------------------------- */
@@ -87,6 +95,12 @@ function NavLink({
 function NavList({ lid, collapsed }: { lid: string; collapsed?: boolean }) {
   const { view, navigate } = useNav();
   const { isEnabled } = useFeatures();
+  // Echte Zähler statt statischer Mock-Badges (vorher fest „2“ bei Meine Grows).
+  const { grows } = useGrows();
+  const { items: notes } = useNotifications();
+  const activeGrows = grows.filter((g) => g.phase !== "Ernte").length;
+  const unread = notes.filter((n) => !n.read).length;
+  const badgeFor = (key: ViewKey) => (key === "grows" && activeGrows ? String(activeGrows) : key === "notifications" && unread ? String(unread) : undefined);
   const groups = navGroups
     .map((g) => ({ ...g, items: g.items.filter((it) => isEnabled(featureForView(it.key))) }))
     .filter((g) => g.items.length > 0);
@@ -99,7 +113,7 @@ function NavList({ lid, collapsed }: { lid: string; collapsed?: boolean }) {
           )}
           <div className="space-y-1">
             {g.items.map((it) => (
-              <NavLink key={it.key} item={it} active={it.key === view} collapsed={collapsed} lid={lid} onClick={() => navigate(it.key)} />
+              <NavLink key={it.key} item={{ ...it, badge: badgeFor(it.key) }} active={it.key === view} collapsed={collapsed} lid={lid} onClick={() => navigate(it.key)} />
             ))}
           </div>
         </div>
@@ -111,6 +125,8 @@ function NavList({ lid, collapsed }: { lid: string; collapsed?: boolean }) {
 /* ----------------------------- Sidebar ----------------------------- */
 function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, navigate } = useNav();
+  const currentUser = useCurrentUser();
+  const { logout } = useAuth();
   return (
     <aside
       className="fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-border bg-surface/90 backdrop-blur-xl lg:flex"
@@ -134,6 +150,14 @@ function Sidebar() {
           )}
         </button>
         <button
+          onClick={() => { logout(); navigate("auth"); }}
+          title={sidebarCollapsed ? "Abmelden" : undefined}
+          className={cn("mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg-muted transition-colors hover:bg-danger/10 hover:text-danger", sidebarCollapsed ? "justify-center" : "justify-center")}
+        >
+          <Icon name="Power" size={16} />
+          {!sidebarCollapsed && "Abmelden"}
+        </button>
+        <button
           onClick={toggleSidebar}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
         >
@@ -149,6 +173,13 @@ function Sidebar() {
 function NotificationsMenu() {
   const { notifOpen, setNotifOpen, navigate } = useNav();
   const isMobile = useMediaQuery("(max-width: 639px)");
+  const { items: notifications, markRead } = useNotifications();
+  const open = (n: (typeof notifications)[number]) => {
+    setNotifOpen(false);
+    if (!n.read) void markRead(n.id);
+    const target = notificationTarget(n);
+    navigate(target.view, target.params);
+  };
   const unread = notifications.filter((n) => !n.read).length;
 
   const goAll = () => {
@@ -161,7 +192,7 @@ function NotificationsMenu() {
     t === "ai" ? "Sparkles" : t === "shop" ? "ShoppingBag" : t === "forum" ? "MessagesSquare" : t === "task" ? "ListChecks" : t === "grow" ? "Sprout" : "Bell";
 
   const rows = notifications.slice(0, 6).map((n) => (
-    <button key={n.id} onClick={goAll} className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2">
+    <button key={n.id} onClick={() => open(n)} className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2">
       <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl", tone(n.type))}>
         <Icon name={icon(n.type)} size={16} />
       </span>
@@ -223,6 +254,9 @@ function TopBar() {
   const { navigate, setMobileNavOpen, setCommandOpen, notifOpen, setNotifOpen, view } = useNav();
   const { theme, toggle } = useTheme();
   const progress = useScrollProgress([view]);
+  const currentUser = useCurrentUser();
+  const { items: notes } = useNotifications();
+  const unread = notes.filter((n) => !n.read).length;
   return (
     <header
       className="sticky top-0 z-30 border-b border-border bg-bg/80 backdrop-blur-2xl"
@@ -280,11 +314,13 @@ function TopBar() {
             <button
               onClick={() => setNotifOpen(!notifOpen)}
               className="relative grid size-11 shrink-0 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-              aria-label="Benachrichtigungen"
+              aria-label={unread ? `Benachrichtigungen, ${unread} ungelesen` : "Benachrichtigungen"}
               aria-expanded={notifOpen}
             >
               <Bell className="size-5" />
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-bg" />
+              {unread > 0 && (
+                <span className="absolute right-1.5 top-1.5 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold leading-4 text-white ring-2 ring-bg">{unread > 9 ? "9+" : unread}</span>
+              )}
             </button>
             <NotificationsMenu />
           </div>
@@ -318,6 +354,19 @@ function BottomNav() {
   const extra = moreNav.filter((m) => isEnabled(featureForView(m.key)));
   const isMoreActive = extra.some((m) => m.key === view);
   const go = (key: ViewKey) => { vibrate(8); navigate(key); };
+
+  // Seitengesten (nur Mobile, nie bei offenem Drawer/Sheet): unten links/rechts = Tab, Mitte → rechts = zurück.
+  const isMobile = useMediaQuery("(max-width: 1023px)");
+  const { mobileNavOpen, back, canGoBack } = useNav();
+  const tabKeys = primary.map((it) => it.key);
+  usePageSwipe({
+    onTab: (dir) => {
+      const i = tabKeys.indexOf(view);
+      const next = i < 0 ? (dir === "next" ? tabKeys[0] : undefined) : tabKeys[dir === "next" ? i + 1 : i - 1];
+      if (next) go(next);
+    },
+    onBack: () => { if (canGoBack) { vibrate(6); back(); } },
+  }, isMobile && !mobileNavOpen && !moreOpen);
   const renderItem = (key: ViewKey, icon: string, label: string, active: boolean, onClick: () => void) => (
     <button key={key} onClick={onClick} aria-current={active ? "page" : undefined} className="relative flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium outline-none">
       {active && <motion.span layoutId="bn-active" className="absolute top-0 h-0.5 w-8 rounded-full bg-accent" transition={{ type: "spring", stiffness: 420, damping: 32 }} />}
@@ -353,13 +402,10 @@ function BottomNav() {
 function Fab() {
   const [open, setOpen] = useState(false);
   const { navigate } = useNav();
-  const toast = useToast();
-  const actions = [
-    { icon: "Sprout", label: "Neuer Grow", view: "grows" as ViewKey, tone: "leaf" },
-    { icon: "NotebookPen", label: "Log-Eintrag", view: "grows" as ViewKey, tone: "soil" },
-    { icon: "Leaf", label: "Sorte hinzufügen", view: "strains" as ViewKey, tone: "info" },
-    { icon: "ListChecks", label: "Task anlegen", view: "dashboard" as ViewKey, tone: "warning" },
-  ];
+  const { isEnabled } = useFeatures();
+  const actions = (Object.keys(createKinds) as CreateKind[])
+    .filter((kind) => isEnabled(createKinds[kind].feature))
+    .map((kind) => ({ kind, icon: createKinds[kind].icon, label: createKinds[kind].title.replace("Wiki-Artikel erstellen", "Wiki-Artikel"), tone: createKinds[kind].tone }));
   return (
     <>
       <motion.button
@@ -377,12 +423,12 @@ function Fab() {
               key={a.label}
               onClick={() => {
                 setOpen(false);
-                navigate(a.view);
-                toast.push({ title: a.label, desc: "Demo-Aktion ausgelöst.", tone: a.tone as never, icon: a.icon });
+                vibrate(8);
+                navigate("create", { kind: a.kind });
               }}
-              className="card card-hover flex flex-col items-center gap-2 p-4 text-center"
+              className="card card-hover flex flex-col items-center gap-2 p-4 text-center last:odd:col-span-2"
             >
-              <span className={cn("grid size-11 place-items-center rounded-xl", toneSoft[a.tone as never])}>
+              <span className={cn("grid size-11 place-items-center rounded-xl", toneSoft[a.tone])}>
                 <Icon name={a.icon} size={20} />
               </span>
               <span className="text-sm font-medium">{a.label}</span>
@@ -509,6 +555,8 @@ function CommandPalette() {
 function MobileDrawer() {
   const { mobileNavOpen, setMobileNavOpen, navigate } = useNav();
   const { theme, toggle } = useTheme();
+  const { user, logout } = useAuth();
+  const install = useInstallApp();
   return (
     <Drawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} side="left" width={300} title="">
       <div className="-mt-2 mb-3 flex items-center justify-between">
@@ -522,10 +570,28 @@ function MobileDrawer() {
         </button>
       </div>
       <NavList lid="drawer" />
-      <div className="mt-3 space-y-2">
-        <Button className="w-full" variant="soft" onClick={() => { navigate("auth"); }}>
-          <Icon name="Power" size={16} /> Login / Registrieren
-        </Button>
+      <div className="mt-3 space-y-2 border-t border-border pt-3">
+        <UpdateMenuHint onDone={() => setMobileNavOpen(false)} />
+        {install.state !== "installed" && (
+          <Button className="w-full" variant="ghost" onClick={() => void install.run()} loading={install.busy}>
+            <Icon name="Download" size={16} /> App installieren
+          </Button>
+        )}
+        {user ? (
+          <>
+            <button onClick={() => { setMobileNavOpen(false); navigate("profile"); }} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-surface-2">
+              <Avatar src={user.avatar} size={36} />
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{user.name}</span><span className="block truncate text-xs text-fg-subtle">{user.handle}</span></span>
+            </button>
+            <Button className="w-full text-danger hover:bg-danger/10" variant="ghost" onClick={() => { setMobileNavOpen(false); logout(); navigate("auth"); }}>
+              <Icon name="Power" size={16} /> Abmelden
+            </Button>
+          </>
+        ) : (
+          <Button className="w-full" variant="soft" onClick={() => { setMobileNavOpen(false); navigate("auth"); }}>
+            <Icon name="Power" size={16} /> Login / Registrieren
+          </Button>
+        )}
       </div>
     </Drawer>
   );
@@ -575,12 +641,32 @@ function MobileScrollbar() {
 }
 
 /* ----------------------------- Pull-to-refresh ----------------------------- */
+/**
+ * Pull-to-Refresh (B-49): lädt alle sichtbaren Daten leise neu (ohne Skeleton), dazu Feature-Flags,
+ * eigenes Profil und prüft auf eine neue App-Version. Bei Offline/Fehler: ehrliche Meldung.
+ */
 function PullToRefresh() {
   const toast = useToast();
-  const { distance, refreshing } = usePullToRefresh(() => {
-    toast.push({ title: "Aktualisiert", desc: "Alles auf dem neuesten Stand.", tone: "leaf", icon: "CheckCircle2" });
-    return new Promise<void>((res) => window.setTimeout(res, 500));
-  });
+  const { refresh: refreshFeatures } = useFeatures();
+  const { refreshUser } = useAuth();
+  const update = useAppUpdate();
+  const onRefresh = useCallback(async () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast.push({ title: "Offline", desc: "Keine Verbindung – angezeigt wird der letzte Stand.", tone: "warning", icon: "AlertTriangle" });
+      return;
+    }
+    const [result, , , updated] = await Promise.all([refreshAllResources(), refreshFeatures(), refreshUser(), update.check()]);
+    if (updated && update.prefs.mode !== "manual") {
+      toast.push({ title: "Neue Version verfügbar", desc: "Die App wird aktualisiert …", tone: "info", icon: "Download" });
+      window.setTimeout(update.apply, 900);
+      return;
+    }
+    if (updated) toast.push({ title: "Update verfügbar", desc: "Im Menü oder unter Einstellungen → App-Updates installieren.", tone: "info", icon: "Download" });
+    if (result.failed > 0 && result.ok === 0) toast.push({ title: "Aktualisierung fehlgeschlagen", desc: "Server nicht erreichbar – bitte später erneut versuchen.", tone: "danger", icon: "AlertTriangle" });
+    else if (result.failed > 0) toast.push({ title: "Teilweise aktualisiert", desc: `${result.failed} Bereich(e) konnten nicht geladen werden.`, tone: "warning", icon: "AlertTriangle" });
+    else toast.push({ title: "Aktualisiert", desc: "Alles auf dem neuesten Stand.", tone: "leaf", icon: "CheckCircle2" });
+  }, [toast, refreshFeatures, refreshUser, update]);
+  const { distance, refreshing } = usePullToRefresh(onRefresh);
   const active = distance > 0 || refreshing;
   return (
     <div

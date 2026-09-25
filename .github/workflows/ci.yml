@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, A]
   pull_request:
 
 jobs:
@@ -15,18 +15,26 @@ jobs:
           node-version: 22
       - run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-      - name: Typecheck (tsc --noEmit)
-        run: npx tsc --noEmit
+      - name: Required peer dependencies (legacy-peer-deps guard)
+        run: npm run check:peers
 
-      - name: Lint (non-blocking)
-        run: npx eslint .
-        continue-on-error: true
+      - name: Next route types
+        run: npx next typegen
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
 
       - name: Unit tests (Vitest)
-        run: npx vitest run
+        run: npm test
 
-      - name: Build
+      - name: Build (Next.js)
         run: npm run build
+
+      - name: Build (Vite-Legacy, Single-File)
+        run: npm run build:vite
 
   api-security:
     runs-on: ubuntu-latest
@@ -61,4 +69,4 @@ jobs:
       - name: API build
         run: npm run build --prefix apps/api
       - name: Security integration tests against isolated PostgreSQL
-        run: npx --no-install vitest run --config vitest.backend.config.ts
+        run: npm run test:api

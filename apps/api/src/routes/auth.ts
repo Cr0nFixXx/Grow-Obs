@@ -2,11 +2,12 @@ import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db/client.js";
-import { grows, users } from "../db/schema.js";
-import { hashPassword, verifyPassword } from "../lib/password.js";
-import { signToken } from "../lib/jwt.js";
-import { requireAuth, type AuthEnv } from "../middleware/auth.js";
+import { db } from "../db/client.ts";
+import { grows, users } from "../db/schema.ts";
+import { hashPassword, verifyPassword } from "../lib/password.ts";
+import { signToken } from "../lib/jwt.ts";
+import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { imageRef } from "../lib/media-ref.ts";
 
 export const auth = new Hono<AuthEnv>();
 
@@ -75,6 +76,27 @@ auth.post("/login", async (c) => {
   }
   const token = await signToken({ sub: u.id, role: u.role });
   return c.json({ token, user: await toUser(u.id) });
+});
+
+const updateMeSchema = z.object({
+  name: z.string().trim().min(2).max(60).optional(),
+  title: z.string().trim().min(1).max(40).optional(),
+  avatar: z.union([imageRef, z.literal("")]).optional(),
+}).strict();
+
+/** Eigenes Profil ändern (Name, Titel, Avatar). Rolle/E-Mail sind hier bewusst nicht änderbar. */
+auth.patch("/me", requireAuth, async (c) => {
+  const body = updateMeSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
+  const { name, title, avatar } = body.data;
+  if (name !== undefined || title !== undefined || avatar !== undefined) {
+    await db.update(users).set({
+      ...(name !== undefined ? { name } : {}),
+      ...(title !== undefined ? { title } : {}),
+      ...(avatar !== undefined ? { avatarUrl: avatar || null } : {}),
+    }).where(eq(users.id, c.get("userId")));
+  }
+  return c.json(await toUser(c.get("userId")));
 });
 
 auth.get("/me", requireAuth, async (c) => {

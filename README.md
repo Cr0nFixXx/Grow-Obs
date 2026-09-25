@@ -8,7 +8,8 @@ Mock-/API-Service-Layer, Feature-Flags, Developer-Admin und Communities-MVP.
 
 **Später:** Native Apps, Editionen, E2EE/P2P. → [`MILESTONES.md`](./MILESTONES.md)
 
-> Der aktive Frontend-Build ist weiterhin Vite. `VITE_API_URL` leer = Mock; gesetzt = Self-Host-API.
+> Primärer Build ist **Next.js**: SPA + **eingebettete Self-Host-API unter `/api`** (PostgreSQL, dauerhaft).
+> `NEXT_PUBLIC_API_URL=` (leer) = Demo-/Mock-Modus; externe URL = Docker-API. Vite bleibt als Legacy-Build.
 > Das Next.js-Skeleton ist vorbereitet, aber nicht der aktive Build.
 
 **Status:** PWA + Backend-Fundament + Communities-MVP · **Agents:** [`HANDOFF.md`](./HANDOFF.md) · [`PLAN.md`](./PLAN.md) · [`MILESTONES.md`](./MILESTONES.md)
@@ -18,8 +19,8 @@ Antworten aus dem PWA-Cache ausgeschlossen und Betreiberansichten an den Admin-S
 Testdefinitionen sind ergänzt; deren Ausführung sowie Docker-/Browser-Abnahme stehen noch aus.
 Prüfmatrix und Befehle: [`TESTING.md`](./TESTING.md). Kein Anspruch auf Produktionsreife.
 
-Letzte Verifikation: **B-39** (Doku-Abgleich), Vite-Build erfolgreich; 862.56 kB HTML,
-310.29 kB gzip. **Die API wurde bisher nie compiliert oder gestartet** — der Backend-Agent
+Letzte Verifikation: **B-42** – Next-Build, Typecheck, Lint, 52 Frontend-Tests, API-Build und
+13 API-Integrationstests grün (Details: `TESTING.md`). Docker-Stack noch ungetestet.
 beginnt mit `HANDOFF.md` §9.1. Backend-/Testergebnisse sind aus dem Frontend-Build nicht ableitbar.
 
 ---
@@ -63,8 +64,9 @@ beginnt mit `HANDOFF.md` §9.1. Backend-/Testergebnisse sind aus dem Frontend-Bu
 
 ```bash
 npm install      # Abhängigkeiten installieren
-npm run dev      # Dev-Server (Vite)
-npm run build    # Production-Build (Single-File: dist/index.html)
+npm run dev      # Dev-Server (Next.js, http://localhost:3000)
+npm run build    # Production-Build (Next.js)
+npm run build:vite # Legacy: Single-File dist/index.html
 npm run preview  # Build lokal vorschau
 ```
 
@@ -80,7 +82,7 @@ docker compose up --build
 API-Modus im Frontend:
 
 ```bash
-VITE_API_URL=http://localhost:8787
+NEXT_PUBLIC_API_URL=http://localhost:8787
 ```
 
 ---
@@ -110,7 +112,7 @@ src/
 │   └── layout/
 │       ├── AppShell.tsx     # Sidebar, TopBar, BottomNav, FAB, Drawer, CommandPalette, Notifications
 │       └── nav-config.ts    # Navigations-Struktur
-└── pages/                   # Screens inkl. Communities & Developer-Admin
+└── views/                   # Screens (ehemals pages/) inkl. Communities & Developer-Admin
 apps/api/                    # Self-Host REST API + DB/Storage/Docker
 public/
 ├── manifest.webmanifest
