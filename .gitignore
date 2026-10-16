@@ -19,3 +19,9 @@ bundle-stats.html
 npm-debug.log*
 .DS_Store
 coverage/
+
+# Sandbox / lokale Altlasten
+.archive/
+.config/
+.npm/
+.sudo_as_admin_successful
