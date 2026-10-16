@@ -7,6 +7,7 @@ import { grows, users } from "../db/schema.ts";
 import { hashPassword, verifyPassword } from "../lib/password.ts";
 import { signToken } from "../lib/jwt.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { emailKey, rateLimit } from "../middleware/rate-limit.ts";
 import { imageRef } from "../lib/media-ref.ts";
 
 export const auth = new Hono<AuthEnv>();
@@ -42,7 +43,11 @@ const registerSchema = z.object({
   handle: z.string().trim().regex(/^[a-zA-Z0-9_]{3,32}$/).transform((value) => value.toLowerCase()).optional(),
 });
 
-auth.post("/register", async (c) => {
+/** Brute-Force-/Spam-Schutz: Limits pro IP und (Login) pro E-Mail-Adresse. */
+const registerLimit = rateLimit({ name: "register", limit: 10, windowMs: 60 * 60 * 1000 });
+const loginLimit = rateLimit({ name: "login", limit: 10, windowMs: 15 * 60 * 1000, keys: emailKey });
+
+auth.post("/register", registerLimit, async (c) => {
   const body = registerSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
   const { name, email, password, handle } = body.data;
@@ -67,7 +72,7 @@ const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-auth.post("/login", async (c) => {
+auth.post("/login", loginLimit, async (c) => {
   const body = loginSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
   const u = await db.query.users.findFirst({ where: eq(users.email, body.data.email) });

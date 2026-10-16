@@ -19,7 +19,7 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 - [x] Neue Unit-/Component-/PostgreSQL-Integrationstests sowie separater API-CI-Job geschrieben.
 - [ ] Neue Tests/Typechecks tatsächlich ausführen; Docker und MinIO Ende-zu-Ende abnehmen.
 - [ ] Abhängigkeiten-Audit: 9 gemeldete Advisories genauer prüfen und beheben (TESTING.md).
-- [ ] Auth/Abuse-Rate-Limits, Session-Revocation und sicheres Betreiber-Bootstrap.
+- [x] Auth/Upload-Rate-Limits (B-51, pro Prozess) – [ ] Session-Revocation und sicheres Betreiber-Bootstrap.
 - [ ] Upload-Finalisierung/Byte-Prüfung, EXIF-Bereinigung, Downloadrechte und Storage-Quotas.
 - [ ] Migration einer bereits befüllten Installation testen; Images/Lockfiles pinnen.
 

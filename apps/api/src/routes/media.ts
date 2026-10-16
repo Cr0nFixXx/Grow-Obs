@@ -4,6 +4,7 @@ import { and, count, eq, sql } from "drizzle-orm";
 import { db } from "../db/client.ts";
 import { media } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { uuid } from "../lib/validation.ts";
 import { sniffImage } from "../lib/media-ref.ts";
 
@@ -21,6 +22,7 @@ export const mediaApi = new Hono<AuthEnv>();
 mediaApi.post(
   "/",
   requireAuth,
+  rateLimit({ name: "media-upload", limit: 30, windowMs: 10 * 60 * 1000, keys: userKey }),
   bodyLimit({ maxSize: MEDIA_MAX_BYTES, onError: (c) => c.json({ error: "Bild zu groß (max. 2 MB)" }, 413) }),
   async (c) => {
     const bytes = new Uint8Array(await c.req.arrayBuffer());

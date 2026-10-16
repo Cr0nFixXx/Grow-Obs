@@ -2,6 +2,12 @@
 
 ## Status
 
+**B-51 (Arena Agent) – Node 22.23, PostgreSQL 17, tatsächlich ausgeführt:** `npx next typegen` ✅,
+`npm run typecheck` ✅, `npm run lint` ✅, `npm test` 86/86 ✅, `npm run test:api` 32/32 ✅ (inkl. 8 neue
+Rate-Limit-Tests), `npm run check:peers` ✅, `npm run build` ✅, `npm run build:vite` ✅ (964.33 kB / 341.18 kB gzip).
+Baseline vor den B-51-Änderungen: 82 Frontend- und 24 API-Tests; beide Builds waren wegen der fehlenden
+`src/assets/hero.jpg` rot. Frühere Zahlen weiter unten (52/52, 76/76 …) sind historisch.
+
 **B-42 (Claude / Anthropic) – actually executed, all green (Node 22, PostgreSQL 16):**
 `npx next typegen`, `npm run typecheck`, `npm run lint` (0 errors / 0 warnings), `npm test`
 (52/52), `npm run build` (Next.js), `npm run build:vite` (870.33 kB / 312.65 kB gzip),
@@ -117,7 +123,7 @@ proof that it has run successfully. Record the actual run/result before approvin
 - Complete dependency audit. The last package installation reported 9 advisories
   (1 low, 4 moderate, 4 high); no detailed audit or remediation was possible in this tool session.
 - Commit/review backend lockfile and pinned container digests in a normal development environment.
-- Auth/abuse rate limiting, session revocation strategy and security review.
+- Session revocation strategy and security review (auth/upload rate limiting exists since B-51, per process only).
 - Upload finalization with MIME sniffing, size recheck, EXIF removal and malware scanning.
 - Backend-managed feature flags and durable server-side audit records.
 

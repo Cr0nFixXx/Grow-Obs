@@ -9,6 +9,19 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-51 – Härtung: Rate-Limits, JWT-Pflicht, Build-Fix (Arena Agent)
+
+- **Fix:** `src/assets/hero.jpg` war in `2a81529` gelöscht, wird aber von Auth/Onboarding importiert →
+  Next- und Vite-Build waren rot. Datei wiederhergestellt.
+- **Neu:** In-Memory-Rate-Limiter (`apps/api/src/middleware/rate-limit.ts`): Login 10 / 15 min pro IP **und**
+  pro E-Mail, Registrierung 10 / h pro IP, `POST /media` und `/upload/presign` 30 / 10 min pro Nutzer.
+  Antwort `429` + `Retry-After`. Client-IP = letzter `X-Forwarded-For`-Eintrag (`TRUST_PROXY=false`
+  ignoriert Forwarded-Header; `RATE_LIMIT_DISABLED=true` schaltet ab – nur für Tests/Debug).
+- **Neu:** Embedded-API bricht in Produktion ohne `JWT_SECRET` ab (503 + Log) statt ein flüchtiges
+  Secret zu erzeugen. Bewusster Opt-out: `ALLOW_EPHEMERAL_JWT_SECRET=true`.
+- **Repo:** Root-`package-lock.json` eingecheckt; `.archive/` und Sandbox-Ordner aus Git/ESLint ausgenommen.
+- Tests: API 32/32 (+8), Frontend 86/86 (+4; Baseline vor B-51: 82 bzw. 24).
+
 ### B-50 – App-Updates (Claude / Anthropic)
 
 - **Neu:** App erkennt neue Versionen (Build-ID vs. `/api/version`) und aktualisiert je nach Einstellung

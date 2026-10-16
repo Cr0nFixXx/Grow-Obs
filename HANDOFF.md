@@ -125,8 +125,12 @@ API-Integrationstests (13/13, Wegwerf-DB `growobserver_test`), Smoke-Test `next 
   gesetzt. `NEXT_PUBLIC_API_URL=` (leer) → Demo-/Mock-Modus; externe URL → Docker-API.
 - **Migrationen laufen automatisch** beim ersten API-Request (Drizzle-Migrator, `apps/api/drizzle`).
 - **Env:** `DATABASE_URL` aus `.env` (plattformverwaltet, wird bei jedem Build neu geschrieben!).
-  `JWT_SECRET` + `JWT_TTL` in **`.env.local`** (gitignored). Fehlt `JWT_SECRET`, erzeugt der Server ein
-  zufälliges Prozess-Secret (Warnung im Log, Sessions enden beim Neustart).
+  `JWT_SECRET` + `JWT_TTL` in **`.env.local`** (gitignored). Fehlt `JWT_SECRET`, erzeugt der Server in
+  Entwicklung ein zufälliges Prozess-Secret (Warnung im Log, Sessions enden beim Neustart); in **Produktion**
+  (`NODE_ENV=production`, z. B. `next start`) bricht die API mit 503 ab – außer `ALLOW_EPHEMERAL_JWT_SECRET=true`.
+- **Rate-Limits (B-51):** `apps/api/src/middleware/rate-limit.ts` (In-Memory pro Prozess; bei mehreren
+  Instanzen zusätzlich am Proxy limitieren). `TRUST_PROXY=false` ignoriert `X-Forwarded-For`,
+  `RATE_LIMIT_DISABLED=true` schaltet ab.
 - **`API_EMBEDDED=true`** (setzt der Adapter): S3 optional → Upload-Presign antwortet `503`;
   CORS-HTTPS-Regel entfällt (same-origin). Standalone/Docker unverändert streng (Test ergänzt).
 - **Imports in `apps/api`:** relative Imports jetzt mit **`.ts`-Endung** + `rewriteRelativeImportExtensions`

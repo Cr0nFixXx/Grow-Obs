@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
 import { corsOrigins } from "./env.ts";
 import { requireAuth, type AuthEnv } from "./middleware/auth.ts";
+import { rateLimit, userKey } from "./middleware/rate-limit.ts";
 import { auth } from "./routes/auth.ts";
 import { growsApi } from "./routes/grows.ts";
 import { forum } from "./routes/forum.ts";
@@ -67,7 +68,7 @@ const uploadSchema = z.object({
   contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   size: z.number().int().positive().max(8 * 1024 * 1024),
 });
-app.post("/upload/presign", requireAuth, async (c) => {
+app.post("/upload/presign", requireAuth, rateLimit({ name: "presign", limit: 30, windowMs: 10 * 60 * 1000, keys: userKey }), async (c) => {
   const parsed = uploadSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "JPEG/PNG/WebP bis 8 MB; name, contentType und size erforderlich" }, 400);
   const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[parsed.data.contentType];

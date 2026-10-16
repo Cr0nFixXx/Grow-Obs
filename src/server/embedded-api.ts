@@ -1,13 +1,14 @@
 import "server-only";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+import { resolveJwtSecret } from "./jwt-secret";
 
 /**
  * Embedded-Modus (B-46): Die Self-Host-API aus `apps/api` läuft in Next.js unter `/api/*`.
  * Gleicher Code wie im Docker-Betrieb, nur ohne eigenen Port → same-origin, kein CORS.
  *
  * - Env: `DATABASE_URL` kommt aus `.env`; `JWT_SECRET` aus der Umgebung (z. B. `.env.local`).
- *   Fehlt es, wird ein zufälliges Prozess-Secret erzeugt (Sessions enden dann beim Neustart).
+ *   Fehlt es: in Entwicklung zufälliges Prozess-Secret (Sessions enden beim Neustart),
+ *   in Produktion Abbruch (503) – außer `ALLOW_EPHEMERAL_JWT_SECRET=true`.
  * - Schema: Drizzle-Migrationen aus `apps/api/drizzle` laufen beim ersten Request (idempotent).
  * - Storage: ohne S3-Zugangsdaten sind Uploads deaktiviert (503), alles andere funktioniert.
  */
@@ -18,7 +19,9 @@ let ready: Promise<FetchApp> | null = null;
 function prepareEnvironment() {
   process.env.API_EMBEDDED = "true";
   if (!process.env.JWT_SECRET) {
-    process.env.JWT_SECRET = randomBytes(48).toString("base64url");
+    const resolved = resolveJwtSecret(process.env);
+    if (!resolved.ok) throw new Error(resolved.reason);
+    process.env.JWT_SECRET = resolved.secret;
     console.warn(JSON.stringify({ event: "embedded_api_ephemeral_jwt_secret", hint: "JWT_SECRET in .env.local setzen, sonst enden Sessions beim Neustart" }));
   }
 }
