@@ -110,7 +110,7 @@ function CommunityDetail({ id }: { id: string }) {
       <Card className="p-5">
         <h2 className="mb-3 text-sm font-semibold text-fg-muted">Mitglieder ({community.members})</h2>
         <div className="divide-y divide-border">
-          {community.membersList.map((m) => <div key={m.id} className="flex items-center gap-3 py-3"><Avatar src={m.avatar} size={40} /><div className="min-w-0 flex-1"><div className="font-medium">{m.name}</div><div className="text-xs text-fg-subtle">{m.handle}</div></div>{canAdmin ? <Select className="h-9 w-36 text-xs" value={m.role} onChange={(e) => void setRole(m.id, e.target.value as "member" | "moderator" | "admin")}><option value="member">member</option><option value="moderator">moderator</option><option value="admin">admin</option></Select> : <Badge>{m.role}</Badge>}</div>)}
+          {community.membersList.map((m) => <div key={m.id} className="flex items-center gap-3 py-3"><Avatar src={m.avatar} name={m.name} size={40} /><div className="min-w-0 flex-1"><div className="font-medium">{m.name}</div><div className="text-xs text-fg-subtle">{m.handle}</div></div>{canAdmin ? <Select className="h-9 w-36 text-xs" value={m.role} onChange={(e) => void setRole(m.id, e.target.value as "member" | "moderator" | "admin")}><option value="member">member</option><option value="moderator">moderator</option><option value="admin">admin</option></Select> : <Badge>{m.role}</Badge>}</div>)}
         </div>
       </Card>
     </div>

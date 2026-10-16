@@ -72,7 +72,7 @@ export default function Showcase() {
               <Chip active><Icon name="Check" size={14} /> Ausgewählt</Chip>
             </div>
             <div className="flex items-center gap-3">
-              <Avatar src={currentUser.avatar} size={40} status="online" />
+              <Avatar src={currentUser.avatar} name={currentUser.name} size={40} status="online" />
               <Avatar src={AVATARS[1]} size={40} status="offline" />
               <Avatar src={AVATARS[2]} size={40} ring />
             </div>

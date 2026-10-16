@@ -8,6 +8,10 @@ import { Donut } from "@/components/charts";
 import { Reveal } from "@/components/motion";
 import { AVATARS, aiAgents, aiSuggestions, soilRecipes } from "@/mocks/data";
 import type { SoilRecipe } from "@/types";
+import { config } from "@/lib/config";
+
+const DEMO = config.useMock;
+const NOT_CONNECTED = "Die KI ist noch nicht angebunden. Sobald die Anbindung freigeschaltet ist, kannst du hier Fragen stellen.";
 
 const colorVar: Record<string, string> = { leaf: "accent", soil: "accent-2", info: "info", warning: "warning", danger: "danger" };
 
@@ -28,7 +32,7 @@ export default function AIAssistant() {
 function ChatView({ agentId, setAgentId }: { agentId: string; setAgentId: (id: string) => void }) {
   const agent = aiAgents.find((a) => a.id === agentId) ?? aiAgents[0];
   const [msgs, setMsgs] = useState<{ from: "me" | "them"; text: string }[]>([
-    { from: "them", text: "Hallo! Ich bin dein Grow-Mentor. Frag mich alles zu Setup, Düngung oder Klimaführung 🌱" },
+    { from: "them", text: DEMO ? "Hallo! Ich bin dein Grow-Mentor. Frag mich alles zu Setup, Düngung oder Klimaführung 🌱" : NOT_CONNECTED },
   ]);
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
@@ -37,7 +41,7 @@ function ChatView({ agentId, setAgentId }: { agentId: string; setAgentId: (id: s
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
 
   const send = (q: string) => {
-    if (!q.trim()) return;
+    if (!DEMO || !q.trim()) return;
     setMsgs((m) => [...m, { from: "me", text: q }]);
     setText("");
     setTyping(true);
@@ -67,7 +71,9 @@ function ChatView({ agentId, setAgentId }: { agentId: string; setAgentId: (id: s
         <Card className="flex h-[calc(100dvh-17rem)] min-h-[420px] flex-col p-0 sm:h-[calc(100vh-260px)]">
           <div className="flex items-center gap-3 border-b border-border p-3">
             <span className={cn("grid size-10 place-items-center rounded-xl", agent.color === "leaf" ? "bg-leaf-500/15 text-leaf-500 dark:text-leaf-400" : agent.color === "soil" ? "bg-soil-500/15 text-soil-600 dark:text-soil-300" : agent.color === "info" ? "bg-info-500/15 text-info-500 dark:text-info-400" : "bg-warning-500/15 text-warning-500 dark:text-warning-400")}><Icon name={agent.icon} size={20} /></span>
-            <div><div className="font-semibold">{agent.name}</div><div className="text-xs text-leaf-500 dark:text-leaf-400">● Online · {agent.uses.toLocaleString("de-DE")} Gespräche</div></div>
+            <div><div className="font-semibold">{agent.name}</div>{DEMO
+              ? <div className="text-xs text-leaf-500 dark:text-leaf-400">● Online · {agent.uses.toLocaleString("de-DE")} Gespräche</div>
+              : <div className="text-xs text-fg-subtle">○ Noch nicht angebunden</div>}</div>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto p-4" role="log" aria-live="polite" aria-label="KI-Konversation">
@@ -89,12 +95,13 @@ function ChatView({ agentId, setAgentId }: { agentId: string; setAgentId: (id: s
           </div>
 
           <div className="border-t border-border p-3">
+            {!DEMO && <p role="status" className="mb-2 text-xs text-fg-subtle">KI noch nicht angebunden – Eingabe ist vorübergehend deaktiviert.</p>}
             <div className="mb-2 flex flex-wrap gap-1.5">
-              {aiSuggestions.map((s) => <button key={s} onClick={() => send(s)} className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-fg-muted transition hover:border-accent/40 hover:text-accent">{s}</button>)}
+              {(DEMO ? aiSuggestions : []).map((s) => <button key={s} onClick={() => send(s)} className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-fg-muted transition hover:border-accent/40 hover:text-accent">{s}</button>)}
             </div>
             <div className="flex items-center gap-2">
-              <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send(text)} placeholder="Frag den KI-Assistenten…" className="h-11 flex-1 rounded-xl border border-border bg-surface-2 px-4 text-sm outline-none focus:border-accent" />
-              <button onClick={() => send(text)} className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition hover:brightness-110" aria-label="Senden"><Send className="size-5" /></button>
+              <input value={text} disabled={!DEMO} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send(text)} placeholder="Frag den KI-Assistenten…" className="h-11 flex-1 rounded-xl border border-border bg-surface-2 px-4 text-sm outline-none focus:border-accent" />
+              <button onClick={() => send(text)} disabled={!DEMO} className="disabled:cursor-not-allowed disabled:opacity-50 grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition hover:brightness-110" aria-label="Senden"><Send className="size-5" /></button>
             </div>
           </div>
         </Card>
@@ -114,8 +121,12 @@ function AgentsView({ onPick }: { onPick: (id: string) => void }) {
             <div className="text-xs text-accent">{a.role}</div>
             <p className="mt-2 flex-1 text-sm text-fg-muted">{a.desc}</p>
             <div className="mt-3 flex items-center justify-between text-xs text-fg-subtle">
-              <span className="flex items-center gap-1"><Star className="size-3 fill-warning-500 text-warning-500" /> {a.rating}</span>
-              <span>{a.uses.toLocaleString("de-DE")} Nutzer</span>
+              {DEMO ? (
+                <>
+                  <span className="flex items-center gap-1"><Star className="size-3 fill-warning-500 text-warning-500" /> {a.rating}</span>
+                  <span>{a.uses.toLocaleString("de-DE")} Nutzer</span>
+                </>
+              ) : <span>Noch nicht angebunden</span>}
             </div>
             <Button className="mt-3 w-full" variant="secondary" onClick={() => onPick(a.id)}>Starten</Button>
           </Card>
@@ -126,6 +137,13 @@ function AgentsView({ onPick }: { onPick: (id: string) => void }) {
 }
 
 function SoilView() {
+  if (!DEMO) {
+    return <EmptyState icon="Sprout" title="Noch keine Rezepte" desc="Community-Erdmischungen sind noch nicht verfügbar. Sobald es Rezepte gibt, erscheinen sie hier." />;
+  }
+  return <SoilViewDemo />;
+}
+
+function SoilViewDemo() {
   const [sel, setSel] = useState<SoilRecipe | null>(soilRecipes[0]);
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -180,7 +198,7 @@ function RecipeDetail({ r }: { r: SoilRecipe }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2"><h2 className="font-mono text-lg font-semibold">{r.name}</h2>{r.base !== "main" && <Badge tone="info" className="font-mono">fork of {r.base}</Badge>}</div>
-          <div className="mt-1 flex items-center gap-2 text-sm text-fg-subtle"><Avatar src={r.avatar} size={22} /> {r.author} · aktualisiert {r.updated}</div>
+          <div className="mt-1 flex items-center gap-2 text-sm text-fg-subtle"><Avatar src={r.avatar} name={r.author} size={22} /> {r.author} · aktualisiert {r.updated}</div>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => toast.push({ title: "Fork erstellt", desc: `${r.name} wurde geforkt.`, tone: "info", icon: "GitFork" })}><GitFork className="size-4" /> Fork</Button>

@@ -95,11 +95,45 @@ test.describe("Kernfunktionen (angemeldet)", () => {
   });
 });
 
-test.describe("Bekannte Lücken (dokumentiert)", () => {
-  // Dashboard zeigt im API-Modus statische Demo-Zahlen (src/mocks/data) auch für neue Nutzer.
-  test.fixme("neuer Nutzer sieht auf dem Dashboard keine Demo-Daten (168 € / 94 % Gesundheit)", async ({ page }) => {
+test.describe("Keine Demo-Daten im API-Modus", () => {
+  test("neuer Nutzer sieht auf dem Dashboard nur Leerzustände statt Demo-Zahlen", async ({ page }) => {
     await register(page, "Leer Tester", uniqueEmail("empty"));
-    await expect(page.getByText("168 €")).toHaveCount(0);
-    await expect(page.getByText("94 %")).toHaveCount(0);
+    for (const fake of ["168 €", "94 %", "12.400", "3.200", "Kosten / Monat"]) {
+      await expect(page.getByText(fake, { exact: false })).toHaveCount(0);
+    }
+    await expect(page.getByText("Noch kein aktiver Grow")).toBeVisible();
+    await expect(page.getByText("Noch keine Klimadaten")).toBeVisible();
+    await expect(page.getByText("Aktive Grows", { exact: true }).first()).toBeVisible();
+  });
+
+  test("Avatar ohne Bild zeigt Initialen statt eines Fremdfotos", async ({ page }) => {
+    await register(page, "Leer Tester", uniqueEmail("avatar"));
+    const fallback = page.locator("[data-avatar-fallback]").first();
+    await expect(fallback).toBeVisible();
+    await expect(fallback).toHaveText("LT");
+    await expect(page.locator('img[src*="unsplash"]')).toHaveCount(0);
+  });
+
+  test("Registrierung zeigt Passwort-Hinweis und keine erfundenen Nutzerzahlen", async ({ page }) => {
+    await openAuth(page);
+    await page.getByRole("button", { name: "Registrieren" }).first().click();
+    await expect(page.getByText("Mindestens 12 Zeichen.")).toBeVisible();
+    await expect(page.getByText("12.400")).toHaveCount(0);
+  });
+
+  test("KI-Assistent ist ehrlich: nicht angebunden, Eingabe gesperrt", async ({ page }) => {
+    await register(page, "Ki Tester", uniqueEmail("ki"));
+    await page.getByRole("button", { name: "KI-Assistent" }).first().click();
+    await expect(page.getByText("KI noch nicht angebunden", { exact: false }).first()).toBeVisible();
+    await expect(page.getByPlaceholder("Frag den KI-Assistenten…")).toBeDisabled();
+    await expect(page.getByText("Gespräche")).toHaveCount(0);
+  });
+
+  test("Community-Feed erfindet keine Stories und Vorschläge", async ({ page }) => {
+    await register(page, "Feed Tester", uniqueEmail("feed"));
+    await page.goto("/?view=social");
+    await expect(page.getByRole("heading", { level: 1, name: /Community|Feed/ })).toBeVisible();
+    await expect(page.getByText("Stories sind noch nicht verfügbar.")).toBeVisible();
+    await expect(page.getByText("Vorschläge sind noch nicht verfügbar.")).toBeVisible();
   });
 });

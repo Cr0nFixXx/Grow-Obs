@@ -53,7 +53,7 @@ export default function Profile() {
           <div className="px-5 pb-5">
             <div className="-mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex items-end gap-4">
-                <Avatar src={me.avatar} size={84} className="ring-4 ring-surface" />
+                <Avatar src={me.avatar} name={me.name} size={84} className="ring-4 ring-surface" />
                 <div className="pb-1">
                   <div className="flex items-center gap-2 text-xl font-bold">{me.name} <Badge tone="leaf">Lvl {me.level}</Badge></div>
                   <div className="text-sm text-fg-subtle">{me.handle} · {me.title}</div>
@@ -94,7 +94,7 @@ export default function Profile() {
                 {activity.length === 0 && <p className="py-4 text-center text-sm text-fg-subtle">Noch keine Aktivität.</p>}
                 {activity.map((a) => (
                   <div key={a.id} className="flex items-center gap-3 rounded-xl p-2 hover:bg-surface-2">
-                    <Avatar src={a.avatar} size={32} />
+                    <Avatar src={a.avatar} name={a.who} size={32} />
                     <span className="min-w-0 flex-1 text-sm"><span className="text-fg-muted">{a.who} {a.action} </span><span className="font-medium">{a.target}</span></span>
                     <span className="text-xs text-fg-subtle">{a.time}</span>
                   </div>
@@ -153,7 +153,7 @@ export default function Profile() {
             <Card className="space-y-4 p-5">
               <h2 className="text-sm font-semibold text-fg-muted">Konto</h2>
               <div className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
-                <Avatar src={me.avatar} size={40} />
+                <Avatar src={me.avatar} name={me.name} size={40} />
                 <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{me.name}</div><div className="truncate text-xs text-fg-subtle">{me.handle} · {me.title}</div></div>
                 <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Ändern</Button>
               </div>
@@ -201,7 +201,7 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
       footer={<><Button variant="ghost" onClick={onClose}>Abbrechen</Button><Button onClick={save} loading={busy} disabled={!!nameError}>Speichern</Button></>}>
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Avatar src={avatar} size={72} />
+          <Avatar src={avatar} name={me.name} size={72} />
           <div className="flex flex-wrap gap-2">
             <ImagePickButton onUploaded={setAvatar} label="Profilbild ändern" className="flex min-h-10 items-center gap-1.5 rounded-xl border border-border px-3 text-sm font-medium transition hover:bg-surface-2">
               <Icon name="Camera" size={16} /> Bild wählen

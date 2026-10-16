@@ -18,7 +18,7 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 - [x] Admin-Rolle aus DB/Session, Health aus AdminService, Bestätigungsdialog für Rollenänderungen.
 - [x] Neue Unit-/Component-/PostgreSQL-Integrationstests sowie separater API-CI-Job geschrieben.
 - [x] Neue Tests/Typechecks tatsächlich ausgeführt (B-51) – [ ] Docker und MinIO Ende-zu-Ende abnehmen.
-- [ ] Dashboard & Co. im API-Modus ohne statische Demo-Daten (`e2e/app.spec.ts` → `test.fixme`).
+- [x] Dashboard & Co. im API-Modus ohne statische Demo-Daten (B-53, E2E grün). Offen: Verbrauch/Kosten, KI-Anbindung, Rezepte, Stories, Bewertungen haben noch keine Datenquelle (Leerzustände).
 - [ ] Abhängigkeiten-Audit: 9 gemeldete Advisories genauer prüfen und beheben (TESTING.md).
 - [x] Auth/Upload-Rate-Limits (B-51, pro Prozess) – [ ] Session-Revocation und sicheres Betreiber-Bootstrap.
 - [ ] Upload-Finalisierung/Byte-Prüfung, EXIF-Bereinigung, Downloadrechte und Storage-Quotas.
@@ -26,7 +26,7 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 
 Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
 
-Prüfstand: **B-51** — Typecheck, Lint, 86 Frontend-Tests, 34 API-Integrationstests, 7 Browser-E2E, Next- und Vite-Build
+Prüfstand: **B-53** — Typecheck, Lint, 98 Frontend-Tests, 36 API-Integrationstests, 13 Browser-E2E, Next- und Vite-Build
 ausgeführt und grün (Node 22, PostgreSQL 17). **Docker/MinIO wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
 Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-

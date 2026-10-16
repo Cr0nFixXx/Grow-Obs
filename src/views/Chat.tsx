@@ -54,7 +54,7 @@ export default function Chat() {
           <div className="flex-1 overflow-y-auto">
             {conversations.map((c) => (
               <button key={c.id} onClick={() => setActiveId(c.id)} className={cn("flex w-full items-center gap-3 p-3 text-left transition hover:bg-surface-2", activeId === c.id && "bg-surface-2")}>
-                <Avatar src={c.avatar} size={44} status={c.online ? "online" : "offline"} />
+                <Avatar src={c.avatar} name={c.name} size={44} status={c.online ? "online" : "offline"} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between"><span className="truncate text-sm font-semibold">{c.name}</span><span className="text-[10px] text-fg-subtle">{c.time}</span></span>
                   <span className="flex items-center justify-between"><span className="truncate text-xs text-fg-muted">{c.last}</span>{c.unread > 0 && <span className="grid size-5 place-items-center rounded-full bg-accent text-[10px] font-bold text-accent-fg">{c.unread}</span>}</span>
@@ -69,7 +69,7 @@ export default function Chat() {
             <>
               <div className="flex items-center gap-3 border-b border-border p-3">
                 <button onClick={() => setActiveId(null)} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 lg:hidden" aria-label="Zurück"><ArrowLeft className="size-5" /></button>
-                <Avatar src={conv.avatar} size={40} status={conv.online ? "online" : "offline"} />
+                <Avatar src={conv.avatar} name={conv.name} size={40} status={conv.online ? "online" : "offline"} />
                 <div className="flex-1">
                   <div className="text-sm font-semibold">{conv.name}</div>
                   <div className="text-xs text-leaf-500 dark:text-leaf-400">{conv.online ? "Online" : "Offline"}</div>

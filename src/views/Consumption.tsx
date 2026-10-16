@@ -1,13 +1,27 @@
 import { useState } from "react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Badge, Card, PageHeader, Segmented } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, Segmented } from "@/components/ui";
 import { Bars, SeriesChart } from "@/components/charts";
 import { Reveal } from "@/components/motion";
 import { consumptionCompare, consumptionSeries } from "@/mocks/data";
 import { eur, n } from "@/lib/format";
+import { config } from "@/lib/config";
 
+/** Im API-Modus gibt es noch keine Verbrauchs-/Kostendaten im Backend → ehrlicher Leerzustand statt erfundener Kurven. */
 export default function Consumption() {
+  if (!config.useMock) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Verbrauchsübersicht" subtitle="Strom, Wasser & Kosten im Überblick." icon="ChartColumn" />
+        <EmptyState icon="ChartColumn" title="Noch keine Verbrauchsdaten" desc="Die Erfassung von Strom, Wasser und Kosten ist noch nicht verfügbar. Sobald sie freigeschaltet ist, erscheinen hier deine echten Werte." />
+      </div>
+    );
+  }
+  return <ConsumptionDemo />;
+}
+
+function ConsumptionDemo() {
   const [tab, setTab] = useState<"timeline" | "compare" | "forecast">("timeline");
   const labels = consumptionSeries.map((c) => c.label);
 

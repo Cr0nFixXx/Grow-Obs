@@ -67,19 +67,21 @@ export default function Auth() {
           <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="mt-4 text-white/70">
             Community-Wissen, KI-Assistenz und Kostenoptimierung – alles an einem Ort. Verfolge jeden Grow, vergleiche Sorten und lerne von Tausenden Growern.
           </motion.p>
-          <div className="mt-8 grid grid-cols-3 gap-4">
-            {[
-              { icon: Users, value: "12.400", label: "Grower" },
-              { icon: Trophy, value: "3.200", label: "Showcases" },
-              { icon: Sparkles, value: "98 %", label: "KI-Treffcr" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <s.icon className="size-5 text-leaf-300" />
-                <div className="mt-2 text-2xl font-bold tnum">{s.value}</div>
-                <div className="text-xs text-white/60">{s.label}</div>
-              </div>
-            ))}
-          </div>
+          {config.useMock && (
+            <div className="mt-8 grid grid-cols-3 gap-4">
+              {[
+                { icon: Users, value: "12.400", label: "Grower" },
+                { icon: Trophy, value: "3.200", label: "Showcases" },
+                { icon: Sparkles, value: "98 %", label: "KI-Treffcr" },
+              ].map((s) => (
+                <div key={s.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                  <s.icon className="size-5 text-leaf-300" />
+                  <div className="mt-2 text-2xl font-bold tnum">{s.value}</div>
+                  <div className="text-xs text-white/60">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="relative z-10 flex items-center gap-2 text-xs text-white/50">
@@ -121,8 +123,8 @@ export default function Auth() {
               <Field label="E-Mail">
                 <Input type="email" placeholder="du@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </Field>
-              <Field label="Passwort">
-                <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Field label="Passwort" hint={mode === "register" && !config.useMock ? "Mindestens 12 Zeichen." : undefined}>
+                <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} />
               </Field>
               {mode === "login" ? (
                 <div className="flex items-center justify-between text-sm">
@@ -156,7 +158,7 @@ export default function Auth() {
               </button>
             </p>
           </Card>
-          <p className="mt-4 text-center text-xs text-fg-subtle">Schon {n(12400)} Grower vertrauen Grow|Observer.</p>
+          {config.useMock && <p className="mt-4 text-center text-xs text-fg-subtle">Schon {n(12400)} Grower vertrauen Grow|Observer.</p>}
           <p className="mt-1 text-center text-[11px] text-fg-subtle tnum" data-testid="app-version">{versionLabel()}</p>
         </motion.div>
       </div>

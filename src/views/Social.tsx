@@ -9,6 +9,7 @@ import { Reveal } from "@/components/motion";
 import { stories, suggestedGrowers, trendingTags } from "@/mocks/data";
 import type { SocialPost } from "@/types";
 import { vibrate } from "@/lib/format";
+import { config } from "@/lib/config";
 import { useSocialPosts } from "@/data/hooks";
 import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media";
 import { copyText, shareOrCopy } from "@/lib/share";
@@ -28,6 +29,13 @@ export default function Social() {
     scrolledToHash.current = true;
     requestAnimationFrame(() => document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "center" }));
   }, [posts.length]);
+  // Trending: im Mock-Modus Demo-Tags, im API-Modus aus den tatsächlich geladenen Posts berechnet.
+  const trending = config.useMock
+    ? trendingTags
+    : Object.entries(posts.flatMap((p) => p.tags ?? []).reduce<Record<string, number>>((acc, t) => ({ ...acc, [t]: (acc[t] ?? 0) + 1 }), {}))
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 8)
+        .map(([tag, count]) => ({ tag, posts: count }));
   const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
   const [commentsFor, setCommentsFor] = useState<SocialPost | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
@@ -78,28 +86,32 @@ export default function Social() {
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         {/* Main feed */}
         <div className="space-y-5">
-          {/* Stories */}
+          {/* Stories (Demo: erfundene Personen; im API-Modus noch nicht verfügbar) */}
           <Reveal>
-            <Card className="p-3 sm:p-4">
-              <div className="-mx-1 flex touch-pan-x snap-x snap-mandatory overscroll-x-contain gap-3 overflow-x-auto px-1 no-scrollbar">
-                {stories.map((s) => (
-                  <button key={s.id} onClick={() => { vibrate(8); toast.push({ title: s.isYou ? "Story aufnehmen" : `${s.name}s Story`, tone: "info", icon: "Camera" }); }} className="relative flex min-h-11 shrink-0 snap-start flex-col items-center gap-1.5">
-                    <span className={cn("relative rounded-full p-[3px]", s.isYou ? "ring-1 ring-dashed ring-fg-subtle" : "bg-gradient-to-br from-leaf-400 to-soil-600")}>
-                      <Avatar src={s.avatar} size={56} className="ring-2 ring-surface" />
-                      {s.isYou && <span className="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full bg-accent text-xs font-bold text-accent-fg ring-2 ring-surface">+</span>}
-                    </span>
-                    <span className="max-w-[60px] truncate text-[11px] text-fg-muted">{s.name}</span>
-                  </button>
-                ))}
-              </div>
-            </Card>
+            {config.useMock ? (
+              <Card className="p-3 sm:p-4">
+                <div className="-mx-1 flex touch-pan-x snap-x snap-mandatory overscroll-x-contain gap-3 overflow-x-auto px-1 no-scrollbar">
+                  {stories.map((s) => (
+                    <button key={s.id} onClick={() => { vibrate(8); toast.push({ title: s.isYou ? "Story aufnehmen" : `${s.name}s Story`, tone: "info", icon: "Camera" }); }} className="relative flex min-h-11 shrink-0 snap-start flex-col items-center gap-1.5">
+                      <span className={cn("relative rounded-full p-[3px]", s.isYou ? "ring-1 ring-dashed ring-fg-subtle" : "bg-gradient-to-br from-leaf-400 to-soil-600")}>
+                        <Avatar src={s.avatar} size={56} className="ring-2 ring-surface" />
+                        {s.isYou && <span className="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full bg-accent text-xs font-bold text-accent-fg ring-2 ring-surface">+</span>}
+                      </span>
+                      <span className="max-w-[60px] truncate text-[11px] text-fg-muted">{s.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            ) : (
+              <Card className="p-3 text-center text-sm text-fg-muted sm:p-4">Stories sind noch nicht verfügbar.</Card>
+            )}
           </Reveal>
 
           {/* Compose */}
           <Reveal>
             <Card className="p-4">
               <div className="flex gap-3">
-                <Avatar src={currentUser.avatar} size={40} />
+                <Avatar src={currentUser.avatar} name={currentUser.name} size={40} />
                 <div className="flex-1">
                   <Textarea ref={composeRef} id="compose-input" value={compose} onChange={(e) => setCompose(e.target.value)} placeholder="Was gibt's Neues aus deinem Grow-Raum?" rows={2} className="resize-none" />
                   {image && (
@@ -142,8 +154,9 @@ export default function Social() {
         <div className="hidden space-y-4 lg:block">
           <Card className="p-4">
             <h2 className="mb-3 text-sm font-semibold text-fg-muted">Grower zum Folgen</h2>
+            {!config.useMock && <p className="text-sm text-fg-muted">Vorschläge sind noch nicht verfügbar.</p>}
             <div className="space-y-3">
-              {suggestedGrowers.map((g) => (
+              {(config.useMock ? suggestedGrowers : []).map((g) => (
                 <div key={g.id} className="flex items-center gap-3">
                   <Avatar src={g.avatar} size={40} />
                   <div className="min-w-0 flex-1">
@@ -157,8 +170,9 @@ export default function Social() {
           </Card>
           <Card className="p-4">
             <h2 className="mb-3 text-sm font-semibold text-fg-muted">Trending Tags</h2>
+            {trending.length === 0 && <p className="text-sm text-fg-muted">Noch keine Tags in den Beiträgen.</p>}
             <div className="flex flex-wrap gap-2">
-              {trendingTags.map((t) => (
+              {trending.map((t) => (
                 <button key={t.tag} onClick={() => toast.push({ title: `#${t.tag}`, desc: `${t.posts} Beiträge`, tone: "info", icon: "TrendingUp" })} className="rounded-lg bg-surface-2 px-2.5 py-1 text-xs text-fg-muted transition hover:text-accent">#{t.tag}</button>
               ))}
             </div>
@@ -179,7 +193,7 @@ function PostCard({ p, liked, bookmarked, onLike, onBookmark, onComments }: { p:
   return (
     <Card id={`post-${p.id}`} className="overflow-hidden p-0">
       <div className="flex items-center gap-3 p-4 pb-3">
-        <Avatar src={p.avatar} size={44} />
+        <Avatar src={p.avatar} name={p.author} size={44} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5"><span className="font-semibold">{p.author}</span><Icon name="ShieldCheck" size={13} className="text-info-500" /></div>
           <div className="text-xs text-fg-subtle">{p.handle} · {p.time}</div>

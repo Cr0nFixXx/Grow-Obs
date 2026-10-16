@@ -5,13 +5,14 @@ import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, Button, Card, Chip, ProgressBar, SmartImage, StatCard } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Chip, EmptyState, ProgressBar, SmartImage, StatCard } from "@/components/ui";
 import { Donut, Gauge, Sparkline } from "@/components/charts";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/motion";
 import { climate, consumptionSeries, quickStats } from "@/mocks/data";
 import { useActivity, useGrows, useSeedOffers, useTasks } from "@/data/hooks";
 import { useServices } from "@/data/DataContext";
 import { eur, n, pct } from "@/lib/format";
+import { config } from "@/lib/config";
 
 const prioTone = { hoch: "danger", mittel: "warning", niedrig: "info" } as const;
 
@@ -48,6 +49,23 @@ export default function Dashboard() {
   };
   const [showAi, setShowAi] = useState(true);
 
+  // Demo-Werte (mocks/data) nur im Mock-Modus; im API-Modus zählen ausschließlich echte Daten.
+  const demo = config.useMock;
+  const activeGrows = grows.filter((g) => g.phase !== "Ernte");
+  const openTasks = loadedTasks.filter((t) => !t.done).length;
+  const avgHealth = activeGrows.length ? Math.round(activeGrows.reduce((sum, g) => sum + g.health, 0) / activeGrows.length) : null;
+  type Stat = { id: string; label: string; value: React.ReactNode; delta?: string; trend?: "up" | "down"; icon: string; color: string };
+  const stats: Stat[] = demo
+    ? quickStats.map((s) => ({ id: s.id, label: s.label, value: <CountUp value={s.num} suffix={s.suffix} />, delta: s.delta, trend: s.trend as "up" | "down", icon: s.icon, color: s.color }))
+    : [
+        { id: "q1", label: "Aktive Grows", value: <CountUp value={activeGrows.length} />, icon: "Sprout", color: "leaf" },
+        { id: "q2", label: "Offene Tasks", value: <CountUp value={openTasks} />, icon: "ListChecks", color: "warning" },
+        { id: "q4", label: "Ø Gesundheit", value: avgHealth === null ? "–" : <CountUp value={avgHealth} suffix=" %" />, icon: "HeartPulse", color: "leaf" },
+      ];
+  // Klima: im API-Modus der letzte erfasste Messpunkt des ersten aktiven Grows mit Klimadaten.
+  const climateGrow = activeGrows.find((g) => g.env.length > 0);
+  const lastEnv = climateGrow ? climateGrow.env[climateGrow.env.length - 1] : undefined;
+
   const costBreakdown = [
     { label: "Strom", value: 62, color: "var(--accent)" },
     { label: "Substrat", value: 18, color: "var(--accent-2)" },
@@ -75,8 +93,8 @@ export default function Dashboard() {
         </div>
       </Reveal>
 
-      {/* AI banner */}
-      {showAi && (
+      {/* AI banner (Demo: erfundene Empfehlung; im API-Modus gibt es noch keine echte KI) */}
+      {demo && showAi && (
         <Reveal delay={0.05}>
           <Card className="relative overflow-hidden border-accent/25 bg-accent/[0.06] p-4 sm:p-5">
             <button onClick={() => setShowAi(false)} className="absolute right-3 top-3 text-fg-subtle hover:text-fg" aria-label="Schließen">
@@ -99,10 +117,10 @@ export default function Dashboard() {
       )}
 
       {/* Quick stats */}
-      <StaggerGroup className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {quickStats.map((s) => (
+      <StaggerGroup className={cn("grid grid-cols-2 gap-3", stats.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+        {stats.map((s) => (
           <StaggerItem key={s.id}>
-            <StatCard label={s.label} value={<CountUp value={s.num} suffix={s.suffix} />} delta={s.delta} trend={s.trend as "up" | "down"} icon={s.icon} tone={s.color as never} />
+            <StatCard label={s.label} value={s.value} delta={s.delta} trend={s.trend} icon={s.icon} tone={s.color as never} />
           </StaggerItem>
         ))}
       </StaggerGroup>
@@ -123,6 +141,9 @@ export default function Dashboard() {
               </span>
             }
           />
+          {offers.length === 0 ? (
+            <p className="py-3 text-center text-sm text-fg-muted">Aktuell keine Angebote verfügbar.</p>
+          ) : (
           <div className="group/ticker ticker-scroll mask-fade-x overflow-hidden">
             <div className="ticker-track flex w-max touch-pan-x snap-x snap-mandatory gap-3 animate-marquee">
               {[...offers, ...offers].map((o, i) => {
@@ -150,6 +171,7 @@ export default function Dashboard() {
               })}
             </div>
           </div>
+          )}
         </Card>
       </Reveal>
 
@@ -164,8 +186,11 @@ export default function Dashboard() {
                 icon="Sprout"
                 action={<button onClick={() => navigate("grows")} className="text-sm text-accent hover:underline">Alle</button>}
               />
+              {activeGrows.length === 0 && (
+                <EmptyState icon="Sprout" title="Noch kein aktiver Grow" desc="Lege deinen ersten Grow an, um Fortschritt, Gesundheit und Tasks zu verfolgen." action={<Button size="sm" onClick={() => navigate("create", { kind: "grow" })}><Plus className="size-4" /> Neuer Grow</Button>} />
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
-                {grows.slice(0, 2).map((g) => (
+                {activeGrows.slice(0, 2).map((g) => (
                   <button
                     key={g.id}
                     onClick={() => navigate("grows", { growId: g.id })}
@@ -205,6 +230,7 @@ export default function Dashboard() {
           <Reveal>
             <Card className="p-4 sm:p-5">
               <SectionHead title="Nächste Tasks" icon="ListChecks" action={<Chip onClick={() => navigate("create", { kind: "task" })}>+ Task</Chip>} />
+              {tasks.length === 0 && <p className="py-3 text-center text-sm text-fg-muted">Keine offenen Tasks. Mit „+ Task“ legst du eine neue an.</p>}
               <div className="space-y-2">
                 {tasks.map((t) => (
                   <div key={t.id} className="flex items-center gap-3 rounded-xl border border-border p-3 transition hover:bg-surface-2">
@@ -230,10 +256,11 @@ export default function Dashboard() {
           <Reveal>
             <Card className="p-4 sm:p-5">
               <SectionHead title="Aktivität" icon="Activity" />
+              {activity.length === 0 && <p className="py-3 text-center text-sm text-fg-muted">Noch keine Aktivität.</p>}
               <div className="space-y-1" role="list">
                 {activity.map((a) => (
                   <div key={a.id} role="listitem" className="flex items-start gap-3 rounded-xl p-2.5 transition hover:bg-surface-2">
-                    <Avatar src={a.avatar} size={36} />
+                    <Avatar src={a.avatar} name={a.who} size={36} />
                     <div className="min-w-0 flex-1 text-sm">
                       <span className="text-fg-muted">{a.who} {a.action} </span>
                       <span className="font-medium">{a.target}</span>
@@ -251,7 +278,8 @@ export default function Dashboard() {
 
         {/* Right rail */}
         <div className="space-y-6">
-          {/* Climate */}
+          {/* Climate (Demo: erfundene Werte inkl. Wetter-Vorschau) */}
+          {demo && (
           <Reveal delay={0.05}>
             <Card className="p-4 sm:p-5">
               <SectionHead title="Klima · Grow-Raum" icon="Thermometer" action={<Badge tone={climate.vpdStatus === "optimal" ? "leaf" : "warning"}>{climate.vpdStatus === "optimal" ? "Optimal" : "Achtung"}</Badge>} />
@@ -297,8 +325,55 @@ export default function Dashboard() {
               </div>
             </Card>
           </Reveal>
+          )}
+          {/* Climate (API-Modus: echter letzter Messpunkt, sonst Leerzustand) */}
+          {!demo && (
+          <Reveal delay={0.05}>
+            <Card className="p-4 sm:p-5" data-testid="climate-card">
+              <SectionHead title="Klima · Grow-Raum" icon="Thermometer" action={climateGrow ? <Badge>Tag {lastEnv?.day}</Badge> : undefined} />
+              {lastEnv && climateGrow ? (
+                <>
+                  <p className="mb-1 truncate text-xs text-fg-subtle">{climateGrow.name} · letzter erfasster Messpunkt</p>
+                  <div className="flex items-center justify-around py-2">
+                    <div className="text-center">
+                      <Gauge value={lastEnv.temp} max={35} size={92} stroke={8} color="var(--accent)">
+                        <div>
+                          <div className="text-lg font-bold tnum">{lastEnv.temp}°</div>
+                          <div className="text-[10px] text-fg-subtle">Temp</div>
+                        </div>
+                      </Gauge>
+                    </div>
+                    <div className="text-center">
+                      <Gauge value={lastEnv.rh} max={100} size={92} stroke={8} color="var(--info)">
+                        <div>
+                          <div className="text-lg font-bold tnum">{lastEnv.rh}%</div>
+                          <div className="text-[10px] text-fg-subtle">Feuchte</div>
+                        </div>
+                      </Gauge>
+                    </div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+                    {[
+                      { label: "VPD", value: lastEnv.vpd.toFixed(2), icon: "Droplets", unit: "kPa" },
+                      { label: "EC", value: String(lastEnv.ec), icon: "Zap", unit: "mS" },
+                    ].map((m) => (
+                      <div key={m.label} className="rounded-xl bg-surface-2 p-2">
+                        <Icon name={m.icon} size={14} className="mx-auto text-fg-subtle" />
+                        <div className="mt-1 text-sm font-semibold tnum">{m.value}</div>
+                        <div className="text-[10px] text-fg-subtle">{m.label} {m.unit}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <EmptyState icon="Thermometer" title="Noch keine Klimadaten" desc="Klimawerte erscheinen, sobald zu einem aktiven Grow Messpunkte erfasst wurden." />
+              )}
+            </Card>
+          </Reveal>
+          )}
 
-          {/* Cost snapshot */}
+          {/* Kosten-Snapshot (Demo: erfundene Zahlen; im API-Modus gibt es noch keine Kostendaten) */}
+          {demo && (
           <Reveal delay={0.1}>
             <Card className="p-4 sm:p-5">
               <SectionHead title="Kosten-Snapshot" icon="Euro" action={<button onClick={() => navigate("consumption")} className="text-sm text-accent hover:underline">Details</button>} />
@@ -328,26 +403,29 @@ export default function Dashboard() {
               </div>
             </Card>
           </Reveal>
+          )}
 
           {/* Community pulse */}
           <Reveal delay={0.15}>
             <Card className="p-4 sm:p-5">
               <SectionHead title="Community" icon="Users" />
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl bg-surface-2 p-3">
-                  <div className="text-lg font-bold tnum">{n(12400)}</div>
-                  <div className="text-[10px] text-fg-subtle">Grower</div>
+              {demo && (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-surface-2 p-3">
+                    <div className="text-lg font-bold tnum">{n(12400)}</div>
+                    <div className="text-[10px] text-fg-subtle">Grower</div>
+                  </div>
+                  <div className="rounded-xl bg-surface-2 p-3">
+                    <div className="text-lg font-bold tnum">{n(3200)}</div>
+                    <div className="text-[10px] text-fg-subtle">Showcases</div>
+                  </div>
+                  <div className="rounded-xl bg-surface-2 p-3">
+                    <div className="text-lg font-bold tnum">{pct(98)}</div>
+                    <div className="text-[10px] text-fg-subtle">Zufrieden</div>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-surface-2 p-3">
-                  <div className="text-lg font-bold tnum">{n(3200)}</div>
-                  <div className="text-[10px] text-fg-subtle">Showcases</div>
-                </div>
-                <div className="rounded-xl bg-surface-2 p-3">
-                  <div className="text-lg font-bold tnum">{pct(98)}</div>
-                  <div className="text-[10px] text-fg-subtle">Zufrieden</div>
-                </div>
-              </div>
-              <Button variant="secondary" className="mt-3 w-full" onClick={() => navigate("forum")}>
+              )}
+              <Button variant="secondary" className={cn("w-full", demo && "mt-3")} onClick={() => navigate("forum")}>
                 Zum Forum <ArrowRight className="size-4" />
               </Button>
             </Card>

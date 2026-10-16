@@ -2,6 +2,10 @@
 
 ## Status
 
+**B-53 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 98/98 ✅ (neu: `src/components/ui.test.tsx` – `initialsOf`,
+Avatar-Fallback), `npm run test:api` 36/36 ✅, `next build` ✅, Playwright **13 ✅ (12 desktop + 1 mobil), kein `fixme` mehr**
+(neu: Dashboard ohne Demo-Zahlen, Avatar-Initialen, Passwort-Hinweis, KI ehrlich, Feed ohne Stories/Vorschläge).
+
 **B-52 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 91/91 ✅ (neu: `src/lib/version.test.ts` – Version/Build-Format,
 Sync mit `package.json`/Lockfiles/Backend, Build-Nummer inkl. Sommer-/Winterzeit), `npm run test:api` 36/36 ✅ (neu: `/version`,
 Modul-Vererbung), API-Typecheck + `tsc -p tsconfig.tools.json` ✅, `next build` ✅, `build:vite` ✅, Playwright 8 ✅ + 1 `fixme`

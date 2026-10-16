@@ -160,7 +160,7 @@ function ThreadCard({ t, onOpen }: { t: ForumThreadBrief; onOpen: () => void }) 
       </div>
       <div className="min-w-0 flex-1">
         <button onClick={onOpen} className="block w-full text-left">
-          <div className="flex items-center gap-2 text-xs text-fg-subtle"><Avatar src={t.avatar} size={18} /> {t.author} · <span className="text-accent">{t.sub}</span> · {t.ago}</div>
+          <div className="flex items-center gap-2 text-xs text-fg-subtle"><Avatar src={t.avatar} name={t.author} size={18} /> {t.author} · <span className="text-accent">{t.sub}</span> · {t.ago}</div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="font-semibold">{t.title}</span>
             {t.top && <Badge tone="warning"><Icon name="Trophy" size={11} /> Top</Badge>}
@@ -199,7 +199,7 @@ function CommentNode({ c, depth = 0, onReply }: { c: ForumComment; depth?: numbe
   };
   return (
     <div className={cn("flex gap-3", depth > 0 && "mt-3 border-l border-border pl-3")} role="listitem">
-      <Avatar src={c.avatar} size={depth > 0 ? 26 : 32} />
+      <Avatar src={c.avatar} name={c.author} size={depth > 0 ? 26 : 32} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-xs">
           <span className="font-medium text-fg">{c.author}</span>
@@ -256,7 +256,7 @@ function ThreadDetail({ t, onComment, onVote }: { t: ForumThreadDetail; onCommen
       <button onClick={back} className="flex items-center gap-1.5 text-sm text-fg-muted hover:text-fg"><Icon name="ArrowLeft" size={16} /> Zum Forum</button>
       <Reveal>
         <Card className="p-5">
-          <div className="flex items-center gap-2 text-xs text-fg-subtle"><Avatar src={t.avatar} size={24} /> {t.author} · <span className="text-accent">{t.sub}</span> · {t.ago} {t.top && <Badge tone="warning" className="ml-1">Top</Badge>}</div>
+          <div className="flex items-center gap-2 text-xs text-fg-subtle"><Avatar src={t.avatar} name={t.author} size={24} /> {t.author} · <span className="text-accent">{t.sub}</span> · {t.ago} {t.top && <Badge tone="warning" className="ml-1">Top</Badge>}</div>
           <h1 className="mt-2 text-2xl font-bold">{t.title}</h1>
           <p className="mt-2 whitespace-pre-line text-[15px] text-fg-muted">{t.body || t.excerpt}</p>
           <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-sm text-fg-subtle">

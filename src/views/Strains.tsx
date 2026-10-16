@@ -4,7 +4,7 @@ import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
 import {
-  Badge, Button, Card, Chip, EmptyState, Meter, Modal, PageHeader, RatingStars, SearchInput, Segmented, SkeletonCard,
+  Avatar, Badge, Button, Card, Chip, EmptyState, Meter, Modal, PageHeader, RatingStars, SearchInput, Segmented, SkeletonCard,
 } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { ratingBreakdown, reviews } from "@/mocks/data";
@@ -12,6 +12,7 @@ import type { Strain, Type } from "@/types";
 import { useStrainCollection, useStrains } from "@/data/hooks";
 import { useCompare } from "@/data/compare";
 import { eur } from "@/lib/format";
+import { config } from "@/lib/config";
 
 /** Konsistentes Farb-Coding nach Typ: Sativa = info, Indica = soil, Hybrid = leaf. */
 const typeColor: Record<Type, string> = { Sativa: "info", Indica: "soil", Hybrid: "leaf" };
@@ -227,33 +228,40 @@ function StrainModal({ strain, onClose, onCompare, compared, collected, onCollec
             </div>
           </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <div className="mb-2 flex items-center gap-2"><RatingStars value={s.rating} size={16} /><span className="text-sm font-semibold tnum">{s.rating}</span><span className="text-xs text-fg-subtle">({s.reviews})</span></div>
-              <div className="space-y-1">
-                {ratingBreakdown.map((r) => (
-                  <div key={r.stars} className="flex items-center gap-2 text-xs">
-                    <span className="w-3 text-fg-subtle">{r.stars}</span>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3"><div className="h-full rounded-full bg-warning-500" style={{ width: `${(r.count / maxReview) * 100}%` }} /></div>
-                    <span className="w-8 text-right text-fg-subtle tnum">{r.count}</span>
+          {config.useMock ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="mb-2 flex items-center gap-2"><RatingStars value={s.rating} size={16} /><span className="text-sm font-semibold tnum">{s.rating}</span><span className="text-xs text-fg-subtle">({s.reviews})</span></div>
+                <div className="space-y-1">
+                  {ratingBreakdown.map((r) => (
+                    <div key={r.stars} className="flex items-center gap-2 text-xs">
+                      <span className="w-3 text-fg-subtle">{r.stars}</span>
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3"><div className="h-full rounded-full bg-warning-500" style={{ width: `${(r.count / maxReview) * 100}%` }} /></div>
+                      <span className="w-8 text-right text-fg-subtle tnum">{r.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-fg-muted">Bewertungen</div>
+                {reviews.slice(0, 2).map((rv) => (
+                  <div key={rv.id} className="rounded-xl bg-surface-2 p-3">
+                    <div className="flex items-center gap-2">
+                      <Avatar src={rv.avatar} name={rv.author} size={24} />
+                      <span className="text-xs font-medium">{rv.author}</span>
+                      <RatingStars value={rv.rating} size={11} />
+                    </div>
+                    <p className="mt-1 text-xs text-fg-muted">{rv.text}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-fg-muted">Bewertungen</div>
-              {reviews.slice(0, 2).map((rv) => (
-                <div key={rv.id} className="rounded-xl bg-surface-2 p-3">
-                  <div className="flex items-center gap-2">
-                    <img src={rv.avatar} className="size-6 rounded-full object-cover" alt="" />
-                    <span className="text-xs font-medium">{rv.author}</span>
-                    <RatingStars value={rv.rating} size={11} />
-                  </div>
-                  <p className="mt-1 text-xs text-fg-muted">{rv.text}</p>
-                </div>
-              ))}
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-2"><RatingStars value={s.rating} size={16} /><span className="text-sm font-semibold tnum">{s.rating}</span><span className="text-xs text-fg-subtle">({s.reviews})</span></div>
+              <EmptyState icon="Star" title="Noch keine Bewertungen" desc="Einzelbewertungen und die Sterne-Verteilung sind noch nicht verfügbar." />
             </div>
-          </div>
+          )}
         </>
       )}
     </Modal>

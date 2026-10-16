@@ -9,6 +9,7 @@ import { useWikiArticles } from "@/data/hooks";
 import { useServices } from "@/data/DataContext";
 import { AVATARS } from "@/mocks/data";
 import { useWikiCategories } from "@/data/hooks";
+import { config } from "@/lib/config";
 import type { WikiArticleDetail } from "@/services/interfaces";
 
 function useWikiArticle(articleId?: string) {
@@ -112,7 +113,7 @@ function Reader({ a }: { a: WikiArticleDetail }) {
           </div>
           <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{a.title}</h1>
           <div className="mt-3 flex items-center gap-2 text-sm text-fg-subtle">
-            <Avatar src={AVATARS[3]} size={28} /> von {a.author} · {a.readMin} Min Lesezeit
+            <Avatar src={config.useMock ? AVATARS[3] : undefined} name={a.author} size={28} /> von {a.author} · {a.readMin} Min Lesezeit
           </div>
         </div>
       </Reveal>
@@ -140,14 +141,16 @@ function Reader({ a }: { a: WikiArticleDetail }) {
       <Reveal>
         <Card className="flex items-center justify-between p-4">
           <div>
-            <div className="text-sm font-semibold">Mitwirkende</div>
+            <div className="text-sm font-semibold">{config.useMock ? "Mitwirkende" : "Autor"}</div>
             <div className="mt-1 flex -space-x-2">
-              {AVATARS.slice(0, 4).map((src, i) => <Avatar key={i} src={src} size={28} className="ring-2 ring-surface" />)}
+              {config.useMock
+                ? AVATARS.slice(0, 4).map((src, i) => <Avatar key={i} src={src} size={28} className="ring-2 ring-surface" />)
+                : <Avatar name={a.author} size={28} />}
             </div>
           </div>
           <div className="text-right text-xs text-fg-subtle">
-            <div className="flex items-center gap-1"><Icon name="GitCommit" size={14} /> 28 Commits</div>
-            <div className="mt-0.5">zuletzt von {a.author}</div>
+            {config.useMock && <div className="flex items-center gap-1"><Icon name="GitCommit" size={14} /> 28 Commits</div>}
+            <div className="mt-0.5">{config.useMock ? "zuletzt von" : "Autor:"} {a.author}</div>
           </div>
         </Card>
       </Reveal>

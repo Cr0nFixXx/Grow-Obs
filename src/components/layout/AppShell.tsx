@@ -141,7 +141,7 @@ function Sidebar() {
           onClick={() => navigate("profile")}
           className={cn("flex w-full items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2", sidebarCollapsed && "justify-center")}
         >
-          <Avatar src={currentUser.avatar} size={36} ring />
+          <Avatar src={currentUser.avatar} name={currentUser.name} size={36} ring />
           {!sidebarCollapsed && (
             <span className="min-w-0 text-left">
               <span className="block truncate text-sm font-semibold">{currentUser.name}</span>
@@ -325,7 +325,7 @@ function TopBar() {
             <NotificationsMenu />
           </div>
           <button onClick={() => navigate("profile")} className="ml-0.5 grid size-11 shrink-0 place-items-center rounded-full sm:ml-1" aria-label="Profil öffnen">
-            <Avatar src={currentUser.avatar} size={38} />
+            <Avatar src={currentUser.avatar} name={currentUser.name} size={38} />
           </button>
         </div>
       </div>
@@ -580,7 +580,7 @@ function MobileDrawer() {
         {user ? (
           <>
             <button onClick={() => { setMobileNavOpen(false); navigate("profile"); }} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-surface-2">
-              <Avatar src={user.avatar} size={36} />
+              <Avatar src={user.avatar} name={user.name} size={36} />
               <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{user.name}</span><span className="block truncate text-xs text-fg-subtle">{user.handle}</span></span>
             </button>
             <Button className="w-full text-danger hover:bg-danger/10" variant="ghost" onClick={() => { setMobileNavOpen(false); logout(); navigate("auth"); }}>

@@ -2,15 +2,25 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-51 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-53 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 86 Frontend-Tests ✅ · 34 API-Integrationstests ✅ · 7 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 98 Frontend-Tests ✅ · 36 API-Integrationstests ✅ · 13 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-53: Keine Demo-Daten im API-Modus (Arena Agent)
+
+- **Regel:** `config.useMock` (`src/lib/config.ts`) = Demo-Daten aus `src/mocks/data.ts` erlaubt; sonst echte Daten oder
+  `EmptyState`/ehrlicher Hinweis. Neue Views müssen sich daran halten.
+- **Betroffen:** Dashboard, Auth, Strains (Bewertungen), Consumption (ganze Seite), Wiki, Social, AIAssistant.
+  Unverändert: Calculator, Simulation, Showcase (Referenzinhalt).
+- **`Avatar`** (`src/components/ui.tsx`): immer `name` mitgeben → Initialen-Fallback bei fehlendem/kaputtem Bild.
+- **Offen (keine Datenquelle im Backend):** Kosten/Verbrauch, KI-Chat, Erdmischungs-Rezepte, Stories, Sorten-Bewertungen.
+- Tests: `src/components/ui.test.tsx`, E2E-Block „Keine Demo-Daten im API-Modus“ in `e2e/app.spec.ts`.
 
 ## B-52: Zentrale Versionierung + Preview-Skript (Arena Agent)
 

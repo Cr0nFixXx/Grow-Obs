@@ -146,9 +146,25 @@ export function Chip({
 }
 
 /* ============================== Avatar ============================== */
+/** Farbton (0–359) stabil aus einem Namen ableiten – gleicher Name, gleiche Farbe. */
+function nameHue(name: string): number {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.codePointAt(0)!) % 360;
+  return h;
+}
+
+/** Initialen (max. 2 Buchstaben) aus Namen/Handle: „E2E Tester“ → „ET“, „@max_grows“ → „MG“. */
+export function initialsOf(name?: string): string {
+  const parts = (name ?? "").replace(/^@/, "").split(/[\s_.-]+/).filter(Boolean);
+  if (!parts.length) return "";
+  const letters = parts.length === 1 ? Array.from(parts[0]!).slice(0, 2) : [Array.from(parts[0]!)[0]!, Array.from(parts[1]!)[0]!];
+  return letters.join("").toUpperCase();
+}
+
 export function Avatar({
   src,
   alt,
+  name,
   size = 40,
   status,
   ring,
@@ -156,24 +172,42 @@ export function Avatar({
 }: {
   src?: string;
   alt?: string;
+  /** Anzeigename für den Fallback (Initialen im farbigen Kreis), wenn kein Bild vorhanden ist oder nicht lädt. */
+  name?: string;
   size?: number;
   status?: "online" | "offline";
   ring?: boolean;
   className?: string;
 }) {
+  const url = resolveMedia(src);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showImage = !!url && failedUrl !== url;
+  const label = name ?? alt;
+  const initials = initialsOf(label);
+  const ringClass = ring && "ring-2 ring-accent/50 ring-offset-2 ring-offset-bg";
   return (
     <span className={cn("relative inline-block shrink-0", className)} style={{ width: size, height: size }}>
-      <img
-        src={resolveMedia(src) || undefined}
-        alt={alt ?? "Avatar"}
-        loading="lazy"
-        width={size}
-        height={size}
-        className={cn(
-          "size-full rounded-full object-cover bg-surface-3",
-          ring && "ring-2 ring-accent/50 ring-offset-2 ring-offset-bg"
-        )}
-      />
+      {showImage ? (
+        <img
+          src={url}
+          alt={alt ?? name ?? "Avatar"}
+          loading="lazy"
+          width={size}
+          height={size}
+          onError={() => setFailedUrl(url)}
+          className={cn("size-full rounded-full object-cover bg-surface-3", ringClass)}
+        />
+      ) : (
+        <span
+          role="img"
+          aria-label={label ?? "Avatar"}
+          data-avatar-fallback=""
+          className={cn("grid size-full select-none place-items-center rounded-full font-semibold text-white", ringClass)}
+          style={{ background: `hsl(${nameHue(label ?? "?")} 45% 38%)`, fontSize: Math.max(10, Math.round(size * 0.38)) }}
+        >
+          {initials || <Icon name="User" size={Math.round(size * 0.5)} />}
+        </span>
+      )}
       {status && (
         <span
           className={cn(

@@ -41,7 +41,7 @@ function HofCard({
         <div className="text-xs text-fg-subtle">{h.strain}</div>
         <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
           <div className="flex items-center gap-2">
-            <Avatar src={h.avatar} size={22} />
+            <Avatar src={h.avatar} name={h.grower} size={22} />
             <span className="text-xs text-fg-muted">{h.grower}</span>
           </div>
           <div className="flex items-center gap-1">

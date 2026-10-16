@@ -9,6 +9,25 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-53 – Keine Demo-Daten im API-Modus (Arena Agent)
+
+Regel: **Demo-Daten nur im Mock-Modus** (`NEXT_PUBLIC_API_URL` leer). Im API-Modus zeigen die Views echte Daten oder
+ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert (Frontend v0.1.1, Backend v0.0.2).
+
+- **Dashboard:** echte Kennzahlen (Aktive Grows, Offene Tasks, Ø Gesundheit), Klimakarte aus dem letzten Messpunkt oder
+  „Noch keine Klimadaten“, Leerzustände für Grow/Tasks/Aktivität/Angebote; KI-Banner, Kosten-Karte und erfundene
+  Community-Zahlen nur im Mock-Modus.
+- **Avatar:** neuer Fallback (Initialen im namensabhängig gefärbten Kreis, Icon ohne Namen) wenn `src` fehlt oder das Bild
+  nicht lädt; `name`-Prop an allen relevanten Aufrufstellen.
+- **Auth:** Hero-Zahlen und „12.400 Grower vertrauen…“ nur im Mock-Modus; Passwort-Hinweis „Mindestens 12 Zeichen.“,
+  `autoComplete` je Modus.
+- **Strains** (Bewertungen), **Verbrauch** (komplette Seite), **Wiki** (Mitwirkende/Commits), **Social** (Stories,
+  Vorschläge; Trending-Tags aus echten Posts berechnet), **KI-Assistent** (Hinweis „KI noch nicht angebunden“,
+  Eingabe gesperrt, keine Nutzungszahlen, Rezepte → Leerzustand): Demo-Inhalt nur im Mock-Modus.
+- Unverändert (Referenzinhalt): Rechner, Simulation, Design-System-Galerie.
+- Tests: Frontend 98 (+7, `src/components/ui.test.tsx`), API 36, E2E 12 desktop + 1 mobil (das `test.fixme` ist jetzt ein
+  grüner Test; +4 neue).
+
 ### B-52 – Zentrale Versionierung, Preview (Arena Agent)
 
 - **Neu:** `version.json` als einzige Versionsquelle: Frontend-Codename „Ruderalis“ + **v0.1.1**, Backend **v0.0.2**,

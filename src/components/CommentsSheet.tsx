@@ -62,7 +62,7 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
           <ul className="space-y-3" aria-label="Kommentare">
             {items.map((c) => (
               <li key={c.id} className="flex gap-3">
-                <Avatar src={c.avatar} size={30} />
+                <Avatar src={c.avatar} name={c.author} size={30} />
                 <div className="min-w-0 flex-1 rounded-2xl bg-surface-2 px-3 py-2">
                   <div className="flex items-center gap-2 text-xs"><span className="font-medium">{c.author}</span><span className="text-fg-subtle">{c.ago}</span></div>
                   <p className="mt-0.5 whitespace-pre-line break-words text-sm">{c.body}</p>
