@@ -11,7 +11,7 @@ import { Icon } from "@/components/Icon";
 import { useSwipeTabs } from "@/lib/gestures";
 import { useAppUpdate } from "@/lib/update";
 import { ReleaseItem } from "@/components/UpdateUI";
-import { APP_VERSION, versionLabel } from "@/lib/app-version";
+import { BACKEND_VERSION, FRONTEND_VERSION, versionLabel } from "@/lib/app-version";
 import type { Release } from "@/lib/update-logic";
 import { Badge, Button, Card, Chip, EmptyState, Field, Modal, PageHeader, SearchInput, Select, SkeletonCard, Tabs, Input, Textarea, Segmented } from "@/components/ui";
 import type { AdminRole, AdminUser } from "@/services/interfaces";
@@ -147,7 +147,7 @@ function Updates({ record }: { record: (action: string) => void }) {
   const { setFlag, flags, global } = useFeatures();
   const update = useAppUpdate();
   const toast = useToast();
-  const [version, setVersion] = useState(APP_VERSION);
+  const [version, setVersion] = useState(FRONTEND_VERSION);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [severity, setSeverity] = useState<Release["severity"]>("recommended");
@@ -227,7 +227,7 @@ function Updates({ record }: { record: (action: string) => void }) {
         <Button size="sm" variant="ghost" onClick={() => void update.check()} loading={update.status === "checking"}>Neu laden</Button>
       </div>
       <div className="rounded-xl bg-surface-2 p-3 text-xs text-fg-muted">
-        Dieser Client: <span className="font-medium text-fg">{versionLabel()}</span> · Server: <span className="font-medium text-fg">{update.serverVersion ? `v${update.serverVersion}` : "—"}</span>{update.available && <Badge tone="warning" className="ml-2">Update verfügbar</Badge>}
+        Dieser Client: <span className="font-medium text-fg">{versionLabel()}</span> · Backend: <span className="font-medium text-fg">v{BACKEND_VERSION}</span> · Server: <span className="font-medium text-fg">{update.serverVersion ? `v${update.serverVersion}` : "—"}</span>{update.available && <Badge tone="warning" className="ml-2">Update verfügbar</Badge>}
       </div>
       {update.releases.length === 0 ? <p className="py-6 text-center text-sm text-fg-muted">Noch nichts veröffentlicht.</p> : update.releases.map((r) => (
         <div key={r.id} className="relative">

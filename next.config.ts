@@ -12,7 +12,7 @@ import type { NextConfig } from "next";
  * verwendet. Der Client vergleicht seine ID mit `/api/version` → Update erkannt.
  * `APP_BUILD_ID` erlaubt eine feste ID (z. B. Git-SHA in CI).
  */
-const APP_VERSION: string = JSON.parse(readFileSync(path.resolve("package.json"), "utf8")).version;
+const APP_VERSION: string = JSON.parse(readFileSync(path.resolve("version.json"), "utf8")).frontend.version;
 // Next wertet die Config pro Build mehrfach aus (Haupt- und Worker-Prozesse). Die erste Auswertung legt
 // ID + Zeit in process.env ab; spätere Auswertungen/Worker erben sie → Client, Server und BUILD_ID stimmen überein.
 process.env.APP_BUILD_ID = (process.env.APP_BUILD_ID || `${Date.now().toString(36)}${randomBytes(3).toString("hex")}`).replace(/[^a-zA-Z0-9_-]/g, "");

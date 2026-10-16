@@ -21,6 +21,32 @@ Autor: Codex (OpenAI).
 
 ---
 
+## 🔒 Projektregeln des Eigners (verbindlich)
+
+**Versionierung** – zentral in `version.json` (Root), Prüfung per `npm run version:check` (CI + Vitest):
+
+- Frontend (Codename + Version) und Backend (Version) werden **getrennt** versioniert. Der **Codename** ist
+  festgesetzt, gilt nur fürs Frontend; das Backend hat keinen Codename.
+- **Versionen (`frontend.version`, `backend.version`, `codename`) vergibt ausschließlich der Eigner.** Nur auf
+  ausdrückliche Anweisung ändern – danach `npm run version:sync` (gleicht `package.json`, Lockfiles und
+  `apps/api/src/version.generated.ts` ab). Niemals „aus Gewohnheit“ hochzählen.
+- **Build-Nummer:** nach **jeder abgeschlossenen Aufgabe** `npm run version:build` ausführen. Format `YYMMDDHH`
+  in Europe/Berlin (Beispiel: 25.09.2026 18:22 → `26092518`). Sie ist nur Anzeige; die Update-Erkennung nutzt
+  weiter die zufällige Build-ID (`/api/version` → `build`), damit zwei Builds in derselben Stunde unterscheidbar bleiben.
+- Module (Vorbereitung): optionale Einträge `"frontend.<modul>"`/`"backend.<modul>"` → `{ "version": "x.y.z" }` unter
+  `modules` in `version.json`; ohne Eintrag erben sie die Version der Komponente (`moduleVersion()`).
+- Anzeige: Login-Footer, Einstellungen → Updates, Dev-Admin → Updates, `GET /api/version` (Frontend + Backend),
+  Standalone-API `GET /version`.
+
+**Preview & Doku:**
+
+- Eine Preview muss **immer** möglich sein: `npm run preview` (baut bei Bedarf, startet Postgres/DB, serviert auf `0.0.0.0:3000`).
+  In der Agent-Sandbox als Hintergrundprozess starten und die **aktuelle Preview-URL** (`https://3000-<sandbox-id>.e2b.app`) mitteilen.
+- Doku nach **jeder** abgeschlossenen Aufgabe pflegen (CHANGELOG, PROGRESS, TESTING, HANDOFF/TODO bei Bedarf).
+- Bei Unklarheiten **erst fragen**, keine Annahmen treffen.
+
+---
+
 ## ⚙️ Build & Dev
 
 ```bash
@@ -33,6 +59,8 @@ npm run lint         # ESLint (inkl. react-hooks), CI-blockierend
 npm test             # Vitest (Frontend)
 npm run test:api     # API-Integrationstests (nur *_test-DB!)
 npm run build:vite   # Vite-Legacy → dist/index.html (Single-File)
+npm run preview      # Preview-Server (Prod-Build + Postgres) auf :3000
+npm run version:build # Build-Nummer YYMMDDHH setzen (nach jeder abgeschlossenen Aufgabe)
 npm run test:e2e     # Playwright-Browser-E2E (braucht `npm run build` + PostgreSQL, Wegwerf-DB!)
 ```
 
@@ -126,7 +154,7 @@ daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` re
   Pfade `/media/<id>` immer über `resolveMedia()` anzeigen (SmartImage/Avatar machen das automatisch).
 - **Feature-Flags**: neuer Key → `src/config/features.ts` **und** `apps/api/src/lib/feature-keys.ts`
   (+ Pfad-Zuordnung in `apps/api/src/lib/features.ts`); Paritätstest schlägt sonst fehl.
-- **Releases**: `package.json` `version` anheben; Neuigkeiten im Dev-Admin → „Updates“ veröffentlichen.
+- **Releases**: Versionsnummern vergibt nur der Eigner (`version.json`, siehe „Projektregeln“); Neuigkeiten im Dev-Admin → „Updates“ veröffentlichen.
   Update-Erkennung läuft automatisch über die Build-ID (`/api/version`).
 - **Aktueller Nutzer**: `useCurrentUser()` aus `@/lib/auth` – nie `currentUser` aus den Mocks.
 - **npm**: Root-`.npmrc` (`legacy-peer-deps=true`) ist ein bewusster Workaround – nicht löschen.

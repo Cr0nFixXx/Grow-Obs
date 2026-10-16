@@ -23,6 +23,7 @@ import { adminFeaturesApi, featuresApi } from "./routes/features.ts";
 import { requireFeature } from "./lib/features.ts";
 import { adminReleasesApi, releasesApi } from "./routes/releases.ts";
 import { presignUpload } from "./lib/s3.ts";
+import { BACKEND_VERSION, BUILD_NUMBER, BACKEND_MODULE_VERSIONS } from "./version.generated.ts";
 
 // Export without starting a port so integration tests can use app.request().
 export const app = new Hono<AuthEnv>();
@@ -39,6 +40,8 @@ app.use("*", (c, next) => (c.req.method === "POST" && c.req.path === "/media" ? 
 
 // Liveness only. Detailed dependency status requires a platform-admin session.
 app.get("/health", (c) => c.json({ ok: true, check: "liveness", ts: new Date().toISOString() }));
+// Öffentlich: Backend-Version + Build-Nummer (zentral aus version.json, siehe scripts/version.mjs).
+app.get("/version", (c) => c.json({ component: "backend", version: BACKEND_VERSION, build: BUILD_NUMBER, modules: BACKEND_MODULE_VERSIONS }));
 // Deaktivierte Features serverseitig sperren (vor allen Fach-Routen).
 app.use("*", requireFeature);
 app.route("/features", featuresApi);

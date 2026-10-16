@@ -101,6 +101,7 @@ All responses carry `Cache-Control: private, no-store`. A bearer JWT is required
 | Method / path | Access / behavior |
 | --- | --- |
 | GET `/health` | Liveness only; does not imply DB/storage availability |
+| GET `/version` | Public: backend version + build number (generated from the root `version.json`) |
 | POST `/auth/register`, `/auth/login` | Credentials; role defaults to member; normalized email |
 | GET `/auth/me` | Current session user including explicit `role` |
 | GET/POST `/grows`, GET `/grows/:id`, POST `/grows/:id/logs` | Authenticated owner |

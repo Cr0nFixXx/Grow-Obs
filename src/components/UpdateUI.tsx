@@ -4,7 +4,7 @@ import { useNav, type ViewKey } from "@/lib/nav";
 import { useAppUpdate } from "@/lib/update";
 import { useFeatures } from "@/config/FeatureContext";
 import { featureMeta, type FeatureKey } from "@/config/features";
-import { APP_VERSION, versionLabel } from "@/lib/app-version";
+import { APP_CODENAME, BACKEND_VERSION, BUILD_NUMBER, FRONTEND_VERSION, versionLabel } from "@/lib/app-version";
 import { Icon } from "@/components/Icon";
 import { Badge, BottomSheet, Button, Card, Segmented, Toggle } from "@/components/ui";
 import type { Release } from "@/lib/update-logic";
@@ -123,7 +123,9 @@ export function UpdateSettingsCard() {
         <Toggle checked={u.prefs.showWhatsNew} onChange={(v) => u.setPrefs({ showWhatsNew: v })} label="Was ist neu anzeigen" />
       </div>
       <div className="rounded-xl bg-surface-2 p-3 text-sm">
-        <div className="flex items-center justify-between gap-2"><span className="text-fg-muted">Installiert</span><span className="font-medium tnum">v{APP_VERSION} <span className="text-fg-subtle">({versionLabel().split(" · ")[1]})</span></span></div>
+        <div className="flex items-center justify-between gap-2"><span className="text-fg-muted">Frontend · {APP_CODENAME}</span><span className="font-medium tnum">v{FRONTEND_VERSION}</span></div>
+        <div className="mt-1 flex items-center justify-between gap-2"><span className="text-fg-muted">Backend</span><span className="font-medium tnum">v{BACKEND_VERSION}</span></div>
+        <div className="mt-1 flex items-center justify-between gap-2"><span className="text-fg-muted">Build</span><span className="font-medium tnum">{BUILD_NUMBER}</span></div>
         <div className="mt-1 flex items-center justify-between gap-2"><span className="text-fg-muted">Status</span><span className={u.available ? "font-medium text-accent" : ""}>{statusText}</span></div>
       </div>
       <div className="flex flex-wrap gap-2">

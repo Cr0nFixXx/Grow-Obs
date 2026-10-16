@@ -11,6 +11,7 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-52 | Zentrale Versionierung (`version.json`, Skript, Backend-Generierung, CI-Check, Anzeige), Preview-Skript, Eigner-Regeln in CLAUDE/HANDOFF | typecheck ✅ lint ✅ vitest 91/91 ✅ API 36/36 ✅ (+ API-Typecheck) E2E 8 ✅ + 1 fixme · next build ✅ vite build ✅ · Build-Nummer siehe `version.json` | Arena Agent |
 | B-51 | Härtung: Rate-Limits (Login/Register/Upload), JWT-Pflicht in Produktion, hero.jpg-Build-Fix, Root-Lockfile, Playwright-E2E + Migration 0006 (Forum-Bereiche) | Node 22.23 · PG 17 · typecheck ✅ lint ✅ vitest 86/86 ✅ API 34/34 ✅ E2E 7 ✅ + 1 fixme next build ✅ vite build ✅ (964 kB / 341 kB gzip) | Arena Agent |
 | B-50 | App-Updates: Build-ID + /api/version, Einstellungen (auto/nachfragen/manuell, Was ist neu), Admin-Releases inkl. Pflicht-Update + Feature-Freischaltung, Migration 0005 | API 24/24 ✅ · vitest ✅ · Update-Erkennung live mit zwei Builds ✅ (siehe TESTING.md) | Claude (Anthropic) |
 | B-49 | Globale Feature-Flags (DB + 403-Sperre + Polling/Fokus/PTR), echtes Pull-to-Refresh (leise, alle Ressourcen, SW-Update), Migration 0004 | API 23/23 ✅ · vitest 76/76 ✅ · Validierung siehe TESTING.md | Claude (Anthropic) |

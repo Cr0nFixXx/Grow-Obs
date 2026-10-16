@@ -18,6 +18,9 @@ jobs:
       - name: Required peer dependencies (legacy-peer-deps guard)
         run: npm run check:peers
 
+      - name: Versionierung konsistent (version.json ↔ package.json ↔ Backend)
+        run: npm run version:check
+
       - name: Next route types
         run: npx next typegen
 

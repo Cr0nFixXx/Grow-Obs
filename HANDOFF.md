@@ -12,6 +12,26 @@ typecheck ✅ · lint ✅ · 86 Frontend-Tests ✅ · 34 API-Integrationstests �
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
 
+## B-52: Zentrale Versionierung + Preview-Skript (Arena Agent)
+
+- **`version.json` (Root)** ist die einzige Quelle: `frontend {codename, version}`, `backend {version}`, `build`, `modules`.
+  Stand: Frontend **„Ruderalis“ v0.1.1**, Backend **v0.0.2** (vom Eigner vorgegeben; ersetzt die frühere
+  Zählung 0.50.0 / B-xx als Versionsnummer – die B-Nummern bleiben als Build-Protokoll in `PROGRESS.md`).
+- **`scripts/version.mjs`** (`npm run version:sync|check|build|show`): synchronisiert `package.json` + Lockfiles und erzeugt
+  `apps/api/src/version.generated.ts` (das Backend-Docker-Image sieht nur `apps/api/`, daher kein Root-Import).
+  `version:check` läuft in CI und als Vitest (`src/lib/version.test.ts`). Es gibt bewusst **kein** Kommando zum
+  Hochzählen von Versionen – die vergibt der Eigner.
+- **Build-Nummer** `YYMMDDHH` (Europe/Berlin, DST-sicher getestet) setzt `npm run version:build` **nach jeder abgeschlossenen Aufgabe**.
+- **Update-Erkennung unverändert:** weiter über die zufällige Build-ID (`/api/version` → `build`). Neu in der Antwort:
+  `codename`, `buildNumber`, `backend.version`. API: `GET /version` (öffentlich, Standalone).
+- **Anzeige:** Login-Footer (`data-testid="app-version"`), Einstellungen → Updates (Frontend/Backend/Build), Dev-Admin.
+  Mock-Release („Was ist neu“) nutzt jetzt die aktuelle Frontend-Version.
+- **Module vorbereitet:** `modules` in `version.json` + `moduleVersion()` (Frontend, Backend); ohne Eintrag Vererbung.
+- **Preview:** `npm run preview` (`scripts/preview.sh`): Postgres/DB sicherstellen, bei Bedarf bauen, `next start` auf `0.0.0.0:3000`.
+- **Falle:** Wer `npm install --prefix apps/api` im selben Checkout ausführt, bekommt eine zweite `drizzle-orm`-Kopie →
+  `next build` bricht in `src/server/embedded-api.ts` mit einem Typfehler ab. Für API-Typechecks danach
+  `rm -rf apps/api/node_modules` (CI trennt die Jobs, daher dort unkritisch).
+
 ## B-51: Härtung, Browser-E2E, Build-Fix (Arena Agent)
 
 - **Build-Fix:** `src/assets/hero.jpg` fehlte auf Branch `A` (Commit `2a81529` hatte sie gelöscht) → beide
@@ -62,7 +82,7 @@ API-Integrationstests (13/13, Wegwerf-DB `growobserver_test`), Smoke-Test `next 
 - **Erkennung:** Jeder Build bekommt eine ID (`next.config.ts` → `generateBuildId` + `NEXT_PUBLIC_APP_BUILD`,
   optional fest per `APP_BUILD_ID`). Client vergleicht mit **`/api/version`** (Next-Route, liest
   `.next/BUILD_ID`) beim Start, bei Sichtbarkeit/Online, alle 5 Min. und bei Pull-to-Refresh.
-  App-Version = `package.json` `version` (jetzt **0.50.0** – bei Releases anheben).
+  App-Version = `version.json` → `frontend.version` (Eigner vergibt; B-52, `package.json` wird per `npm run version:sync` nachgezogen).
 - **Nutzer-Einstellung** (Profil → Einstellungen → App-Updates, pro Gerät `go-update-prefs`):
   *Automatisch* (still neu laden beim Start oder wenn die App im Hintergrund ist – nie mitten in einer
   Eingabe), *Nachfragen* (Banner, Standard), *Manuell* (Hinweis im Menü/Einstellungen) +
@@ -613,6 +633,8 @@ Nur mit einer separaten `*_test`-Datenbank, da Testdaten gelöscht werden.
 
 Zusätzlich:
 
+- `npm run version:check` grün; **Build-Nummer setzen** (`npm run version:build`) – Versionen nur auf Anweisung des Eigners
+- Preview starten (`npm run preview`) und die aktuelle Preview-URL mitteilen
 - Mobile und Desktop prüfen
 - Mock- und API-Modus testen
 - CHANGELOG und PROGRESS aktualisieren

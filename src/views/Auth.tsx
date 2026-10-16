@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { n } from "@/lib/format";
+import { versionLabel } from "@/lib/app-version";
 
 const heroImg = assetSrc(heroAsset);
 
@@ -156,6 +157,7 @@ export default function Auth() {
             </p>
           </Card>
           <p className="mt-4 text-center text-xs text-fg-subtle">Schon {n(12400)} Grower vertrauen Grow|Observer.</p>
+          <p className="mt-1 text-center text-[11px] text-fg-subtle tnum" data-testid="app-version">{versionLabel()}</p>
         </motion.div>
       </div>
     </div>

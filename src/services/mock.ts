@@ -21,6 +21,7 @@ import {
   wikiCategories,
 } from "@/mocks/data";
 import { dbGet, dbSet } from "@/lib/db";
+import { APP_VERSION } from "@/lib/app-version";
 import type { Grow, SocialPost, Strain, Task } from "@/types";
 import type { CommunityDetail } from "@/types";
 import type {
@@ -188,7 +189,7 @@ const featureService: FeatureService = {
 
 /** Demo-Releases (Session). Seed = aktuelle Version, damit „Was ist neu“ etwas zeigt. */
 const releaseStore: Release[] = [{
-  id: "rel-0.50.0", version: "0.50.0", title: "App-Updates & Neuigkeiten", severity: "recommended", features: [],
+  id: `rel-${APP_VERSION}`, version: APP_VERSION, title: "App-Updates & Neuigkeiten", severity: "recommended", features: [],
   notes: ["Die App erkennt neue Versionen selbst", "Update-Verhalten in den Einstellungen wählbar", "„Was ist neu“ nach jedem Update"],
   publishedAt: "2026-09-24T00:00:00.000Z",
 }];

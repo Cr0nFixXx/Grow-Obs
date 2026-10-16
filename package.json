@@ -1,7 +1,7 @@
 {
   "name": "grow-observer",
   "private": true,
-  "version": "0.50.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -17,7 +17,12 @@
     "test:api": "vitest run --config vitest.backend.config.ts",
     "check:peers": "node scripts/check-peers.mjs",
     "test:api:local": "bash scripts/test-api.sh",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "version:show": "node scripts/version.mjs show",
+    "version:sync": "node scripts/version.mjs sync",
+    "version:check": "node scripts/version.mjs check",
+    "version:build": "node scripts/version.mjs build",
+    "preview": "bash scripts/preview.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1139.0",

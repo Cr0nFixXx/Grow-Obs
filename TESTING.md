@@ -2,6 +2,11 @@
 
 ## Status
 
+**B-52 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 91/91 ✅ (neu: `src/lib/version.test.ts` – Version/Build-Format,
+Sync mit `package.json`/Lockfiles/Backend, Build-Nummer inkl. Sommer-/Winterzeit), `npm run test:api` 36/36 ✅ (neu: `/version`,
+Modul-Vererbung), API-Typecheck + `tsc -p tsconfig.tools.json` ✅, `next build` ✅, `build:vite` ✅, Playwright 8 ✅ + 1 `fixme`
+(neu: Versionsanzeige + `/api/version`).
+
 **B-51 (Arena Agent) – Node 22.23, PostgreSQL 17, tatsächlich ausgeführt:** `npx next typegen` ✅,
 `npm run typecheck` ✅, `npm run lint` ✅, `npm test` 86/86 ✅, `npm run test:api` 32/32 ✅ (inkl. 8 neue
 Rate-Limit-Tests), `npm run check:peers` ✅, `npm run build` ✅, `npm run build:vite` ✅ (964.33 kB / 341.18 kB gzip).

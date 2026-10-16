@@ -1,5 +1,19 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { PASSWORD, openAuth, register, uniqueEmail } from "./helpers";
+
+test.describe("Versionierung", () => {
+  test("Login-Seite zeigt Codename, Frontend-Version und Build; /api/version nennt Frontend und Backend", async ({ page, request }) => {
+    const config = JSON.parse(readFileSync(path.resolve("version.json"), "utf8")) as { frontend: { codename: string; version: string }; backend: { version: string }; build: string };
+    await openAuth(page);
+    await expect(page.getByTestId("app-version")).toHaveText(`${config.frontend.codename} v${config.frontend.version} · Build ${config.build}`);
+
+    const body = await (await request.get("/api/version")).json();
+    expect(body).toMatchObject({ version: config.frontend.version, codename: config.frontend.codename, buildNumber: config.build, backend: { version: config.backend.version } });
+    expect(typeof body.build).toBe("string"); // Laufzeit-ID für die Update-Erkennung bleibt erhalten
+  });
+});
 
 test.describe("Konto & Session", () => {
   test("Registrieren → Session übersteht Reload → Abmelden → erneut Anmelden", async ({ page }) => {

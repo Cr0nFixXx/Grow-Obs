@@ -9,6 +9,17 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-52 – Zentrale Versionierung, Preview (Arena Agent)
+
+- **Neu:** `version.json` als einzige Versionsquelle: Frontend-Codename „Ruderalis“ + **v0.1.1**, Backend **v0.0.2**,
+  Build-Nummer `YYMMDDHH` (Europe/Berlin), `modules` als Vorbereitung für Modul-Versionen. Vom Eigner vorgegeben.
+- **Neu:** `scripts/version.mjs` (`version:sync|check|build|show`), generierte `apps/api/src/version.generated.ts`,
+  CI-Check, Vitest-Prüfung; Anzeige im Login-Footer, in Einstellungen/Dev-Admin; `GET /api/version` mit Frontend + Backend,
+  Standalone-API `GET /version`. Update-Erkennung (Build-ID) unverändert.
+- **Neu:** `npm run preview` (`scripts/preview.sh`) – Preview ist jederzeit startbar.
+- `package.json`: 0.50.0 → 0.1.1, `apps/api/package.json`: 0.1.0 → 0.0.2 (Vorgabe des Eigners; frühere 0.x-Zählung ist historisch).
+- Tests: Frontend 91 (+5), API 36 (+2), E2E 8 + 1 fixme (+1).
+
 ### B-51 – Härtung: Rate-Limits, JWT-Pflicht, Build-Fix (Arena Agent)
 
 - **Fix:** `src/assets/hero.jpg` war in `2a81529` gelöscht, wird aber von Auth/Onboarding importiert →
