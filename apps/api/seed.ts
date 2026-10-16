@@ -75,7 +75,7 @@ async function main() {
 
   // Katalog: Subs
   const subsData = ["r/GrowTagebuch", "r/LivingSoil", "r/Automatik", "r/Schädlinge", "r/DIY", "r/Erntezeit"];
-  await db.insert(subs).values(subsData.map((name) => ({ name })));
+  await db.insert(subs).values(subsData.map((name) => ({ name }))).onConflictDoNothing(); // Migration 0006 legt sie bereits an
 
   // Breeder
   const breedersData = [

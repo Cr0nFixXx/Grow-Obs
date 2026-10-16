@@ -5,6 +5,9 @@
 **B-51 (Arena Agent) – Node 22.23, PostgreSQL 17, tatsächlich ausgeführt:** `npx next typegen` ✅,
 `npm run typecheck` ✅, `npm run lint` ✅, `npm test` 86/86 ✅, `npm run test:api` 32/32 ✅ (inkl. 8 neue
 Rate-Limit-Tests), `npm run check:peers` ✅, `npm run build` ✅, `npm run build:vite` ✅ (964.33 kB / 341.18 kB gzip).
+Nach den E2E-Ergänzungen (B-51, später am selben Tag): API 34/34 (+2 Migrations-Tests), **Playwright-E2E 7 grün /
+1 `fixme`** (`npm run test:e2e`: Registrieren/Reload/Abmelden/Login, falsches Passwort, AGB-Pflicht, Grow anlegen,
+Forum-Thread, Deep-Link, Mobile Pixel 5). Auf einer frischen DB bestätigt (6 Forum-Bereiche via Migration 0006).
 Baseline vor den B-51-Änderungen: 82 Frontend- und 24 API-Tests; beide Builds waren wegen der fehlenden
 `src/assets/hero.jpg` rot. Frühere Zahlen weiter unten (52/52, 76/76 …) sind historisch.
 

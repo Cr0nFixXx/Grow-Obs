@@ -2,14 +2,35 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-42. **Next.js 16 ist jetzt der primäre Runtime-Build** (SPA-Hülle, `/api/health`);
-Vite bleibt als Legacy-Single-File-Build. API **kompiliert, gebaut, 13/13 Integrationstests grün**
-gegen PostgreSQL 16. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
+**Stand:** B-51 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
+typecheck ✅ · lint ✅ · 86 Frontend-Tests ✅ · 34 API-Integrationstests ✅ · 7 Browser-E2E-Tests (Playwright) ✅ ·
+`next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-51: Härtung, Browser-E2E, Build-Fix (Arena Agent)
+
+- **Build-Fix:** `src/assets/hero.jpg` fehlte auf Branch `A` (Commit `2a81529` hatte sie gelöscht) → beide
+  Builds rot. Wiederhergestellt. **Binärdateien beim Committen prüfen** (`git status`/`git show --stat`).
+- **Rate-Limits** (`apps/api/src/middleware/rate-limit.ts`): Login 10/15 min pro IP + pro E-Mail, Register 10/h/IP,
+  Upload 30/10 min/Nutzer; `429` + `Retry-After`. Pro Prozess; `TRUST_PROXY=false`, `RATE_LIMIT_DISABLED=true`.
+- **JWT-Pflicht:** Embedded-API bricht in Produktion ohne `JWT_SECRET` ab (503); Opt-out
+  `ALLOW_EPHEMERAL_JWT_SECRET=true` (`src/server/jwt-secret.ts`).
+- **Browser-E2E:** `npm run test:e2e` (Playwright, Produktions-Build, Wegwerf-DB `growobserver_e2e`, Port 3100;
+  `npx playwright install chromium` einmalig). Specs in `e2e/` (Konto/Session, Grow, Forum, Deep-Link, Mobile/Pixel 5).
+  CI-Job `e2e` in `.github/workflows/ci.yml`. **Nie gegen eine Produktiv-DB richten** (legt Nutzer an).
+- **Bug durch E2E gefunden:** Auf Datenbanken ohne Demo-Seed gab es keine Forum-Bereiche (`subs`) → Threads
+  erstellen scheiterte mit 404. Migration `0006_default_forum_subs.sql` legt die sechs Standard-Bereiche an
+  (idempotent); `seed.ts` nutzt `onConflictDoNothing`.
+- **Bekannt, offen (`test.fixme` in `e2e/app.spec.ts`):** Das Dashboard zeigt im API-Modus auch für neue Nutzer
+  statische Demo-Zahlen („2 Aktive Grows“, „168 €“, „94 %“, KI-Empfehlung zur VPD) aus `src/mocks/data`.
+  Außerdem: Avatar-Fallback zeigt Alt-Text („Avat…“) statt Initialen; Register-Formular nennt die
+  12-Zeichen-Mindestlänge nicht vorab.
+- **Lockfile:** Root-`package-lock.json` ist eingecheckt. Frühere „`npm ci`“-Hinweise galten nicht für das Repo.
 
 ## B-42: Blocker-Fixes + Next.js-Hülle (Claude · Anthropic)
 
@@ -501,8 +522,9 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 
 ## 8. Noch offen
 
-- Docker-Stack wurde in dieser Agent-Umgebung nicht real gestartet
-- `apps/api`: Typecheck, Build und Integrationstests laufen (B-42); Docker-Stack ungetestet
+- Docker-Stack wurde in dieser Agent-Umgebung nicht real gestartet (Docker nicht verfügbar)
+- `apps/api`: Integrationstests (34) laufen gegen PostgreSQL 17 (B-51); Docker-Stack ungetestet
+- Dashboard & weitere Views zeigen im API-Modus noch statische Demo-Daten (`src/mocks/data`: Strains, Simulation, Consumption, Showcase, Wiki, Calculator, Social, Dashboard, AIAssistant)
 - Communities: Feed-Scope, Kick, Hide und Mod-Queue fehlen; Rechte-/Invite-Tests sind geschrieben,
   ihre Ausführung gegen PostgreSQL steht aus
 - Realtime/Presence fehlen
@@ -513,7 +535,7 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
   Offen: Virenscan, serverseitige Neukodierung, private Bilder (Download-Autorisierung), Aufräumen
   verwaister Uploads
 - Next.js ist aktiv als SPA-Hülle (B-42); File-based-Routing und Monorepo (`apps/web`) stehen aus
-- API-Integrationstests und CI-Job existieren; Browser-E2E, Docker und Geräteprüfung noch unbestätigt
+- API-Integrationstests, Browser-E2E (Playwright, B-51) und CI-Jobs existieren; Docker und echte Geräte (iOS/Android-Touch) noch unbestätigt
 - Bearer-Token liegen weiterhin im Browser-Storage. Server-Logout/Revocation und HttpOnly-Session-
   Migration sind nicht Bestandteil dieser Änderung
 - Abhängigkeiten-Audit (B-45): Frontend 0; API 4× moderat (drizzle-kit/esbuild, nur CLI)
@@ -557,7 +579,7 @@ Erst wenn 1–4 grün sind, ist die API als "lokal lauffähig" zu betrachten.
 ### 9.2 Danach (Reihenfolge)
 
 1. Frontend mit `NEXT_PUBLIC_API_URL=http://localhost:8787` bauen und API-Modus durchklicken
-2. E2E: Register/Login -> Grow -> Post -> Forum -> Community-Invite -> DevAdmin-Health
+2. E2E erweitern (Basis steht seit B-51: Register/Login, Grow, Forum, Mobile): Post, Community-Invite, DevAdmin-Health
 3. DevAdmin-Live-Checks verifizieren; serverseitige Flag-Freigaben und Audit ergänzen
 4. Communities: Kick, Hide, Mod-Queue und Community-Feed-Scope
 5. SSE/Realtime für Chat und Notifications

@@ -25,3 +25,9 @@ coverage/
 .config/
 .npm/
 .sudo_as_admin_successful
+
+# Playwright
+test-results/
+playwright-report/
+.cache/
+.local/

@@ -20,7 +20,11 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 - **Neu:** Embedded-API bricht in Produktion ohne `JWT_SECRET` ab (503 + Log) statt ein flüchtiges
   Secret zu erzeugen. Bewusster Opt-out: `ALLOW_EPHEMERAL_JWT_SECRET=true`.
 - **Repo:** Root-`package-lock.json` eingecheckt; `.archive/` und Sandbox-Ordner aus Git/ESLint ausgenommen.
-- Tests: API 32/32 (+8), Frontend 86/86 (+4; Baseline vor B-51: 82 bzw. 24).
+- **Neu:** Browser-E2E mit Playwright (`npm run test:e2e`, `e2e/`, CI-Job `e2e`): Konto/Session, Grow, Forum, Deep-Link, Mobile.
+- **Fix (per E2E gefunden):** Forum-Bereiche fehlten auf Datenbanken ohne Demo-Seed → Thread-Erstellung 404.
+  Migration `0006_default_forum_subs.sql` (idempotent), Seed angepasst.
+- **Bekannt:** Dashboard zeigt im API-Modus statische Demo-Daten (`test.fixme`), Avatar-Fallback zeigt Alt-Text.
+- Tests: API 34/34 (+10), Frontend 86/86 (+4), E2E 7 + 1 fixme (Baseline vor B-51: 82 bzw. 24 bzw. 0).
 
 ### B-50 – App-Updates (Claude / Anthropic)
 
