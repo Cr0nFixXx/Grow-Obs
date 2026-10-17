@@ -21,13 +21,14 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 - [x] Dashboard & Co. im API-Modus ohne statische Demo-Daten (B-53, E2E grün). Offen: Verbrauch/Kosten, KI-Anbindung, Rezepte, Stories, Bewertungen haben noch keine Datenquelle (Leerzustände).
 - [ ] Abhängigkeiten-Audit: 9 gemeldete Advisories genauer prüfen und beheben (TESTING.md).
 - [x] Auth/Upload-Rate-Limits (B-51, pro Prozess) – [x] Session-Revocation + HttpOnly-Cookie (B-54) – [x] sicheres Betreiber-Bootstrap (B-56, CLI `admin:create`).
+- [x] Einmalpasswort erzwingt Passwortwechsel + `--reset-password` (B-58)
 - [x] Sitzungen: Passwort ändern (beendet andere Sitzungen), Anmeldeprotokoll, Gerätelimit 5 (B-55) – [ ] Rate-Limit über mehrere Instanzen (Redis).
 - [ ] Upload-Finalisierung/Byte-Prüfung, EXIF-Bereinigung, Downloadrechte und Storage-Quotas.
 - [ ] Migration einer bereits befüllten Installation testen; Images/Lockfiles pinnen.
 
 Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
 
-Prüfstand: **B-57** — Typecheck, Lint, 134 Frontend-Tests, 90 API-Integrationstests, 26 Browser-E2E, Next- und Vite-Build
+Prüfstand: **B-58** — Typecheck, Lint, 135 Frontend-Tests, 108 API-Integrationstests, 28 Browser-E2E, Next- und Vite-Build
 ausgeführt und grün (Node 22, PostgreSQL 17). **Docker/MinIO wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
 Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-

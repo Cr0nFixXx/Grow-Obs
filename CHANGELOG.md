@@ -9,6 +9,24 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-58 – Erzwungener Passwortwechsel nach Einmalpasswort (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Neue Spalte `users.must_change_password`** (Migration `0009_must_change_password.sql`, Standard `false`). `admin:create` setzt sie
+  für **neu angelegte** Betreiber-Konten; `--promote` setzt sie **nicht** (das Passwort des Kontos bleibt ja).
+- **Server erzwingt es:** `requireAuth` antwortet für solche Konten mit **403** `{ code: "password_change_required" }`. Erlaubt sind nur
+  `GET /auth/me`, `POST /auth/password` und `POST /auth/logout-all` (plus `POST /auth/logout`). Öffentliche Routen (`optionalAuth`)
+  behandeln das Konto als anonym. `POST /auth/password` hebt die Sperre auf (neues Passwort muss sich vom alten unterscheiden).
+  `GET /auth/me` und die Anmeldeantwort enthalten `mustChangePassword`.
+- **UI:** Vollbild-Sperre „Neues Passwort festlegen“ (`ForcedPasswordChange`) statt der App, unabhängig von der URL (auch tiefe Links);
+  mit „Abmelden“. Nach dem Wechsel öffnet sich die App am gewünschten Ziel.
+- **Neu: `admin:create --reset-password`** für ausgesperrte Betreiber: neues Einmalpasswort (einmalig angezeigt), Wechsel erzwungen, alle
+  Sitzungen enden, Ereignis `password_changed` (Gerät „Betreiber-CLI“). Gilt nur für vorhandene Betreiber (sonst Fehler mit Hinweis).
+- **Tests:** API 90 → 108 (`password-enforcement.integration.test.ts`, erweiterte `operator.integration.test.ts`, Migration 0009),
+  Frontend 134 → 135, E2E 26 → 28 (`forced-password.spec.ts`; das Einmalpasswort-Konto wird dort per SQL-Flag simuliert, die CLI deckt
+  der API-Test ab). CLI zusätzlich real gegen `dist/` geprüft (reset ohne Konto, neu, reset, reset bei Mitglied).
+
 ### B-57 – URL-Routing (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

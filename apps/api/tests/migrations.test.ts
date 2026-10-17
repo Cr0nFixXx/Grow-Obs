@@ -14,6 +14,11 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0009 ergänzt die Pflichtwechsel-Spalte mit Standard false", () => {
+    const sql = readFileSync(`${dir}0009_must_change_password.sql`, "utf8");
+    expect(sql).toContain('"must_change_password" boolean DEFAULT false NOT NULL');
+  });
+
   it("0008 legt das Anmeldeprotokoll ohne IP-Spalte an", () => {
     const sql = readFileSync(`${dir}0008_login_events.sql`, "utf8");
     expect(sql).toContain('CREATE TABLE "login_events"');

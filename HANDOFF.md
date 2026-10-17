@@ -2,15 +2,24 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-57 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-58 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 134 Frontend-Tests ✅ · 90 API-Integrationstests ✅ · 26 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 135 Frontend-Tests ✅ · 108 API-Integrationstests ✅ · 28 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-58: Erzwungener Passwortwechsel (Arena Agent)
+
+- `users.must_change_password` (0009). Gesetzt von `provisionOperator` bei Neuanlage und `--reset-password`; gelöscht von `POST /auth/password`.
+- Server: `middleware/auth.ts` → `requireAuth` sperrt (403 `password_change_required`), `requireAuthAllowPending` nur für
+  `/auth/me`, `/auth/password`, `/auth/logout-all`. **Neue Endpunkte müssen `requireAuth` verwenden (nie `requireAuthAllowPending`).**
+  `optionalAuth` → anonym. Client: `Shell` in `src/App.tsx` zeigt `ForcedPasswordChange` (`AccountSecurity.tsx`) vor allem anderen.
+- Entscheidungen des Eigners: Zwang nach Einmalpasswort + Befehl `--reset-password` für Ausgesperrte; Sperre serverseitig (Empfehlung).
+- Offen: kein Passwort-Reset für normale Mitglieder (keine E-Mail-Infrastruktur), Docker-Service `admin` ungetestet.
 
 ## B-57: URL-Routing (Arena Agent)
 

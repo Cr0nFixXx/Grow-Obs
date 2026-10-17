@@ -4,16 +4,29 @@ import { authenticate } from "../lib/session.ts";
 
 export type AuthEnv = { Variables: { userId: string; role: typeof users.$inferSelect.role; sessionId: string } };
 
-/** Verlangt eine gültige Sitzung (HttpOnly-Cookie) und legt userId/role/sessionId im Context ab. */
-export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
-  const session = await authenticate(c);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
-  c.set("userId", session.userId);
-  c.set("role", session.role);
-  c.set("sessionId", session.sessionId);
-  // DB/handler failures are not authentication failures.
-  await next();
-});
+/** Fehlercode, an dem der Client „Passwortwechsel erforderlich“ erkennt (403, nicht 401: die Sitzung ist gültig). */
+export const PASSWORD_CHANGE_REQUIRED = "password_change_required";
+
+function authMiddleware(allowPasswordChangePending: boolean) {
+  return createMiddleware<AuthEnv>(async (c, next) => {
+    const session = await authenticate(c);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    // B-58: Konten mit Einmalpasswort dürfen nur das Passwort ändern, sich ansehen (/auth/me) und abmelden.
+    if (session.mustChangePassword && !allowPasswordChangePending) {
+      return c.json({ error: "Bitte zuerst ein neues Passwort festlegen.", code: PASSWORD_CHANGE_REQUIRED }, 403);
+    }
+    c.set("userId", session.userId);
+    c.set("role", session.role);
+    c.set("sessionId", session.sessionId);
+    // DB/handler failures are not authentication failures.
+    await next();
+  });
+}
+
+/** Verlangt eine gültige Sitzung (HttpOnly-Cookie) und legt userId/role/sessionId im Context ab. Sperrt Konten mit offenem Passwortwechsel. */
+export const requireAuth = authMiddleware(false);
+/** Wie `requireAuth`, lässt aber auch Konten mit offenem Passwortwechsel durch (nur für /auth/me, /auth/password, /auth/logout-all). */
+export const requireAuthAllowPending = authMiddleware(true);
 
 /** Nur Plattform-Admins (Dev-Admin/Backend). */
 export const requirePlatformAdmin = createMiddleware<AuthEnv>(async (c, next) => {
@@ -29,7 +42,8 @@ export const requirePlatformAdmin = createMiddleware<AuthEnv>(async (c, next) =>
  */
 export const optionalAuth = createMiddleware<AuthEnv>(async (c, next) => {
   const session = await authenticate(c).catch(() => null);
-  if (session) {
+  // Konten mit offenem Passwortwechsel gelten auch auf öffentlichen Routen als anonym.
+  if (session && !session.mustChangePassword) {
     c.set("userId", session.userId);
     c.set("role", session.role);
     c.set("sessionId", session.sessionId);

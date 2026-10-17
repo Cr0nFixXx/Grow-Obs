@@ -38,6 +38,8 @@ export const users = pgTable("users", {
   title: text("title").notNull().default("Grower"),
   telegram: boolean("telegram").notNull().default(false),
   role: roleEnum("role").notNull().default("member"),
+  /** Gesetzt für Betreiber-Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel sind fast alle Endpunkte gesperrt. */
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

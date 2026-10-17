@@ -6,7 +6,7 @@ import { db } from "../db/client.ts";
 import { grows, loginEvents, sessions, users } from "../db/schema.ts";
 import { hashPassword, verifyPassword } from "../lib/password.ts";
 import { clearSessionCookie, deviceLabel, LOGIN_LOG_RETENTION_DAYS, recordLoginEvent, sessionIdFromCookie, startSession } from "../lib/session.ts";
-import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
+import { requireAuth, requireAuthAllowPending, type AuthEnv } from "../middleware/auth.ts";
 import { emailKey, rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { imageRef } from "../lib/media-ref.ts";
 
@@ -29,6 +29,7 @@ async function toUser(id: string) {
     level: u.level,
     title: u.title,
     role: u.role,
+    mustChangePassword: u.mustChangePassword,
     telegram: u.telegram,
     grows: g?.n ?? 0,
     harvests: h?.n ?? 0,
@@ -110,7 +111,7 @@ auth.patch("/me", requireAuth, async (c) => {
   return c.json(await toUser(c.get("userId")));
 });
 
-auth.get("/me", requireAuth, async (c) => {
+auth.get("/me", requireAuthAllowPending, async (c) => {
   const u = await toUser(c.get("userId"));
   if (!u) return c.json({ error: "Nicht gefunden" }, 404);
   return c.json(u);
@@ -125,7 +126,7 @@ auth.post("/logout", async (c) => {
 });
 
 /** „Alle Geräte abmelden“: beendet jede Sitzung des Nutzers, auch die aktuelle. */
-auth.post("/logout-all", requireAuth, async (c) => {
+auth.post("/logout-all", requireAuthAllowPending, async (c) => {
   await db.delete(sessions).where(eq(sessions.userId, c.get("userId")));
   clearSessionCookie(c);
   return c.body(null, 204);
@@ -168,7 +169,7 @@ const changePasswordSchema = z.object({
  * Passwort ändern: verlangt das aktuelle Passwort, beendet alle ANDEREN Sitzungen (diese bleibt angemeldet)
  * und protokolliert das Ereignis. Falsches Passwort → 403 (nicht 401, das wäre „Sitzung abgelaufen“).
  */
-auth.post("/password", requireAuth, passwordLimit, async (c) => {
+auth.post("/password", requireAuthAllowPending, passwordLimit, async (c) => {
   const body = changePasswordSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
   const { currentPassword, newPassword } = body.data;
@@ -179,7 +180,7 @@ auth.post("/password", requireAuth, passwordLimit, async (c) => {
     await recordLoginEvent(c, userId, "login_failed");
     return c.json({ error: "Aktuelles Passwort ist falsch" }, 403);
   }
-  await db.update(users).set({ passwordHash: await hashPassword(newPassword) }).where(eq(users.id, userId));
+  await db.update(users).set({ passwordHash: await hashPassword(newPassword), mustChangePassword: false }).where(eq(users.id, userId));
   await db.delete(sessions).where(and(eq(sessions.userId, userId), ne(sessions.id, c.get("sessionId"))));
   await recordLoginEvent(c, userId, "password_changed");
   return c.body(null, 204);

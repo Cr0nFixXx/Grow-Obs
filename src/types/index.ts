@@ -13,6 +13,8 @@ export interface User {
   followers: number;
   telegram: boolean;
   role: "member" | "moderator" | "admin" | "platform_admin";
+  /** Gesetzt für Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel ist die App gesperrt. */
+  mustChangePassword?: boolean;
 }
 
 /** Eingaben für neue Entitäten (Subset der Pflichtfelder). */

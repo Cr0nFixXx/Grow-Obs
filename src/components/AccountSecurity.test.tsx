@@ -77,3 +77,25 @@ describe("LoginHistoryCard", () => {
     expect(screen.getByText(/keine IP-Adresse/)).toBeTruthy();
   });
 });
+
+describe("ForcedPasswordChange", () => {
+  it("zeigt nur die Passwortänderung (mit Abmelden) und lädt nach Erfolg das Konto neu", async () => {
+    const refreshUser = vi.fn();
+    const logout = vi.fn();
+    vi.doMock("@/lib/auth", () => ({ useAuth: () => ({ user: { name: "Chef" }, refreshUser, logout }) }));
+    vi.resetModules();
+    const { ForcedPasswordChange } = await import("./AccountSecurity");
+    mocks.post.mockResolvedValue(undefined);
+    render(<ForcedPasswordChange />);
+    expect(screen.getByRole("heading", { name: "Neues Passwort festlegen" })).toBeTruthy();
+    expect(screen.getByText(/Einmalpasswort/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Abmelden" }));
+    expect(logout).toHaveBeenCalled();
+    fill("Aktuelles Passwort", "einmal-passwort-24-zeichen");
+    fill("Neues Passwort(?! wiederholen)", "mein-eigenes-passwort-1");
+    fill("Neues Passwort wiederholen", "mein-eigenes-passwort-1");
+    fireEvent.click(screen.getByRole("button", { name: "Passwort ändern" }));
+    await waitFor(() => expect(refreshUser).toHaveBeenCalled());
+    vi.doUnmock("@/lib/auth");
+  });
+});

@@ -79,8 +79,14 @@ npm run admin:create -- --email member@example.org --promote
 ```
 
 A new account gets a random one-time password (24 characters) that is printed once; there is no `--password`
-option (shell history). Change it in the profile after the first login. The command is idempotent and logs a
-`role_changed` event (device "Betreiber-CLI") in the login log.
+option (shell history). **The first login forces a password change** (`users.must_change_password`; until then the API
+answers every endpoint except `/auth/me`, `/auth/password` and logout with `403 password_change_required`). The command is
+idempotent and logs a `role_changed` event (device "Betreiber-CLI") in the login log.
+
+```sh
+# Locked-out operator: new one-time password, change forced again, all sessions ended
+npm run admin:create -- --email operator@example.org --reset-password
+```
 
 ### Local Node Setup
 

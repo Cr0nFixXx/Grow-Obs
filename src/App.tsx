@@ -19,6 +19,7 @@ import { Button, EmptyState, Skeleton, SkeletonCard } from "@/components/ui";
 import { useDelayedReady, usePrefersReducedMotion } from "@/lib/hooks";
 import Onboarding from "@/views/Onboarding";
 import Auth from "@/views/Auth";
+import { ForcedPasswordChange } from "@/components/AccountSecurity";
 import NotFound from "@/views/NotFound";
 
 /* Views werden einzeln nachgeladen (Code-Splitting). Shell-kritische Views bleiben eager. */
@@ -176,6 +177,8 @@ function Shell() {
 
   if (loading) return <div className="grid min-h-dvh place-items-center p-6" role="status"><p>Sitzung wird geprüft…</p></div>;
   if (sessionError) return <div className="mx-auto max-w-lg px-4 py-20"><EmptyState icon="Cloud" title="Verbindung erforderlich" desc={sessionError} action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={retrySession}>Erneut versuchen</Button><Button variant="secondary" onClick={logout}>Abmelden</Button></div>} /></div>;
+  // Einmalpasswort (B-58): bis zum Wechsel nur die Passwort-Sperre zeigen, unabhängig von der URL/Ansicht.
+  if (user?.mustChangePassword) return <><Background /><ForcedPasswordChange /></>;
   const showAuth = view === "auth" || !user;
 
   return (

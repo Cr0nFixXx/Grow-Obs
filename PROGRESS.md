@@ -11,6 +11,7 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-58 | Erzwungener Passwortwechsel nach Einmalpasswort (`must_change_password`/0009, Server-Sperre 403, Vollbild-UI), `admin:create --reset-password` | typecheck ✅ lint ✅ vitest 135/135 ✅ API 108/108 ✅ E2E 28/28 ✅ CLI real geprüft | Arena Agent |
 | B-57 | URL-Routing: Pfade (`/grows/<id>` …), History-Kopplung, tiefer Link nach Login, Catch-All-Route, SW-Routen, Teilen-Links | typecheck ✅ lint ✅ vitest 134/134 ✅ E2E 26/26 ✅ | Arena Agent |
 | B-56 | Betreiber-Bootstrap: `admin:create` (CLI, Zufallspasswort einmalig, `--promote` mit Sitzungsende, Protokoll `role_changed`), Docker-Profil `tools` | typecheck ✅ lint ✅ vitest 116/116 ✅ API 90/90 ✅ E2E 20/20 ✅ CLI real geprüft | Arena Agent |
 | B-55 | Passwort ändern (aktuelles Passwort, beendet andere Sitzungen), Anmeldeprotokoll ohne IP (90 Tage, `login_events`/0008), Gerätelimit 5 | typecheck ✅ lint ✅ vitest 116/116 ✅ API 83/83 ✅ E2E 20/20 ✅ | Arena Agent |

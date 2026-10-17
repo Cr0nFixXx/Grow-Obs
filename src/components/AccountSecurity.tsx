@@ -4,6 +4,7 @@ import { SessionsCard } from "@/components/SessionsCard";
 import { useToast } from "@/components/Toast";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { ApiError, http } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { config } from "@/lib/config";
 
 export const MIN_PASSWORD_LENGTH = 12;
@@ -118,5 +119,26 @@ export function AccountSecurity({ onSignedOut }: { onSignedOut?: () => void }) {
       <SessionsCard onSignedOut={onSignedOut} refreshKey={version} />
       <LoginHistoryCard refreshKey={version} />
     </div>
+  );
+}
+
+/**
+ * Vollbild-Sperre für Konten mit Einmalpasswort (B-58, z. B. per `admin:create` angelegt): Bis das Passwort geändert ist,
+ * lehnt der Server alles andere ab. Nach dem Wechsel lädt `refreshUser` das Konto neu und die App öffnet sich.
+ */
+export function ForcedPasswordChange() {
+  const { user, refreshUser, logout } = useAuth();
+  return (
+    <main className="relative z-10 mx-auto grid min-h-dvh w-full max-w-md content-center gap-4 p-4" data-testid="forced-password-change">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold">Neues Passwort festlegen</h1>
+        <p className="text-sm text-fg-muted">
+          {user?.name ? `${user.name}, dein` : "Dein"} Konto wurde mit einem Einmalpasswort angelegt. Aus Sicherheitsgründen musst du jetzt ein eigenes
+          Passwort wählen, bevor du die App nutzen kannst.
+        </p>
+      </div>
+      <PasswordCard onChanged={() => void refreshUser()} />
+      <Button variant="ghost" className="w-full" onClick={logout}>Abmelden</Button>
+    </main>
   );
 }

@@ -2,6 +2,13 @@
 
 ## Status
 
+**B-58 (Arena Agent) – ausgeführt:** typecheck ✅ (Frontend + `apps/api` Build/`tsconfig.tools.json`), lint ✅, `npm test` 135/135 ✅
+(`ForcedPasswordChange`), `npm run test:api` 108/108 ✅ (neu `password-enforcement.integration.test.ts`: Flag in `/auth/me`, 7 gesperrte
+Endpunkte mit Code, öffentliche Routen anonym, Logout erlaubt, falsches/gleiches Passwort, Entsperrung nach dem Wechsel, normale Konten
+unberührt; `operator.integration.test.ts`: Flag bei Neuanlage, `--promote` ohne Flag, `--reset-password` inkl. Fehlerfälle; Migration 0009),
+Playwright **28 ✅** (neu `forced-password.spec.ts`). Zusätzlich manuell: kompiliertes `dist/cli/admin-create.js` gegen frische DB.
+**Nicht ausgeführt:** Docker-Service `admin`.
+
 **B-57 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 134/134 ✅ (neu `routes.test.ts`: Hin-/Rückweg aller Ansichten,
 Detail-IDs, unsichere/zu tiefe Pfade, Legacy-Query, Teilen-Links, Synchronität mit der SW-Liste; `nav.test.tsx`: Start aus Pfad,
 Bereinigung, `?view=`-Umschreibung, Push/Popstate, Rückfall-„Zurück“, `replaceParams`, Legacy-Modus; SW-Policy), `next build` ✅,
