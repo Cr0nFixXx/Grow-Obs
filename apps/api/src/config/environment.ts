@@ -23,6 +23,12 @@ export const environmentSchema = z.object({
    * der Browser das Cookie in diesem Cross-Site-Kontext. Der CSRF-Guard bleibt in beiden Fällen aktiv.
    */
   COOKIE_SAMESITE: z.enum(["lax", "none"]).default("lax"),
+  /**
+   * Nur für Umgebungen, in denen ein Proxy `Cookie`/`Authorization` nicht bis zur App durchreicht (z. B. die Sandbox-Vorschau):
+   * "true" → Login/Registrierung liefern zusätzlich `token` im Body, und der Header `X-Session-Token` wird akzeptiert.
+   * Das Token ist dann für JavaScript lesbar (schwächer als HttpOnly) – Standard "false", nicht in Produktion einschalten.
+   */
+  ALLOW_HEADER_SESSION: z.enum(["true", "false"]).default("false"),
   CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:5173"),
   ALLOW_DEMO_SEED: z.enum(["true", "false"]).default("false"),
   /**

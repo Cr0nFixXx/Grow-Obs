@@ -1,5 +1,13 @@
 import { config } from "./config";
 
+/**
+ * Nur für Umgebungen, in denen ein Proxy Cookie/Authorization nicht durchreicht (Sandbox-Vorschau): Liefert der Server
+ * beim Login ausnahmsweise ein `token`, senden wir es als `X-Session-Token`. Normalbetrieb: bleibt `null` (nur HttpOnly-Cookie).
+ */
+let headerToken: string | null = null;
+export const SESSION_HEADER = "X-Session-Token";
+export function setSessionHeaderToken(token: string | null) { headerToken = token; }
+
 /** Wird ausgelöst, wenn der Server ein deaktiviertes Feature meldet (403 + `feature`). */
 export const FEATURES_STALE_EVENT = "go:features-stale";
 /** Wird bei 401 einer Fach-Anfrage ausgelöst (Sitzung abgelaufen/widerrufen, z. B. auf einem anderen Gerät beendet). */
@@ -30,6 +38,7 @@ async function request<T>({ method, path, body, raw, signal, timeoutMs = 15000 }
   const headers: Record<string, string> = { Accept: "application/json" };
   if (raw) headers["Content-Type"] = raw.type || "application/octet-stream";
   else if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (headerToken) headers[SESSION_HEADER] = headerToken;
 
   const controller = new AbortController();
   const abort = () => controller.abort();

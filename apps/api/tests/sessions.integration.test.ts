@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { app } from "../src/app.ts";
@@ -244,6 +244,37 @@ describe("Cookie-Attribute", () => {
   it("Standardbetrieb setzt kein Partitioned/None", async () => {
     const res = await call("/auth/login", { method: "POST", data: { email: EMAIL, password: PASSWORD } });
     expect(setCookie(res)!.raw).not.toMatch(/Partitioned|SameSite=None/i);
+  });
+});
+
+describe("Header-Fallback (ALLOW_HEADER_SESSION, nur Proxy-Umgebungen ohne Cookie-Durchreichung)", () => {
+  afterEach(() => { delete process.env.ALLOW_HEADER_SESSION; });
+
+  it("ist standardmäßig aus: kein Token im Body, X-Session-Token wird ignoriert", async () => {
+    const { res, session } = await login();
+    expect((await res.json() as Record<string, unknown>).token).toBeUndefined();
+    const token = session!.cookie.slice(SESSION_COOKIE.length + 1);
+    expect((await call("/auth/me", { headers: { "X-Session-Token": token } })).status).toBe(401);
+  });
+
+  it("an: Login liefert das Token, der Header authentifiziert, Logout per Header widerruft", async () => {
+    process.env.ALLOW_HEADER_SESSION = "true";
+    const { res, session } = await login();
+    const body = await res.json() as { token?: string };
+    expect(typeof body.token).toBe("string");
+    expect(session!.cookie).toContain(body.token!); // dasselbe Token, das Cookie wird weiterhin gesetzt
+    const header = { "X-Session-Token": body.token! };
+    expect((await call("/auth/me", { headers: header })).status).toBe(200);
+    expect((await call("/auth/logout", { method: "POST", headers: header })).status).toBe(204);
+    expect((await call("/auth/me", { headers: header })).status).toBe(401);
+    expect(await db.select().from(sessions)).toHaveLength(0);
+  });
+
+  it("an: Registrierung liefert ebenfalls das Token; ein falsches Header-Token wird abgelehnt", async () => {
+    process.env.ALLOW_HEADER_SESSION = "true";
+    const res = await call("/auth/register", { method: "POST", data: { name: "Hdr", email: "hdr@example.test", password: PASSWORD } });
+    expect(typeof (await res.json() as { token?: string }).token).toBe("string");
+    expect((await call("/auth/me", { headers: { "X-Session-Token": "kaputt" } })).status).toBe(401);
   });
 });
 

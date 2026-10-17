@@ -31,10 +31,10 @@ export const app = new Hono<AuthEnv>();
 app.use("*", secureHeaders());
 app.use("*", async (c, next) => {
   c.header("Cache-Control", "private, no-store");
-  c.header("Vary", "Cookie, Origin");
+  c.header("Vary", "Cookie, X-Session-Token, Origin");
   await next();
 });
-app.use("*", cors({ origin: corsOrigins, credentials: true, allowHeaders: ["Content-Type"], allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] }));
+app.use("*", cors({ origin: corsOrigins, credentials: true, allowHeaders: ["Content-Type", ...(process.env.ALLOW_HEADER_SESSION === "true" ? ["X-Session-Token"] : [])], allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] }));
 // CSRF: zustandsändernde Browser-Requests müssen same-origin bzw. von einem erlaubten Origin kommen.
 app.use("*", csrfGuard);
 const jsonLimit = bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "Anfrage zu gross" }, 413) });

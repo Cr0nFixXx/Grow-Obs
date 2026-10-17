@@ -9,6 +9,19 @@ import { dbDel } from "./db";
 export const sessionKey = config.useMock ? "go-session:mock" : `go-session:api:${config.apiBaseUrl}`;
 const MARKER = "1";
 
+const tokenKey = `${sessionKey}:token`;
+/** Nur Header-Fallback-Modus (siehe `api.ts`): das vom Server gelieferte Token; im Normalbetrieb nie gesetzt. */
+export function readHeaderToken(): string | null {
+  try { return sessionStorage.getItem(tokenKey) ?? localStorage.getItem(tokenKey); } catch { return null; }
+}
+export function writeHeaderToken(token: string | null, remember = true): void {
+  try {
+    localStorage.removeItem(tokenKey);
+    sessionStorage.removeItem(tokenKey);
+    if (token) (remember ? localStorage : sessionStorage).setItem(tokenKey, token);
+  } catch { /* ohne Speicher nur bis zum Reload */ }
+}
+
 /** `true`, wenn dieser Browser eine Sitzung erwartet. Alte Token aus früheren Versionen werden dabei verworfen. */
 export function readSessionMarker(): boolean {
   try {
@@ -31,6 +44,7 @@ export function writeSessionMarker(signedIn: boolean, remember = true): void {
     localStorage.removeItem(sessionKey);
     sessionStorage.removeItem(sessionKey);
     if (signedIn) (remember ? localStorage : sessionStorage).setItem(sessionKey, MARKER);
+    else { localStorage.removeItem(tokenKey); sessionStorage.removeItem(tokenKey); }
     localStorage.removeItem("go-token");
   } catch { /* Anmeldung funktioniert auch ohne Browser-Speicher (nur ohne Tab-Sync). */ }
 }

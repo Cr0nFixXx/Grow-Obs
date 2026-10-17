@@ -35,7 +35,15 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
   Domain; dort verwirft der Browser `SameSite=Lax`-Cookies. Neu: `COOKIE_SAMESITE=lax|none` (Standard `lax`). `none` setzt
   `Secure; SameSite=None; Partitioned` (nur für iframe-Einbettung); `scripts/preview.sh` setzt es standardmäßig auf `none`.
   Der CSRF-Guard bleibt aktiv. Tests: API 65.
-- Tests: Frontend 108 (+10), API 62 (+26), E2E 19 (+6; die E2E-Suite läuft mit `RATE_LIMIT_DISABLED=true`).
+- **Fix (B-54.2, Ursache des gemeldeten Login-Problems):** Der Sandbox-Proxy der Vorschau (`*.arena.site`) reicht weder
+  `Cookie` noch `Authorization` an die App durch (per Echo-Server nachgewiesen; eigene Header kommen an). Deshalb gab es
+  nach der Registrierung nur 401. Neu: **`ALLOW_HEADER_SESSION=true`** (Standard `false`) – Login/Registrierung liefern dann
+  zusätzlich `token`, der Client sendet es als `X-Session-Token`, der Server akzeptiert den Header (Sitzung bleibt in der
+  DB widerrufbar). `scripts/preview.sh` schaltet das für die Vorschau ein; **Produktion bleibt Cookie-only**. Der Fallback
+  ist für JavaScript lesbar (schwächer als HttpOnly) und gehört nicht in echte Deployments.
+  Geprüft durch den echten Proxy mit Firefox und Chromium im eingebetteten iframe (Registrieren + Reload ✅).
+  Tests: Frontend 110, API 68.
+- Tests: Frontend 110, API 62 (+26), E2E 19 (+6; die E2E-Suite läuft mit `RATE_LIMIT_DISABLED=true`).
 
 ### B-53 – Keine Demo-Daten im API-Modus (Arena Agent)
 

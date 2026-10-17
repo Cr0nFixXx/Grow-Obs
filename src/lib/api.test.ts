@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, http, SESSION_EXPIRED_EVENT } from "./api";
+import { ApiError, http, SESSION_EXPIRED_EVENT, setSessionHeaderToken } from "./api";
 
 vi.mock("./config", () => ({ config: { apiBaseUrl: "https://api.example.test", useMock: false } }));
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -14,6 +14,16 @@ describe("HTTP privacy and error handling", () => {
       cache: "no-store", credentials: "include", redirect: "error",
       headers: { Accept: "application/json" },
     }));
+  });
+  it("sends X-Session-Token only while a fallback token is set (proxy environments), never Authorization", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ ok: true })));
+    vi.stubGlobal("fetch", fetchMock);
+    setSessionHeaderToken("fallback-token");
+    await http.get("/auth/me");
+    expect(fetchMock.mock.calls[0]![1].headers).toEqual({ Accept: "application/json", "X-Session-Token": "fallback-token" });
+    setSessionHeaderToken(null);
+    await http.get("/auth/me");
+    expect(fetchMock.mock.calls[1]![1].headers).toEqual({ Accept: "application/json" });
   });
   it("announces an expired session on 401 of a data request, but not for wrong credentials", async () => {
     const seen = vi.fn();

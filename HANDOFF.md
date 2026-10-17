@@ -25,6 +25,9 @@ dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `
   `api.` derselben Domain) und der Frontend-Origin in `CORS_ORIGINS` steht; der Client sendet `credentials: "include"`.
 - **UI:** `src/components/SessionsCard.tsx` (Profil → Einstellungen). 401 einer Fach-Anfrage → Event `go:session-expired`
   → lokale Abmeldung (`AuthProvider`).
+- **Proxy ohne Cookie/Authorization (Sandbox-Vorschau):** `ALLOW_HEADER_SESSION=true` → `token` im Body + Header
+  `X-Session-Token` (Client: `setSessionHeaderToken` in `src/lib/api.ts`, Speicher `go-session:api:<url>:token`).
+  Standard aus; `scripts/preview.sh` schaltet es ein. Nicht in Produktion verwenden.
 - **iframe-Einbettung:** `COOKIE_SAMESITE=none` → `Secure; SameSite=None; Partitioned` (nur Vorschau/Einbettung; Standard `lax`).
   `scripts/preview.sh` setzt `none`. Ohne das verwirft der Browser das Cookie im Cross-Site-iframe (Login scheitert still).
 - **Migration:** Bestehende Nutzer müssen sich einmal neu anmelden (alte Bearer-Token sind ungültig).

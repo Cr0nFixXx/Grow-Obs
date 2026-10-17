@@ -9,8 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import { config } from "./config";
-import { ApiError, http, SESSION_EXPIRED_EVENT } from "./api";
-import { clearLegacyPrivateStorage, readSessionMarker, sessionKey, writeSessionMarker } from "./session-storage";
+import { ApiError, http, SESSION_EXPIRED_EVENT, setSessionHeaderToken } from "./api";
+import { clearLegacyPrivateStorage, readHeaderToken, readSessionMarker, sessionKey, writeHeaderToken, writeSessionMarker } from "./session-storage";
 import { currentUser } from "@/mocks/data";
 import type { User } from "@/types";
 
@@ -43,7 +43,11 @@ const mockUser: User = { ...currentUser, id: "u-me", role: "platform_admin" };
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [signedIn, setSignedIn] = useState(readSessionMarker);
+  const [signedIn, setSignedIn] = useState(() => {
+    const expected = readSessionMarker();
+    setSessionHeaderToken(expected ? readHeaderToken() : null); // nur im Header-Fallback-Modus belegt
+    return expected;
+  });
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
@@ -77,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (request !== revision.current || controller.signal.aborted) return;
         setUser(null);
         if (error instanceof ApiError && error.status === 401) {
+          setSessionHeaderToken(null);
           setSignedIn(false);
           writeSessionMarker(false);
           void clearLegacyPrivateStorage();
@@ -88,7 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { controller.abort(); revision.current += 1; };
   }, [signedIn, retry]);
 
-  const acceptSession = useCallback((result: { user: User }, remember = true) => {
+  const acceptSession = useCallback((result: { user: User; token?: string }, remember = true) => {
+    // `token` liefert der Server nur im Header-Fallback-Modus (Proxy ohne Cookie-Durchreichung); sonst bleibt alles im Cookie.
+    setSessionHeaderToken(result.token ?? null);
+    writeHeaderToken(result.token ?? null, remember);
     verified.current = true;
     setSignedIn(true);
     setUser(result.user);
@@ -101,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const request = ++revision.current;
     const res = config.useMock
       ? { user: mockUser }
-      : await http.post<{ user: User }>("/auth/login", { email, password, remember });
+      : await http.post<{ user: User; token?: string }>("/auth/login", { email, password, remember });
     if (request === revision.current) acceptSession(res, remember);
   }, [acceptSession]);
 
@@ -110,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const request = ++revision.current;
       const res = config.useMock
         ? { user: { ...mockUser, name } }
-        : await http.post<{ user: User }>("/auth/register", { name, email, password });
+        : await http.post<{ user: User; token?: string }>("/auth/register", { name, email, password });
       if (request === revision.current) acceptSession(res);
     },
     [acceptSession]
@@ -120,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const endLocalSession = useCallback(() => {
     revision.current += 1;
     verified.current = false;
+    setSessionHeaderToken(null);
     setSignedIn(false);
     setUser(null);
     setSessionError(null);
@@ -145,7 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         revision.current += 1;
         verified.current = false;
         setUser(null);
-        setSignedIn(readSessionMarker());
+        const expected = readSessionMarker();
+        setSessionHeaderToken(expected ? readHeaderToken() : null);
+        setSignedIn(expected);
         setLoading(true);
         setRetry((value) => value + 1);
       }

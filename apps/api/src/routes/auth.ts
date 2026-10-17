@@ -64,8 +64,8 @@ auth.post("/register", registerLimit, async (c) => {
     .returning();
   if (!u) return c.json({ error: "E-Mail oder Handle bereits vergeben" }, 409);
 
-  await startSession(c, u, remember ?? true);
-  return c.json({ user: await toUser(u.id) }, 201);
+  const { token } = await startSession(c, u, remember ?? true);
+  return c.json({ user: await toUser(u.id), ...(token ? { token } : {}) }, 201);
 });
 
 const loginSchema = z.object({
@@ -82,8 +82,8 @@ auth.post("/login", loginLimit, async (c) => {
   if (!u || !(await verifyPassword(body.data.password, u.passwordHash))) {
     return c.json({ error: "Anmeldedaten ungültig" }, 401);
   }
-  await startSession(c, u, body.data.remember ?? true);
-  return c.json({ user: await toUser(u.id) });
+  const { token } = await startSession(c, u, body.data.remember ?? true);
+  return c.json({ user: await toUser(u.id), ...(token ? { token } : {}) });
 });
 
 const updateMeSchema = z.object({

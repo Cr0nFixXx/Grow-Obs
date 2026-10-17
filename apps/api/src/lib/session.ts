@@ -39,8 +39,20 @@ export function deviceLabel(userAgent: string | null | undefined): string {
   return os ? `${browser} auf ${os}` : browser;
 }
 
-/** Legt eine Sitzung an, setzt das Cookie und räumt abgelaufene Sitzungen auf. */
-export async function startSession(c: Context, user: { id: string; role: typeof users.$inferSelect.role }, remember: boolean): Promise<void> {
+/** Header-Transport nur auf ausdrücklichen Wunsch (siehe `ALLOW_HEADER_SESSION`); zur Laufzeit gelesen, damit testbar. */
+export const headerSessionEnabled = () => process.env.ALLOW_HEADER_SESSION === "true";
+export const SESSION_HEADER = "X-Session-Token";
+
+/** Sitzungs-Token der Anfrage: HttpOnly-Cookie, ersatzweise (nur wenn freigeschaltet) der Header. */
+export function readSessionToken(c: Context): string | undefined {
+  return getCookie(c, SESSION_COOKIE) ?? (headerSessionEnabled() ? c.req.header(SESSION_HEADER) || undefined : undefined);
+}
+
+/**
+ * Legt eine Sitzung an, setzt das Cookie und räumt abgelaufene Sitzungen auf.
+ * Liefert das Token nur zurück, wenn der Header-Transport freigeschaltet ist (sonst bleibt es im HttpOnly-Cookie).
+ */
+export async function startSession(c: Context, user: { id: string; role: typeof users.$inferSelect.role }, remember: boolean): Promise<{ token?: string }> {
   const ttl = remember ? sessionMaxMs() : sessionShortMs();
   const expiresAt = new Date(Date.now() + ttl);
   await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
@@ -53,6 +65,7 @@ export async function startSession(c: Context, user: { id: string; role: typeof 
     // Ohne „Angemeldet bleiben“ ein echtes Session-Cookie (endet mit dem Browser) – serverseitig zusätzlich begrenzt.
     ...(remember ? { maxAge: Math.floor(ttl / 1000) } : {}),
   });
+  return headerSessionEnabled() ? { token } : {};
 }
 
 /** Cookie-Attribute je nach Betriebsart. `none` erzwingt Secure und Partitioned (CHIPS), wie es Browser verlangen. */
@@ -72,7 +85,7 @@ export interface ActiveSession { sessionId: string; userId: string; role: typeof
 
 /** Prüft Cookie → JWT-Signatur → Sitzung in der DB (nicht abgelaufen, nicht widerrufen) und lädt die aktuelle Rolle. */
 export async function authenticate(c: Context): Promise<ActiveSession | null> {
-  const token = getCookie(c, SESSION_COOKIE);
+  const token = readSessionToken(c);
   if (!token) return null;
   let claims;
   try { claims = await verifyToken(token); } catch { return null; }
@@ -91,7 +104,7 @@ export async function authenticate(c: Context): Promise<ActiveSession | null> {
 
 /** Sitzungs-ID aus dem Cookie, auch bei abgelaufener Sitzung (für Logout). */
 export async function sessionIdFromCookie(c: Context): Promise<string | null> {
-  const token = getCookie(c, SESSION_COOKIE);
+  const token = readSessionToken(c);
   if (!token) return null;
   try { return (await verifyToken(token)).sid; } catch { return null; }
 }

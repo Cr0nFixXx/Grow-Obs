@@ -120,6 +120,22 @@ describe("HttpOnly-Cookie-Sitzung (B-54)", () => {
     expect(localStorage.getItem(sessionKey)).toBeNull();
     expect(mocks.post).not.toHaveBeenCalled();
   });
+  it("Header-Fallback: liefert der Server ein Token, wird es für den Reload gemerkt und beim Logout gelöscht", async () => {
+    mocks.post.mockResolvedValue({ user, token: "fallback-token" });
+    render(<AuthProvider><Actions /></AuthProvider>);
+    fireEvent.click(screen.getByText("login"));
+    await waitFor(() => expect(screen.getByText("u1")).toBeTruthy());
+    expect(localStorage.getItem(`${sessionKey}:token`)).toBe("fallback-token");
+    fireEvent.click(screen.getByText("logout"));
+    expect(localStorage.getItem(`${sessionKey}:token`)).toBeNull();
+  });
+  it("ohne Token vom Server (Normalbetrieb) wird nie ein Token gespeichert", async () => {
+    mocks.post.mockResolvedValue({ user });
+    render(<AuthProvider><Actions /></AuthProvider>);
+    fireEvent.click(screen.getByText("login"));
+    await waitFor(() => expect(screen.getByText("u1")).toBeTruthy());
+    expect(localStorage.getItem(`${sessionKey}:token`)).toBeNull();
+  });
   it("ein 401 beim Wiederherstellen entfernt den Marker (Sitzung abgelaufen)", async () => {
     localStorage.setItem(sessionKey, "1");
     mocks.get.mockRejectedValue(new ApiError(401, "Unauthorized"));

@@ -11,6 +11,8 @@ DB_NAME="${PREVIEW_DB_NAME:-growobserver_dev}"
 export DATABASE_URL="${DATABASE_URL:-postgres://grow_test:grow_test@127.0.0.1:5432/${DB_NAME}}"
 # Die Vorschau läuft typischerweise in einem iframe unter fremder Domain → Cookie muss SameSite=None; Secure; Partitioned sein.
 export COOKIE_SAMESITE="${COOKIE_SAMESITE:-none}"
+# Der Sandbox-Proxy reicht weder Cookie noch Authorization an die App durch → Header-Fallback nur für die Vorschau.
+export ALLOW_HEADER_SESSION="${ALLOW_HEADER_SESSION:-true}"
 export JWT_SECRET="${JWT_SECRET:-preview-only-secret-not-for-production-0123456789abcdef}"
 
 # 1) PostgreSQL bereitstellen (nur wenn lokal installiert und noch nicht erreichbar).
