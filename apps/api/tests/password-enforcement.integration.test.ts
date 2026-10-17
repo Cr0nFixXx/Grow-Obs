@@ -27,7 +27,7 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)) });
 });
 beforeEach(async () => {
-  resetRateLimits();
+  await resetRateLimits();
   await db.execute(sql`TRUNCATE TABLE users CASCADE`);
   const result = await provisionOperator({ email: EMAIL });
   if (result.action !== "created") throw new Error("expected created");

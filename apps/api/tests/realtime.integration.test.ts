@@ -95,7 +95,7 @@ beforeAll(async () => {
   wsUrl = `ws://127.0.0.1:${(server.address() as AddressInfo).port}/api/realtime/ws`;
 });
 beforeEach(async () => {
-  resetRateLimits(); resetTypingThrottle();
+  await resetRateLimits(); resetTypingThrottle();
   process.env.REALTIME_OFFLINE_GRACE_MS = "150";
   delete process.env.ALLOW_HEADER_SESSION;
   await db.execute(sql`TRUNCATE TABLE users CASCADE`);

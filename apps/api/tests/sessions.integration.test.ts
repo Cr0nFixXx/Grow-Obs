@@ -41,7 +41,7 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)) });
 });
 beforeEach(async () => {
-  resetRateLimits();
+  await resetRateLimits();
   await db.execute(sql`TRUNCATE TABLE users CASCADE`);
   const [u] = await db.insert(users).values({ name: "Sess", email: EMAIL, handle: "sess", passwordHash: await hashPassword(PASSWORD) }).returning();
   userId = u!.id;

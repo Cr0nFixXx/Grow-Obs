@@ -2,9 +2,9 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-59 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-60 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 169 Frontend-Tests ✅ · 130 API-Integrationstests ✅ · 31 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 169 Frontend-Tests ✅ · 139 API-Integrationstests ✅ · 31 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
@@ -119,7 +119,7 @@ dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `
 - **Build-Fix:** `src/assets/hero.jpg` fehlte auf Branch `A` (Commit `2a81529` hatte sie gelöscht) → beide
   Builds rot. Wiederhergestellt. **Binärdateien beim Committen prüfen** (`git status`/`git show --stat`).
 - **Rate-Limits** (`apps/api/src/middleware/rate-limit.ts`): Login 10/15 min pro IP + pro E-Mail, Register 10/h/IP,
-  Upload 30/10 min/Nutzer; `429` + `Retry-After`. Pro Prozess; `TRUST_PROXY=false`, `RATE_LIMIT_DISABLED=true`.
+  Upload 30/10 min/Nutzer; `429` + `Retry-After`. Seit B-60 gemeinsamer Zähler in PostgreSQL (Tabelle `rate_limits`, Hash-Schlüssel, Ersatzzähler im Speicher bei DB-Ausfall); `TRUST_PROXY=false`, `RATE_LIMIT_DISABLED=true`.
 - **JWT-Pflicht:** Embedded-API bricht in Produktion ohne `JWT_SECRET` ab (503); Opt-out
   `ALLOW_EPHEMERAL_JWT_SECRET=true` (`src/server/jwt-secret.ts`).
 - **Browser-E2E:** `npm run test:e2e` (Playwright, Produktions-Build, Wegwerf-DB `growobserver_e2e`, Port 3100;
@@ -251,8 +251,8 @@ API-Integrationstests (13/13, Wegwerf-DB `growobserver_test`), Smoke-Test `next 
   `JWT_SECRET` + `JWT_TTL` in **`.env.local`** (gitignored). Fehlt `JWT_SECRET`, erzeugt der Server in
   Entwicklung ein zufälliges Prozess-Secret (Warnung im Log, Sessions enden beim Neustart); in **Produktion**
   (`NODE_ENV=production`, z. B. `next start`) bricht die API mit 503 ab – außer `ALLOW_EPHEMERAL_JWT_SECRET=true`.
-- **Rate-Limits (B-51):** `apps/api/src/middleware/rate-limit.ts` (In-Memory pro Prozess; bei mehreren
-  Instanzen zusätzlich am Proxy limitieren). `TRUST_PROXY=false` ignoriert `X-Forwarded-For`,
+- **Rate-Limits (B-51):** `apps/api/src/middleware/rate-limit.ts` (seit B-60 in PostgreSQL `rate_limits`, gilt für alle
+  Instanzen; nur bei DB-Ausfall pro Prozess im Speicher). `TRUST_PROXY=false` ignoriert `X-Forwarded-For`,
   `RATE_LIMIT_DISABLED=true` schaltet ab.
 - **`API_EMBEDDED=true`** (setzt der Adapter): S3 optional → Upload-Presign antwortet `503`;
   CORS-HTTPS-Regel entfällt (same-origin). Standalone/Docker unverändert streng (Test ergänzt).

@@ -72,6 +72,20 @@ export const loginEvents = pgTable(
   (t) => [index("login_events_user_created_idx").on(t.userId, t.createdAt)]
 );
 
+/**
+ * Gemeinsame Rate-Limit-Zähler (B-60). `key` ist ein SHA-256-Hash; Fenster und Ablauf zählen nach Datenbankzeit,
+ * damit mehrere Instanzen übereinstimmen. In SQL als UNLOGGED angelegt (flüchtig, schnell – bei Absturz zurückgesetzt).
+ */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull(),
+    resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("rate_limits_reset_idx").on(t.resetAt)]
+);
+
 /* ----------------------------- Katalog ----------------------------- */
 export const breeders = pgTable("breeders", {
   id: uuid("id").primaryKey().defaultRandom(),

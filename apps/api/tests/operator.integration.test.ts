@@ -21,7 +21,7 @@ beforeAll(async () => {
   if (process.env.NODE_ENV !== "test" || !name.endsWith("_test")) throw new Error("Integration tests require a dedicated *_test database");
   await migrate(db, { migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)) });
 });
-beforeEach(async () => { resetRateLimits(); await db.execute(sql`TRUNCATE TABLE users CASCADE`); });
+beforeEach(async () => { await resetRateLimits(); await db.execute(sql`TRUNCATE TABLE users CASCADE`); });
 afterAll(async () => { await client.end({ timeout: 5 }); });
 
 describe("Betreiber-Bootstrap (B-56)", () => {

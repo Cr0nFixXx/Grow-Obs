@@ -20,16 +20,16 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 - [x] Neue Tests/Typechecks tatsächlich ausgeführt (B-51) – [ ] Docker und MinIO Ende-zu-Ende abnehmen.
 - [x] Dashboard & Co. im API-Modus ohne statische Demo-Daten (B-53, E2E grün). Offen: Verbrauch/Kosten, KI-Anbindung, Rezepte, Stories, Bewertungen haben noch keine Datenquelle (Leerzustände).
 - [ ] Abhängigkeiten-Audit: 9 gemeldete Advisories genauer prüfen und beheben (TESTING.md).
-- [x] Auth/Upload-Rate-Limits (B-51, pro Prozess) – [x] Session-Revocation + HttpOnly-Cookie (B-54) – [x] sicheres Betreiber-Bootstrap (B-56, CLI `admin:create`).
+- [x] Auth/Upload-Rate-Limits (B-51; seit B-60 über mehrere Instanzen via PostgreSQL) – [x] Session-Revocation + HttpOnly-Cookie (B-54) – [x] sicheres Betreiber-Bootstrap (B-56, CLI `admin:create`).
 - [x] Chat-/Echtzeitsystem: WebSocket → SSE → Polling, Direktnachrichten, Badge, „schreibt …“, Online-Status, Live-Benachrichtigungen/Forum (B-59) – [ ] Online-Status verbergen, Gruppenchats anlegen, Web-Push
 - [x] Einmalpasswort erzwingt Passwortwechsel + `--reset-password` (B-58)
-- [x] Sitzungen: Passwort ändern (beendet andere Sitzungen), Anmeldeprotokoll, Gerätelimit 5 (B-55) – [ ] Rate-Limit über mehrere Instanzen (Redis).
+- [x] Sitzungen: Passwort ändern (beendet andere Sitzungen), Anmeldeprotokoll, Gerätelimit 5 (B-55).
 - [ ] Upload-Finalisierung/Byte-Prüfung, EXIF-Bereinigung, Downloadrechte und Storage-Quotas.
 - [ ] Migration einer bereits befüllten Installation testen; Images/Lockfiles pinnen.
 
 Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
 
-Prüfstand: **B-59** — Typecheck, Lint, 169 Frontend-Tests, 130 API-Integrationstests, 31 Browser-E2E, Next- und Vite-Build
+Prüfstand: **B-60** — Typecheck, Lint, 169 Frontend-Tests, 139 API-Integrationstests, 31 Browser-E2E, Next- und Vite-Build
 ausgeführt und grün (Node 22, PostgreSQL 17). **Docker/MinIO wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
 Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-

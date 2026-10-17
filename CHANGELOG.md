@@ -9,6 +9,24 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-60 – Rate-Limit über mehrere Instanzen (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Gemeinsamer Zähler in PostgreSQL:** neue Tabelle `rate_limits` (Migration `0011_rate_limits.sql`, `UNLOGGED`: schnell, bei Absturz zurückgesetzt).
+  Je Anfrage **ein atomarer Upsert** (`INSERT … ON CONFLICT DO UPDATE`) für alle Schlüssel gemeinsam; Fenster und Ablauf zählen nach
+  Datenbankzeit, damit Instanzen übereinstimmen. Kein Redis nötig; Verhalten und Grenzwerte (Login, Register, Passwort, Upload, Chat, Echtzeit) unverändert.
+- **Datenschutz:** Schlüssel werden als SHA-256-Hash gespeichert – keine Klartext-E-Mail oder IP in der Datenbank. Abgelaufene Zeilen räumt jede Instanz
+  höchstens einmal pro Minute im Hintergrund auf.
+- **Ausfallverhalten:** Ist die Datenbank oder die Tabelle nicht erreichbar, zählt der Prozess ersatzweise im Speicher (Limit gilt weiter, keine 500)
+  und schreibt höchstens einmal pro Minute eine Warnung ins Log.
+- **Geändert:** alle Schlüssel einer Anfrage werden gezählt, auch wenn ein anderer schon blockiert (Angreifer mit wechselnden IPs verbrauchen so das
+  E-Mail-Limit weiter). `resetRateLimits()` ist jetzt `async` (leert auch die Tabelle).
+- **Gemessen:** zwei echte API-Prozesse (`apps/api/dist`, Ports 4010/4011) gegen dieselbe Datenbank: 12 abwechselnde Login-Versuche → 10× 401, danach
+  11. und 12. = 429 (auf beiden Prozessen).
+- **Tests:** API 130 → 139 (`rate-limit.test.ts`: 25 parallele Treffer → genau 10 erlaubt, zwei getrennte Modulinstanzen teilen den Zähler, neues Fenster,
+  alle Schlüssel gezählt, nur Hashes gespeichert, Datenbankausfall → Ersatzzähler, Aufräumen, API-Limits laufen über die Tabelle; Migration 0011).
+
 ### B-59 – Chat- und Echtzeitsystem (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

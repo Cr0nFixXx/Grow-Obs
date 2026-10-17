@@ -2,6 +2,10 @@
 
 ## Status
 
+**B-60 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm run test:api` 139/139 ✅ (neu in `rate-limit.test.ts`: Atomarität bei 25 parallelen Treffern,
+zwei getrennte Modulinstanzen, Fensterablauf, alle Schlüssel gezählt, nur Hashes, DB-Ausfall → Ersatzzähler, Aufräumen; Migration 0011), Frontend 169/169 ✅,
+E2E 31/31 ✅. **Real geprüft:** zwei `apps/api/dist`-Prozesse (Port 4010/4011) gegen eine Datenbank – das Limit gilt über beide (10× 401, dann 429).
+
 **B-59 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 169/169 ✅, `npm run test:api` 130/130 ✅
 (`realtime.integration.test.ts`: LISTEN/NOTIFY-Zustellung an Nutzer/Themen, Übergröße verworfen, SSE-Auth/-Passwortsperre/-Aufräumen, WebSocket mit
 Cookie, Origin-Sperre, Token-Erstnachricht nur mit `ALLOW_HEADER_SESSION`, Sitzungsende trennt, 5-Verbindungen-Limit, Chat-API: Suche,

@@ -14,6 +14,14 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0011 legt die gemeinsame Rate-Limit-Tabelle an (Hash-Schlüssel, Ablaufindex, UNLOGGED)", () => {
+    const sql = readFileSync(`${dir}0011_rate_limits.sql`, "utf8");
+    expect(sql).toMatch(/CREATE UNLOGGED TABLE "rate_limits"/);
+    expect(sql).toMatch(/"key" text PRIMARY KEY/);
+    expect(sql).toMatch(/"reset_at" timestamp with time zone NOT NULL/);
+    expect(sql).toMatch(/CREATE INDEX "rate_limits_reset_idx"/);
+  });
+
   it("0010 ergänzt Leseposition, Direktnachrichten-Schlüssel (eindeutig, nur wenn gesetzt) und Online-Status", () => {
     const sql = readFileSync(`${dir}0010_chat_realtime.sql`, "utf8");
     expect(sql).toContain('"last_read_at" timestamp with time zone DEFAULT now() NOT NULL');
