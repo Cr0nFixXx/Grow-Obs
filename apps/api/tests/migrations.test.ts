@@ -14,6 +14,14 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0007 legt die Sitzungs-Tabelle mit Kaskade und Indizes an", () => {
+    const sql = readFileSync(`${dir}0007_sessions.sql`, "utf8");
+    expect(sql).toContain('CREATE TABLE "sessions"');
+    expect(sql).toMatch(/ON DELETE cascade/);
+    expect(sql).toContain("sessions_user_idx");
+    expect(sql).toContain("sessions_expires_idx");
+  });
+
   it("0006 legt alle Standard-Forumbereiche idempotent an (Forum ist auf frischer DB ohne Seed nutzbar)", () => {
     const sql = readFileSync(`${dir}0006_default_forum_subs.sql`, "utf8");
     for (const name of ["r/GrowTagebuch", "r/LivingSoil", "r/Automatik", "r/Schädlinge", "r/DIY", "r/Erntezeit"]) expect(sql).toContain(`'${name}'`);

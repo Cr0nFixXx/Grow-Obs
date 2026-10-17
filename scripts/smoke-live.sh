@@ -5,9 +5,11 @@ set -uo pipefail
 B="${BASE:?BASE fehlt}/api"
 json() { node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const x=JSON.parse(d);console.log($1)})"; }
 echo "health:      $(curl -s "$B/health" | json 'x.dataMode')"
-T=$(curl -s -H Content-Type:application/json -X POST "$B/auth/login" -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" | json 'x.token')
-H="Authorization: Bearer $T"
-echo "login:       ${T:0:12}…"
+# Seit B-54 läuft die Anmeldung über ein HttpOnly-Cookie (kein Token im Body) → Cookie-Jar von curl.
+JAR=$(mktemp); trap 'rm -f "$JAR"' EXIT
+LOGIN=$(curl -s -c "$JAR" -H Content-Type:application/json -X POST "$B/auth/login" -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" | json 'x.user ? x.user.handle : "FEHLER"')
+H="Cookie: $(awk '$6=="go_session"{print $6"="$7}' "$JAR")"
+echo "login:       $LOGIN (Cookie ${H:0:20}…)"
 UP=$(curl -s -H "$H" -H "Content-Type: image/png" --data-binary @public/icon-192.png "$B/media"); P=$(echo "$UP" | json 'x.path')
 echo "upload:      $P ($(echo "$UP" | json 'x.size') B)"
 echo "serve:       $(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$B$P")"
@@ -24,3 +26,5 @@ echo "collect:     $(curl -s -H "$H" -X POST "$B/strains/$SID/collect" | json 'x
 curl -s -o /dev/null -H "$H" -X POST "$B/strains/$SID/collect"
 curl -s -o /dev/null -H "$H" -H Content-Type:application/json -X PATCH "$B/auth/me" -d "$OLD"
 echo "SMOKE_CLEANUP post=$PID media=$P grow=$GID"
+curl -s -o /dev/null -b "$JAR" -X POST "$B/auth/logout"
+echo "logout:      Sitzung beendet"

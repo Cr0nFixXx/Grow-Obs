@@ -1,14 +1,11 @@
 import { config } from "./config";
 
-let authToken: string | null = null;
-
 /** Wird ausgelöst, wenn der Server ein deaktiviertes Feature meldet (403 + `feature`). */
 export const FEATURES_STALE_EVENT = "go:features-stale";
-
-/** Auth-Token setzen (nach Login) bzw. entfernen (nach Logout). */
-export function setAuthToken(token: string | null) {
-  authToken = token;
-}
+/** Wird bei 401 einer Fach-Anfrage ausgelöst (Sitzung abgelaufen/widerrufen, z. B. auf einem anderen Gerät beendet). */
+export const SESSION_EXPIRED_EVENT = "go:session-expired";
+/** Auth-Endpunkte, deren 401 „falsche Zugangsdaten“ bedeutet und keine abgelaufene Sitzung. */
+const CREDENTIAL_PATHS = ["/auth/login", "/auth/register", "/auth/logout"];
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -28,12 +25,11 @@ interface RequestOptions {
 }
 
 async function request<T>({ method, path, body, raw, signal, timeoutMs = 15000 }: RequestOptions): Promise<T> {
-  // Tokens may only be sent to configured API paths, never a caller-supplied origin.
+  // Das Sitzungs-Cookie (HttpOnly) geht nur an den konfigurierten API-Origin, nie an eine vom Aufrufer gelieferte URL.
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) throw new ApiError(0, "Ungueltiger API-Pfad");
   const headers: Record<string, string> = { Accept: "application/json" };
   if (raw) headers["Content-Type"] = raw.type || "application/octet-stream";
   else if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -48,7 +44,7 @@ async function request<T>({ method, path, body, raw, signal, timeoutMs = 15000 }
       body: raw ?? (body !== undefined ? JSON.stringify(body) : undefined),
       signal: controller.signal,
       cache: "no-store",
-      credentials: "omit",
+      credentials: "include",
       redirect: "error",
     });
 
@@ -56,6 +52,10 @@ async function request<T>({ method, path, body, raw, signal, timeoutMs = 15000 }
       const payload: unknown = await res.json().catch(() => null);
       const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
         ? payload.error : `Anfrage fehlgeschlagen (HTTP ${res.status})`;
+      // Sitzung serverseitig beendet/abgelaufen → App meldet den Nutzer lokal ab (Login-Fehler zählen nicht).
+      if (res.status === 401 && !CREDENTIAL_PATHS.includes(path) && typeof globalThis.dispatchEvent === "function") {
+        globalThis.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+      }
       // Server meldet ein deaktiviertes Feature → Flags neu laden, UI blendet es aus.
       if (res.status === 403 && payload && typeof payload === "object" && "feature" in payload && typeof globalThis.dispatchEvent === "function") {
         globalThis.dispatchEvent(new CustomEvent(FEATURES_STALE_EVENT));
@@ -77,7 +77,7 @@ async function request<T>({ method, path, body, raw, signal, timeoutMs = 15000 }
 
 /**
  * Schlanker HTTP-Client für die API-Service-Implementierungen.
- * Hängt automatisch den Content-Type + ggf. das Bearer-Token an.
+ * Setzt Content-Type und sendet das HttpOnly-Sitzungs-Cookie mit (`credentials: "include"`).
  */
 export const http = {
   get: <T>(path: string, signal?: AbortSignal) => request<T>({ method: "GET", path, signal }),

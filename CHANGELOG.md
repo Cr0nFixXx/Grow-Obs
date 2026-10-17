@@ -9,6 +9,30 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-54 – Session-Härtung: HttpOnly-Cookie, serverseitiger Widerruf, Geräteliste (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Breaking (Auth-Transport):** Das Sitzungs-Token liegt nur noch in einem **HttpOnly-Cookie** `go_session`
+  (`SameSite=Lax`, `Path=/`, `Secure` bei HTTPS/`X-Forwarded-Proto`). Es steht nicht mehr im JSON-Body, nicht im
+  `localStorage` und wird nicht als `Authorization: Bearer` akzeptiert. Der Browser speichert nur einen **nicht geheimen
+  Marker** (`go-session:api:<url>` = `1`) für den Tab-Sync. Alte Bearer-JWTs aus dem Speicher werden beim Start gelöscht,
+  bestehende Nutzer müssen sich **einmal neu anmelden**.
+- **Neu: Tabelle `sessions`** (Migration `0007_sessions.sql`): Jede Anmeldung ist eine Zeile; das JWT trägt nur die
+  Sitzungs-ID (`sid`). Jede Anfrage prüft Signatur → Sitzung nicht abgelaufen/nicht gelöscht → aktuelle Rolle.
+- **Neu: Endpunkte** `POST /auth/logout` (idempotent), `POST /auth/logout-all`, `GET /auth/sessions` (Gerätebezeichnung wie
+  „Chrome auf Windows“, kein roher User-Agent, keine IP), `DELETE /auth/sessions/:id`. `login`/`register` nehmen
+  `remember` (Standard `true`; `false` = Session-Cookie, serverseitig höchstens 12 h).
+- **`JWT_TTL`** bedeutet jetzt „maximale Sitzungsdauer“, Standard **30d** (vorher 1 h ohne Verlängerung). Das ist sicher,
+  weil Sitzungen widerrufbar sind.
+- **CSRF:** neue Middleware `csrfGuard` – zustandsändernde Browser-Requests müssen `same-origin` sein oder von einem Origin
+  aus `CORS_ORIGINS` kommen (`Sec-Fetch-Site`/`Origin`); CORS sendet jetzt `Allow-Credentials` nur für diese Origins.
+- **UI:** Profil → Einstellungen → „Sitzungen & Geräte“ (Liste, einzeln beenden, „Auf allen Geräten abmelden“). Eine
+  serverseitig beendete Sitzung meldet das Gerät bei der nächsten Anfrage automatisch ab (Event `go:session-expired`).
+- `scripts/smoke-live.sh` nutzt einen Cookie-Jar. Entwickler-Hinweis: API-Clients außerhalb des Browsers lesen das Cookie aus
+  `Set-Cookie`.
+- Tests: Frontend 108 (+10), API 62 (+26), E2E 19 (+6; die E2E-Suite läuft mit `RATE_LIMIT_DISABLED=true`).
+
 ### B-53 – Keine Demo-Daten im API-Modus (Arena Agent)
 
 Regel: **Demo-Daten nur im Mock-Modus** (`NEXT_PUBLIC_API_URL` leer). Im API-Modus zeigen die Views echte Daten oder

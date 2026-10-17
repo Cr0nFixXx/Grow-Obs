@@ -1,28 +1,16 @@
 import { createMiddleware } from "hono/factory";
-import { eq } from "drizzle-orm";
-import { db } from "../db/client.ts";
 import { users } from "../db/schema.ts";
-import { verifyToken } from "../lib/jwt.ts";
+import { authenticate } from "../lib/session.ts";
 
-export type AuthEnv = { Variables: { userId: string; role: typeof users.$inferSelect.role } };
+export type AuthEnv = { Variables: { userId: string; role: typeof users.$inferSelect.role; sessionId: string } };
 
-/** Prüft den Bearer-JWT und legt userId/role im Context ab. */
+/** Verlangt eine gültige Sitzung (HttpOnly-Cookie) und legt userId/role/sessionId im Context ab. */
 export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
-  const header = c.req.header("Authorization");
-  if (!header || !header.startsWith("Bearer ")) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  let userId: string;
-  try {
-    userId = (await verifyToken(header.slice(7))).sub;
-  } catch {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  // Reload the role: a still-valid JWT must not retain revoked admin permissions.
-  const [user] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
-  c.set("userId", user.id);
-  c.set("role", user.role);
+  const session = await authenticate(c);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  c.set("userId", session.userId);
+  c.set("role", session.role);
+  c.set("sessionId", session.sessionId);
   // DB/handler failures are not authentication failures.
   await next();
 });
@@ -36,17 +24,15 @@ export const requirePlatformAdmin = createMiddleware<AuthEnv>(async (c, next) =>
 });
 
 /**
- * Optionale Anmeldung: setzt `userId`, wenn ein gültiger Bearer vorliegt, sonst anonym weiter.
+ * Optionale Anmeldung: setzt `userId`, wenn eine gültige Sitzung vorliegt, sonst anonym weiter.
  * Für öffentliche Listen, die für angemeldete Nutzer Zusatzinfos liefern (z. B. eigener Vote).
  */
 export const optionalAuth = createMiddleware<AuthEnv>(async (c, next) => {
-  const header = c.req.header("Authorization");
-  if (header?.startsWith("Bearer ")) {
-    try {
-      const userId = (await verifyToken(header.slice(7))).sub;
-      const [user] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
-      if (user) { c.set("userId", user.id); c.set("role", user.role); }
-    } catch { /* ungültiges Token → anonym */ }
+  const session = await authenticate(c).catch(() => null);
+  if (session) {
+    c.set("userId", session.userId);
+    c.set("role", session.role);
+    c.set("sessionId", session.sessionId);
   }
   await next();
 });

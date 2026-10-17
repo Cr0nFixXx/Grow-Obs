@@ -9,20 +9,24 @@ import {
   type ReactNode,
 } from "react";
 import { config } from "./config";
-import { ApiError, http, setAuthToken } from "./api";
-import { clearLegacyPrivateStorage, readSessionToken, sessionKey, writeSessionToken } from "./session-storage";
+import { ApiError, http, SESSION_EXPIRED_EVENT } from "./api";
+import { clearLegacyPrivateStorage, readSessionMarker, sessionKey, writeSessionMarker } from "./session-storage";
 import { currentUser } from "@/mocks/data";
 import type { User } from "@/types";
 
 interface AuthValue {
   user: User | null;
-  token: string | null;
+  /** `true`, wenn dieser Browser eine Sitzung erwartet (das Token selbst ist ein HttpOnly-Cookie und für JS unsichtbar). */
+  signedIn: boolean;
   loading: boolean;
   sessionError: string | null;
   retrySession: () => void;
   login: (email: string, password: string, remember?: boolean) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  /** Meldet lokal sofort ab und beendet die Sitzung serverseitig (best effort). */
   logout: () => void;
+  /** Beendet alle Sitzungen dieses Kontos auf allen Geräten, danach lokal abmelden. */
+  logoutAll: () => Promise<void>;
   /** Eigenes Profil ändern (Name, Titel, Avatar). Mock: nur Session. */
   updateProfile: (patch: { name?: string; title?: string; avatar?: string }) => Promise<void>;
   /** Eigenes Profil/Rolle leise neu laden (Pull-to-Refresh). */
@@ -33,32 +37,32 @@ const AuthContext = createContext<AuthValue | null>(null);
 const mockUser: User = { ...currentUser, id: "u-me", role: "platform_admin" };
 
 /**
- * Session state is fail-closed while restoring. API mode still uses a bearer token;
- * migration to revocable HttpOnly-cookie sessions is a separate server/API change.
- * Mock-Modus: Login/Register liefern sofort den Mock-User. API-Modus: `/auth/*`.
+ * Session state is fail-closed while restoring. API mode: Die Sitzung ist ein HttpOnly-Cookie (B-54, widerrufbar,
+ * serverseitig gespeichert); im Browser liegt nur ein nicht geheimer Marker. Mock-Modus: Login/Register liefern sofort
+ * den Mock-User. API-Modus: `/auth/*`.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(readSessionToken);
+  const [signedIn, setSignedIn] = useState(readSessionMarker);
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const revision = useRef(0);
-  const verifiedToken = useRef<string | null>(null);
+  const verified = useRef(false);
+  const signedInRef = useRef(signedIn);
+  signedInRef.current = signedIn;
   const retrySession = useCallback(() => setRetry((value) => value + 1), []);
 
   useEffect(() => {
     const request = ++revision.current;
     const controller = new AbortController();
     setSessionError(null);
-    if (!token) {
-      setAuthToken(null);
+    if (!signedIn) {
       setUser(null);
       setLoading(false);
       return;
     }
-    setAuthToken(token);
-    if (verifiedToken.current === token) { setLoading(false); return; }
+    if (verified.current) { setLoading(false); return; }
     setLoading(true);
     const restore = config.useMock
       ? Promise.resolve<User>(mockUser)
@@ -67,15 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((u) => {
         if (request !== revision.current || controller.signal.aborted) return;
         setUser(u);
-        verifiedToken.current = token;
+        verified.current = true;
       })
       .catch((error: unknown) => {
         if (request !== revision.current || controller.signal.aborted) return;
         setUser(null);
         if (error instanceof ApiError && error.status === 401) {
-          setAuthToken(null);
-          setToken(null);
-          writeSessionToken(null);
+          setSignedIn(false);
+          writeSessionMarker(false);
           void clearLegacyPrivateStorage();
         } else {
           setSessionError("Die Sitzung konnte nicht geprüft werden. Bitte Verbindung prüfen und erneut versuchen.");
@@ -83,14 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => { if (request === revision.current && !controller.signal.aborted) setLoading(false); });
     return () => { controller.abort(); revision.current += 1; };
-  }, [token, retry]);
+  }, [signedIn, retry]);
 
-  const acceptSession = useCallback((result: { token: string; user: User }, remember = true) => {
-    setAuthToken(result.token);
-    verifiedToken.current = result.token;
-    setToken(result.token);
+  const acceptSession = useCallback((result: { user: User }, remember = true) => {
+    verified.current = true;
+    setSignedIn(true);
     setUser(result.user);
-    writeSessionToken(result.token, remember);
+    writeSessionMarker(true, remember);
     setLoading(false);
     setSessionError(null);
   }, []);
@@ -98,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string, remember = true) => {
     const request = ++revision.current;
     const res = config.useMock
-      ? { token: `mock-${Date.now()}`, user: mockUser }
-      : await http.post<{ token: string; user: User }>("/auth/login", { email, password });
+      ? { user: mockUser }
+      : await http.post<{ user: User }>("/auth/login", { email, password, remember });
     if (request === revision.current) acceptSession(res, remember);
   }, [acceptSession]);
 
@@ -107,33 +109,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (name: string, email: string, password: string) => {
       const request = ++revision.current;
       const res = config.useMock
-        ? { token: `mock-${Date.now()}`, user: { ...mockUser, name } }
-        : await http.post<{ token: string; user: User }>("/auth/register", { name, email, password });
+        ? { user: { ...mockUser, name } }
+        : await http.post<{ user: User }>("/auth/register", { name, email, password });
       if (request === revision.current) acceptSession(res);
     },
     [acceptSession]
   );
 
-  const logout = useCallback(() => {
+  /** Lokale Abmeldung ohne Server-Aufruf (z. B. wenn der Server die Sitzung bereits beendet hat). */
+  const endLocalSession = useCallback(() => {
     revision.current += 1;
-    verifiedToken.current = null;
-    setAuthToken(null);
-    setToken(null);
+    verified.current = false;
+    setSignedIn(false);
     setUser(null);
     setSessionError(null);
     setLoading(false);
-    writeSessionToken(null);
+    writeSessionMarker(false);
     void clearLegacyPrivateStorage();
   }, []);
+
+  const logout = useCallback(() => {
+    // Zuerst den Server-Aufruf anstoßen (das Cookie hängt noch an), die UI wartet nicht darauf.
+    if (!config.useMock) void http.post("/auth/logout").catch(() => undefined);
+    endLocalSession();
+  }, [endLocalSession]);
+
+  const logoutAll = useCallback(async () => {
+    if (!config.useMock) await http.post("/auth/logout-all");
+    endLocalSession();
+  }, [endLocalSession]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key === sessionKey || event.key === null) {
         revision.current += 1;
-        verifiedToken.current = null;
+        verified.current = false;
         setUser(null);
-        setAuthToken(null);
-        setToken(readSessionToken());
+        setSignedIn(readSessionMarker());
         setLoading(true);
         setRetry((value) => value + 1);
       }
@@ -141,6 +153,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  // Server meldet 401 auf eine Fach-Anfrage: Sitzung wurde beendet (anderes Gerät, Ablauf) → lokal abmelden.
+  useEffect(() => {
+    if (config.useMock) return;
+    const onExpired = () => { if (signedInRef.current) endLocalSession(); };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, [endLocalSession]);
 
   const updateProfile = useCallback(async (patch: { name?: string; title?: string; avatar?: string }) => {
     if (config.useMock) {
@@ -152,17 +172,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    if (config.useMock || !token) return;
+    if (config.useMock || !signedInRef.current) return;
     try {
       setUser(await http.get<User>("/auth/me"));
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) logout();
+      if (error instanceof ApiError && error.status === 401) endLocalSession();
     }
-  }, [token, logout]);
+  }, [endLocalSession]);
 
   const value = useMemo(
-    () => ({ user, token, loading, sessionError, retrySession, login, register, logout, updateProfile, refreshUser }),
-    [user, token, loading, sessionError, retrySession, login, register, logout, updateProfile, refreshUser]
+    () => ({ user, signedIn, loading, sessionError, retrySession, login, register, logout, logoutAll, updateProfile, refreshUser }),
+    [user, signedIn, loading, sessionError, retrySession, login, register, logout, logoutAll, updateProfile, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -2,15 +2,32 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-53 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-54 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 98 Frontend-Tests ✅ · 36 API-Integrationstests ✅ · 13 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 108 Frontend-Tests ✅ · 62 API-Integrationstests ✅ · 19 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-54: Session-Härtung (Arena Agent)
+
+- **Transport:** Cookie `go_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Kein Bearer, kein Token im Body/Storage.
+  Der Browser kennt nur den Marker `go-session:api:<url>=1` (`src/lib/session-storage.ts`). Mock-Modus unverändert.
+- **Server:** `apps/api/src/lib/session.ts` (`startSession`, `authenticate`, `deviceLabel`), `middleware/auth.ts`
+  (`requireAuth`/`optionalAuth` prüfen Cookie → JWT mit `sid` → Zeile in `sessions` → Rolle aus `users`),
+  `middleware/csrf.ts` (global, vor den Routen). Routen in `routes/auth.ts`: `/logout`, `/logout-all`, `/sessions`, `/sessions/:id`.
+- **Lebensdauer:** `JWT_TTL` (Standard 30d) = absolute Sitzungsdauer; ohne „Angemeldet bleiben“ ≤ 12 h und Session-Cookie.
+  `last_seen_at` wird höchstens alle 5 Minuten aktualisiert; abgelaufene Zeilen werden beim nächsten Login gelöscht.
+- **Cross-Origin-Betrieb (Standalone-API):** funktioniert nur, wenn Frontend und API **same-site** sind (z. B. `app.` und
+  `api.` derselben Domain) und der Frontend-Origin in `CORS_ORIGINS` steht; der Client sendet `credentials: "include"`.
+- **UI:** `src/components/SessionsCard.tsx` (Profil → Einstellungen). 401 einer Fach-Anfrage → Event `go:session-expired`
+  → lokale Abmeldung (`AuthProvider`).
+- **Migration:** Bestehende Nutzer müssen sich einmal neu anmelden (alte Bearer-Token sind ungültig).
+- **Offen:** Passwort-ändern-Endpunkt (soll alle anderen Sitzungen beenden), Anmeldeprotokoll, Gerätelimit,
+  mehrinstanzfähiges Rate-Limit.
 
 ## B-53: Keine Demo-Daten im API-Modus (Arena Agent)
 
@@ -566,8 +583,8 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
   verwaister Uploads
 - Next.js ist aktiv als SPA-Hülle (B-42); File-based-Routing und Monorepo (`apps/web`) stehen aus
 - API-Integrationstests, Browser-E2E (Playwright, B-51) und CI-Jobs existieren; Docker und echte Geräte (iOS/Android-Touch) noch unbestätigt
-- Bearer-Token liegen weiterhin im Browser-Storage. Server-Logout/Revocation und HttpOnly-Session-
-  Migration sind nicht Bestandteil dieser Änderung
+- Sitzungen: seit B-54 HttpOnly-Cookie + serverseitiger Widerruf (Tabelle `sessions`); offen sind Passwort-ändern,
+  Anmeldeprotokoll, Gerätelimit
 - Abhängigkeiten-Audit (B-45): Frontend 0; API 4× moderat (drizzle-kit/esbuild, nur CLI)
 
 ---

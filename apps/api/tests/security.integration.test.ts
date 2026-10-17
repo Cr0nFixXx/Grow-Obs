@@ -5,8 +5,9 @@ import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { app } from "../src/app.ts";
 import { client, db } from "../src/db/client.ts";
-import { hallEntries, subs, threads, communities, communityMembers, conversationMembers, conversations, grows, invites, media, messages, postLikes, posts, strains, users } from "../src/db/schema.ts";
+import { hallEntries, subs, threads, communities, communityMembers, conversationMembers, conversations, grows, invites, media, messages, postLikes, posts, sessions, strains, users } from "../src/db/schema.ts";
 import { signToken } from "../src/lib/jwt.ts";
+import { SESSION_COOKIE } from "../src/lib/session.ts";
 import { hashPassword } from "../src/lib/password.ts";
 
 const ids = { owner: randomUUID(), alice: randomUUID(), bob: randomUUID(), operator: randomUUID() };
@@ -16,7 +17,7 @@ let passwordHash: string;
 function call(path: string, token?: string, method = "GET", data?: unknown) {
   return app.request(path, {
     method,
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(data === undefined ? {} : { "Content-Type": "application/json" }) },
+    headers: { ...(token ? { Cookie: `${SESSION_COOKIE}=${token}` } : {}), ...(data === undefined ? {} : { "Content-Type": "application/json" }) },
     ...(data === undefined ? {} : { body: JSON.stringify(data) }),
   });
 }
@@ -27,13 +28,14 @@ beforeAll(async () => {
   if (process.env.NODE_ENV !== "test" || !name.endsWith("_test")) throw new Error("Integration tests require a dedicated *_test database");
   await migrate(db, { migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)) });
   passwordHash = await hashPassword("test-password-long-enough");
-  tokens = {
-    owner: await signToken({ sub: ids.owner, role: "member" }),
-    alice: await signToken({ sub: ids.alice, role: "member" }),
-    bob: await signToken({ sub: ids.bob, role: "member" }),
-    operator: await signToken({ sub: ids.operator, role: "platform_admin" }),
-  };
 });
+
+/** Legt für jeden Test-Nutzer eine Sitzung an und signiert das Cookie-Token (wie der Login). */
+async function sessionToken(name: keyof typeof ids): Promise<string> {
+  const expiresAt = new Date(Date.now() + 3_600_000);
+  const [row] = await db.insert(sessions).values({ userId: ids[name], expiresAt }).returning({ id: sessions.id });
+  return signToken({ sub: ids[name], role: name === "operator" ? "platform_admin" : "member", sid: row!.id }, expiresAt);
+}
 
 beforeEach(async () => {
   await db.execute(sql`TRUNCATE TABLE users, communities, conversations, subs, strains, hall_entries, item_comments RESTART IDENTITY CASCADE`);
@@ -41,6 +43,12 @@ beforeEach(async () => {
     id, name, email: `${name}@example.test`, handle: name, passwordHash,
     role: name === "operator" ? "platform_admin" as const : "member" as const,
   })));
+  tokens = {
+    owner: await sessionToken("owner"),
+    alice: await sessionToken("alice"),
+    bob: await sessionToken("bob"),
+    operator: await sessionToken("operator"),
+  };
 });
 afterAll(async () => { await client.end({ timeout: 5 }); });
 
@@ -191,7 +199,7 @@ describe("API authorization and contracts against PostgreSQL", () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 1, 2, 3]);
     const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
     const upload = (body: Uint8Array, token?: string, type = "image/png") => app.request("/media", {
-      method: "POST", body, headers: { "Content-Type": type, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      method: "POST", body, headers: { "Content-Type": type, ...(token ? { Cookie: `${SESSION_COOKIE}=${token}` } : {}) },
     });
     expect((await upload(png)).status).toBe(401);
     expect((await upload(svg, tokens.alice, "image/png")).status).toBe(415); // Header lügt → Magic Bytes entscheiden

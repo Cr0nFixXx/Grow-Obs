@@ -1,21 +1,32 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, http, setAuthToken } from "./api";
+import { ApiError, http, SESSION_EXPIRED_EVENT } from "./api";
 
 vi.mock("./config", () => ({ config: { apiBaseUrl: "https://api.example.test", useMock: false } }));
-afterEach(() => { setAuthToken(null); vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe("HTTP privacy and error handling", () => {
-  it("sends bearer requests without browser cache, cookies or redirects", async () => {
+  it("sends the HttpOnly session cookie, never an Authorization header, without browser cache or redirects", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true }));
     vi.stubGlobal("fetch", fetchMock);
-    setAuthToken("test-token");
     await http.get("/auth/me");
     expect(fetchMock).toHaveBeenCalledWith("https://api.example.test/auth/me", expect.objectContaining({
-      cache: "no-store", credentials: "omit", redirect: "error",
-      headers: { Accept: "application/json", Authorization: "Bearer test-token" },
+      cache: "no-store", credentials: "include", redirect: "error",
+      headers: { Accept: "application/json" },
     }));
   });
-  it("does not send the token to an arbitrary URL", async () => {
+  it("announces an expired session on 401 of a data request, but not for wrong credentials", async () => {
+    const seen = vi.fn();
+    window.addEventListener(SESSION_EXPIRED_EVENT, seen);
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(Response.json({ error: "Unauthorized" }, { status: 401 }))));
+    await expect(http.post("/auth/login", { email: "a@b.c", password: "x" })).rejects.toMatchObject({ status: 401 });
+    await expect(http.post("/auth/register", {})).rejects.toMatchObject({ status: 401 });
+    expect(seen).not.toHaveBeenCalled();
+    await expect(http.get("/grows")).rejects.toMatchObject({ status: 401 });
+    expect(seen).toHaveBeenCalledTimes(1);
+    window.removeEventListener(SESSION_EXPIRED_EVENT, seen);
+  });
+  it("does not send the cookie to an arbitrary URL", async () => {
     const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
     await expect(http.get("https://other.test/steal")).rejects.toBeInstanceOf(ApiError);
     await expect(http.get("//other.test/steal")).rejects.toBeInstanceOf(ApiError);

@@ -23,3 +23,19 @@ export async function register(page: Page, name: string, email: string) {
   await page.getByRole("button", { name: "Konto erstellen" }).last().click();
   await expect(page.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible();
 }
+
+/** Meldet einen bestehenden Nutzer über die Login-Seite an (frischer Browser-Kontext). */
+export async function login(page: Page, email: string) {
+  await openAuth(page);
+  await page.getByPlaceholder("du@example.com").fill(email);
+  await page.getByPlaceholder("••••••••").fill(PASSWORD);
+  await page.getByRole("button", { name: "Anmelden" }).last().click();
+  await expect(page.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible();
+}
+
+/** Öffnet Profil → Einstellungen (dort liegt „Sitzungen & Geräte“). */
+export async function openSettings(page: Page) {
+  await page.getByRole("button", { name: "Profil öffnen" }).click();
+  await page.getByRole("button", { name: "Einstellungen", exact: true }).first().click();
+  await expect(page.getByTestId("sessions-card")).toBeVisible();
+}

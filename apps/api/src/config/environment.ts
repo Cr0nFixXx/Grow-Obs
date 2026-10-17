@@ -8,7 +8,8 @@ export const environmentSchema = z.object({
     (value) => !/please-change|replace-me|changeme/i.test(value),
     "Use a randomly generated secret, not the example placeholder",
   ),
-  JWT_TTL: z.string().regex(/^\d+[smhd]$/).default("1h"),
+  /** Maximale Sitzungsdauer („Angemeldet bleiben“); Sitzungen sind serverseitig widerrufbar. */
+  JWT_TTL: z.string().regex(/^\d+[smhd]$/).default("30d"),
   S3_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_PUBLIC_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),

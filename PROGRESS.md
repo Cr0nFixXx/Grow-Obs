@@ -11,6 +11,7 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-54 | Session-Härtung: HttpOnly-Cookie statt Bearer/localStorage, Tabelle `sessions` (0007), Logout/„Alle Geräte“/Geräteliste, CSRF-Guard, CORS-Credentials, 401-Auto-Abmeldung | typecheck ✅ lint ✅ vitest 108/108 ✅ API 62/62 ✅ (+ API-Typecheck/Tools) E2E 19 ✅ · next build ✅ vite build ✅ · Build-Nummer siehe `version.json` | Arena Agent |
 | B-53 | Keine Demo-Daten im API-Modus (Dashboard, Auth, Strains, Verbrauch, Wiki, Social, KI-Assistent), Avatar-Initialen-Fallback, Passwort-Hinweis, `fixme` → grüner E2E | typecheck ✅ lint ✅ vitest 98/98 ✅ API 36/36 ✅ E2E 13 ✅ · next build ✅ · Build-Nummer siehe `version.json` | Arena Agent |
 | B-52 | Zentrale Versionierung (`version.json`, Skript, Backend-Generierung, CI-Check, Anzeige), Preview-Skript, Eigner-Regeln in CLAUDE/HANDOFF | typecheck ✅ lint ✅ vitest 91/91 ✅ API 36/36 ✅ (+ API-Typecheck) E2E 8 ✅ + 1 fixme · next build ✅ vite build ✅ · Build-Nummer siehe `version.json` | Arena Agent |
 | B-51 | Härtung: Rate-Limits (Login/Register/Upload), JWT-Pflicht in Produktion, hero.jpg-Build-Fix, Root-Lockfile, Playwright-E2E + Migration 0006 (Forum-Bereiche) | Node 22.23 · PG 17 · typecheck ✅ lint ✅ vitest 86/86 ✅ API 34/34 ✅ E2E 7 ✅ + 1 fixme next build ✅ vite build ✅ (964 kB / 341 kB gzip) | Arena Agent |

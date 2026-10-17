@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { readSessionToken, sessionKey, writeSessionToken } from "./session-storage";
+import { readSessionMarker, sessionKey, writeSessionMarker } from "./session-storage";
 import { notificationTarget } from "./notification-target";
 
 class MemoryStorage {
@@ -9,24 +9,31 @@ class MemoryStorage {
   removeItem(k: string) { this.map.delete(k); }
 }
 
-describe("remember me (B-48)", () => {
+describe("remember me (B-48, ab B-54 nur ein nicht geheimer Marker)", () => {
   beforeEach(() => {
     Object.assign(globalThis, { localStorage: new MemoryStorage(), sessionStorage: new MemoryStorage() });
   });
-  it("persists in localStorage when remembered", () => {
-    writeSessionToken("t1", true);
-    expect(localStorage.getItem(sessionKey)).toBe("t1");
+  it("persists the marker in localStorage when remembered", () => {
+    writeSessionMarker(true, true);
+    expect(localStorage.getItem(sessionKey)).toBe("1");
     expect(sessionStorage.getItem(sessionKey)).toBeNull();
-    expect(readSessionToken()).toBe("t1");
+    expect(readSessionMarker()).toBe(true);
   });
-  it("keeps the token only for the browser session otherwise and clears the other store", () => {
-    writeSessionToken("old", true);
-    writeSessionToken("t2", false);
+  it("keeps the marker only for the browser session otherwise and clears the other store", () => {
+    writeSessionMarker(true, true);
+    writeSessionMarker(true, false);
     expect(localStorage.getItem(sessionKey)).toBeNull();
-    expect(sessionStorage.getItem(sessionKey)).toBe("t2");
-    expect(readSessionToken()).toBe("t2");
-    writeSessionToken(null);
-    expect(readSessionToken()).toBeNull();
+    expect(sessionStorage.getItem(sessionKey)).toBe("1");
+    expect(readSessionMarker()).toBe(true);
+    writeSessionMarker(false);
+    expect(readSessionMarker()).toBe(false);
+  });
+  it("purges a legacy bearer JWT instead of treating it as a session", () => {
+    localStorage.setItem(sessionKey, "eyJhbGciOiJIUzI1NiJ9.legacy.token");
+    sessionStorage.setItem(sessionKey, "eyJhbGciOiJIUzI1NiJ9.other.token");
+    expect(readSessionMarker()).toBe(false);
+    expect(localStorage.getItem(sessionKey)).toBeNull();
+    expect(sessionStorage.getItem(sessionKey)).toBeNull();
   });
 });
 

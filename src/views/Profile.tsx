@@ -12,6 +12,7 @@ import { Icon } from "@/components/Icon";
 import { Avatar, Badge, Button, Card, Field, Input, Modal, PageHeader, Segmented, Toggle } from "@/components/ui";
 import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
+import { SessionsCard } from "@/components/SessionsCard";
 import { Reveal } from "@/components/motion";
 import { useAuth, useCurrentUser } from "@/lib/auth";
 import { useActivity } from "@/data/hooks";
@@ -161,6 +162,11 @@ export default function Profile() {
               <Button variant="ghost" className="w-full text-danger hover:bg-danger/10" onClick={() => { logout(); navigate("auth"); }}><LogOut className="size-4" /> Abmelden</Button>
             </Card>
           </Reveal>
+          {!isGuest && (
+            <Reveal delay={0.12}>
+              <SessionsCard onSignedOut={() => navigate("auth")} />
+            </Reveal>
+          )}
           <Reveal delay={0.15}>
             <Card className="space-y-2 border-danger/30 p-5">
               <h2 className="text-sm font-semibold text-danger">Gefahrenzone</h2>

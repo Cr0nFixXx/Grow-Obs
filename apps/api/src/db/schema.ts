@@ -5,6 +5,7 @@ import {
   customType,
   date,
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -39,6 +40,20 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull().default("member"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Serverseitige Sitzungen (B-54): Widerruf = Zeile löschen. Das Cookie-JWT trägt nur die Sitzungs-ID (`sid`). */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    userAgent: text("user_agent"),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId), index("sessions_expires_idx").on(t.expiresAt)]
+);
 
 /* ----------------------------- Katalog ----------------------------- */
 export const breeders = pgTable("breeders", {

@@ -1,22 +1,38 @@
 import { config } from "./config";
 import { dbDel } from "./db";
 
-// Separate demo sessions from server sessions. Never send a mock token to the API.
+/**
+ * Das Sitzungs-Token liegt ausschließlich in einem HttpOnly-Cookie und ist für JavaScript unsichtbar.
+ * Hier steht nur ein **nicht geheimer Marker** („in diesem Browser angemeldet“): Er erspart anonymen Besuchern
+ * die Sitzungsprüfung und synchronisiert Tabs über das `storage`-Event.
+ */
 export const sessionKey = config.useMock ? "go-session:mock" : `go-session:api:${config.apiBaseUrl}`;
-export function readSessionToken(): string | null {
-  try { return localStorage.getItem(sessionKey) ?? sessionStorage.getItem(sessionKey); } catch { return null; }
+const MARKER = "1";
+
+/** `true`, wenn dieser Browser eine Sitzung erwartet. Alte Token aus früheren Versionen werden dabei verworfen. */
+export function readSessionMarker(): boolean {
+  try {
+    for (const storage of [localStorage, sessionStorage]) {
+      const value = storage.getItem(sessionKey);
+      if (value === null) continue;
+      if (value === MARKER) return true;
+      storage.removeItem(sessionKey); // Altlast: Bearer-JWT aus B-51/B-52 darf nicht im Speicher bleiben.
+    }
+  } catch { /* Speicher gesperrt → anonym */ }
+  return false;
 }
+
 /**
  * `remember = true` → localStorage (bleibt nach Browser-Neustart); `false` → sessionStorage
- * (endet mit dem Tab/Browser). Der jeweils andere Speicher wird geleert.
+ * (endet mit dem Tab/Browser, passend zum Session-Cookie). Der jeweils andere Speicher wird geleert.
  */
-export function writeSessionToken(token: string | null, remember = true): void {
+export function writeSessionMarker(signedIn: boolean, remember = true): void {
   try {
     localStorage.removeItem(sessionKey);
     sessionStorage.removeItem(sessionKey);
-    if (token) (remember ? localStorage : sessionStorage).setItem(sessionKey, token);
+    if (signedIn) (remember ? localStorage : sessionStorage).setItem(sessionKey, MARKER);
     localStorage.removeItem("go-token");
-  } catch { /* In-memory login still works when browser storage is blocked. */ }
+  } catch { /* Anmeldung funktioniert auch ohne Browser-Speicher (nur ohne Tab-Sync). */ }
 }
 
 export async function clearLegacyPrivateStorage(): Promise<void> {

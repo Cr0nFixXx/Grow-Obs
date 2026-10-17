@@ -64,7 +64,7 @@ Implementierungen: `mock` | `api` (Free-Cloud) | `local` (Paid local-first). UI 
 |-------|-------|
 | `src/types/index.ts` | Domänen-Typen (Single Source of Truth) + Eingabe-Typen (`CreateGrowInput` …) |
 | `src/lib/config.ts` | `apiBaseUrl` + `useMock` (gesteuert über `NEXT_PUBLIC_API_URL`, Vite-Legacy: `VITE_API_URL`) |
-| `src/lib/api.ts` | HTTP-Client `http.get/post/put/patch/delete`, `ApiError`, `setAuthToken` (Bearer-Token) |
+| `src/lib/api.ts` | HTTP-Client `http.get/post/put/patch/delete`, `ApiError`, Cookie-Credentials (`credentials: "include"`), Event `go:session-expired` bei 401 |
 | `src/lib/auth.tsx` | `AuthProvider` + `useAuth()` (login/register/logout, Token-Persistenz, Session-Restore) |
 | `src/services/interfaces.ts` | Verträge für Grows, Social, Forum, Chat, Wiki, Katalog, Communities, Admin |
 | `src/services/mock.ts` | Mock-Implementierung (Mock-Daten, IndexedDB, simulierte Latenz) |
@@ -93,8 +93,8 @@ NEXT_PUBLIC_API_URL=
 # API (echtes Backend)
 NEXT_PUBLIC_API_URL=https://api.growobserver.app
 ```
-Die `services`-Factory liefert automatisch die passende Implementierung. Das Bearer-Token
-wird vom `AuthProvider` via `setAuthToken()` gesetzt und vom HTTP-Client gesendet.
+Die `services`-Factory liefert automatisch die passende Implementierung. Die Sitzung ist ein
+HttpOnly-Cookie (`go_session`, serverseitig widerrufbar, Tabelle `sessions`); der `AuthProvider` kennt nur einen Marker.
 
 ---
 

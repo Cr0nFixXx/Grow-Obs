@@ -36,6 +36,8 @@ export default defineConfig({
       JWT_SECRET: "e2e-only-secret-not-for-deploy-0123456789abcdef",
       JWT_TTL: "1h",
       NODE_ENV: "production",
+      // Die E2E-Suite legt mehr als 10 Konten pro Stunde an (Register-Limit pro IP); die Limits selbst prüfen die API-Tests.
+      RATE_LIMIT_DISABLED: "true",
     },
   },
 });

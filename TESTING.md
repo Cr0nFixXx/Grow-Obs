@@ -2,6 +2,14 @@
 
 ## Status
 
+**B-54 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 108/108 ✅ (Auth-Provider: Marker statt Token, Logout, „Alle Geräte“,
+401-Ereignis, Altlast-JWT wird gelöscht; API-Client: Cookie statt Authorization), `npm run test:api` 62/62 ✅ (neu:
+`sessions.integration.test.ts` – Cookie-Flags, Widerruf, Ablauf, fremde `sid`, Geräteliste, CSRF, CORS-Credentials,
+Migration 0007), API-Typecheck + `apps/api/tsconfig.tools.json` ✅, `next build` ✅, `build:vite` ✅, Playwright **19 ✅**
+(neu `e2e/session.spec.ts`: HttpOnly/kein Token im Speicher, kopiertes Cookie nach Logout wertlos, zwei Geräte,
+„Alle Geräte“, Auto-Abmeldung, CSRF). Die E2E-Konfiguration setzt `RATE_LIMIT_DISABLED=true`, weil die Suite mehr als
+10 Konten pro Stunde registriert; die Limits prüfen die API-Tests.
+
 **B-53 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 98/98 ✅ (neu: `src/components/ui.test.tsx` – `initialsOf`,
 Avatar-Fallback), `npm run test:api` 36/36 ✅, `next build` ✅, Playwright **13 ✅ (12 desktop + 1 mobil), kein `fixme` mehr**
 (neu: Dashboard ohne Demo-Zahlen, Avatar-Initialen, Passwort-Hinweis, KI ehrlich, Feed ohne Stories/Vorschläge).

@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
 import { corsOrigins } from "./env.ts";
 import { requireAuth, type AuthEnv } from "./middleware/auth.ts";
+import { csrfGuard } from "./middleware/csrf.ts";
 import { rateLimit, userKey } from "./middleware/rate-limit.ts";
 import { auth } from "./routes/auth.ts";
 import { growsApi } from "./routes/grows.ts";
@@ -30,10 +31,12 @@ export const app = new Hono<AuthEnv>();
 app.use("*", secureHeaders());
 app.use("*", async (c, next) => {
   c.header("Cache-Control", "private, no-store");
-  c.header("Vary", "Authorization, Origin");
+  c.header("Vary", "Cookie, Origin");
   await next();
 });
-app.use("*", cors({ origin: corsOrigins, allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] }));
+app.use("*", cors({ origin: corsOrigins, credentials: true, allowHeaders: ["Content-Type"], allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] }));
+// CSRF: zustandsändernde Browser-Requests müssen same-origin bzw. von einem erlaubten Origin kommen.
+app.use("*", csrfGuard);
 const jsonLimit = bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "Anfrage zu gross" }, 413) });
 // /media hat ein eigenes, größeres Limit (2 MB) direkt an der Route.
 app.use("*", (c, next) => (c.req.method === "POST" && c.req.path === "/media" ? next() : jsonLimit(c, next)));

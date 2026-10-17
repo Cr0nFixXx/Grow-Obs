@@ -6,7 +6,7 @@ import {
   Heart, HeartPulse, Home, Image, Info, Layers, LayoutGrid, Leaf, Lightbulb, List, ListChecks,
   Lock, Mail, MapPin, Menu, MessageCircle, MessagesSquare, Microscope, Moon, MoreHorizontal,
   Newspaper, NotebookPen, Package, Paperclip, Pencil, Percent, Plus, Power, QrCode, Quote,
-  Rocket, Scale, Search, Send, Settings, Share2, ShieldCheck, ShoppingBag, Sigma, Smile,
+  Rocket, Scale, Search, Send, Settings, Share2, ShieldCheck, ShoppingBag, Sigma, Smartphone, LogOut, Smile,
   SlidersHorizontal, Sparkles, Sprout, Star, Store, Sun, SunMedium, Thermometer, Trash2,
   TrendingDown, TrendingUp, Trophy, User, Users, Wand2, Wind, Zap, ZoomIn, ZoomOut, Save, X, type LucideIcon,
 } from "lucide-react";
@@ -20,7 +20,7 @@ export const icons: Record<string, LucideIcon> = {
   Heart, HeartPulse, Home, Image, Info, Layers, LayoutGrid, Leaf, Lightbulb, List, ListChecks,
   Lock, Mail, MapPin, Menu, MessageCircle, MessagesSquare, Microscope, Moon, MoreHorizontal,
   Newspaper, NotebookPen, Package, Paperclip, Pencil, Percent, Plus, Power, QrCode, Quote,
-  Rocket, Scale, Search, Send, Settings, Share2, ShieldCheck, ShoppingBag, Sigma, Smile,
+  Rocket, Scale, Search, Send, Settings, Share2, ShieldCheck, ShoppingBag, Sigma, Smartphone, LogOut, Smile,
   SlidersHorizontal, Sparkles, Sprout, Star, Store, Sun, SunMedium, Thermometer, Trash2,
   TrendingDown, TrendingUp, Trophy, User, Users, Wand2, Wind, Zap, ZoomIn, ZoomOut, Save, X,
 };
