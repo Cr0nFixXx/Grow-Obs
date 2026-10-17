@@ -30,7 +30,7 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 
 Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
 
-Prüfstand: **B-61** — Typecheck, Lint, 180 Frontend-Tests, 155 API-Integrationstests, 34 Browser-E2E, Next- und Vite-Build
+Prüfstand: **B-62** — Typecheck, Lint, 181 Frontend-Tests, 155 API-Integrationstests, 37 Browser-E2E, Next- und Vite-Build
 ausgeführt und grün (Node 22, PostgreSQL 17). **Docker/MinIO wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
 Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-

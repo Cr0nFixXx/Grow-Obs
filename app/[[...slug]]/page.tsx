@@ -1,36 +1,24 @@
-"use client";
-
-import { useEffect } from "react";
-import dynamic from "next/dynamic";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { registerServiceWorker } from "@/lib/pwa";
+import { notFound } from "next/navigation";
+import { parsePath } from "@/lib/routes";
+import Client from "./client";
 
 /**
- * SPA-Einstieg im Next.js App Router.
- * Die gesamte App (Provider, Shell, Router) läuft client-seitig (ssr: false),
- * da Canvas-Partikel, window/navigator-APIs und IndexedDB kein SSR unterstützen.
- *
- * URL-Routing (B-57): Diese optionale Catch-All-Route liefert für JEDEN Pfad (/, /grows/123, /forum …) dieselbe
- * Client-Shell; die Ansicht wird clientseitig aus dem Pfad gelesen (src/lib/routes.ts, src/lib/nav.tsx).
- * `app/api/*` bleibt davon unberührt (spezifischere Segmente haben Vorrang).
+ * URL-Routing (B-57) + echte 404 (B-62): Diese optionale Catch-All-Route liefert für jeden GÜLTIGEN App-Pfad
+ * (/, /grows/123, /forum, /strains/s1 …) dieselbe Client-Shell. Unbekannte Pfade beantwortet der Server mit
+ * HTTP 404 und `app/not-found.tsx` (statt stillschweigend das Dashboard zu zeigen) – Gültigkeit definiert
+ * `src/lib/routes.ts`. `app/api/*` bleibt unberührt (spezifischere Segmente haben Vorrang).
  */
-const App = dynamic(() => import("@/App"), {
-  ssr: false,
-  loading: () => (
-    <div className="grid min-h-dvh place-items-center text-sm text-fg-muted" role="status">
-      Grow|Observer lädt …
-    </div>
-  ),
-});
+export const dynamicParams = true;
 
-export default function Page() {
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production") registerServiceWorker();
-  }, []);
+/** „/“ wird statisch vorgerendert, alle anderen Pfade pro Anfrage geprüft. */
+export function generateStaticParams() {
+  return [{ slug: [] as string[] }];
+}
 
-  return (
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  );
+export default async function Page({ params }: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await params;
+  const decode = (part: string) => { try { return decodeURIComponent(part); } catch { return "%"; } };
+  const pathname = `/${(slug ?? []).map(decode).join("/")}`;
+  if (!parsePath(pathname)) notFound();
+  return <Client />;
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
@@ -13,19 +13,35 @@ import { useStrainCollection, useStrains } from "@/data/hooks";
 import { useCompare } from "@/data/compare";
 import { eur } from "@/lib/format";
 import { config } from "@/lib/config";
+import { shareUrl } from "@/lib/routes";
+import { shareOrCopy } from "@/lib/share";
 
 /** Konsistentes Farb-Coding nach Typ: Sativa = info, Indica = soil, Hybrid = leaf. */
 const typeColor: Record<Type, string> = { Sativa: "info", Indica: "soil", Hybrid: "leaf" };
 const maxReview = Math.max(...ratingBreakdown.map((r) => r.count));
 
 export default function Strains() {
-  const { navigate } = useNav();
+  const { navigate, params, back, replaceParams } = useNav();
   const toast = useToast();
   const { strains, loading, error } = useStrains();
   const [q, setQ] = useState("");
   const [type, setType] = useState<"Alle" | Type>("Alle");
   const [sort, setSort] = useState<"rating" | "thc" | "price">("rating");
-  const [active, setActive] = useState<Strain | null>(null);
+  // Detailansicht kommt aus der Adresse (/strains/<id>, B-62): teilbar, Reload-fest, Zurück schließt sie.
+  const strainId = params?.strainId;
+  const active = useMemo(() => (strainId ? strains.find((s) => s.id === strainId) ?? null : null), [strainId, strains]);
+  const openStrain = (s: Strain) => navigate("strains", { strainId: s.id });
+  useEffect(() => {
+    if (!strainId || loading || error || active) return;
+    toast.push({ title: "Sorte nicht gefunden", desc: "Der Link verweist auf eine Sorte, die es nicht (mehr) gibt.", tone: "warning", icon: "Search" });
+    replaceParams(null);
+  }, [strainId, loading, error, active, toast, replaceParams]);
+  const shareStrain = async (s: Strain) => {
+    const url = shareUrl(window.location.origin, "strains", { strainId: s.id }, config.pathRouting);
+    const result = await shareOrCopy({ title: s.name, text: `${s.name} – ${s.breeder}`, url });
+    if (result === "copied") toast.push({ title: "Link kopiert", desc: s.name, tone: "leaf", icon: "Share2" });
+    else if (result === "failed") toast.push({ title: "Teilen nicht möglich", desc: "Der Link konnte nicht kopiert werden.", tone: "warning", icon: "AlertTriangle" });
+  };
   const compare = useCompare();
   const collection = useStrainCollection();
   const [onlyMine, setOnlyMine] = useState(false);
@@ -101,7 +117,7 @@ export default function Strains() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {list.map((s, i) => (
           <Reveal key={s.id} delay={i * 0.04}>
-            <StrainCard s={s} onOpen={() => setActive(s)} compared={compare.has(s.id)} onCompare={() => toggleCompare(s)} />
+            <StrainCard s={s} onOpen={() => openStrain(s)} compared={compare.has(s.id)} onCompare={() => toggleCompare(s)} />
           </Reveal>
         ))}
       </div>
@@ -130,7 +146,7 @@ export default function Strains() {
         </div>
       )}
 
-      <StrainModal strain={active} onClose={() => setActive(null)} compared={!!active && compare.has(active.id)} onCompare={() => active && toggleCompare(active)}
+      <StrainModal strain={active} onClose={back} onShare={() => active && void shareStrain(active)} compared={!!active && compare.has(active.id)} onCompare={() => active && toggleCompare(active)}
         collected={!!active && collection.ids.has(active.id)} onCollect={() => active && void toggleCollect(active)} />
     </div>
   );
@@ -181,13 +197,13 @@ function StrainCard({ s, onOpen, compared, onCompare }: { s: Strain; onOpen: () 
   );
 }
 
-function StrainModal({ strain, onClose, onCompare, compared, collected, onCollect }: { strain: Strain | null; onClose: () => void; onCompare: () => void; compared: boolean; collected: boolean; onCollect: () => void }) {
+function StrainModal({ strain, onClose, onShare, onCompare, compared, collected, onCollect }: { strain: Strain | null; onClose: () => void; onShare: () => void; onCompare: () => void; compared: boolean; collected: boolean; onCollect: () => void }) {
   const open = !!strain;
   const s = strain;
   const cvar = s ? `var(--${typeColor[s.type]})` : "var(--accent)";
   return (
     <Modal open={open} onClose={onClose} size="lg" title={s?.name}
-      footer={<><Button variant={collected ? "soft" : "ghost"} onClick={onCollect} aria-pressed={collected}><Icon name={collected ? "CheckCircle2" : "Leaf"} size={16} /> {collected ? "Gesammelt" : "Sammeln"}</Button><Button variant={compared ? "soft" : "primary"} onClick={onCompare}><Icon name={compared ? "CheckCircle2" : "Scale"} size={16} /> {compared ? "Im Vergleich" : "Vergleichen"}</Button></>}>
+      footer={<><Button variant="ghost" onClick={onShare} aria-label="Link teilen"><Icon name="Share2" size={16} /></Button><Button variant={collected ? "soft" : "ghost"} onClick={onCollect} aria-pressed={collected}><Icon name={collected ? "CheckCircle2" : "Leaf"} size={16} /> {collected ? "Gesammelt" : "Sammeln"}</Button><Button variant={compared ? "soft" : "primary"} onClick={onCompare}><Icon name={compared ? "CheckCircle2" : "Scale"} size={16} /> {compared ? "Im Vergleich" : "Vergleichen"}</Button></>}>
       <div className="relative -mx-5 -mt-5 mb-4 h-28" style={{ background: `linear-gradient(135deg, ${cvar}, color-mix(in oklab, ${cvar} 40%, transparent))` }}>
         <div className="absolute inset-0 grain opacity-20 mix-blend-overlay" />
         <div className="absolute bottom-3 left-5 flex items-center gap-2 text-white">

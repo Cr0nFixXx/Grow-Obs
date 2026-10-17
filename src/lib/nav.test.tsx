@@ -24,9 +24,16 @@ describe("NavProvider mit Pfad-Routing", () => {
     expect(state()).toBe('grows|{"growId":"g-7"}|false');
   });
 
-  it("unbekannter Pfad → Dashboard und die Adresse wird bereinigt", () => {
+  it("unbekannter Pfad → 404-Ansicht, die Adresse bleibt stehen (kein stilles Umleiten)", () => {
     mount("/gibt-es-nicht");
-    expect(state()).toBe("dashboard|null|false");
+    expect(state()).toBe("notFound|null|false");
+    expect(window.location.pathname).toBe("/gibt-es-nicht");
+  });
+
+  it("von der 404-Ansicht zum Dashboard: neue Adresse „/“; ohne History führt back() zum Dashboard", () => {
+    mount("/gibt-es-nicht");
+    act(() => nav.back());
+    expect(state()).toBe("dashboard|null|true");
     expect(window.location.pathname).toBe("/");
   });
 

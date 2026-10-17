@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { ViewKey } from "./nav";
 import { isLinkable, parseLegacyQuery, parsePath, pathFor, shareUrl } from "./routes";
 
-const ALL_VIEWS: ViewKey[] = ["dashboard", "grows", "strains", "ai", "planner", "breeders", "marketplace", "wiki", "forum", "hallOfFame", "social", "communities", "showcase", "calculator", "consumption", "simulation", "report", "chat", "notifications", "profile", "telegram", "auth", "devAdmin", "create"];
+const ALL_VIEWS: Exclude<ViewKey, "notFound">[] = ["dashboard", "grows", "strains", "ai", "planner", "breeders", "marketplace", "wiki", "forum", "hallOfFame", "social", "communities", "showcase", "calculator", "consumption", "simulation", "report", "chat", "notifications", "profile", "telegram", "auth", "devAdmin", "create"];
 
 describe("pathFor / parsePath", () => {
   it("bildet jede verlinkbare Ansicht verlustfrei ab (Hin- und Rückweg)", () => {
@@ -18,6 +18,8 @@ describe("pathFor / parsePath", () => {
     expect(parsePath("/forum/abc")).toEqual({ view: "forum", params: { threadId: "abc" } });
     expect(parsePath("/wiki/w1")).toEqual({ view: "wiki", params: { articleId: "w1" } });
     expect(parsePath("/breeders/b1")).toEqual({ view: "breeders", params: { breederId: "b1" } });
+    expect(parsePath("/strains/s1")).toEqual({ view: "strains", params: { strainId: "s1" } });
+    expect(pathFor("strains", { strainId: "s1" })).toBe("/strains/s1");
     expect(parsePath("/communities/c1")).toEqual({ view: "communities", params: { id: "c1" } });
     expect(parsePath("/profile/settings")).toEqual({ view: "profile", params: { tab: "settings" } });
     expect(pathFor("profile", { tab: "settings" })).toBe("/profile/settings");
@@ -38,7 +40,8 @@ describe("pathFor / parsePath", () => {
     expect(parsePath("/grows/<script>")).toBeNull();
     expect(parsePath("/grows/..%2f..")).toBeNull();
     expect(parsePath("/profile/hacker")).toBeNull();
-    expect(parsePath("/strains/123")).toBeNull(); // Strains hat keine Detail-URL
+    expect(parsePath("/strains/<b>")).toBeNull();
+    expect(parsePath("/strains/x/y")).toBeNull();
     expect(pathFor("grows", { growId: "../etc" })).toBe("/grows");
     expect(pathFor("profile", { tab: "x" })).toBe("/profile");
   });

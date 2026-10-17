@@ -9,6 +9,22 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-62 – Echte 404-Seite und Sorten-Detail-URL (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Echte 404:** `app/[[...slug]]/page.tsx` ist jetzt eine Server-Komponente und prüft den Pfad mit `parsePath` (`src/lib/routes.ts`, einzige Quelle der Wahrheit). Unbekannte, zu tiefe oder unsichere
+  Pfade (`/gibt-es-nicht`, `/grows/a/b`, `/profile/hacker`, `/auth`) antworten mit **HTTP 404** und `app/not-found.tsx` („Seite nicht gefunden“, Link „Zur Startseite“, `noindex`) – vorher zeigte die App
+  stillschweigend das Dashboard und schrieb die Adresse auf `/` um. `/` bleibt statisch vorgerendert (`generateStaticParams`), `/api/*` ist unberührt (API-404 bleibt JSON).
+- **404 in der App:** neue Ansicht `notFound` (`src/views/NotFound.tsx`, überarbeitet: ohne Demo-Inhalte). Sie erscheint, wenn die Adresse nicht lesbar ist (z. B. Zurück auf einen ungültigen Eintrag, Offline-Shell).
+  Die falsche Adresse bleibt in der Adresszeile; „Zum Dashboard“ und „Zurück“ führen weg. Der Service Worker liefert für unbekannte Pfade weiterhin keine Shell (`isAppRoute`).
+- **Sorten-Detail-URL:** `/strains/<id>` öffnet die Sorte direkt (Reload, Direktlink, Teilen). Öffnen legt einen History-Eintrag an, **Zurück schließt** das Detail. Unbekannte ID → Hinweis „Sorte nicht gefunden“
+  und Rückfall auf `/strains`. Neuer Knopf „Link teilen“ im Detail (`shareOrCopy`).
+- **Mitgenommen (Härtung):** `scripts/server.mjs` antwortet auf fehlerhafte Prozent-Kodierung (`/%E0%A4%A`) mit **400** statt 500 (Next brach mit 500 ab, auch unter `/api`).
+- **Verhaltensänderung:** `/auth`, `/create`, `/dev-admin` sind weiterhin keine Adressen (nicht verlinkbar) – sie führen jetzt zu 404 statt zum Dashboard.
+- **Tests:** Frontend 180 → 181 (`routes.test.ts` Strains-Detail + Sicherheitsfälle, `nav.test.tsx` 404-Ansicht ohne Adress-Umschreiben, `back()` zum Dashboard), E2E 34 → 37
+  (`routing.spec.ts`: HTTP-Status je Pfad inkl. 400, Server-404 → Startseite, App-404 per `popstate`, Sorte öffnen/Reload/Teilen/Zurück/unbekannte ID). Der alte E2E „unbekannter Pfad → Dashboard“ entfiel.
+
 ### B-61 – Community-Moderation (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

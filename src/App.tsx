@@ -84,6 +84,7 @@ const views: Record<ViewKey, ComponentType> = {
   auth: Auth,
   devAdmin: DevAdmin,
   create: Create,
+  notFound: NotFound,
 };
 
 function Router() {

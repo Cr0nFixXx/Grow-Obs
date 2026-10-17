@@ -28,7 +28,12 @@ const nextUpgrade = app.getUpgradeHandler();
 /** Weckt die eingebettete API (ein unauthentifizierter Aufruf genügt, Antwort 401). */
 const warmUp = () => fetch(`http://127.0.0.1:${port}/api/realtime/stream`).catch(() => undefined);
 
-const server = createServer((req, res) => { void handle(req, res); });
+/** Fehlerhafte Prozent-Kodierung (`/%E0%A4%A`) lässt Next mit 500 abbrechen → sauber mit 400 ablehnen. */
+const malformedPath = (url = "/") => { try { decodeURIComponent(url.split("?")[0] ?? ""); return false; } catch { return true; } };
+const server = createServer((req, res) => {
+  if (malformedPath(req.url)) { res.writeHead(400, { "content-type": "text/plain; charset=utf-8" }).end("Ungültige Adresse"); return; }
+  void handle(req, res);
+});
 const onUpgrade = (req, socket, head) => {
   const handler = globalThis.__growRealtimeUpgrade;
   let pathname = "";

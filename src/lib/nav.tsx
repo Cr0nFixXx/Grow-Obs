@@ -36,7 +36,8 @@ export type ViewKey =
   | "telegram"
   | "auth"
   | "devAdmin"
-  | "create";
+  | "create"
+  | "notFound";
 
 export interface NavParams {
   id?: string;
@@ -82,7 +83,7 @@ const NavContext = createContext<NavContextValue | null>(null);
  */
 interface HistoryState { idx: number; view: ViewKey; params: NavParams | null }
 
-/** Start-Ansicht aus der Adresszeile (Pfad; alter `?view=`-Link nur als Rückfall). */
+/** Start-Ansicht aus der Adresszeile (Pfad; alter `?view=`-Link nur als Rückfall). Unbekannter Pfad → 404-Ansicht (B-62). */
 function entryFromLocation(): { view: ViewKey; params: NavParams | null } {
   if (typeof window === "undefined") return { view: "dashboard", params: null };
   const { pathname, search } = window.location;
@@ -90,12 +91,12 @@ function entryFromLocation(): { view: ViewKey; params: NavParams | null } {
   if (!config.pathRouting) return { view: legacy ?? "dashboard", params: null };
   const parsed = parsePath(pathname);
   if (parsed && pathname === "/" && legacy) return { view: legacy, params: null };
-  return parsed ?? { view: "dashboard", params: null };
+  return parsed ?? { view: "notFound", params: null };
 }
 const currentIdx = () => (typeof window === "undefined" ? 0 : ((window.history.state as HistoryState | null)?.idx ?? 0));
 /** Adresse für einen History-Eintrag: Pfad (Next) bzw. unverändert (Legacy). */
 const urlFor = (view: ViewKey, params: NavParams | null) =>
-  config.pathRouting ? pathFor(view, params) : `${window.location.pathname}${window.location.search}`;
+  config.pathRouting && view !== "notFound" ? pathFor(view, params) : `${window.location.pathname}${window.location.search}`;
 
 export function NavProvider({ children }: { children: ReactNode }) {
   const [initial] = useState(entryFromLocation);
@@ -116,7 +117,7 @@ export function NavProvider({ children }: { children: ReactNode }) {
     setView(nextView); setParams(nextParams); setIdx(nextIdx);
   }, []);
 
-  // Beim Start den aktuellen Eintrag normalisieren (alter ?view=-Link → Pfad, unbekannter Pfad → „/“; Hash bleibt).
+  // Beim Start den aktuellen Eintrag normalisieren (alter ?view=-Link → Pfad; bei der 404-Ansicht bleibt die falsche Adresse stehen; Hash bleibt).
   useEffect(() => {
     window.history.replaceState({ idx: idxRef.current, view: initial.view, params: initial.params } satisfies HistoryState, "", `${urlFor(initial.view, initial.params)}${window.location.hash}`);
   }, [initial]);

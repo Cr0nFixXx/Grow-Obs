@@ -14,8 +14,8 @@ Backend-Tests: `npx vitest run --config vitest.backend.config.ts` aus dem Root, 
 disponiblen PostgreSQL-Datenbank auf `*_test`. Testlauf löscht Daten in dieser Testdatenbank.
 Die CI beinhaltet nun einen separaten API-Job. Diese Session hat weder CI noch Docker gestartet.
 
-Build-Stand: **B-61** — Next.js ist primärer Build (SPA-Hülle), Vite nur Legacy. Gemessen: 180 Frontend-Tests,
-155 API-Integrationstests, 34 Playwright-E2E (`npm run test:e2e`); Docker weiterhin ungetestet (`HANDOFF.md` §9.1).
+Build-Stand: **B-62** — Next.js ist primärer Build (SPA-Hülle), Vite nur Legacy. Gemessen: 181 Frontend-Tests,
+155 API-Integrationstests, 37 Playwright-E2E (`npm run test:e2e`); Docker weiterhin ungetestet (`HANDOFF.md` §9.1).
 API-Tests liegen in `apps/api/tests/` und werden über `tsconfig.tools.json` mitgeprüft.
 Autor: Codex (OpenAI).
 
@@ -87,6 +87,7 @@ daher **aus `src/` importieren** (werden base64-inlined), nicht aus `public/` re
 - **Routing**: eigenes, leichtgewichtiges view-basiertes Routing (`src/lib/nav.tsx`,
   `NavProvider` + `useNav()`). Kein react-router (Single-File-tauglich). Views sind im `ViewKey`-Union
   typisiert; Detail-Seiten nutzen `params` (z. B. `{ growId }`) bei gleichem View-Schlüssel.
+  Die Adresse spiegelt die Ansicht (`src/lib/routes.ts`, B-57); unbekannte Pfade → HTTP 404 (`app/not-found.tsx`) bzw. Ansicht `notFound` (B-62); `/strains/<id>` öffnet das Sorten-Detail.
 - **State**: UI-State (Theme, Navigation, Modals). Produktive Daten laufen über
   `src/data/hooks.ts` / `src/services`; direkte Mock-Imports nur für statische Demo-/Katalogdaten.
 - **Jetzt:** PWA + Self-Host + Feature-Flags + Dev-Admin (`PLAN.md` P0b/P1).

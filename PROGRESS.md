@@ -11,6 +11,7 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-62 | Echte 404 (HTTP 404 + `not-found.tsx`, App-Ansicht `notFound`), Sorten-Detail-URL `/strains/<id>`, 400 bei kaputter URL-Kodierung | typecheck ✅ lint ✅ vitest 181/181 ✅ API 155/155 ✅ E2E 37/37 ✅ | Arena Agent |
 | B-61 | Community-Moderation: Feed je Community, Ausblenden (Beiträge/Kommentare), Rauswurf mit optionaler Sperre + Sperrliste, Meldungen + Warteschlange (Migration 0012) | typecheck ✅ lint ✅ vitest 180/180 ✅ API 155/155 ✅ E2E 34/34 ✅ | Arena Agent |
 | B-60 | Rate-Limit über mehrere Instanzen: gemeinsame PostgreSQL-Tabelle `rate_limits` (0011, atomarer Upsert, Hash-Schlüssel, Ersatzzähler bei DB-Ausfall) | typecheck ✅ lint ✅ vitest 169/169 ✅ API 139/139 ✅ E2E 31/31 ✅ zwei echte API-Prozesse real geprüft | Arena Agent |
 | B-59 | Chat-/Echtzeitsystem: WebSocket → SSE → Polling über PostgreSQL `LISTEN/NOTIFY`, Direktnachrichten, Lesepositionen/Badge, „schreibt …“, Online-Status, Live-Benachrichtigungen und Forum-Kommentare, `scripts/server.mjs`, Migration 0010 | typecheck ✅ lint ✅ vitest 169/169 ✅ API 130/130 ✅ E2E 31/31 ✅ WS/SSE im Vorschau-Proxy und im `dist/`-API real geprüft | Arena Agent |

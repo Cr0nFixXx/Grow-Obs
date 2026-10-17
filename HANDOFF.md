@@ -2,15 +2,23 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-61 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-62 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 180 Frontend-Tests ✅ · 155 API-Integrationstests ✅ · 34 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 181 Frontend-Tests ✅ · 155 API-Integrationstests ✅ · 37 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-62: 404 und Sorten-URL (Arena Agent)
+
+- `app/[[...slug]]/page.tsx` (Server) validiert mit `parsePath` und ruft `notFound()` → `app/not-found.tsx`; der Client-Teil liegt in `app/[[...slug]]/client.tsx`. **Neue Ansichten/Detail-Parameter nur in
+  `src/lib/routes.ts` (+ `public/sw-policy.js`) eintragen – sonst liefert der Server 404.**
+- App-Ansicht `notFound` (`src/lib/nav.tsx`, `src/views/NotFound.tsx`): Adresse bleibt stehen. Sorten-Detail liest `params.strainId` aus der Adresse (`src/views/Strains.tsx`).
+- `scripts/server.mjs`: kaputte Prozent-Kodierung → 400.
+- Offen: Wiki-/Showcase-/Marktplatz-Details teils ohne eigene URL.
 
 ## B-61: Community-Moderation (Arena Agent)
 
@@ -50,7 +58,7 @@ dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `
   `sw-policy.js` eintragen – ein Test schlägt sonst fehl. Nicht verlinkbare Ansichten fehlen in `SEGMENT`.
 - Entscheidungen des Eigners: Pfade statt Query/Hash, History-Kopplung, alle Ansichten + Detail-IDs + Profil-Tabs, Ziel nach
   Login, Vite-Legacy unverändert.
-- Offen: kein echtes 404 (unbekannt → Dashboard), Strains/Wiki-Detail teils ohne URL (Strains hat keine), kein SSR/File-Routing.
+- Offen: kein SSR/File-Routing (die Shell ist rein clientseitig). Seit B-62: echtes 404 und `/strains/<id>` (siehe unten).
 
 ## B-56: Betreiber-Bootstrap (Arena Agent)
 

@@ -2,6 +2,10 @@
 
 ## Status
 
+**B-62 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 181/181 ✅, API unverändert 155/155 ✅, E2E 37/37 ✅ (Desktop 36 + Mobil 1; `routing.spec.ts`: HTTP 404 für ungültige Pfade,
+200 für gültige, 400 bei kaputter Kodierung, Server-404 → Startseite, App-404 mit stehender Adresse, Sorte `/strains/<id>` mit Reload/Teilen/Zurück/unbekannter ID). **Nicht geprüft:** 404 im Vite-Legacy-Build
+(dort gibt es keine Pfade), 404-Seite hinter einem Reverse-Proxy mit eigener Fehlerseite, Offline-Verhalten für `/strains/<id>` im Service Worker (Regel vorhanden, nicht im Browser getestet).
+
 **B-61 (Arena Agent) – ausgeführt:** typecheck ✅ (inkl. `apps/api` Build und `tsconfig.tools.json`), lint ✅, `npm test` 180/180 ✅, `npm run test:api` 155/155 ✅
 (`moderation.integration.test.ts` 15: Feed nur für Mitglieder/globaler Feed ohne Community-Beiträge, Ausblenden/Einblenden, Admin-Inhalte geschützt, Kommentare, Meldungen
 (doppelt, eigene, Außenstehende, fremde Community, Limit 20/h), Warteschlange gruppiert, Entscheidung hide/dismiss, Rauswurf-Rechtematrix, Sperre öffentlich + per Code,
