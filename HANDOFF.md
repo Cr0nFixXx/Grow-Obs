@@ -38,7 +38,7 @@ dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `
   `node dist/cli/admin-create.js`, wartet auf `migrate`). Kein Passwort-Argument; Zufallspasswort einmalig.
 - `--promote` für bestehende Konten (beendet deren Sitzungen), idempotent, Ereignis `role_changed` (Gerät „Betreiber-CLI“).
 - Entscheidungen des Eigners: CLI (nicht Env-Start), Zufallspasswort, Seed unverändert, Promote nur bewusst + Protokoll.
-- Offen: kein erzwungener Passwortwechsel nach dem Einmalpasswort (nur Hinweis); Docker-Service ungetestet.
+- Offen: Docker-Service ungetestet. (Der erzwungene Passwortwechsel nach dem Einmalpasswort kam in B-58.)
 
 ## B-55: Passwort ändern, Anmeldeprotokoll, Gerätelimit (Arena Agent)
 
