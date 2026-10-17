@@ -231,4 +231,10 @@ export interface SocialPost {
   shares: number;
   liked?: boolean;
   tags: string[];
+  /** Eigener Beitrag (Server) – z. B. um „Melden“ auszublenden. */
+  mine?: boolean;
+  /** Gehört zu einer Community (B-61). */
+  communityId?: string;
+  /** Ausgeblendet – nur die Moderation sieht solche Beiträge. */
+  hidden?: boolean;
 }

@@ -142,7 +142,11 @@ All responses carry `Cache-Control: private, no-store`. A bearer JWT is required
 | POST `/auth/register`, `/auth/login` | Credentials; role defaults to member; normalized email |
 | GET `/auth/me` | Current session user including explicit `role` |
 | GET/POST `/grows`, GET `/grows/:id`, POST `/grows/:id/logs` | Authenticated owner |
-| GET/POST `/social/posts`, POST `/social/posts/:id/like` | Authenticated global feed; community scoping still pending |
+| GET/POST `/social/posts`, POST `/social/posts/:id/like` | Authenticated global feed (posts without community). `?communityId=` / body `communityId`: community feed, members only (B-61) |
+| POST `/communities/:id/(posts/:postId|comments/:commentId)/(hide|unhide)` | Community moderator/admin; moderators cannot hide admin content; hidden items visible to moderation only |
+| DELETE `/communities/:id/members/:userId` (`?ban=true`) | Moderator (members only) / admin (also moderators); never admins or self; optional permanent ban |
+| GET `/communities/:id/bans`, DELETE `/communities/:id/bans/:userId` | Community admin: ban list / lift ban (banned users cannot join, also not by code) |
+| POST `/communities/:id/reports`, GET `…/reports?status=open|closed`, POST `…/reports/resolve` | Member reports (one per person and item, 20/h); moderation queue grouped by item; resolve `hide|dismiss` |
 | GET `/forum/subs`, `/forum/threads`, `/forum/threads/:id` | Public reads |
 | POST `/forum/threads`, `/:id/comments`, `/:id/vote` | Authenticated writes; reply parent belongs to same thread |
 | GET `/chat`, GET/POST `/chat/:id/messages` | Authenticated conversation member; outsider receives 404. List carries `unread`, partner name/avatar, `online` (B-59) |
@@ -191,6 +195,6 @@ Run both — this package has not been compiled in the environment that produced
 
 Before deployment: (rate limiting exists since B-51 and is shared across instances via the `rate_limits` table since B-60; proxy-level limits remain advisable), token/session revocation, production bootstrap, durable audit,
 upload verification, pinned images/lockfile, dependency audit and a restore drill are still open.
-Presence, real unread positions, community feed isolation, moderation queue and AI remain future work.
+AI integration, moderation for the global feed/forum and leaving a community remain future work.
 
 Updated by Codex (OpenAI).

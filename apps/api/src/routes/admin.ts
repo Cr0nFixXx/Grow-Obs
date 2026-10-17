@@ -1,17 +1,19 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
 import {
   comments,
   grows,
   hallEntries,
+  itemComments,
   notifications,
   postLikes,
   postBookmarks,
   posts,
   products,
+  reports,
   strains,
   threadVotes,
   threads,
@@ -101,7 +103,7 @@ admin.get("/content", async (c) => {
     .from(threads).orderBy(desc(threads.createdAt)).limit(8);
   const recentPosts = await db
     .select({ id: posts.id, text: posts.text, createdAt: posts.createdAt })
-    .from(posts).orderBy(desc(posts.createdAt)).limit(8);
+    .from(posts).where(isNull(posts.communityId)).orderBy(desc(posts.createdAt)).limit(8); // Community-Beiträge bleiben bei der Community (Privatsphäre)
   return c.json([
     ...recentThreads.map((x) => ({ ...x, type: "thread" as const })),
     ...recentPosts.map((x) => ({ ...x, type: "post" as const })),
@@ -123,6 +125,10 @@ admin.delete("/posts/:id", async (c) => {
   await db.transaction(async (tx) => {
     await tx.delete(postLikes).where(eq(postLikes.postId, id));
     await tx.delete(postBookmarks).where(eq(postBookmarks.postId, id));
+    // Kommentare und Meldungen zum Beitrag (Meldungen auch zu dessen Kommentaren) nicht verwaisen lassen.
+    const commentIds = tx.select({ id: itemComments.id }).from(itemComments).where(and(eq(itemComments.kind, "post"), eq(itemComments.itemId, id)));
+    await tx.delete(reports).where(or(and(eq(reports.kind, "post"), eq(reports.targetId, id)), and(eq(reports.kind, "comment"), inArray(reports.targetId, commentIds))));
+    await tx.delete(itemComments).where(and(eq(itemComments.kind, "post"), eq(itemComments.itemId, id)));
     await tx.delete(posts).where(eq(posts.id, id));
   });
   return c.json({ ok: true });

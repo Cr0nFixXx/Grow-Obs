@@ -289,8 +289,13 @@ export const posts = pgTable("posts", {
   text: text("text").notNull(),
   imageUrl: text("image_url"),
   tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  /** Gesetzt = Beitrag gehört zu einer Community (nur für Mitglieder sichtbar, nicht im globalen Feed). */
+  communityId: uuid("community_id").references(() => communities.id),
+  /** Moderation (B-61): ausgeblendet = nur für Moderatoren/Admins der Community sichtbar. */
+  hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+  hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index("posts_community_created_idx").on(t.communityId, t.createdAt)]);
 
 export const postLikes = pgTable(
   "post_likes",
@@ -330,6 +335,40 @@ export const communityMembers = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("community_members_uq").on(t.communityId, t.userId)]
+);
+
+/** Sperrliste je Community (B-61): gesperrte Personen können nicht (erneut) beitreten – auch nicht per Code. */
+export const communityBans = pgTable(
+  "community_bans",
+  {
+    communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    bannedBy: uuid("banned_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("community_bans_uq").on(t.communityId, t.userId)]
+);
+
+/** Meldungen von Mitgliedern an die Moderation der Community (B-61). Eine Meldung je Person und Inhalt. */
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+    reporterId: uuid("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"post" | "comment">().notNull(),
+    targetId: uuid("target_id").notNull(),
+    reason: text("reason").$type<"spam" | "harassment" | "illegal" | "offtopic" | "other">().notNull(),
+    details: text("details").notNull().default(""),
+    status: text("status").$type<"open" | "hidden" | "dismissed">().notNull().default("open"),
+    resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("reports_once_uq").on(t.reporterId, t.kind, t.targetId),
+    index("reports_queue_idx").on(t.communityId, t.status, t.createdAt),
+  ]
 );
 
 export const invites = pgTable("invites", {
@@ -396,6 +435,8 @@ export const itemComments = pgTable("item_comments", {
   itemId: uuid("item_id").notNull(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   body: text("body").notNull(),
+  hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+  hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

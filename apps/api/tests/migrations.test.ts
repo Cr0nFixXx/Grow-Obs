@@ -14,6 +14,17 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0012 ergänzt Community-Feed, Ausblenden, Sperrliste und Meldungen (eine Meldung je Person und Inhalt)", () => {
+    const sql = readFileSync(`${dir}0012_community_moderation.sql`, "utf8");
+    expect(sql).toMatch(/ALTER TABLE "posts" ADD COLUMN "community_id" uuid/);
+    expect(sql).toMatch(/ALTER TABLE "posts" ADD COLUMN "hidden_at"/);
+    expect(sql).toMatch(/ALTER TABLE "item_comments" ADD COLUMN "hidden_at"/);
+    expect(sql).toMatch(/CREATE TABLE "community_bans"/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX "community_bans_uq"/);
+    expect(sql).toMatch(/CREATE TABLE "reports"/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX "reports_once_uq" ON "reports" USING btree \("reporter_id","kind","target_id"\)/);
+  });
+
   it("0011 legt die gemeinsame Rate-Limit-Tabelle an (Hash-Schlüssel, Ablaufindex, UNLOGGED)", () => {
     const sql = readFileSync(`${dir}0011_rate_limits.sql`, "utf8");
     expect(sql).toMatch(/CREATE UNLOGGED TABLE "rate_limits"/);

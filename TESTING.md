@@ -2,6 +2,12 @@
 
 ## Status
 
+**B-61 (Arena Agent) – ausgeführt:** typecheck ✅ (inkl. `apps/api` Build und `tsconfig.tools.json`), lint ✅, `npm test` 180/180 ✅, `npm run test:api` 155/155 ✅
+(`moderation.integration.test.ts` 15: Feed nur für Mitglieder/globaler Feed ohne Community-Beiträge, Ausblenden/Einblenden, Admin-Inhalte geschützt, Kommentare, Meldungen
+(doppelt, eigene, Außenstehende, fremde Community, Limit 20/h), Warteschlange gruppiert, Entscheidung hide/dismiss, Rauswurf-Rechtematrix, Sperre öffentlich + per Code,
+Sperrliste nur Admins, Rollenvergabe nur Admins, Aufräumen beim Admin-Löschen; Migration 0012), E2E 34/34 ✅ (`moderation.spec.ts`). Nicht geprüft: mobile Ansicht der neuen Reiter
+im echten Browser, große Warteschlangen (Paginierung fehlt: höchstens 100 Inhalte), Zusammenspiel mit Echtzeit (Feed lädt nicht live nach).
+
 **B-60 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm run test:api` 139/139 ✅ (neu in `rate-limit.test.ts`: Atomarität bei 25 parallelen Treffern,
 zwei getrennte Modulinstanzen, Fensterablauf, alle Schlüssel gezählt, nur Hashes, DB-Ausfall → Ersatzzähler, Aufräumen; Migration 0011), Frontend 169/169 ✅,
 E2E 31/31 ✅. **Real geprüft:** zwei `apps/api/dist`-Prozesse (Port 4010/4011) gegen eine Datenbank – das Limit gilt über beide (10× 401, dann 429).

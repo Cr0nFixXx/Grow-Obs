@@ -1,7 +1,7 @@
 import { http } from "@/lib/api";
 import type {
-  ActivityItem, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, Grow, HallEntry, Product, SeedOffer,
-  SocialPost, Strain, Task,
+  ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, Grow, HallEntry, Product, SeedOffer,
+  ReportGroup, SocialPost, Strain, Task,
 } from "@/types";
 import type {
   ActivityService,
@@ -57,7 +57,7 @@ const growService: GrowService = {
 };
 
 const socialService: SocialService = {
-  listPosts: () => http.get<SocialPost[]>("/social/posts"),
+  listPosts: (communityId) => http.get<SocialPost[]>(communityId ? `/social/posts?communityId=${encodeURIComponent(communityId)}` : "/social/posts"),
   createPost: (input) => http.post<SocialPost>("/social/posts", input),
   toggleLike: (postId) => http.post<SocialPost>(`/social/posts/${postId}/like`),
 };
@@ -163,6 +163,14 @@ const communityService: CommunityService = {
   createInvite: (id) => http.post<{ code: string; expiresAt: string }>(`/communities/${id}/invites`),
   joinByCode: (code) => http.post<CommunityDetail>("/communities/join", { code }),
   setMemberRole: (communityId, userId, role) => http.patch<void>(`/communities/${communityId}/members/${userId}/role`, { role }),
+  kick: (communityId, userId, ban) => http.delete<void>(`/communities/${communityId}/members/${userId}${ban ? "?ban=true" : ""}`),
+  bans: (communityId) => http.get<BannedMember[]>(`/communities/${communityId}/bans`),
+  unban: (communityId, userId) => http.delete<void>(`/communities/${communityId}/bans/${userId}`),
+  setHidden: (communityId, kind, targetId, hidden) =>
+    http.post<void>(`/communities/${communityId}/${kind === "post" ? "posts" : "comments"}/${targetId}/${hidden ? "hide" : "unhide"}`),
+  report: (communityId, input) => http.post<{ duplicate: boolean }>(`/communities/${communityId}/reports`, input),
+  reports: (communityId, status) => http.get<ReportGroup[]>(`/communities/${communityId}/reports?status=${status}`),
+  resolveReport: (communityId, kind, targetId, action) => http.post<void>(`/communities/${communityId}/reports/resolve`, { kind, targetId, action }),
 };
 
 const adminService: AdminService = {

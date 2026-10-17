@@ -189,7 +189,39 @@ export function useCommunity(id: string) {
   const setRole = useCallback(async (userId: string, role: "member" | "moderator" | "admin") => {
     await svc.communities.setMemberRole(id, userId, role); await refresh();
   }, [svc, id, refresh]);
-  return { community: data, loading, error, refresh, createInvite, setRole };
+  const kick = useCallback(async (userId: string, ban: boolean) => {
+    await svc.communities.kick(id, userId, ban); await refresh();
+  }, [svc, id, refresh]);
+  return { community: data, loading, error, refresh, createInvite, setRole, kick };
+}
+
+/** Feed einer Community (B-61): Beiträge, schreiben, liken, aus-/einblenden. */
+export function useCommunityFeed(id: string) {
+  const svc = useServices();
+  const { data, loading, error, refresh } = useAsync(() => svc.social.listPosts(id), [svc, id]);
+  const createPost = useCallback(async (text: string) => {
+    const post = await svc.social.createPost({ text, communityId: id }); await refresh(); return post;
+  }, [svc, id, refresh]);
+  const toggleLike = useCallback(async (postId: string) => { await svc.social.toggleLike(postId); await refresh(); }, [svc, refresh]);
+  const setHidden = useCallback(async (postId: string, hidden: boolean) => {
+    await svc.communities.setHidden(id, "post", postId, hidden); await refresh();
+  }, [svc, id, refresh]);
+  return { posts: data ?? [], loading, error, refresh, createPost, toggleLike, setHidden };
+}
+
+/** Warteschlange der Moderation (offen/entschieden) und Sperrliste (nur Admins). */
+export function useModeration(id: string, status: "open" | "closed", withBans: boolean) {
+  const svc = useServices();
+  const queue = useAsync(() => svc.communities.reports(id, status), [svc, id, status]);
+  const banList = useAsync(() => (withBans ? svc.communities.bans(id) : Promise.resolve([])), [svc, id, withBans]);
+  const resolve = useCallback(async (kind: "post" | "comment", targetId: string, action: "hide" | "dismiss") => {
+    await svc.communities.resolveReport(id, kind, targetId, action); await queue.refresh();
+  }, [svc, id, queue]);
+  const unban = useCallback(async (userId: string) => { await svc.communities.unban(id, userId); await banList.refresh(); }, [svc, id, banList]);
+  return {
+    groups: queue.data ?? [], loading: queue.loading, error: queue.error, refresh: queue.refresh, resolve,
+    bans: banList.data ?? [], unban,
+  };
 }
 
 export function useWikiCategories() {

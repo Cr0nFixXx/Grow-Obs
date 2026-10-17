@@ -9,6 +9,33 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-61 – Community-Moderation (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Feed je Community:** `posts.community_id` (Migration `0012_community_moderation.sql`). `GET /social/posts?communityId=…` und `POST /social/posts
+  { communityId }` – nur **Mitglieder** lesen und schreiben (Außenstehende: 404 bzw. 403, auch bei privaten Communities ohne Existenzhinweis).
+  Der **globale Feed** zeigt nur noch Beiträge ohne Community. Kommentare und Likes eines Community-Beitrags folgen derselben Regel. UI: Reiter
+  **Feed · Mitglieder · Moderation** auf der Community-Seite; Nicht-Mitglieder sehen „Nur für Mitglieder“.
+- **Ausblenden (reversibel):** `POST /communities/:id/posts/:postId/(hide|unhide)` und `…/comments/:commentId/(hide|unhide)` für **Moderatoren und Admins**.
+  Ausgeblendete Beiträge/Kommentare sehen Mitglieder nicht (404 beim direkten Zugriff, nicht im Zähler); die Moderation sieht sie markiert und kann sie
+  einblenden. Moderatoren fassen **Inhalte von Admins nicht an** (403). Der Autor wird benachrichtigt.
+- **Rauswurf und Sperre:** `DELETE /communities/:id/members/:userId` (Browser: `?ban=true` statt Body). Moderatoren entfernen **Mitglieder**, Admins auch
+  **Moderatoren**; Admins und man selbst nie (409/400). Beim Rauswurf **wählt die Moderation „Dauerhaft sperren“**. Gesperrte können weder öffentlich noch per
+  Code beitreten (403, die Einladung wird nicht verbraucht). `GET /communities/:id/bans` und `DELETE …/bans/:userId` (**nur Admins**). Betroffene werden benachrichtigt.
+- **Rollen:** Moderatoren ernennen/entfernen weiterhin niemanden – das bleibt **Admin-Sache** (unverändert, jetzt per Test belegt).
+- **Meldungen:** `POST /communities/:id/reports { kind, targetId, reason, details? }` – jedes Mitglied, fremde sichtbare Inhalte der eigenen Community, **eine Meldung je Person
+  und Inhalt** (doppelt = 200 `duplicate`), Gründe `spam | harassment | illegal | offtopic | other`, 20/Stunde. **Warteschlange** `GET …/reports?status=open|closed`
+  (nur Moderation) gruppiert nach Inhalt mit Vorschau und allen Gründen; `POST …/reports/resolve { kind, targetId, action: hide|dismiss }` entscheidet alle offenen Meldungen
+  zu einem Inhalt („Ausblenden & erledigen“ bzw. „Kein Verstoß“). Offene Meldungen erscheinen als Zähler am Reiter „Moderation“ (`openReports` im Detail, nur Moderation).
+- **Datenschutz/Aufräumen:** Community-Beiträge erscheinen **nicht** in der Betreiber-Inhaltsliste (`/admin/content`); das Admin-Löschen eines Beitrags entfernt jetzt auch dessen
+  Kommentare und Meldungen (zuvor blieben Kommentare verwaist). Kommentarzähler zählen nur sichtbare Kommentare.
+- **Nicht enthalten (bewusst):** Meldungen/Ausblenden für den globalen Feed und das Forum (bleiben beim Admin-Löschen); Austreten aus einer Community; Einspruch gegen Moderation.
+- **Mock-Modus:** gleiche Regeln im Session-Speicher (`src/services/mock.ts`).
+- **Tests:** API 139 → 155 (`moderation.integration.test.ts`: Feed-Zugriff, Ausblenden/Kommentare, Admin-Schutz, Meldungen/Queue/Entscheidung/Limit, Rauswurf-Rechte, Sperre per Beitritt/Code,
+  Entsperren, Aufräumen; Migration 0012), Frontend 169 → 180 (`moderation.test.tsx` 8, `mock-moderation.test.ts` 3), E2E 31 → 34 (`moderation.spec.ts`: Feed → Melden → Queue → Ausblenden mit
+  Benachrichtigung; Kommentar melden/ausblenden und Außenstehende; Rauswurf mit Sperre/Entsperren). Zusätzlich behoben: ein Typfehler im B-59-Test (`tsconfig.tools.json`).
+
 ### B-60 – Rate-Limit über mehrere Instanzen (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

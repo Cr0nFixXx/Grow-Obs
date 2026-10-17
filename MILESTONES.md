@@ -24,7 +24,7 @@ Jetzt aktiv:
 - Auth, Grow-Tagebuch, Social/Forum/Chat/Wiki
 - Communities (öffentlich/privat, Invite-Code, Rollen)
 - Developer-Admin und Feature-Flags
-- als Nächstes: realer API-E2E-Test, Community-Moderation, Feed-Scope und Realtime
+- als Nächstes: realer API-E2E-Test, Community-Moderation, Feed-Scope und Realtime (Moderation, Feed-Scope und Realtime: inzwischen B-59/B-61 umgesetzt, siehe PROGRESS.md)
 
 Nicht jetzt: Editionen, Native Apps, E2EE/P2P und In-App-Purchases.
 

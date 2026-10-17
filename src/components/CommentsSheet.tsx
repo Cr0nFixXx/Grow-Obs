@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Send } from "lucide-react";
+import { Badge } from "@/components/ui";
+import { Icon } from "@/components/Icon";
+import { ReportSheet } from "@/components/community/ReportSheet";
 import { BottomSheet, Avatar, Button, Spinner, Textarea } from "@/components/ui";
 import { useServices } from "@/data/DataContext";
 import { useToast } from "@/components/Toast";
@@ -9,12 +12,14 @@ import type { CommentKind, ItemComment } from "@/services/interfaces";
  * Kommentare zu einem Social-Post oder Hall-of-Fame-Eintrag. Lädt beim Öffnen, schreibt über den
  * Service-Layer (API: /social/posts/:id/comments bzw. /hall/:id/comments) und meldet die neue Anzahl.
  */
-export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
+export function CommentsSheet({ kind, itemId, title, onClose, onCountChange, community }: {
   kind: CommentKind;
   itemId: string | null;
   title?: string;
   onClose: () => void;
   onCountChange?: (itemId: string, count: number) => void;
+  /** Kommentare unter einem Community-Beitrag (B-61): Melden für alle, Aus-/Einblenden für die Moderation. */
+  community?: { id: string; canModerate: boolean };
 }) {
   const svc = useServices();
   const toast = useToast();
@@ -22,6 +27,7 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [reporting, setReporting] = useState<{ kind: "comment"; id: string } | null>(null);
 
   useEffect(() => {
     if (!itemId) return;
@@ -35,6 +41,18 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
     return () => { alive = false; };
   }, [svc, kind, itemId, toast]);
 
+  const toggleHidden = async (comment: ItemComment) => {
+    if (!community) return;
+    try {
+      await svc.communities.setHidden(community.id, "comment", comment.id, !comment.hidden);
+      const next = items.map((c) => (c.id === comment.id ? { ...c, hidden: comment.hidden ? undefined : true } : c));
+      setItems(next);
+      if (itemId) onCountChange?.(itemId, next.filter((c) => !c.hidden).length);
+    } catch (e) {
+      toast.push({ title: "Aktion fehlgeschlagen", desc: e instanceof Error ? e.message : "", tone: "danger", icon: "AlertTriangle" });
+    }
+  };
+
   const send = async () => {
     if (!itemId || !text.trim() || sending) return;
     setSending(true);
@@ -43,7 +61,7 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
       const next = [...items, created];
       setItems(next);
       setText("");
-      onCountChange?.(itemId, next.length);
+      onCountChange?.(itemId, next.filter((c) => !c.hidden).length);
     } catch (e) {
       toast.push({ title: "Kommentar nicht gespeichert", desc: e instanceof Error ? e.message : "Bitte anmelden", tone: "danger", icon: "AlertTriangle" });
     } finally {
@@ -52,6 +70,7 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
   };
 
   return (
+    <>
     <BottomSheet open={!!itemId} onClose={onClose} title={title ?? "Kommentare"}>
       <div className="space-y-4">
         {loading ? (
@@ -63,8 +82,17 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
             {items.map((c) => (
               <li key={c.id} className="flex gap-3">
                 <Avatar src={c.avatar} name={c.author} size={30} />
-                <div className="min-w-0 flex-1 rounded-2xl bg-surface-2 px-3 py-2">
-                  <div className="flex items-center gap-2 text-xs"><span className="font-medium">{c.author}</span><span className="text-fg-subtle">{c.ago}</span></div>
+                <div className={`min-w-0 flex-1 rounded-2xl px-3 py-2 ${c.hidden ? "border border-warning/40 bg-warning/5" : "bg-surface-2"}`}>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-medium">{c.author}</span><span className="text-fg-subtle">{c.ago}</span>
+                    {c.hidden && <Badge tone="warning">Ausgeblendet</Badge>}
+                    {community && (
+                      <span className="ml-auto flex gap-1">
+                        {!c.mine && !c.hidden && <button type="button" onClick={() => setReporting({ kind: "comment", id: c.id })} aria-label="Kommentar melden" className="grid size-8 place-items-center rounded-lg text-fg-subtle hover:bg-surface"><Icon name="Flag" size={14} /></button>}
+                        {community.canModerate && <button type="button" onClick={() => void toggleHidden(c)} aria-label={c.hidden ? "Kommentar wieder einblenden" : "Kommentar ausblenden"} className="grid size-8 place-items-center rounded-lg text-fg-subtle hover:bg-surface"><Icon name={c.hidden ? "Eye" : "EyeOff"} size={14} /></button>}
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-0.5 whitespace-pre-line break-words text-sm">{c.body}</p>
                 </div>
               </li>
@@ -77,5 +105,7 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange }: {
         </div>
       </div>
     </BottomSheet>
+    {community && <ReportSheet communityId={community.id} target={reporting} onClose={() => setReporting(null)} />}
+    </>
   );
 }

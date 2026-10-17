@@ -23,7 +23,7 @@ import {
 import { dbGet, dbSet } from "@/lib/db";
 import { APP_VERSION } from "@/lib/app-version";
 import type { Grow, SocialPost, Strain, Task } from "@/types";
-import type { CommunityDetail } from "@/types";
+import type { BannedMember, CommunityDetail, ReportGroup } from "@/types";
 import type {
   ActivityService,
   AdminContentItem,
@@ -69,9 +69,23 @@ async function savePosts(posts: SocialPost[]): Promise<void> {
   await dbSet("social-posts", posts).catch(() => {});
 }
 
+/** Community-Feeds (Mock, Session): Beiträge je Community-ID. */
+const communityPostStore: Record<string, SocialPost[]> = {};
+const findCommunityPost = (postId: string) => {
+  for (const [communityId, list] of Object.entries(communityPostStore)) {
+    const post = list.find((p) => p.id === postId);
+    if (post) return { communityId, post };
+  }
+  return undefined;
+};
+
 const socialService: SocialService = {
-  async listPosts() {
+  async listPosts(communityId) {
     await delay();
+    if (communityId) {
+      const moderator = isMockModerator(communityId);
+      return (communityPostStore[communityId] ?? []).filter((p) => moderator || !p.hidden).map((p) => ({ ...p }));
+    }
     return loadPosts();
   },
   async createPost(input) {
@@ -89,13 +103,25 @@ const socialService: SocialService = {
       shares: 0,
       tags: input.tags ?? [],
       liked: false,
+      mine: true,
+      ...(input.communityId ? { communityId: input.communityId } : {}),
     };
+    if (input.communityId) {
+      (communityPostStore[input.communityId] ??= []).unshift(post);
+      return { ...post };
+    }
     const posts = await loadPosts();
     await savePosts([post, ...posts]);
     return post;
   },
   async toggleLike(postId) {
     await delay(120);
+    const inCommunity = findCommunityPost(postId);
+    if (inCommunity) {
+      const p = inCommunity.post;
+      p.liked = !p.liked; p.likes += p.liked ? 1 : -1;
+      return { ...p };
+    }
     const posts = await loadPosts();
     const next = posts.map((p) =>
       p.id === postId ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p
@@ -210,11 +236,13 @@ const itemCommentStore: Record<string, ItemComment[]> = {};
 const commentService: CommentService = {
   async list(kind, id) {
     await delay(120);
-    return [...(itemCommentStore[`${kind}:${id}`] ?? [])];
+    const community = kind === "post" ? findCommunityPost(id)?.communityId : undefined;
+    const moderator = community ? isMockModerator(community) : false;
+    return (itemCommentStore[`${kind}:${id}`] ?? []).filter((c) => moderator || !c.hidden).map((c) => ({ ...c }));
   },
   async add(kind, id, text) {
     await delay(120);
-    const c: ItemComment = { id: `ic-${Date.now()}`, author: currentUser.name, avatar: currentUser.avatar, body: text, ago: "gerade eben" };
+    const c: ItemComment = { id: `ic-${Date.now()}`, author: currentUser.name, avatar: currentUser.avatar, body: text, ago: "gerade eben", mine: true };
     (itemCommentStore[`${kind}:${id}`] ??= []).push(c);
     return c;
   },
@@ -543,10 +571,24 @@ const communityStore: CommunityDetail[] = [
 ];
 
 const inviteStore = new Map<string, string>();
+const isMockModerator = (communityId: string) => {
+  const role = communityStore.find((c) => c.id === communityId)?.role;
+  return role === "moderator" || role === "admin";
+};
+const banStore: Record<string, BannedMember[]> = {};
+const reportStore: Record<string, ReportGroup[]> = {};
+const countOpen = (communityId: string) => (reportStore[communityId] ?? []).filter((g) => g.status === "open").length;
 
 const communityService: CommunityService = {
   async list() { await delay(); return communityStore.map(({ membersList: _m, ...c }) => ({ ...c })); },
-  async get(id) { await delay(120); const c = communityStore.find((x) => x.id === id); return c ? structuredClone(c) : undefined; },
+  async get(id) {
+    await delay(120);
+    const c = communityStore.find((x) => x.id === id);
+    if (!c) return undefined;
+    const copy = structuredClone(c);
+    if (isMockModerator(id)) copy.openReports = countOpen(id);
+    return copy;
+  },
   async create(input) {
     await delay();
     const c: CommunityDetail = {
@@ -560,6 +602,7 @@ const communityService: CommunityService = {
   async joinPublic(id) {
     await delay(120); const c = communityStore.find((x) => x.id === id);
     if (!c || c.isPrivate) throw new Error("Community nicht öffentlich");
+    if ((banStore[id] ?? []).some((b) => b.id === "u-me")) throw new Error("Du wurdest aus dieser Community gesperrt");
     if (!c.joined) { c.joined = true; c.role = "member"; c.members += 1; }
   },
   async createInvite(id) {
@@ -577,6 +620,57 @@ const communityService: CommunityService = {
   async setMemberRole(communityId, userId, role) {
     await delay(100); const c = communityStore.find((x) => x.id === communityId);
     const m = c?.membersList.find((x) => x.id === userId); if (m && role) m.role = role;
+  },
+  async kick(communityId, userId, ban) {
+    await delay(100);
+    const c = communityStore.find((x) => x.id === communityId);
+    const m = c?.membersList.find((x) => x.id === userId);
+    if (!c || !m) throw new Error("Mitglied nicht gefunden");
+    if (m.role === "admin") throw new Error("Admins können nicht entfernt werden – zuerst die Rolle ändern");
+    if (c.role === "moderator" && m.role !== "member") throw new Error("Moderatoren können nur Mitglieder entfernen");
+    c.membersList = c.membersList.filter((x) => x.id !== userId);
+    c.members = Math.max(0, c.members - 1);
+    if (ban) (banStore[communityId] ??= []).push({ id: m.id, name: m.name, handle: m.handle, avatar: m.avatar, bannedAt: new Date().toISOString() });
+  },
+  async bans(communityId) { await delay(80); return [...(banStore[communityId] ?? [])]; },
+  async unban(communityId, userId) { await delay(80); banStore[communityId] = (banStore[communityId] ?? []).filter((b) => b.id !== userId); },
+  async setHidden(communityId, kind, targetId, hidden) {
+    await delay(80);
+    if (kind === "post") {
+      const p = communityPostStore[communityId]?.find((x) => x.id === targetId);
+      if (p) p.hidden = hidden || undefined;
+    } else {
+      for (const list of Object.values(itemCommentStore)) { const c = list.find((x) => x.id === targetId); if (c) c.hidden = hidden || undefined; }
+    }
+  },
+  async report(communityId, input) {
+    await delay(100);
+    const list = (reportStore[communityId] ??= []);
+    const post = input.kind === "post" ? communityPostStore[communityId]?.find((x) => x.id === input.targetId) : undefined;
+    const comment = input.kind === "comment" ? Object.values(itemCommentStore).flat().find((x) => x.id === input.targetId) : undefined;
+    const group = list.find((g) => g.kind === input.kind && g.targetId === input.targetId && g.status === "open");
+    const entry = { id: `rp-${Date.now()}`, reporter: currentUser.name, reason: input.reason, details: input.details ?? "", ago: "gerade eben" };
+    if (group) {
+      if (group.reports.some((r) => r.reporter === currentUser.name)) return { duplicate: true };
+      group.reports.push(entry); group.count += 1;
+      return { duplicate: false };
+    }
+    const preview = post ? { text: post.text, image: post.image ?? null, author: post.author, handle: post.handle, hidden: !!post.hidden }
+      : comment ? { text: comment.body, image: null, author: comment.author, handle: "", hidden: !!comment.hidden } : null;
+    list.push({ kind: input.kind, targetId: input.targetId, status: "open", count: 1, preview, reports: [entry] });
+    return { duplicate: false };
+  },
+  async reports(communityId, status) {
+    await delay(80);
+    return (reportStore[communityId] ?? []).filter((g) => (status === "open" ? g.status === "open" : g.status !== "open")).map((g) => structuredClone(g));
+  },
+  async resolveReport(communityId, kind, targetId, action) {
+    await delay(80);
+    const group = (reportStore[communityId] ?? []).find((g) => g.kind === kind && g.targetId === targetId && g.status === "open");
+    if (!group) throw new Error("Keine offene Meldung");
+    if (action === "hide") await communityService.setHidden(communityId, kind, targetId, true);
+    group.status = action === "hide" ? "hidden" : "dismissed";
+    group.resolvedBy = currentUser.name; group.resolvedAgo = "gerade eben";
   },
 };
 

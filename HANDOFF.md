@@ -2,15 +2,24 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-60 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-61 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 169 Frontend-Tests ✅ · 139 API-Integrationstests ✅ · 31 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 180 Frontend-Tests ✅ · 155 API-Integrationstests ✅ · 34 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-61: Community-Moderation (Arena Agent)
+
+- Rechte-Helfer `apps/api/src/lib/moderation.ts` (`communityRole`, `isModerator`, `loadPostForViewer`). **Jeder neue Lesepfad auf Beiträge/Kommentare muss `loadPostForViewer` bzw. den
+  `communityId`-Filter nutzen** (Community-Beiträge nur für Mitglieder, ausgeblendete nur für die Moderation; sonst 404).
+- Moderation `apps/api/src/routes/moderation.ts` (eingehängt in `communities.ts`); Rauswurf/Sperrliste in `communities.ts`. Tabellen `community_bans`, `reports`; Spalten `posts.community_id/hidden_*`, `item_comments.hidden_*`.
+- Benachrichtigungen an Betroffene laufen über `createNotification` (Typ `system`).
+- UI: `src/views/Communities.tsx` (Reiter), `src/components/community/{CommunityFeed,ModerationPanel,ReportSheet}.tsx`, `CommentsSheet` (`community`-Prop); Hooks `useCommunityFeed`, `useModeration`.
+- Offen: Moderation für globalen Feed/Forum, Austreten, Paginierung der Warteschlange, Live-Aktualisierung des Community-Feeds.
 
 ## B-59: Chat und Echtzeit (Arena Agent)
 

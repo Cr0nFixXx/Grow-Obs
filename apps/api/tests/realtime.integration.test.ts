@@ -246,7 +246,7 @@ describe("WebSocket-Transport", () => {
 
   it("höchstens 5 gleichzeitige Verbindungen je Konto (die älteste weicht)", async () => {
     const a = await person("Anna");
-    const conns = [];
+    const conns: Awaited<ReturnType<typeof openWs>>[] = [];
     for (let i = 0; i < 6; i++) { const c = await openWs(a); await c.inbox.wait("hello"); conns.push(c); }
     await until(() => conns[0]!.closeCode() ?? undefined);
     expect(conns[0]!.closeCode()).toBe(4008);

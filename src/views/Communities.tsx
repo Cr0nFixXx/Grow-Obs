@@ -2,10 +2,13 @@ import { useState } from "react";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { useCommunities, useCommunity } from "@/data/hooks";
+import { useCurrentUser } from "@/lib/auth";
+import { CommunityFeed } from "@/components/community/CommunityFeed";
+import { ModerationPanel } from "@/components/community/ModerationPanel";
 import { Icon } from "@/components/Icon";
 import {
-  Avatar, Badge, BottomSheet, Button, Card, EmptyState, Field, Input, PageHeader,
-  SearchInput, Select, SkeletonCard, Textarea, Toggle,
+  Avatar, Badge, BottomSheet, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader,
+  SearchInput, Select, SkeletonCard, Tabs, Textarea, Toggle,
 } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 
@@ -93,26 +96,75 @@ function CommunityList() {
   );
 }
 
+type DetailTab = "feed" | "members" | "moderation";
+
 function CommunityDetail({ id }: { id: string }) {
   const { back } = useNav();
   const toast = useToast();
-  const { community, loading, error, createInvite, setRole } = useCommunity(id);
+  const me = useCurrentUser();
+  const { community, loading, error, refresh, createInvite, setRole, kick } = useCommunity(id);
   const [invite, setInvite] = useState<string | null>(null);
-  if (loading) return <SkeletonCard className="mx-auto max-w-3xl" />;
+  const [tab, setTab] = useState<DetailTab>("feed");
+  const [kicking, setKicking] = useState<{ id: string; name: string } | null>(null);
+  const [ban, setBan] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (loading && !community) return <SkeletonCard className="mx-auto max-w-3xl" />;
   if (error || !community) return <EmptyState icon="AlertTriangle" title="Community nicht gefunden" desc={error ?? "Kein Inhalt."} />;
   const canAdmin = community.role === "admin";
+  const canModerate = canAdmin || community.role === "moderator";
+  const mayKick = (m: { id: string; role: string }) => canModerate && m.id !== me?.id && m.role !== "admin" && (canAdmin || m.role === "member");
+  const confirmKick = async () => {
+    if (!kicking) return;
+    setBusy(true);
+    try {
+      await kick(kicking.id, ban);
+      toast.push({ title: ban ? "Entfernt und gesperrt" : "Entfernt", desc: kicking.name, tone: "leaf", icon: "UserX" });
+      setKicking(null); setBan(false);
+    } catch (e) { toast.push({ title: "Entfernen fehlgeschlagen", desc: e instanceof Error ? e.message : "", tone: "danger", icon: "AlertTriangle" }); }
+    finally { setBusy(false); }
+  };
+  const tabs: { value: DetailTab; label: string; count?: number }[] = [
+    { value: "feed", label: "Feed" },
+    { value: "members", label: `Mitglieder (${community.members})` },
+    ...(canModerate ? [{ value: "moderation" as const, label: "Moderation", ...(community.openReports ? { count: community.openReports } : {}) }] : []),
+  ];
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <button onClick={back} className="flex items-center gap-1.5 text-sm text-fg-muted"><Icon name="ArrowLeft" size={16} /> Communities</button>
       <PageHeader title={community.name} subtitle={community.description} icon={community.isPrivate ? "Lock" : "Globe"}
         actions={canAdmin ? <Button onClick={() => void createInvite().then((x) => { setInvite(x.code); toast.push({ title: "Einladung erstellt", desc: "24 Stunden gültig.", tone: "leaf", icon: "QrCode" }); })}><Icon name="QrCode" size={16} /> Einladen</Button> : undefined} />
       {invite && <Card className="border-accent/25 bg-accent/5 p-4"><div className="text-xs text-fg-subtle">Einmal-Code</div><div className="mt-1 flex items-center justify-between gap-3"><code className="truncate font-semibold text-accent">{invite}</code><Button size="sm" variant="ghost" onClick={() => void navigator.clipboard.writeText(invite)}>Kopieren</Button></div></Card>}
-      <Card className="p-5">
-        <h2 className="mb-3 text-sm font-semibold text-fg-muted">Mitglieder ({community.members})</h2>
-        <div className="divide-y divide-border">
-          {community.membersList.map((m) => <div key={m.id} className="flex items-center gap-3 py-3"><Avatar src={m.avatar} name={m.name} size={40} /><div className="min-w-0 flex-1"><div className="font-medium">{m.name}</div><div className="text-xs text-fg-subtle">{m.handle}</div></div>{canAdmin ? <Select className="h-9 w-36 text-xs" value={m.role} onChange={(e) => void setRole(m.id, e.target.value as "member" | "moderator" | "admin")}><option value="member">member</option><option value="moderator">moderator</option><option value="admin">admin</option></Select> : <Badge>{m.role}</Badge>}</div>)}
+      <Tabs tabs={tabs} value={tab} onChange={setTab} />
+
+      {tab === "feed" && (community.joined
+        ? <CommunityFeed communityId={id} canModerate={canModerate} />
+        : <EmptyState icon="Lock" title="Nur für Mitglieder" desc="Tritt der Community bei, um Beiträge zu lesen und zu schreiben." />)}
+
+      {tab === "members" && (
+        <Card className="p-5">
+          <h2 className="mb-3 text-sm font-semibold text-fg-muted">Mitglieder ({community.members})</h2>
+          <div className="divide-y divide-border">
+            {community.membersList.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 py-3" data-testid="member-row">
+                <Avatar src={m.avatar} name={m.name} size={40} />
+                <div className="min-w-0 flex-1"><div className="font-medium">{m.name}</div><div className="text-xs text-fg-subtle">{m.handle}</div></div>
+                {canAdmin ? <Select aria-label={`Rolle von ${m.name}`} className="h-9 w-36 text-xs" value={m.role} onChange={(e) => void setRole(m.id, e.target.value as "member" | "moderator" | "admin")}><option value="member">member</option><option value="moderator">moderator</option><option value="admin">admin</option></Select> : <Badge>{m.role}</Badge>}
+                {mayKick(m) && <Button size="sm" variant="ghost" aria-label={`${m.name} entfernen`} onClick={() => { setBan(false); setKicking({ id: m.id, name: m.name }); }}><Icon name="UserX" size={16} /></Button>}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {tab === "moderation" && canModerate && <ModerationPanel communityId={id} isAdmin={canAdmin} onChanged={() => void refresh()} />}
+
+      <Modal open={!!kicking} onClose={() => setKicking(null)} title="Mitglied entfernen" size="sm"
+        footer={<><Button variant="ghost" onClick={() => setKicking(null)}>Abbrechen</Button><Button variant="danger" loading={busy} onClick={() => void confirmKick()}>Entfernen</Button></>}>
+        <div className="space-y-4" data-testid="kick-dialog">
+          <p className="text-sm">{kicking?.name} verliert den Zugriff auf Feed und Beiträge dieser Community und wird benachrichtigt.</p>
+          <Checkbox checked={ban} onChange={setBan} label="Dauerhaft sperren (kein erneuter Beitritt, auch nicht per Code)" />
         </div>
-      </Card>
+      </Modal>
     </div>
   );
 }

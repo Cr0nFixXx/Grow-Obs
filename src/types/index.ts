@@ -106,6 +106,49 @@ export interface CommunityMember {
 
 export interface CommunityDetail extends Community {
   membersList: CommunityMember[];
+  /** Offene Meldungen – nur für Moderatoren/Admins. */
+  openReports?: number;
+}
+
+/* ----- Moderation (B-61) ----- */
+export type ReportKind = "post" | "comment";
+export type ReportReason = "spam" | "harassment" | "illegal" | "offtopic" | "other";
+export type ReportAction = "hide" | "dismiss";
+
+export interface ReportInput {
+  kind: ReportKind;
+  targetId: string;
+  reason: ReportReason;
+  details?: string;
+}
+
+export interface ReportEntry {
+  id: string;
+  reporter: string;
+  reason: ReportReason;
+  details: string;
+  ago: string;
+}
+
+/** Warteschlange: alle Meldungen zu einem Inhalt. */
+export interface ReportGroup {
+  kind: ReportKind;
+  targetId: string;
+  status: "open" | "hidden" | "dismissed";
+  count: number;
+  /** `null` = Inhalt inzwischen gelöscht. */
+  preview: { text: string; image: string | null; author: string; handle: string; hidden: boolean } | null;
+  reports: ReportEntry[];
+  resolvedBy?: string | null;
+  resolvedAgo?: string | null;
+}
+
+export interface BannedMember {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  bannedAt: string;
 }
 
 export interface CreateCommunityInput {
@@ -114,6 +157,8 @@ export interface CreateCommunityInput {
   isPrivate: boolean;
 }
 export interface CreatePostInput {
+  /** Beitrag in einer Community (nur Mitglieder). */
+  communityId?: string;
   text: string;
   image?: string;
   tags?: string[];

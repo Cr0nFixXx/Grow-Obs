@@ -4,12 +4,16 @@ import { HTTPException } from "hono/http-exception";
 import { and, count, desc, eq, exists, gt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { communities, communityMembers, invites, users } from "../db/schema.ts";
+import { communities, communityBans, communityMembers, invites, reports, users } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { pageLimit, uuid } from "../lib/validation.ts";
+import { createNotification } from "../lib/notify.ts";
+import { moderationApi } from "./moderation.ts";
 
 export const communitiesApi = new Hono<AuthEnv>();
 communitiesApi.use("*", requireAuth);
+// Moderation (B-61): Beiträge/Kommentare ausblenden, Meldungen, Warteschlange.
+communitiesApi.route("/", moderationApi);
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -18,6 +22,12 @@ async function lockCommunity(tx: Transaction, id: string) {
   const [community] = await tx.select().from(communities).where(eq(communities.id, id)).for("update");
   if (!community) throw new HTTPException(404, { message: "Community nicht gefunden" });
   return community;
+}
+
+async function assertNotBanned(tx: Transaction, communityId: string, userId: string) {
+  const [ban] = await tx.select().from(communityBans)
+    .where(and(eq(communityBans.communityId, communityId), eq(communityBans.userId, userId)));
+  if (ban) throw new HTTPException(403, { message: "Du wurdest aus dieser Community gesperrt" });
 }
 
 async function requireCommunityAdmin(tx: Transaction, id: string, userId: string) {
@@ -48,7 +58,13 @@ async function toDetail(id: string, viewerId: string) {
     .select({ id: users.id, name: users.name, handle: users.handle, avatar: users.avatarUrl, role: communityMembers.role })
     .from(communityMembers).innerJoin(users, eq(users.id, communityMembers.userId))
     .where(eq(communityMembers.communityId, id)) : [];
-  return { ...base, membersList: rows.map((member) => ({ ...member, avatar: member.avatar ?? "" })) };
+  // Offene Meldungen nur für die Moderation (Badge am Reiter „Moderation“).
+  let openReports: number | undefined;
+  if (base.role === "moderator" || base.role === "admin") {
+    const [n] = await db.select({ n: count() }).from(reports).where(and(eq(reports.communityId, id), eq(reports.status, "open")));
+    openReports = n.n;
+  }
+  return { ...base, ...(openReports === undefined ? {} : { openReports }), membersList: rows.map((member) => ({ ...member, avatar: member.avatar ?? "" })) };
 }
 
 communitiesApi.get("/", async (c) => {
@@ -84,6 +100,7 @@ communitiesApi.post("/:id/join", async (c) => {
   await db.transaction(async (tx) => {
     const row = await lockCommunity(tx, id);
     if (row.isPrivate) throw new HTTPException(404, { message: "Community nicht gefunden" });
+    await assertNotBanned(tx, id, c.get("userId"));
     await tx.insert(communityMembers).values({ communityId: id, userId: c.get("userId") }).onConflictDoNothing();
   });
   return c.json({ ok: true });
@@ -114,6 +131,7 @@ communitiesApi.post("/join", async (c) => {
       eq(invites.id, candidate.id), gt(invites.expiresAt, new Date()), sql`${invites.uses} < ${invites.maxUses}`,
     )).for("update");
     if (!invite) throw new HTTPException(404, { message: "Einladung ungueltig oder abgelaufen" });
+    await assertNotBanned(tx, invite.communityId, c.get("userId"));
     const joined = await tx.insert(communityMembers)
       .values({ communityId: invite.communityId, userId: c.get("userId") }).onConflictDoNothing().returning();
     // Existing members do not consume a new invitation.
@@ -141,6 +159,62 @@ communitiesApi.patch("/:id/members/:userId/role", async (c) => {
       if (admins.n <= 1) throw new HTTPException(409, { message: "Die letzte Admin-Rolle darf nicht entfernt werden" });
     }
     await tx.update(communityMembers).set({ role: body.data.role }).where(targetWhere);
+  });
+  return c.json({ ok: true });
+});
+
+/** Rauswurf (B-61): Moderatoren entfernen Mitglieder, Admins auch Moderatoren; Admins bleiben (erst herabstufen). Optional dauerhaft sperren. */
+const kickSchema = z.object({ ban: z.boolean().default(false) });
+communitiesApi.delete("/:id/members/:userId", async (c) => {
+  const id = uuid(c.req.param("id"));
+  const userId = uuid(c.req.param("userId"));
+  const body = kickSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
+  // Browser-Clients senden `?ban=true` (DELETE ohne Body); der JSON-Body bleibt für andere Clients erlaubt.
+  const ban = body.data.ban || c.req.query("ban") === "true";
+  const actorId = c.get("userId");
+  const name = await db.transaction(async (tx) => {
+    const community = await lockCommunity(tx, id);
+    const [actor] = await tx.select().from(communityMembers)
+      .where(and(eq(communityMembers.communityId, id), eq(communityMembers.userId, actorId)));
+    if (actor?.role !== "admin" && actor?.role !== "moderator") throw new HTTPException(403, { message: "Keine Berechtigung" });
+    if (userId === actorId) throw new HTTPException(400, { message: "Du kannst dich nicht selbst entfernen" });
+    const targetWhere = and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId));
+    const [target] = await tx.select().from(communityMembers).where(targetWhere);
+    if (!target) throw new HTTPException(404, { message: "Mitglied nicht gefunden" });
+    if (target.role === "admin") throw new HTTPException(409, { message: "Admins können nicht entfernt werden – zuerst die Rolle ändern" });
+    if (actor.role === "moderator" && target.role !== "member") throw new HTTPException(403, { message: "Moderatoren können nur Mitglieder entfernen" });
+    await tx.delete(communityMembers).where(targetWhere);
+    if (ban) await tx.insert(communityBans).values({ communityId: id, userId, bannedBy: actorId }).onConflictDoNothing();
+    return community.name;
+  });
+  await createNotification(userId, {
+    type: "system",
+    title: `Du wurdest aus „${name}“ entfernt`,
+    body: ban ? "Du bist für diese Community gesperrt." : "Du kannst ihr gegebenenfalls erneut beitreten.",
+  }).catch(() => undefined);
+  return c.json({ ok: true });
+});
+
+/** Sperrliste (nur Admins) und Entsperren. */
+communitiesApi.get("/:id/bans", async (c) => {
+  const id = uuid(c.req.param("id"));
+  await db.transaction(async (tx) => { await requireCommunityAdmin(tx, id, c.get("userId")); });
+  const rows = await db
+    .select({ id: users.id, name: users.name, handle: users.handle, avatar: users.avatarUrl, bannedAt: communityBans.createdAt })
+    .from(communityBans).innerJoin(users, eq(users.id, communityBans.userId))
+    .where(eq(communityBans.communityId, id)).orderBy(desc(communityBans.createdAt)).limit(200);
+  return c.json(rows.map((r) => ({ id: r.id, name: r.name, handle: r.handle, avatar: r.avatar ?? "", bannedAt: r.bannedAt.toISOString() })));
+});
+
+communitiesApi.delete("/:id/bans/:userId", async (c) => {
+  const id = uuid(c.req.param("id"));
+  const userId = uuid(c.req.param("userId"));
+  await db.transaction(async (tx) => {
+    await requireCommunityAdmin(tx, id, c.get("userId"));
+    const removed = await tx.delete(communityBans)
+      .where(and(eq(communityBans.communityId, id), eq(communityBans.userId, userId))).returning();
+    if (!removed.length) throw new HTTPException(404, { message: "Keine Sperre gefunden" });
   });
   return c.json({ ok: true });
 });

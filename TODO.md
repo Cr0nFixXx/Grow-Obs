@@ -21,6 +21,7 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 - [x] Dashboard & Co. im API-Modus ohne statische Demo-Daten (B-53, E2E grün). Offen: Verbrauch/Kosten, KI-Anbindung, Rezepte, Stories, Bewertungen haben noch keine Datenquelle (Leerzustände).
 - [ ] Abhängigkeiten-Audit: 9 gemeldete Advisories genauer prüfen und beheben (TESTING.md).
 - [x] Auth/Upload-Rate-Limits (B-51; seit B-60 über mehrere Instanzen via PostgreSQL) – [x] Session-Revocation + HttpOnly-Cookie (B-54) – [x] sicheres Betreiber-Bootstrap (B-56, CLI `admin:create`).
+- [x] Community-Moderation: Feed-Scope, Ausblenden, Rauswurf/Sperre, Meldungen + Warteschlange (B-61) – [ ] Moderation für globalen Feed/Forum, Austreten, Warteschlangen-Paginierung
 - [x] Chat-/Echtzeitsystem: WebSocket → SSE → Polling, Direktnachrichten, Badge, „schreibt …“, Online-Status, Live-Benachrichtigungen/Forum (B-59) – [ ] Online-Status verbergen, Gruppenchats anlegen, Web-Push
 - [x] Einmalpasswort erzwingt Passwortwechsel + `--reset-password` (B-58)
 - [x] Sitzungen: Passwort ändern (beendet andere Sitzungen), Anmeldeprotokoll, Gerätelimit 5 (B-55).
@@ -29,7 +30,7 @@ Pflege: `claude-grow-dev` (Claude · Anthropic).
 
 Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
 
-Prüfstand: **B-60** — Typecheck, Lint, 169 Frontend-Tests, 139 API-Integrationstests, 31 Browser-E2E, Next- und Vite-Build
+Prüfstand: **B-61** — Typecheck, Lint, 180 Frontend-Tests, 155 API-Integrationstests, 34 Browser-E2E, Next- und Vite-Build
 ausgeführt und grün (Node 22, PostgreSQL 17). **Docker/MinIO wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
 
 Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-

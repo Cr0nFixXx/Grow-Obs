@@ -58,6 +58,18 @@ Implementierungen: `mock` | `api` (Free-Cloud) | `local` (Paid local-first). UI 
 
 ---
 
+## Community-Moderation (B-61)
+
+| Rolle (je Community) | Feed lesen/schreiben | melden | aus-/einblenden | Mitglied entfernen/sperren | Rollen vergeben | Sperrliste |
+|---|---|---|---|---|---|---|
+| Nicht-Mitglied / Gesperrt | ✗ (404/403) | ✗ | ✗ | ✗ | ✗ | ✗ |
+| member | ✓ | ✓ (fremde Inhalte) | ✗ | ✗ | ✗ | ✗ |
+| moderator | ✓ | ✓ | ✓ (nicht Inhalte von Admins) | nur Mitglieder | ✗ | ✗ |
+| admin | ✓ | ✓ | ✓ | Mitglieder und Moderatoren (nie Admins) | ✓ | ✓ |
+
+Beiträge mit `community_id` sind nur Mitgliedern sichtbar und fehlen im globalen Feed sowie in der Betreiber-Inhaltsliste. Ausblenden setzt `hidden_at` (reversibel). Meldungen
+(`reports`, eine je Person und Inhalt) werden nach Inhalt gruppiert entschieden; Details in `HANDOFF.md` (B-61).
+
 ## Echtzeit (B-59)
 
 ```

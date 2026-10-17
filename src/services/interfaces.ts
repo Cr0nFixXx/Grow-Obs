@@ -1,7 +1,7 @@
 import type {
-  ActivityItem, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
+  ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
   CreateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
-  Grow, GrowLog, HallEntry, Product, SeedOffer, SocialPost, Strain,
+  Grow, GrowLog, HallEntry, Product, ReportAction, ReportGroup, ReportInput, ReportKind, SeedOffer, SocialPost, Strain,
 } from "@/types";
 
 export interface WikiArticleBrief {
@@ -44,6 +44,10 @@ export interface ItemComment {
   avatar: string;
   body: string;
   ago: string;
+  /** Eigener Kommentar (Server). */
+  mine?: boolean;
+  /** Ausgeblendet (B-61) – nur für die Moderation sichtbar. */
+  hidden?: boolean;
 }
 
 export type CommentKind = "post" | "hall";
@@ -176,7 +180,8 @@ export interface GrowService {
 }
 
 export interface SocialService {
-  listPosts(): Promise<SocialPost[]>;
+  /** Ohne Argument: globaler Feed (Beiträge ohne Community). Mit `communityId`: Feed der Community (nur Mitglieder). */
+  listPosts(communityId?: string): Promise<SocialPost[]>;
   createPost(input: CreatePostInput): Promise<SocialPost>;
   toggleLike(postId: string): Promise<SocialPost>;
 }
@@ -261,6 +266,19 @@ export interface CommunityService {
   createInvite(id: string): Promise<{ code: string; expiresAt: string }>;
   joinByCode(code: string): Promise<CommunityDetail>;
   setMemberRole(communityId: string, userId: string, role: CommunityRole): Promise<void>;
+  /** Rauswurf (Moderator/Admin); `ban` sperrt zusätzlich dauerhaft. */
+  kick(communityId: string, userId: string, ban: boolean): Promise<void>;
+  /** Sperrliste (nur Admins) und Entsperren. */
+  bans(communityId: string): Promise<BannedMember[]>;
+  unban(communityId: string, userId: string): Promise<void>;
+  /** Beitrag/Kommentar aus- bzw. einblenden (Moderator/Admin). */
+  setHidden(communityId: string, kind: ReportKind, targetId: string, hidden: boolean): Promise<void>;
+  /** Inhalt melden (Mitglied). Liefert `duplicate: true`, wenn man ihn schon gemeldet hatte. */
+  report(communityId: string, input: ReportInput): Promise<{ duplicate: boolean }>;
+  /** Warteschlange der Moderation: offen oder zuletzt entschieden. */
+  reports(communityId: string, status: "open" | "closed"): Promise<ReportGroup[]>;
+  /** Alle offenen Meldungen zu einem Inhalt entscheiden: ausblenden oder „kein Verstoß“. */
+  resolveReport(communityId: string, kind: ReportKind, targetId: string, action: ReportAction): Promise<void>;
 }
 
 /* ----------------------------- Dev-Admin (Betreiber) ----------------------------- */
