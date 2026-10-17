@@ -48,7 +48,7 @@ test.describe("Sitzungen (HttpOnly-Cookie, B-54)", () => {
 
     await b.reload();
     await expect(b.getByRole("heading", { name: /Willkommen zurück/ })).toBeVisible();
-    await a.reload();
+    await a.goto("/"); // seit B-57 bleibt ein Reload auf der Profil-URL; „/“ lädt das Dashboard
     await expect(a.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible(); // a bleibt angemeldet
     await a.context().close();
     await b.context().close();
@@ -129,7 +129,7 @@ test.describe("Sitzungen (HttpOnly-Cookie, B-54)", () => {
 
     await b.reload();
     await expect(b.getByRole("heading", { name: /Willkommen zurück/ })).toBeVisible();
-    await a.reload();
+    await a.goto("/"); // seit B-57 bleibt ein Reload auf der Profil-URL; „/“ lädt das Dashboard
     await expect(a.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible();
     await a.context().close();
 

@@ -9,6 +9,28 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-57 – URL-Routing (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Die Adresszeile folgt der Ansicht** (nur Next.js): `/grows/<id>`, `/forum/<threadId>`, `/wiki/<id>`, `/breeders/<id>`,
+  `/communities/<id>`, `/profile/settings`, `/hall-of-fame` usw. Reload bleibt auf der Ansicht (vorher: immer Dashboard), Links sind
+  teilbar. Schema und Regeln: `src/lib/routes.ts` (reine Funktionen). IDs müssen `[A-Za-z0-9_-]{1,64}` sein, sonst Listenansicht.
+- **Browser-History:** `src/lib/nav.tsx` nutzt `pushState`/`popstate`. Zurück/Vorwärts-Taste und Wischgeste gehen durch die
+  Ansichten. Die App-Zurück-Taste funktioniert auch bei direkt geöffneten Links (Detail → Liste → Dashboard). Neue Funktion
+  `replaceParams` (Profil-Tab ohne neuen History-Eintrag).
+- **Nicht verlinkbar:** Anmeldung, Dev-Admin, Erstellen-Assistent (URL bleibt `/`; Reload dort → Dashboard).
+  Unbekannte Pfade → Dashboard (Adresse wird auf `/` bereinigt). Alte `?view=`-Links werden zum Pfad umgeschrieben (Hash bleibt).
+- **Tiefer Link im abgemeldeten Zustand:** Anmeldung, danach öffnet sich das gemerkte Ziel (`Auth.tsx` navigiert nur noch von
+  der Anmeldeseite selbst zum Dashboard).
+- **Next:** `app/page.tsx` → `app/[[...slug]]/page.tsx` (optionale Catch-All-Route, dynamisch gerendert; `/api/*` bleibt
+  unberührt). **Service Worker:** Navigationen zu App-Routen laufen über die Shell-Strategie (offline: gecachte „/“-Shell); ein
+  Test hält die Segmentliste in `public/sw-policy.js` mit `routes.ts` synchron.
+- **Teilen-Links** (Forum-Thread, Feed-Post, Hall of Fame) erzeugen Pfad-Links (`shareUrl`). Manifest-Shortcuts bleiben `?view=`.
+- **Vite-Legacy-Build** unverändert: Adresse bleibt `/?view=…` (`config.pathRouting` nur unter Next), History-Einträge gibt es auch dort.
+- **Tests:** Frontend 116 → 134 (`routes.test.ts`, `nav.test.tsx`, SW-Policy), E2E 20 → 26 (`e2e/routing.spec.ts`). Zwei
+  Session-Tests mussten angepasst werden, weil ein Reload auf `/profile` jetzt auf dem Profil bleibt.
+
 ### B-56 – Betreiber-Bootstrap per CLI (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

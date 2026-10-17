@@ -2,15 +2,25 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-56 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-57 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 116 Frontend-Tests ✅ · 90 API-Integrationstests ✅ · 20 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 134 Frontend-Tests ✅ · 90 API-Integrationstests ✅ · 26 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-57: URL-Routing (Arena Agent)
+
+- `src/lib/routes.ts` (Pfad ↔ Ansicht, `shareUrl`), `src/lib/nav.tsx` (History-gekoppelter Router, `replaceParams`),
+  `app/[[...slug]]/page.tsx` (Catch-All), `public/sw-policy.js` (`appSegments`), `config.pathRouting` (nur Next).
+- Neue Ansicht mit URL: Segment in `SEGMENT` (und ggf. Detail-Parameter in `DETAIL_PARAM`) in `routes.ts` UND `appSegments` in
+  `sw-policy.js` eintragen – ein Test schlägt sonst fehl. Nicht verlinkbare Ansichten fehlen in `SEGMENT`.
+- Entscheidungen des Eigners: Pfade statt Query/Hash, History-Kopplung, alle Ansichten + Detail-IDs + Profil-Tabs, Ziel nach
+  Login, Vite-Legacy unverändert.
+- Offen: kein echtes 404 (unbekannt → Dashboard), Strains/Wiki-Detail teils ohne URL (Strains hat keine), kein SSR/File-Routing.
 
 ## B-56: Betreiber-Bootstrap (Arena Agent)
 
@@ -605,7 +615,7 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 - Uploads (B-47): DB-Speicher mit Magic-Byte-Prüfung, Quote und clientseitiger EXIF-Entfernung.
   Offen: Virenscan, serverseitige Neukodierung, private Bilder (Download-Autorisierung), Aufräumen
   verwaister Uploads
-- Next.js ist aktiv als SPA-Hülle (B-42); File-based-Routing und Monorepo (`apps/web`) stehen aus
+- Next.js ist aktiv als SPA-Hülle (B-42); URL-Routing seit B-57 (Catch-All + `useNav` mit History); File-based-Routing pro Ansicht und Monorepo (`apps/web`) stehen aus
 - API-Integrationstests, Browser-E2E (Playwright, B-51) und CI-Jobs existieren; Docker und echte Geräte (iOS/Android-Touch) noch unbestätigt
 - Sitzungen: seit B-54 HttpOnly-Cookie + serverseitiger Widerruf (Tabelle `sessions`); Passwort-ändern, Anmeldeprotokoll (90 Tage, ohne IP)
   und Gerätelimit 5 folgten in B-55; das Betreiber-Bootstrap folgte in B-56

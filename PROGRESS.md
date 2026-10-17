@@ -11,6 +11,7 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-57 | URL-Routing: Pfade (`/grows/<id>` …), History-Kopplung, tiefer Link nach Login, Catch-All-Route, SW-Routen, Teilen-Links | typecheck ✅ lint ✅ vitest 134/134 ✅ E2E 26/26 ✅ | Arena Agent |
 | B-56 | Betreiber-Bootstrap: `admin:create` (CLI, Zufallspasswort einmalig, `--promote` mit Sitzungsende, Protokoll `role_changed`), Docker-Profil `tools` | typecheck ✅ lint ✅ vitest 116/116 ✅ API 90/90 ✅ E2E 20/20 ✅ CLI real geprüft | Arena Agent |
 | B-55 | Passwort ändern (aktuelles Passwort, beendet andere Sitzungen), Anmeldeprotokoll ohne IP (90 Tage, `login_events`/0008), Gerätelimit 5 | typecheck ✅ lint ✅ vitest 116/116 ✅ API 83/83 ✅ E2E 20/20 ✅ | Arena Agent |
 | B-54 | Session-Härtung: HttpOnly-Cookie statt Bearer/localStorage, Tabelle `sessions` (0007), Logout/„Alle Geräte“/Geräteliste, CSRF-Guard, CORS-Credentials, 401-Auto-Abmeldung | typecheck ✅ lint ✅ vitest 110/110 ✅ API 68/68 ✅ (+ API-Typecheck/Tools; B-54.1/54.2 Fixes für die iframe-Vorschau, Header-Fallback) E2E 19 ✅ · next build ✅ vite build ✅ · Build-Nummer siehe `version.json` | Arena Agent |

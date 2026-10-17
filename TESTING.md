@@ -2,6 +2,12 @@
 
 ## Status
 
+**B-57 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 134/134 ✅ (neu `routes.test.ts`: Hin-/Rückweg aller Ansichten,
+Detail-IDs, unsichere/zu tiefe Pfade, Legacy-Query, Teilen-Links, Synchronität mit der SW-Liste; `nav.test.tsx`: Start aus Pfad,
+Bereinigung, `?view=`-Umschreibung, Push/Popstate, Rückfall-„Zurück“, `replaceParams`, Legacy-Modus; SW-Policy), `next build` ✅,
+Playwright **26 ✅** (neu `routing.spec.ts`: Adresse folgt Ansicht, Reload, Zurück/Vorwärts, Grow-Detail, tiefer Link nach Login,
+Profil-Tab, `?view=`, unbekannter Pfad, `/api` unberührt). **Nicht geprüft:** Vite-Legacy-Build im Browser, PWA offline auf Deep-Links.
+
 **B-56 (Arena Agent) – ausgeführt:** typecheck ✅ (Frontend + `apps/api` Build/`tsconfig.tools.json`), lint ✅, `npm test` 116/116 ✅,
 `npm run test:api` 90/90 ✅ (neu `operator.integration.test.ts`: Anlage auf leerer DB, Login mit Einmalpasswort und
 Betreiberroute, Hash statt Klartext, Protokoll ohne Passwort, Ablehnung ohne `--promote`, Promote beendet Sitzungen und lässt das

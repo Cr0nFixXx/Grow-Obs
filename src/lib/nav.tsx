@@ -2,10 +2,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { config } from "@/lib/config";
+import { parseLegacyQuery, parsePath, pathFor } from "@/lib/routes";
 
 /** All available top-level views (used by sidebar / bottom-nav / router). */
 export type ViewKey =
@@ -46,15 +50,12 @@ export interface NavParams {
   [key: string]: string | undefined;
 }
 
-interface StackEntry {
-  view: ViewKey;
-  params: NavParams | null;
-}
-
 interface NavContextValue {
   view: ViewKey;
   params: NavParams | null;
   navigate: (view: ViewKey, params?: NavParams) => void;
+  /** Parameter der aktuellen Ansicht ersetzen (kein neuer History-Eintrag). */
+  replaceParams: (params: NavParams | null) => void;
   back: () => void;
   canGoBack: boolean;
   /** Mobile slide-in drawer */
@@ -74,52 +75,94 @@ interface NavContextValue {
 const NavContext = createContext<NavContextValue | null>(null);
 
 /**
- * Lightweight view-based router. Avoids react-router to keep the
- * single-file build self-contained while still enabling page transitions.
+ * Leichtgewichtiger View-Router (ohne react-router, damit der Legacy-Einzeldatei-Build eigenständig bleibt).
+ * Seit B-57 ist er an die Browser-History gekoppelt: Unter Next.js spiegelt die URL die Ansicht (`/grows/123`,
+ * siehe `routes.ts`), Reload und Teilen funktionieren, Zurück/Vorwärts (auch Wischgeste) gehen durch die Ansichten.
+ * Im Vite-Legacy-Build bleibt die URL unverändert (`/?view=…`), nur die History-Einträge kommen dazu.
  */
-/** Deep-Links: `/?view=social#post-…` öffnet die View (nur bekannte, öffentliche Keys). */
-const LINKABLE_VIEWS: ViewKey[] = ["dashboard", "grows", "strains", "wiki", "forum", "hallOfFame", "social", "communities", "marketplace", "planner", "breeders"];
-function initialView(): ViewKey {
-  if (typeof window === "undefined") return "dashboard";
-  const requested = new URLSearchParams(window.location.search).get("view") as ViewKey | null;
-  return requested && LINKABLE_VIEWS.includes(requested) ? requested : "dashboard";
+interface HistoryState { idx: number; view: ViewKey; params: NavParams | null }
+
+/** Start-Ansicht aus der Adresszeile (Pfad; alter `?view=`-Link nur als Rückfall). */
+function entryFromLocation(): { view: ViewKey; params: NavParams | null } {
+  if (typeof window === "undefined") return { view: "dashboard", params: null };
+  const { pathname, search } = window.location;
+  const legacy = parseLegacyQuery(search);
+  if (!config.pathRouting) return { view: legacy ?? "dashboard", params: null };
+  const parsed = parsePath(pathname);
+  if (parsed && pathname === "/" && legacy) return { view: legacy, params: null };
+  return parsed ?? { view: "dashboard", params: null };
 }
+const currentIdx = () => (typeof window === "undefined" ? 0 : ((window.history.state as HistoryState | null)?.idx ?? 0));
+/** Adresse für einen History-Eintrag: Pfad (Next) bzw. unverändert (Legacy). */
+const urlFor = (view: ViewKey, params: NavParams | null) =>
+  config.pathRouting ? pathFor(view, params) : `${window.location.pathname}${window.location.search}`;
 
 export function NavProvider({ children }: { children: ReactNode }) {
-  const [view, setView] = useState<ViewKey>(initialView);
-  const [params, setParams] = useState<NavParams | null>(null);
-  const [stack, setStack] = useState<StackEntry[]>([]);
+  const [initial] = useState(entryFromLocation);
+  const [view, setView] = useState<ViewKey>(initial.view);
+  const [params, setParams] = useState<NavParams | null>(initial.params);
+  const [idx, setIdx] = useState(currentIdx);
+  const idxRef = useRef(idx);
+  const current = useRef({ view: initial.view, params: initial.params });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
+  const closeOverlays = useCallback(() => { setMobileNavOpen(false); setNotifOpen(false); setCommandOpen(false); }, []);
+  const apply = useCallback((nextView: ViewKey, nextParams: NavParams | null, nextIdx: number) => {
+    current.current = { view: nextView, params: nextParams };
+    idxRef.current = nextIdx;
+    setView(nextView); setParams(nextParams); setIdx(nextIdx);
+  }, []);
+
+  // Beim Start den aktuellen Eintrag normalisieren (alter ?view=-Link → Pfad, unbekannter Pfad → „/“; Hash bleibt).
+  useEffect(() => {
+    window.history.replaceState({ idx: idxRef.current, view: initial.view, params: initial.params } satisfies HistoryState, "", `${urlFor(initial.view, initial.params)}${window.location.hash}`);
+  }, [initial]);
+
+  // Zurück/Vorwärts: Ansicht aus dem History-Eintrag wiederherstellen (ohne Eintrag: aus der Adresse lesen).
+  useEffect(() => {
+    const onPop = (event: PopStateEvent) => {
+      const st = event.state as HistoryState | null;
+      const target = st?.view ? { view: st.view, params: st.params ?? null } : entryFromLocation();
+      apply(target.view, target.params, st?.idx ?? 0);
+      closeOverlays();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [apply, closeOverlays]);
+
   const navigate = useCallback(
     (next: ViewKey, nextParams?: NavParams) => {
-      setStack((s) => [...s, { view, params }]);
-      setView(next);
-      setParams(nextParams ?? null);
-      setMobileNavOpen(false);
-      setNotifOpen(false);
-      setCommandOpen(false);
-      if (typeof window !== "undefined") {
-        window.scrollTo({ top: 0, behavior: "auto" });
-        const main = document.getElementById("app-scroll");
-        if (main) main.scrollTo({ top: 0, behavior: "auto" });
+      const p = nextParams ?? null;
+      const same = current.current.view === next && JSON.stringify(current.current.params) === JSON.stringify(p);
+      if (!same) {
+        const nextIdx = idxRef.current + 1;
+        window.history.pushState({ idx: nextIdx, view: next, params: p } satisfies HistoryState, "", urlFor(next, p));
+        apply(next, p, nextIdx);
       }
+      closeOverlays();
+      window.scrollTo({ top: 0, behavior: "auto" });
+      document.getElementById("app-scroll")?.scrollTo({ top: 0, behavior: "auto" });
     },
-    [view, params]
+    [apply, closeOverlays]
   );
 
-  const back = useCallback(() => {
-    setStack((s) => {
-      if (s.length === 0) return s;
-      const prev = s[s.length - 1];
-      setView(prev.view);
-      setParams(prev.params);
-      return s.slice(0, -1);
-    });
+  /** Parameter der aktuellen Ansicht ändern (z. B. Profil-Tab) – ersetzt den History-Eintrag, statt einen neuen anzulegen. */
+  const replaceParams = useCallback((nextParams: NavParams | null) => {
+    const v = current.current.view;
+    window.history.replaceState({ idx: idxRef.current, view: v, params: nextParams } satisfies HistoryState, "", urlFor(v, nextParams));
+    current.current = { view: v, params: nextParams };
+    setParams(nextParams);
   }, []);
+
+  /** Eine Ansicht zurück. Ohne eigene History (direkt geöffneter Link): von der Detail- zur Listenansicht, sonst zum Dashboard. */
+  const back = useCallback(() => {
+    if (idxRef.current > 0) { window.history.back(); return; }
+    const { view: v, params: p } = current.current;
+    navigate(p && Object.keys(p).length ? v : "dashboard");
+  }, [navigate]);
 
   const toggleSidebar = useCallback(
     () => setSidebarCollapsed((c) => !c),
@@ -131,8 +174,9 @@ export function NavProvider({ children }: { children: ReactNode }) {
       view,
       params,
       navigate,
+      replaceParams,
       back,
-      canGoBack: stack.length > 0,
+      canGoBack: idx > 0,
       mobileNavOpen,
       setMobileNavOpen,
       sidebarCollapsed,
@@ -142,7 +186,7 @@ export function NavProvider({ children }: { children: ReactNode }) {
       notifOpen,
       setNotifOpen,
     }),
-    [view, params, navigate, back, stack.length, mobileNavOpen, sidebarCollapsed, toggleSidebar, commandOpen, notifOpen]
+    [view, params, navigate, replaceParams, back, idx, mobileNavOpen, sidebarCollapsed, toggleSidebar, commandOpen, notifOpen]
   );
 
   return <NavContext.Provider value={value}>{children}</NavContext.Provider>;

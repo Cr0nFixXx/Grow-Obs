@@ -1,12 +1,17 @@
 /* Shared by the classic service worker and its Node regression tests. */
 (() => {
   const shellPaths = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/sw-policy.js"];
+  // App-Routen (B-57): erste Pfadsegmente der Ansichten, siehe src/lib/routes.ts (ein Test hält beide Listen synchron).
+  const appSegments = new Set(["grows", "strains", "ai", "planner", "breeders", "marketplace", "wiki", "forum", "hall-of-fame", "social", "communities", "showcase", "calculator", "consumption", "simulation", "report", "chat", "notifications", "profile", "telegram"]);
+  const isAppRoute = (pathname) => { const parts = pathname.split("/").filter(Boolean); return parts.length > 0 && parts.length <= 2 && appSegments.has(parts[0]); };
   const assetPaths = new Set([...shellPaths, "/images/og.jpg"]);
   const classify = (request, origin) => {
     const url = new URL(request.url);
     if (request.method !== "GET" || request.headers.has("authorization") || request.cache === "no-store") return "network";
     // Next.js-Build-Chunks sind content-gehasht (immutable) und öffentlich → offline-fähige Shell.
     const isBuildAsset = url.pathname.startsWith("/_next/static/");
+    // Navigationen zu App-Routen (/grows/123 …) liefern dieselbe Shell; offline fällt der Service Worker auf die gecachte „/“ zurück.
+    if (request.mode === "navigate" && url.origin === origin && !url.search && isAppRoute(url.pathname)) return "navigation";
     if (url.origin !== origin || url.search || !(assetPaths.has(url.pathname) || isBuildAsset)) return "network";
     if (request.mode === "navigate") return ["/", "/index.html"].includes(url.pathname) ? "navigation" : "network";
     return "asset";
@@ -25,5 +30,5 @@
     if (path.endsWith(".woff2")) return /font\/woff2|application\/font-woff2|octet-stream/i.test(mime);
     return /^image\//i.test(mime);
   };
-  globalThis.GrowCachePolicy = Object.freeze({ shellPaths, classify, canStore });
+  globalThis.GrowCachePolicy = Object.freeze({ shellPaths, appSegments, classify, canStore });
 })();

@@ -21,7 +21,11 @@ describe("actual service-worker cache policy", () => {
   });
   it("only uses the offline HTML shell for known entry navigations", () => {
     expect(policy.classify(request("/", { mode: "navigate" }), origin)).toBe("navigation");
-    expect(policy.classify(request("/communities", { mode: "navigate" }), origin)).toBe("network");
+    expect(policy.classify(request("/communities", { mode: "navigate" }), origin)).toBe("navigation"); // App-Route (B-57)
+    expect(policy.classify(request("/grows/abc123", { mode: "navigate" }), origin)).toBe("navigation");
+    expect(policy.classify(request("/admin", { mode: "navigate" }), origin)).toBe("network");
+    expect(policy.classify(request("/api/auth/me", { mode: "navigate" }), origin)).toBe("network");
+    expect(policy.classify(request("/grows/a/b/c", { mode: "navigate" }), origin)).toBe("network");
   });
   it("stores a public icon but rejects private/HTML/error responses", () => {
     const req = request("/icon.svg");
@@ -37,6 +41,10 @@ describe("actual service-worker cache policy", () => {
     expect(policy.canStore(js, new Response("x", { headers: { "Content-Type": "application/javascript" } }), origin)).toBe(true);
     expect(policy.canStore(js, new Response("<html/>", { headers: { "Content-Type": "text/html" } }), origin)).toBe(false);
     expect(policy.canStore(css, new Response("a{}", { headers: { "Content-Type": "text/css; charset=utf-8" } }), origin)).toBe(true);
+  });
+  it("speichert HTML-Antworten von App-Routen nie unter ihrer eigenen Adresse", () => {
+    const nav = request("/grows/abc123", { mode: "navigate" });
+    expect(policy.canStore(nav, new Response("<html/>", { headers: { "Content-Type": "text/html" } }), origin)).toBe(false);
   });
   it.each(["/_next/data/build/page.json", "/_next/image?url=%2Fimages%2Fog.jpg", "/_next/static/chunks/app.js?token=x"])("keeps %s network-only", (path) => {
     expect(policy.classify(request(path), origin)).toBe("network");

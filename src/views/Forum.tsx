@@ -12,6 +12,8 @@ import { useForumThreads, useSubs, useThread } from "@/data/hooks";
 import { useServices } from "@/data/DataContext";
 import type { VoteResult } from "@/services/interfaces";
 import { shareOrCopy } from "@/lib/share";
+import { shareUrl } from "@/lib/routes";
+import { config } from "@/lib/config";
 import type { ForumComment, ForumThreadBrief, ForumThreadDetail } from "@/services/interfaces";
 
 export default function Forum() {
@@ -148,7 +150,7 @@ function VoteControl({ votes, myVote = 0, onVote, layout = "vertical", size = "m
   );
 }
 
-const threadLink = () => `${typeof window !== "undefined" ? window.location.origin : ""}/?view=forum`;
+const threadLink = (id?: string) => shareUrl(typeof window !== "undefined" ? window.location.origin : "", "forum", id ? { threadId: id } : null, config.pathRouting);
 
 function ThreadCard({ t, onOpen }: { t: ForumThreadBrief; onOpen: () => void }) {
   const svc = useServices();
@@ -169,7 +171,7 @@ function ThreadCard({ t, onOpen }: { t: ForumThreadBrief; onOpen: () => void }) 
         </button>
         <div className="mt-2 flex items-center gap-1 text-xs text-fg-subtle">
           <button onClick={onOpen} className="flex min-h-9 items-center gap-1 rounded-lg px-2 hover:bg-surface-2"><Icon name="MessageCircle" size={13} /> {t.comments} Kommentare</button>
-          <button onClick={() => void shareOrCopy({ title: t.title, text: t.excerpt, url: threadLink() }).then((r) => { if (r === "copied") toast.push({ title: "Link kopiert", tone: "leaf", icon: "Share2" }); })} className="flex min-h-9 items-center gap-1 rounded-lg px-2 hover:bg-surface-2"><Icon name="Share2" size={13} /> Teilen</button>
+          <button onClick={() => void shareOrCopy({ title: t.title, text: t.excerpt, url: threadLink(t.id) }).then((r) => { if (r === "copied") toast.push({ title: "Link kopiert", tone: "leaf", icon: "Share2" }); })} className="flex min-h-9 items-center gap-1 rounded-lg px-2 hover:bg-surface-2"><Icon name="Share2" size={13} /> Teilen</button>
           <Badge className="ml-1">{t.tag}</Badge>
         </div>
       </div>
@@ -262,11 +264,11 @@ function ThreadDetail({ t, onComment, onVote }: { t: ForumThreadDetail; onCommen
           <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-sm text-fg-subtle">
             <VoteControl votes={t.votes} myVote={t.myVote} onVote={onVote} layout="horizontal" />
             <button onClick={() => document.getElementById("thread-reply")?.focus()} className="flex min-h-9 items-center gap-1 rounded-lg px-2 hover:bg-surface-2 hover:text-fg"><Icon name="MessageCircle" size={16} /> {t.comments}</button>
-            <button onClick={() => void shareOrCopy({ title: t.title, text: t.excerpt, url: threadLink() }).then((r) => { if (r === "copied") toast.push({ title: "Link kopiert", tone: "leaf", icon: "Share2" }); })} className="flex min-h-9 items-center gap-1 rounded-lg px-2 hover:bg-surface-2 hover:text-fg"><Share2 className="size-4" /> Teilen</button>
+            <button onClick={() => void shareOrCopy({ title: t.title, text: t.excerpt, url: threadLink(t.id) }).then((r) => { if (r === "copied") toast.push({ title: "Link kopiert", tone: "leaf", icon: "Share2" }); })} className="flex min-h-9 items-center gap-1 rounded-lg px-2 hover:bg-surface-2 hover:text-fg"><Share2 className="size-4" /> Teilen</button>
             <Popover align="end" trigger={<MoreHorizontal className="size-4" />} triggerClassName="ml-auto grid size-9 place-items-center rounded-lg text-fg-subtle hover:bg-surface-2 hover:text-fg">
               {(close) => (
                 <>
-                  <PopoverItem icon="Share2" onClick={() => { close(); void copyText(`${window.location.origin}/?view=forum`).then((ok) => toast.push(ok ? { title: "Link kopiert", tone: "leaf", icon: "Share2" } : { title: "Kopieren nicht möglich", tone: "warning", icon: "AlertTriangle" })); }}>Link kopieren</PopoverItem>
+                  <PopoverItem icon="Share2" onClick={() => { close(); void copyText(threadLink(t.id)).then((ok) => toast.push(ok ? { title: "Link kopiert", tone: "leaf", icon: "Share2" } : { title: "Kopieren nicht möglich", tone: "warning", icon: "AlertTriangle" })); }}>Link kopieren</PopoverItem>
                   <PopoverItem icon="Bookmark" onClick={() => { close(); toast.push({ title: "Thread gemerkt", tone: "info", icon: "Bookmark" }); }}>Merken</PopoverItem>
                   <PopoverItem icon="Flag" danger onClick={() => { close(); toast.push({ title: "Gemeldet", desc: "Danke, wir prüfen es.", tone: "warning", icon: "Flag" }); }}>Melden</PopoverItem>
                 </>

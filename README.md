@@ -96,7 +96,7 @@ src/
 ├── index.css                # Design-Tokens (Tailwind v4 @theme) + Basis + Utilities
 ├── lib/
 │   ├── theme.tsx            # ThemeProvider (Light/Dark, smooth toggle)
-│   ├── nav.tsx              # Lightweights View-Routing (Context)
+│   ├── nav.tsx              # View-Router mit Browser-History (Context), URLs in routes.ts
 │   ├── hooks.ts             # useMediaQuery, useScrollProgress, useBodyScrollLock …
 │   ├── format.ts            # eur(), pct(), timeAgo() …
 │   └── tokens.ts            # Tone→Tailwind-Klassen-Mapping

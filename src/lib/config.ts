@@ -25,9 +25,19 @@ function readApiUrl(): string {
 
 const apiBaseUrl = readApiUrl();
 
+/**
+ * Pfad-Routing (`/grows/123`) gibt es nur unter Next.js (Catch-All-Route `app/[[...slug]]`). Der Vite-Legacy-Build hat
+ * keinen Server dafür und bleibt bei `/?view=…`. Next ersetzt den Literal-Zugriff inline.
+ */
+function readPathRouting(): boolean {
+  try { return !!process.env.NEXT_PUBLIC_APP_BUILD; } catch { return false; }
+}
+
 export const config = {
   /** Basis-URL des Backends (ohne Trailing-Slash). */
   apiBaseUrl,
   /** true, wenn kein Backend konfiguriert ist → Mock-Services werden verwendet. */
   useMock: !apiBaseUrl,
+  /** true unter Next.js: URL spiegelt Ansicht (Pfad), false im Vite-Legacy-Build. */
+  pathRouting: readPathRouting(),
 } as const;

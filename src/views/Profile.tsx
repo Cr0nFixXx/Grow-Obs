@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSwipeTabs } from "@/lib/gestures";
 
 const profileTabs = ["profil", "settings"] as const;
@@ -28,7 +28,7 @@ const badges = [
 
 export default function Profile() {
   const currentUser = useCurrentUser();
-  const { navigate } = useNav();
+  const { navigate, params, replaceParams } = useNav();
   const { theme, setTheme, particles, setParticles } = useTheme();
   const { locale, setLocale, currency, setCurrency, money, t } = useI18n();
   const toast = useToast();
@@ -36,7 +36,9 @@ export default function Profile() {
   const me = currentUser;
   const isGuest = me.id === "guest";
   const { activity } = useActivity();
-  const [tab, setTab] = useState<"profil" | "settings">("profil");
+  const [tab, setTabState] = useState<"profil" | "settings">(params?.tab === "settings" ? "settings" : "profil");
+  const setTab = (next: "profil" | "settings") => { setTabState(next); replaceParams(next === "settings" ? { tab: next } : null); };
+  useEffect(() => { setTabState(params?.tab === "settings" ? "settings" : "profil"); }, [params?.tab]);
   const [editing, setEditing] = useState(false);
   const swipeRef = useRef<HTMLDivElement>(null);
   useSwipeTabs(swipeRef, profileTabs, tab, setTab);

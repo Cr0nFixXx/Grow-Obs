@@ -16,7 +16,7 @@ import { versionLabel } from "@/lib/app-version";
 const heroImg = assetSrc(heroAsset);
 
 export default function Auth() {
-  const { navigate } = useNav();
+  const { navigate, view } = useNav();
   const toast = useToast();
   const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -38,7 +38,8 @@ export default function Auth() {
     run
       .then(() => {
         toast.push({ title: mode === "login" ? "Angemeldet" : "Konto erstellt", desc: "Willkommen bei Grow|Observer 🌿", tone: "leaf", icon: "Sprout" });
-        navigate("dashboard");
+        // Tiefer Link im abgemeldeten Zustand: nach der Anmeldung zum gemerkten Ziel; nur von der Anmeldeseite selbst → Dashboard.
+        if (view === "auth") navigate("dashboard");
       })
       .catch((e) => toast.push({ title: "Fehler", desc: e instanceof Error ? e.message : "Login fehlgeschlagen", tone: "danger", icon: "AlertTriangle" }))
       .finally(() => setBusy(false));

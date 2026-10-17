@@ -10,6 +10,8 @@ import { useHall } from "@/data/hooks";
 import { copyText } from "@/lib/share";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import type { HallEntry } from "@/types";
+import { shareUrl } from "@/lib/routes";
+import { config } from "@/lib/config";
 
 function HofCard({
   h,
@@ -76,7 +78,7 @@ export default function HallOfFame() {
   const toggle = (id: string) => setLiked((l) => ({ ...l, [id]: !l[id] }));
 
   const menuActions = [
-    { icon: "Share2", label: "Link kopieren", action: () => void copyText(`${window.location.origin}/?view=hallOfFame`).then((ok) => toast.push(ok ? { title: "Link kopiert", desc: menuFor?.title ?? "", tone: "leaf", icon: "Share2" } : { title: "Kopieren nicht möglich", tone: "warning", icon: "AlertTriangle" })) },
+    { icon: "Share2", label: "Link kopieren", action: () => void copyText(shareUrl(window.location.origin, "hallOfFame", null, config.pathRouting)).then((ok) => toast.push(ok ? { title: "Link kopiert", desc: menuFor?.title ?? "", tone: "leaf", icon: "Share2" } : { title: "Kopieren nicht möglich", tone: "warning", icon: "AlertTriangle" })) },
     { icon: "Bookmark", label: "Merken", action: () => toast.push({ title: "Showcase gemerkt", tone: "info", icon: "Bookmark" }) },
     { icon: "Flag", label: "Melden", action: () => toast.push({ title: "Gemeldet", desc: "Danke, wir prüfen es.", tone: "warning", icon: "Flag" }) },
   ];

@@ -13,6 +13,7 @@ import { config } from "@/lib/config";
 import { useSocialPosts } from "@/data/hooks";
 import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media";
 import { copyText, shareOrCopy } from "@/lib/share";
+import { shareUrl } from "@/lib/routes";
 import { CommentsSheet } from "@/components/CommentsSheet";
 
 export default function Social() {
@@ -186,7 +187,7 @@ export default function Social() {
 }
 
 /** Deep-Link auf den Feed (Post-Anker). */
-const postLink = (id: string) => `${typeof window !== "undefined" ? window.location.origin : ""}/?view=social#post-${id}`;
+const postLink = (id: string) => shareUrl(typeof window !== "undefined" ? window.location.origin : "", "social", null, config.pathRouting, `#post-${id}`);
 
 function PostCard({ p, liked, bookmarked, onLike, onBookmark, onComments }: { p: SocialPost; liked: boolean; bookmarked: boolean; onLike: () => void; onBookmark: () => void; onComments: () => void }) {
   const toast = useToast();
