@@ -2,15 +2,25 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-54 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-55 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 108 Frontend-Tests ✅ · 62 API-Integrationstests ✅ · 19 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 116 Frontend-Tests ✅ · 83 API-Integrationstests ✅ · 20 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-55: Passwort ändern, Anmeldeprotokoll, Gerätelimit (Arena Agent)
+
+- **Passwort:** `POST /auth/password` in `apps/api/src/routes/auth.ts` (aktuelles Passwort Pflicht; löscht Sitzungen `id != sid`;
+  falsches Passwort = **403**, nie 401). Rate-Limit `password` 5/15 min je Nutzer (`userKey`).
+- **Protokoll:** `recordLoginEvent` (`lib/session.ts`) schreibt `login_events` (Gerät, kein IP) und löscht Einträge > 90 Tage
+  (`LOGIN_LOG_RETENTION_DAYS`). Fehlversuche nur für existierende Konten. `GET /auth/login-history` (eigene, max. 50).
+- **Limit:** `MAX_SESSIONS_PER_USER = 5` in `startSession`; älteste inaktive Sitzung endet.
+- **UI:** `src/components/AccountSecurity.tsx` (`PasswordCard`, `LoginHistoryCard`, `AccountSecurity`) in `Profile.tsx`.
+- Entscheidungen des Eigners: aktuelles Passwort verlangen, andere Geräte abmelden/dieses behalten, kein IP, 90 Tage, Limit 5.
 
 ## B-54: Session-Härtung (Arena Agent)
 
@@ -588,8 +598,8 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
   verwaister Uploads
 - Next.js ist aktiv als SPA-Hülle (B-42); File-based-Routing und Monorepo (`apps/web`) stehen aus
 - API-Integrationstests, Browser-E2E (Playwright, B-51) und CI-Jobs existieren; Docker und echte Geräte (iOS/Android-Touch) noch unbestätigt
-- Sitzungen: seit B-54 HttpOnly-Cookie + serverseitiger Widerruf (Tabelle `sessions`); offen sind Passwort-ändern,
-  Anmeldeprotokoll, Gerätelimit
+- Sitzungen: seit B-54 HttpOnly-Cookie + serverseitiger Widerruf (Tabelle `sessions`); Passwort-ändern, Anmeldeprotokoll (90 Tage, ohne IP)
+  und Gerätelimit 5 folgten in B-55; offen bleibt das Betreiber-Bootstrap
 - Abhängigkeiten-Audit (B-45): Frontend 0; API 4× moderat (drizzle-kit/esbuild, nur CLI)
 
 ---

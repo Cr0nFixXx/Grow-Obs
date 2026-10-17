@@ -94,7 +94,7 @@ NEXT_PUBLIC_API_URL=
 NEXT_PUBLIC_API_URL=https://api.growobserver.app
 ```
 Die `services`-Factory liefert automatisch die passende Implementierung. Die Sitzung ist ein
-HttpOnly-Cookie (`go_session`, serverseitig widerrufbar, Tabelle `sessions`); der `AuthProvider` kennt nur einen Marker.
+HttpOnly-Cookie (`go_session`, serverseitig widerrufbar, Tabelle `sessions`, Gerätelimit 5, Anmeldeprotokoll `login_events` ohne IP, 90 Tage); der `AuthProvider` kennt nur einen Marker.
 
 ---
 

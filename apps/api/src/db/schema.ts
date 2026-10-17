@@ -55,6 +55,19 @@ export const sessions = pgTable(
   (t) => [index("sessions_user_idx").on(t.userId), index("sessions_expires_idx").on(t.expiresAt)]
 );
 
+/** Anmeldeprotokoll (B-55): nur Zeit, Ereignis und Gerätebezeichnung – bewusst ohne IP-Adresse; 90 Tage Aufbewahrung. */
+export const loginEvents = pgTable(
+  "login_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    event: text("event", { enum: ["login", "login_failed", "register", "password_changed"] }).notNull(),
+    device: text("device").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("login_events_user_created_idx").on(t.userId, t.createdAt)]
+);
+
 /* ----------------------------- Katalog ----------------------------- */
 export const breeders = pgTable("breeders", {
   id: uuid("id").primaryKey().defaultRandom(),

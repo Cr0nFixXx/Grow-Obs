@@ -12,7 +12,7 @@ import { Icon } from "@/components/Icon";
 import { Avatar, Badge, Button, Card, Field, Input, Modal, PageHeader, Segmented, Toggle } from "@/components/ui";
 import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
-import { SessionsCard } from "@/components/SessionsCard";
+import { AccountSecurity } from "@/components/AccountSecurity";
 import { Reveal } from "@/components/motion";
 import { useAuth, useCurrentUser } from "@/lib/auth";
 import { useActivity } from "@/data/hooks";
@@ -164,7 +164,7 @@ export default function Profile() {
           </Reveal>
           {!isGuest && (
             <Reveal delay={0.12}>
-              <SessionsCard onSignedOut={() => navigate("auth")} />
+              <AccountSecurity onSignedOut={() => navigate("auth")} />
             </Reveal>
           )}
           <Reveal delay={0.15}>

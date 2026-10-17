@@ -9,6 +9,27 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-55 – Passwort ändern, Anmeldeprotokoll, Gerätelimit (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Neu: `POST /auth/password`** `{ currentPassword, newPassword }` (neu: 12–128 Zeichen, muss sich vom aktuellen
+  unterscheiden). Verlangt das **aktuelle Passwort**, beendet **alle anderen Sitzungen** (die aktuelle bleibt) und antwortet
+  `204`. Falsches aktuelles Passwort → **403** (bewusst nicht 401: das würde im Client „Sitzung abgelaufen“ auslösen).
+  Rate-Limit 5 Versuche / 15 min je Nutzer.
+- **Neu: Anmeldeprotokoll** (Tabelle `login_events`, Migration `0008_login_events.sql`, Kaskade beim Löschen des Nutzers).
+  Ereignisse `login`, `login_failed`, `register`, `password_changed` mit Zeit und Gerätebezeichnung – **keine IP-Adresse**
+  (Datensparsamkeit). Fehlversuche werden nur für **existierende** Konten gespeichert (keine fremden E-Mail-Adressen).
+  Aufbewahrung **90 Tage**: Einträge werden beim Schreiben des nächsten Ereignisses gelöscht und nie ausgeliefert.
+  `GET /auth/login-history` liefert nur eigene Einträge (max. 50, neueste zuerst; Felder `id`, `event`, `device`, `createdAt`).
+- **Neu: Gerätelimit** `MAX_SESSIONS_PER_USER = 5` (`apps/api/src/lib/session.ts`): Bei der 6. Anmeldung endet die am
+  längsten inaktive Sitzung (Sortierung nach `lastSeenAt`).
+- **UI:** Profil → Einstellungen: „Passwort ändern“ (aktuell, neu, Wiederholung; Client-Prüfung vor dem Senden),
+  „Sitzungen & Geräte“ (lädt nach der Änderung neu) und „Anmeldeprotokoll“ (`src/components/AccountSecurity.tsx`). Alles
+  nur im API-Modus; funktioniert auch mit dem Header-Fallback der Vorschau.
+- **Tests:** API 68 → 83 (`password.integration.test.ts`, Migration 0008), Frontend 110 → 116
+  (`AccountSecurity.test.tsx`), E2E 19 → 20 (Passwort ändern mit zwei Geräten).
+
 ### B-54 – Session-Härtung: HttpOnly-Cookie, serverseitiger Widerruf, Geräteliste (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

@@ -11,6 +11,7 @@ Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI
 
 | # | Stand | Ergebnis | Signatur |
 |---|-------|----------|----------|
+| B-55 | Passwort ändern (aktuelles Passwort, beendet andere Sitzungen), Anmeldeprotokoll ohne IP (90 Tage, `login_events`/0008), Gerätelimit 5 | typecheck ✅ lint ✅ vitest 116/116 ✅ API 83/83 ✅ E2E 20/20 ✅ | Arena Agent |
 | B-54 | Session-Härtung: HttpOnly-Cookie statt Bearer/localStorage, Tabelle `sessions` (0007), Logout/„Alle Geräte“/Geräteliste, CSRF-Guard, CORS-Credentials, 401-Auto-Abmeldung | typecheck ✅ lint ✅ vitest 110/110 ✅ API 68/68 ✅ (+ API-Typecheck/Tools; B-54.1/54.2 Fixes für die iframe-Vorschau, Header-Fallback) E2E 19 ✅ · next build ✅ vite build ✅ · Build-Nummer siehe `version.json` | Arena Agent |
 | B-53 | Keine Demo-Daten im API-Modus (Dashboard, Auth, Strains, Verbrauch, Wiki, Social, KI-Assistent), Avatar-Initialen-Fallback, Passwort-Hinweis, `fixme` → grüner E2E | typecheck ✅ lint ✅ vitest 98/98 ✅ API 36/36 ✅ E2E 13 ✅ · next build ✅ · Build-Nummer siehe `version.json` | Arena Agent |
 | B-52 | Zentrale Versionierung (`version.json`, Skript, Backend-Generierung, CI-Check, Anzeige), Preview-Skript, Eigner-Regeln in CLAUDE/HANDOFF | typecheck ✅ lint ✅ vitest 91/91 ✅ API 36/36 ✅ (+ API-Typecheck) E2E 8 ✅ + 1 fixme · next build ✅ vite build ✅ · Build-Nummer siehe `version.json` | Arena Agent |

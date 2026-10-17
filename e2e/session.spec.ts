@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, openSettings, register, uniqueEmail } from "./helpers";
+import { login, openAuth, openSettings, PASSWORD, register, uniqueEmail } from "./helpers";
 
 test.describe("Sitzungen (HttpOnly-Cookie, B-54)", () => {
   test("Token ist für JavaScript unsichtbar: HttpOnly-Cookie, nichts im Speicher", async ({ page, context }) => {
@@ -42,7 +42,7 @@ test.describe("Sitzungen (HttpOnly-Cookie, B-54)", () => {
 
     await openSettings(a);
     await expect(a.getByTestId("session-row")).toHaveCount(2);
-    await expect(a.getByText("Dieses Gerät")).toHaveCount(1);
+    await expect(a.getByTestId("sessions-card").getByText("Dieses Gerät", { exact: true })).toHaveCount(1);
     await a.getByRole("button", { name: "Beenden" }).click();
     await expect(a.getByTestId("session-row")).toHaveCount(1);
 
@@ -97,5 +97,52 @@ test.describe("Sitzungen (HttpOnly-Cookie, B-54)", () => {
     });
     expect(evil.status()).toBe(403);
     expect((await request.get("/api/auth/me", { headers: { Cookie: `go_session=${cookie.value}` } })).status()).toBe(200);
+  });
+
+  test("Passwort ändern: andere Geräte werden abgemeldet, dieses bleibt, neues Passwort gilt, Protokoll zeigt es", async ({ browser }) => {
+    const email = uniqueEmail("pwchange");
+    const NEW = "e2e-new-password-also-long";
+    const a = await (await browser.newContext()).newPage();
+    const b = await (await browser.newContext()).newPage();
+    await register(a, "Passwort Tester", email);
+    await login(b, email);
+
+    await openSettings(a);
+    const card = a.getByTestId("password-card");
+    await card.getByLabel(/^Aktuelles Passwort/).fill("falsches-passwort-lang");
+    await card.getByLabel(/^Neues Passwort(?! wiederholen)/).fill(NEW);
+    await card.getByLabel(/^Neues Passwort wiederholen/).fill(NEW);
+    await card.getByRole("button", { name: "Passwort ändern" }).click();
+    await expect(card.getByRole("alert")).toHaveText(/Aktuelles Passwort ist falsch/);
+    await expect(a.getByTestId("sessions-card")).toBeVisible(); // 403 meldet NICHT ab
+
+    await card.getByLabel(/^Aktuelles Passwort/).fill(PASSWORD);
+    await card.getByRole("button", { name: "Passwort ändern" }).click();
+    await expect(a.getByText("Andere Geräte wurden abgemeldet.")).toBeVisible();
+    await expect(a.getByTestId("session-row")).toHaveCount(1); // Liste lädt nach der Änderung neu
+
+    const history = a.getByTestId("login-history-card");
+    await expect(history.getByText("Passwort geändert")).toBeVisible();
+    await expect(history.getByText("Anmeldung fehlgeschlagen")).toBeVisible(); // der falsche Versuch
+    await expect(history.getByText("Konto erstellt")).toBeVisible();
+    await expect(history.getByText(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/)).toHaveCount(0); // keine IP
+
+    await b.reload();
+    await expect(b.getByRole("heading", { name: /Willkommen zurück/ })).toBeVisible();
+    await a.reload();
+    await expect(a.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible();
+    await a.context().close();
+
+    const c = await (await browser.newContext()).newPage();
+    await openAuth(c);
+    await c.getByPlaceholder("du@example.com").fill(email);
+    await c.getByPlaceholder("••••••••").fill(PASSWORD);
+    await c.getByRole("button", { name: "Anmelden" }).last().click();
+    await expect(c.getByRole("heading", { level: 1, name: /^Hallo,/ })).toHaveCount(0); // altes Passwort wird abgelehnt
+    await c.getByPlaceholder("••••••••").fill(NEW);
+    await c.getByRole("button", { name: "Anmelden" }).last().click();
+    await expect(c.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible();
+    await b.context().close();
+    await c.context().close();
   });
 });

@@ -1,13 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { and, count, desc, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, gt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { grows, sessions, users } from "../db/schema.ts";
+import { grows, loginEvents, sessions, users } from "../db/schema.ts";
 import { hashPassword, verifyPassword } from "../lib/password.ts";
-import { clearSessionCookie, deviceLabel, sessionIdFromCookie, startSession } from "../lib/session.ts";
+import { clearSessionCookie, deviceLabel, LOGIN_LOG_RETENTION_DAYS, recordLoginEvent, sessionIdFromCookie, startSession } from "../lib/session.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
-import { emailKey, rateLimit } from "../middleware/rate-limit.ts";
+import { emailKey, rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { imageRef } from "../lib/media-ref.ts";
 
 export const auth = new Hono<AuthEnv>();
@@ -65,6 +65,7 @@ auth.post("/register", registerLimit, async (c) => {
   if (!u) return c.json({ error: "E-Mail oder Handle bereits vergeben" }, 409);
 
   const { token } = await startSession(c, u, remember ?? true);
+  await recordLoginEvent(c, u.id, "register");
   return c.json({ user: await toUser(u.id), ...(token ? { token } : {}) }, 201);
 });
 
@@ -80,9 +81,11 @@ auth.post("/login", loginLimit, async (c) => {
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
   const u = await db.query.users.findFirst({ where: eq(users.email, body.data.email) });
   if (!u || !(await verifyPassword(body.data.password, u.passwordHash))) {
+    if (u) await recordLoginEvent(c, u.id, "login_failed"); // unbekannte E-Mails werden nicht gespeichert
     return c.json({ error: "Anmeldedaten ungültig" }, 401);
   }
   const { token } = await startSession(c, u, body.data.remember ?? true);
+  await recordLoginEvent(c, u.id, "login");
   return c.json({ user: await toUser(u.id), ...(token ? { token } : {}) });
 });
 
@@ -153,4 +156,40 @@ auth.delete("/sessions/:id", requireAuth, async (c) => {
   if (!deleted.length) return c.json({ error: "Nicht gefunden" }, 404);
   if (id === c.get("sessionId")) clearSessionCookie(c);
   return c.body(null, 204);
+});
+
+const passwordLimit = rateLimit({ name: "password", limit: 5, windowMs: 15 * 60 * 1000, keys: userKey });
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z.string().min(12, "Mindestens 12 Zeichen").max(128),
+});
+
+/**
+ * Passwort ändern: verlangt das aktuelle Passwort, beendet alle ANDEREN Sitzungen (diese bleibt angemeldet)
+ * und protokolliert das Ereignis. Falsches Passwort → 403 (nicht 401, das wäre „Sitzung abgelaufen“).
+ */
+auth.post("/password", requireAuth, passwordLimit, async (c) => {
+  const body = changePasswordSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
+  const { currentPassword, newPassword } = body.data;
+  if (currentPassword === newPassword) return c.json({ error: "Das neue Passwort muss sich vom aktuellen unterscheiden" }, 400);
+  const userId = c.get("userId");
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!u || !(await verifyPassword(currentPassword, u.passwordHash))) {
+    await recordLoginEvent(c, userId, "login_failed");
+    return c.json({ error: "Aktuelles Passwort ist falsch" }, 403);
+  }
+  await db.update(users).set({ passwordHash: await hashPassword(newPassword) }).where(eq(users.id, userId));
+  await db.delete(sessions).where(and(eq(sessions.userId, userId), ne(sessions.id, c.get("sessionId"))));
+  await recordLoginEvent(c, userId, "password_changed");
+  return c.body(null, 204);
+});
+
+/** Anmeldeprotokoll des Nutzers (Zeit, Ereignis, Gerät; kein IP), letzte 90 Tage, neueste zuerst. */
+auth.get("/login-history", requireAuth, async (c) => {
+  const since = new Date(Date.now() - LOGIN_LOG_RETENTION_DAYS * 86_400_000);
+  const rows = await db.select().from(loginEvents)
+    .where(and(eq(loginEvents.userId, c.get("userId")), gt(loginEvents.createdAt, since)))
+    .orderBy(desc(loginEvents.createdAt)).limit(50);
+  return c.json(rows.map((row) => ({ id: row.id, event: row.event, device: row.device, createdAt: row.createdAt.toISOString() })));
 });

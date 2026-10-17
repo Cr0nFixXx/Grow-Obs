@@ -14,8 +14,8 @@ Backend-Tests: `npx vitest run --config vitest.backend.config.ts` aus dem Root, 
 disponiblen PostgreSQL-Datenbank auf `*_test`. Testlauf löscht Daten in dieser Testdatenbank.
 Die CI beinhaltet nun einen separaten API-Job. Diese Session hat weder CI noch Docker gestartet.
 
-Build-Stand: **B-54** — Next.js ist primärer Build (SPA-Hülle), Vite nur Legacy. Gemessen: 108 Frontend-Tests,
-62 API-Integrationstests, 19 Playwright-E2E (`npm run test:e2e`); Docker weiterhin ungetestet (`HANDOFF.md` §9.1).
+Build-Stand: **B-55** — Next.js ist primärer Build (SPA-Hülle), Vite nur Legacy. Gemessen: 116 Frontend-Tests,
+83 API-Integrationstests, 20 Playwright-E2E (`npm run test:e2e`); Docker weiterhin ungetestet (`HANDOFF.md` §9.1).
 API-Tests liegen in `apps/api/tests/` und werden über `tsconfig.tools.json` mitgeprüft.
 Autor: Codex (OpenAI).
 

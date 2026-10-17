@@ -14,6 +14,13 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0008 legt das Anmeldeprotokoll ohne IP-Spalte an", () => {
+    const sql = readFileSync(`${dir}0008_login_events.sql`, "utf8");
+    expect(sql).toContain('CREATE TABLE "login_events"');
+    expect(sql).toMatch(/ON DELETE cascade/);
+    expect(sql.replace(/^--.*$/gm, "").toLowerCase()).not.toMatch(/\bip\b|ip_address/); // Kommentare ausgenommen
+  });
+
   it("0007 legt die Sitzungs-Tabelle mit Kaskade und Indizes an", () => {
     const sql = readFileSync(`${dir}0007_sessions.sql`, "utf8");
     expect(sql).toContain('CREATE TABLE "sessions"');

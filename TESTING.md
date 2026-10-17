@@ -2,6 +2,12 @@
 
 ## Status
 
+**B-55 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 116/116 ✅ (neu `AccountSecurity.test.tsx`: Formularprüfung,
+Bestätigung abweichend, 403-Meldung, Protokollliste), `npm run test:api` 83/83 ✅ (neu `password.integration.test.ts`: falsches Passwort
+403, andere Sitzungen beendet/aktuelle bleibt, altes Passwort ungültig, schwach/gleich 400, Auth + Rate-Limit, Protokoll nur eigene
+und ohne IP, 90-Tage-Bereinigung, Kaskade, Gerätelimit 5 inkl. „zuletzt genutzt bleibt“; Migration 0008), Playwright **20 ✅**
+(neu: Passwort ändern mit zwei Geräten, altes Passwort abgelehnt, Protokoll sichtbar).
+
 **B-54 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 110/110 ✅ (Auth-Provider: Marker statt Token, Logout, „Alle Geräte“,
 401-Ereignis, Altlast-JWT wird gelöscht; API-Client: Cookie statt Authorization), `npm run test:api` 68/68 ✅ (inkl. Cookie-Attribute lax/none, Header-Fallback an/aus; zusätzlich manuell durch den Proxy mit Firefox+Chromium im iframe geprüft) (neu:
 `sessions.integration.test.ts` – Cookie-Flags, Widerruf, Ablauf, fremde `sid`, Geräteliste, CSRF, CORS-Credentials,

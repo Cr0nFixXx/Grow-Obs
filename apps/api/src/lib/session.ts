@@ -1,8 +1,8 @@
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, desc, eq, gt, lt, ne } from "drizzle-orm";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { db } from "../db/client.ts";
-import { sessions, users } from "../db/schema.ts";
+import { loginEvents, sessions, users } from "../db/schema.ts";
 import { env } from "../env.ts";
 import { signToken, verifyToken } from "./jwt.ts";
 
@@ -39,6 +39,19 @@ export function deviceLabel(userAgent: string | null | undefined): string {
   return os ? `${browser} auf ${os}` : browser;
 }
 
+/** Höchstens so viele gleichzeitige Sitzungen je Konto; bei der nächsten Anmeldung endet die am längsten inaktive. */
+export const MAX_SESSIONS_PER_USER = 5;
+/** Aufbewahrung des Anmeldeprotokolls. */
+export const LOGIN_LOG_RETENTION_DAYS = 90;
+export type LoginEventKind = typeof loginEvents.$inferSelect.event;
+
+/** Protokolliert ein Sicherheitsereignis (nur Gerätebezeichnung, keine IP) und löscht abgelaufene Einträge. */
+export async function recordLoginEvent(c: Context, userId: string, event: LoginEventKind): Promise<void> {
+  const cutoff = new Date(Date.now() - LOGIN_LOG_RETENTION_DAYS * UNITS.d);
+  await db.delete(loginEvents).where(lt(loginEvents.createdAt, cutoff));
+  await db.insert(loginEvents).values({ userId, event, device: deviceLabel(c.req.header("user-agent")) });
+}
+
 /** Header-Transport nur auf ausdrücklichen Wunsch (siehe `ALLOW_HEADER_SESSION`); zur Laufzeit gelesen, damit testbar. */
 export const headerSessionEnabled = () => process.env.ALLOW_HEADER_SESSION === "true";
 export const SESSION_HEADER = "X-Session-Token";
@@ -59,6 +72,11 @@ export async function startSession(c: Context, user: { id: string; role: typeof 
   const [row] = await db.insert(sessions).values({
     userId: user.id, expiresAt, userAgent: (c.req.header("user-agent") ?? "").slice(0, 300) || null,
   }).returning({ id: sessions.id });
+  // Gerätelimit: die am längsten inaktiven Sitzungen jenseits des Limits beenden (die neue ist immer unter den jüngsten).
+  const surplus = await db.select({ id: sessions.id }).from(sessions)
+    .where(and(eq(sessions.userId, user.id), gt(sessions.expiresAt, new Date())))
+    .orderBy(desc(sessions.lastSeenAt), desc(sessions.createdAt)).offset(MAX_SESSIONS_PER_USER);
+  for (const { id } of surplus) await db.delete(sessions).where(and(eq(sessions.id, id), ne(sessions.id, row!.id)));
   const token = await signToken({ sub: user.id, role: user.role, sid: row!.id }, expiresAt);
   setCookie(c, SESSION_COOKIE, token, {
     ...cookieAttributes(isHttps(c), env.COOKIE_SAMESITE),

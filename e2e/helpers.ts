@@ -25,10 +25,10 @@ export async function register(page: Page, name: string, email: string) {
 }
 
 /** Meldet einen bestehenden Nutzer über die Login-Seite an (frischer Browser-Kontext). */
-export async function login(page: Page, email: string) {
+export async function login(page: Page, email: string, password = PASSWORD) {
   await openAuth(page);
   await page.getByPlaceholder("du@example.com").fill(email);
-  await page.getByPlaceholder("••••••••").fill(PASSWORD);
+  await page.getByPlaceholder("••••••••").fill(password);
   await page.getByRole("button", { name: "Anmelden" }).last().click();
   await expect(page.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible();
 }

@@ -12,7 +12,7 @@ const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "
 const when = (iso: string) => fmt.format(new Date(iso));
 
 /** Sitzungen & Geräte (B-54): aktive Anmeldungen ansehen, einzeln beenden oder überall abmelden. Nur im API-Modus. */
-export function SessionsCard({ onSignedOut }: { onSignedOut?: () => void }) {
+export function SessionsCard({ onSignedOut, refreshKey = 0 }: { onSignedOut?: () => void; refreshKey?: number }) {
   const toast = useToast();
   const { logoutAll } = useAuth();
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
@@ -27,7 +27,7 @@ export function SessionsCard({ onSignedOut }: { onSignedOut?: () => void }) {
       setError(e instanceof ApiError ? e.message : "Sitzungen konnten nicht geladen werden.");
     }
   }, []);
-  useEffect(() => { if (!config.useMock) void load(); }, [load]);
+  useEffect(() => { if (!config.useMock) void load(); }, [load, refreshKey]);
 
   if (config.useMock) return null;
 
