@@ -2,6 +2,12 @@
 
 ## Status
 
+**B-56 (Arena Agent) – ausgeführt:** typecheck ✅ (Frontend + `apps/api` Build/`tsconfig.tools.json`), lint ✅, `npm test` 116/116 ✅,
+`npm run test:api` 90/90 ✅ (neu `operator.integration.test.ts`: Anlage auf leerer DB, Login mit Einmalpasswort und
+Betreiberroute, Hash statt Klartext, Protokoll ohne Passwort, Ablehnung ohne `--promote`, Promote beendet Sitzungen und lässt das
+Passwort, Idempotenz, ungültige E-Mail), Playwright 20 ✅. Zusätzlich manuell: kompiliertes `dist/cli/admin-create.js` gegen
+frische Datenbank (Fehlerpfade und Erfolgspfade, Exit-Codes). **Nicht ausgeführt:** der Docker-Service `admin` (Docker fehlt hier).
+
 **B-55 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 116/116 ✅ (neu `AccountSecurity.test.tsx`: Formularprüfung,
 Bestätigung abweichend, 403-Meldung, Protokollliste), `npm run test:api` 83/83 ✅ (neu `password.integration.test.ts`: falsches Passwort
 403, andere Sitzungen beendet/aktuelle bleibt, altes Passwort ungültig, schwach/gleich 400, Auth + Rate-Limit, Protokoll nur eigene

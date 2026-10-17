@@ -65,6 +65,23 @@ docker compose --profile demo run --rm seed
 The demo seed is transactional, development-only and opt-in. It includes an operator account,
 catalog entries and example communities. It is not a production admin-provisioning workflow.
 
+### Operator Bootstrap (B-56)
+
+The first operator (`platform_admin`) is created deliberately, never automatically and without demo data:
+
+```sh
+# Docker (after migrations)
+docker compose --profile tools run --rm admin --email operator@example.org [--name "Name"]
+# Local / embedded (apps/api; needs the same env as the API, API_EMBEDDED=true avoids S3 settings)
+npm run admin:create -- --email operator@example.org
+# Promote an EXISTING account (explicit; ends all of its sessions, password unchanged)
+npm run admin:create -- --email member@example.org --promote
+```
+
+A new account gets a random one-time password (24 characters) that is printed once; there is no `--password`
+option (shell history). Change it in the profile after the first login. The command is idempotent and logs a
+`role_changed` event (device "Betreiber-CLI") in the login log.
+
 ### Local Node Setup
 
 ```sh

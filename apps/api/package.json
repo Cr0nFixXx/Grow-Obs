@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx seed.ts"
+    "db:seed": "tsx seed.ts",
+    "admin:create": "tsx src/cli/admin-create.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",

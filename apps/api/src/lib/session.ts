@@ -46,11 +46,13 @@ export const LOGIN_LOG_RETENTION_DAYS = 90;
 export type LoginEventKind = typeof loginEvents.$inferSelect.event;
 
 /** Protokolliert ein Sicherheitsereignis (nur Gerätebezeichnung, keine IP) und löscht abgelaufene Einträge. */
-export async function recordLoginEvent(c: Context, userId: string, event: LoginEventKind): Promise<void> {
+export async function recordSecurityEvent(userId: string, event: LoginEventKind, device: string): Promise<void> {
   const cutoff = new Date(Date.now() - LOGIN_LOG_RETENTION_DAYS * UNITS.d);
   await db.delete(loginEvents).where(lt(loginEvents.createdAt, cutoff));
-  await db.insert(loginEvents).values({ userId, event, device: deviceLabel(c.req.header("user-agent")) });
+  await db.insert(loginEvents).values({ userId, event, device });
 }
+export const recordLoginEvent = (c: Context, userId: string, event: LoginEventKind) =>
+  recordSecurityEvent(userId, event, deviceLabel(c.req.header("user-agent")));
 
 /** Header-Transport nur auf ausdrücklichen Wunsch (siehe `ALLOW_HEADER_SESSION`); zur Laufzeit gelesen, damit testbar. */
 export const headerSessionEnabled = () => process.env.ALLOW_HEADER_SESSION === "true";

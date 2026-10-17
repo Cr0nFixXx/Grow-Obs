@@ -2,15 +2,24 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-55 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-56 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 116 Frontend-Tests ✅ · 83 API-Integrationstests ✅ · 20 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 116 Frontend-Tests ✅ · 90 API-Integrationstests ✅ · 20 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-56: Betreiber-Bootstrap (Arena Agent)
+
+- `apps/api/src/lib/operator.ts` (`provisionOperator`, `generatePassword`, `OperatorError`) und `src/cli/admin-create.ts`
+  (Argumente, Ausgabe, Exit-Codes). Skript `npm run admin:create`; Docker-Service `admin` (Profil `tools`, Entrypoint
+  `node dist/cli/admin-create.js`, wartet auf `migrate`). Kein Passwort-Argument; Zufallspasswort einmalig.
+- `--promote` für bestehende Konten (beendet deren Sitzungen), idempotent, Ereignis `role_changed` (Gerät „Betreiber-CLI“).
+- Entscheidungen des Eigners: CLI (nicht Env-Start), Zufallspasswort, Seed unverändert, Promote nur bewusst + Protokoll.
+- Offen: kein erzwungener Passwortwechsel nach dem Einmalpasswort (nur Hinweis); Docker-Service ungetestet.
 
 ## B-55: Passwort ändern, Anmeldeprotokoll, Gerätelimit (Arena Agent)
 
@@ -599,7 +608,7 @@ Dadurch gingen in diesem Projekt bereits Imports, Registrierungen und Backend-Ro
 - Next.js ist aktiv als SPA-Hülle (B-42); File-based-Routing und Monorepo (`apps/web`) stehen aus
 - API-Integrationstests, Browser-E2E (Playwright, B-51) und CI-Jobs existieren; Docker und echte Geräte (iOS/Android-Touch) noch unbestätigt
 - Sitzungen: seit B-54 HttpOnly-Cookie + serverseitiger Widerruf (Tabelle `sessions`); Passwort-ändern, Anmeldeprotokoll (90 Tage, ohne IP)
-  und Gerätelimit 5 folgten in B-55; offen bleibt das Betreiber-Bootstrap
+  und Gerätelimit 5 folgten in B-55; das Betreiber-Bootstrap folgte in B-56
 - Abhängigkeiten-Audit (B-45): Frontend 0; API 4× moderat (drizzle-kit/esbuild, nur CLI)
 
 ---

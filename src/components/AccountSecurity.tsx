@@ -63,9 +63,9 @@ export function PasswordCard({ onChanged }: { onChanged?: () => void }) {
   );
 }
 
-interface LoginEventInfo { id: string; event: "login" | "login_failed" | "register" | "password_changed"; device: string; createdAt: string }
+interface LoginEventInfo { id: string; event: "login" | "login_failed" | "register" | "password_changed" | "role_changed"; device: string; createdAt: string }
 const EVENT_LABEL: Record<LoginEventInfo["event"], string> = {
-  login: "Angemeldet", login_failed: "Anmeldung fehlgeschlagen", register: "Konto erstellt", password_changed: "Passwort geändert",
+  login: "Angemeldet", login_failed: "Anmeldung fehlgeschlagen", register: "Konto erstellt", password_changed: "Passwort geändert", role_changed: "Rolle geändert",
 };
 const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
 

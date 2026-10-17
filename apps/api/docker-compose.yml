@@ -86,6 +86,21 @@ services:
       timeout: 5s
       retries: 3
 
+  # Betreiber anlegen (ohne Demo-Daten): docker compose --profile tools run --rm admin --email betreiber@example.org
+  admin:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: tools
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://grow:${POSTGRES_PASSWORD}@db:5432/growobserver
+    entrypoint: ["node", "dist/cli/admin-create.js"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   seed:
     profiles: ["demo"]
     build:

@@ -9,6 +9,23 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-56 – Betreiber-Bootstrap per CLI (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Neu: `npm run admin:create -- --email … [--name …] [--promote]`** (`apps/api/src/cli/admin-create.ts`, Logik in
+  `src/lib/operator.ts`, kompiliert nach `dist/cli/admin-create.js`). Legt den ersten `platform_admin` an – ohne Demo-Daten,
+  nur durch bewussten Aufruf. Docker: `docker compose --profile tools run --rm admin --email …`.
+- **Passwort:** Für ein neues Konto wird ein **Zufallspasswort** (24 Zeichen, 144 Bit) erzeugt und **einmal** angezeigt; es gibt
+  bewusst **keine `--password`-Option** (Shell-History). Nach der ersten Anmeldung im Profil ändern (B-55).
+- **Bestehendes Konto:** nur mit `--promote`; das Passwort bleibt, **alle Sitzungen des Kontos werden beendet**. Ohne `--promote`
+  Abbruch mit Hinweis. Vorhandener Betreiber → unverändert (idempotent).
+- **Protokoll:** neues Ereignis `role_changed` (Gerät „Betreiber-CLI“) im Anmeldeprotokoll; kein Passwort wird protokolliert.
+- Der Demo-Seed (`ALLOW_DEMO_SEED`) bleibt unverändert und nur für Entwicklung.
+- **Tests:** API 83 → 90 (`operator.integration.test.ts`); CLI zusätzlich gegen eine echte Datenbank über `dist/` geprüft
+  (ohne Migration, ohne Argumente, `--password` abgelehnt, neu, idempotent, bestehend ohne/mit `--promote`). Dabei fiel ein
+  Typfehler auf, den nur `tsc -p apps/api` findet (behoben).
+
 ### B-55 – Passwort ändern, Anmeldeprotokoll, Gerätelimit (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

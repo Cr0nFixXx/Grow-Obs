@@ -61,7 +61,7 @@ export const loginEvents = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    event: text("event", { enum: ["login", "login_failed", "register", "password_changed"] }).notNull(),
+    event: text("event", { enum: ["login", "login_failed", "register", "password_changed", "role_changed"] }).notNull(),
     device: text("device").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
