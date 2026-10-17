@@ -9,6 +9,41 @@ Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem ta
 
 ## [Unreleased]
 
+### B-59 – Chat- und Echtzeitsystem (Arena Agent)
+
+Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.
+
+- **Echtzeit-Kanal:** WebSocket (`/api/realtime/ws`) mit Rückfall auf **Server-Sent Events** (`GET /realtime/stream` + `POST /realtime/command`)
+  und zuletzt **Polling** (alle 8 s, nur bei sichtbarem Tab). Der Client (`src/lib/realtime.ts`) wechselt selbstständig die Stufe, verbindet
+  mit Backoff + Jitter neu, pausiert nach 60 s im Hintergrund, baut bei Netzwechsel neu auf und erkennt tote Verbindungen (75 s Stille).
+- **Mehrere Instanzen ohne Redis:** der Hub (`apps/api/src/realtime/hub.ts`) verteilt Ereignisse per **PostgreSQL `LISTEN/NOTIFY`**.
+  Ereignisse sind klein (nur IDs, < 7,5 KB); Inhalte lädt der Client über die normale, autorisierte REST-API nach. Nach einem Verbindungsabbruch
+  des Listeners erhalten alle Clients `resync`.
+- **Sicherheit:** WebSocket-Anmeldung per HttpOnly-Cookie; ohne Cookie (Sandbox-Proxy) **nur mit `ALLOW_HEADER_SESSION`** per erster
+  Nachricht `{type:"auth"}` innerhalb von 5 s. **Origin-Prüfung** gegen Cross-Site-WebSocket-Hijacking, Nachrichtengröße 4 KB, höchstens
+  5 Verbindungen je Konto, Konten mit offenem Passwortwechsel werden abgewiesen. Der Herzschlag (25 s) prüft die Sitzung: Abmelden, „Alle
+  Geräte“ oder Passwortwechsel **trennen laufende Verbindungen** (Code 4401). Themen sind auf `thread:<uuid>` beschränkt (max. 20).
+- **Chat (Kern):** `POST /chat` (Direktnachricht starten/öffnen, idempotent: ein Chat je Paar über `direct_key`), `GET /chat/users?q=` (Suche, ≥ 2
+  Zeichen), `POST /chat/:id/read` (Leseposition je Mitglied), `GET /chat/unread`, echte `unread`-Zähler, Gegenstelle als Name/Avatar der
+  Konversation, `createdAt` an Nachrichten, Senden begrenzt (90/min). Eine leere Direktnachricht erscheint beim Gegenüber erst mit der ersten
+  Nachricht. UI: „Neue Nachricht“, Badge in Seitenleiste und „Mehr“-Menü, Live-Anzeige im Chat.
+- **Tippanzeige und Online-Status:** `chat.typing` (Client höchstens alle 3 s, Server 1 je 2 s und Person/Chat, nur für Mitglieder; klingt nach 5 s
+  ab), `presence` nur für Gesprächspartner (Herzschlag verlängert `users.online_until` um 70 s; 8 s Karenz beim Trennen). Offen: keine Option, den
+  Online-Status zu verbergen.
+- **Weitere Live-Ereignisse:** `notification` (neu: Forum-Antworten benachrichtigen Thread- bzw. Kommentar-Autor, nie sich selbst) und
+  `thread.comment` (offene Threads laden neue Kommentare live nach).
+- **Migration `0010_chat_realtime.sql`:** `conversation_members.last_read_at` (bestehender Verlauf gilt nicht als ungelesen), `conversations.created_by`,
+  `conversations.direct_key` (eindeutig, nur wenn gesetzt), `users.online_until`, Indizes für Nachrichten/Mitglieder.
+- **Betrieb – Serverskript ersetzt `next start`:** Next-Route-Handler können keine WebSocket-Upgrades annehmen. `scripts/server.mjs`
+  (`npm start`, `npm run preview`, Playwright) startet Next im selben Prozess und leitet Upgrades an den Hub. Ohne dieses Skript
+  (Serverless, `next dev`) läuft alles über SSE. Der eigenständige API-Server hängt `ws` direkt an. Reverse-Proxy: `Upgrade`/`Connection`-Header
+  und keine Pufferung für `/realtime/stream` zulassen (siehe `apps/api/README.md`). Neue Abhängigkeit: `ws`.
+- **Gemessen im Vorschau-Proxy:** SSE und WebSocket (mit Token als erste Nachricht) kommen durch; Nachricht → Ereignis in ~60–250 ms. Auch der
+  eigenständige API-Build (`dist/`) wurde real mit WebSocket und SSE geprüft.
+- **Tests:** Frontend 135 → 169 (Client mit Fallback/Backoff/Stille/Themen, Provider/Polling, Chat-Hooks, „Neue Nachricht“), API 108 → 130
+  (`realtime.integration.test.ts`: Hub, Themen, SSE, WebSocket inkl. Origin/Token/Sitzungsende/Limit, Chat-API, Tippen, Online, Forum-Benachrichtigung;
+  Migration 0010), E2E 28 → 31 (`realtime.spec.ts`: WebSocket-Chat mit Badge/„schreibt …“/Online, SSE-Rückfall, Forum live + Glocke).
+
 ### B-58 – Erzwungener Passwortwechsel nach Einmalpasswort (Arena Agent)
 
 Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer wurde aktualisiert.

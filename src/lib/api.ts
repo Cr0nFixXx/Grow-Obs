@@ -7,6 +7,7 @@ import { config } from "./config";
 let headerToken: string | null = null;
 export const SESSION_HEADER = "X-Session-Token";
 export function setSessionHeaderToken(token: string | null) { headerToken = token; }
+export const getSessionHeaderToken = () => headerToken;
 
 /** Wird ausgelöst, wenn der Server ein deaktiviertes Feature meldet (403 + `feature`). */
 export const FEATURES_STALE_EVENT = "go:features-stale";

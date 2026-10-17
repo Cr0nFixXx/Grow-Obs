@@ -53,6 +53,20 @@ SEED_ADMIN_EMAIL=admin@example.local SEED_ADMIN_PASSWORD='<min. 12 Zeichen>' npx
 
 Relative imports use the `.ts` extension; `rewriteRelativeImportExtensions` emits `.js` into `dist/`.
 
+### Realtime (B-59)
+
+Chat, typing, presence, notifications and forum comments are pushed over **WebSocket** (fallback **SSE**, then client polling).
+Events travel through **PostgreSQL `LISTEN/NOTIFY`**, so several API instances work without Redis (each instance serves its own
+connections; payloads are IDs only, < 7.5 KB). Per account: max. 5 connections; sessions are re-checked every 25 s, so logout / "all devices" /
+password change close live connections (code 4401).
+
+- Embedded mode needs `scripts/server.mjs` (`npm start`) to accept WebSocket upgrades; with plain `next start`/serverless the client uses SSE.
+- Standalone API (`node dist/index.js`) attaches WebSocket itself.
+- **Reverse proxy:** forward `Upgrade`/`Connection` headers for `/realtime/ws` and disable buffering + use a long read timeout (>= 60 s) for
+  `/realtime/stream` (nginx: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; proxy_buffering off;`).
+- A load balancer in front of several instances needs no stickiness: SSE subscriptions are routed through NOTIFY as well.
+- Smoke test: `PREFIX="" node ../../.archive/diag/realtime-smoke.mjs http://127.0.0.1:4000 ws|sse` (embedded: omit `PREFIX`).
+
 ### Optional Demo Seed
 
 Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` of at least 12 characters. There is
@@ -131,7 +145,11 @@ All responses carry `Cache-Control: private, no-store`. A bearer JWT is required
 | GET/POST `/social/posts`, POST `/social/posts/:id/like` | Authenticated global feed; community scoping still pending |
 | GET `/forum/subs`, `/forum/threads`, `/forum/threads/:id` | Public reads |
 | POST `/forum/threads`, `/:id/comments`, `/:id/vote` | Authenticated writes; reply parent belongs to same thread |
-| GET `/chat`, GET/POST `/chat/:id/messages` | Authenticated conversation member; outsider receives 404 |
+| GET `/chat`, GET/POST `/chat/:id/messages` | Authenticated conversation member; outsider receives 404. List carries `unread`, partner name/avatar, `online` (B-59) |
+| POST `/chat` `{userId}` | Start or open the direct chat with a person (idempotent, one per pair); 201 created / 200 existing |
+| GET `/chat/users?q=`, GET `/chat/unread`, POST `/chat/:id/read`, POST `/chat/:id/typing` | People search (>= 2 chars), unread total, read position, typing (REST variant for SSE) |
+| GET `/realtime/stream`, POST `/realtime/command` | SSE event stream (auth like every route) and client→server commands for it (`subscribe`/`unsubscribe` `thread:<uuid>`, `typing`) |
+| WS `/realtime/ws` (embedded: `/api/realtime/ws`) | WebSocket: cookie auth, or `ALLOW_HEADER_SESSION=true` and first message `{type:"auth",token}` within 5 s; Origin must match host or `CORS_ORIGINS` |
 | GET `/notifications`, POST `/:id/read`, `/read-all` | Authenticated owner |
 | GET `/products`, `/products/categories`, `/offers`, `/breeders`, `/strains`, `/hall`, `/wiki` | Catalog reads |
 | GET `/me/activity` | Authenticated owner |

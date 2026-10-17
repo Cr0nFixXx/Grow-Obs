@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Browser-E2E gegen den Produktions-Build (`next start`) mit echter PostgreSQL-Datenbank.
+ * Browser-E2E gegen den Produktions-Build (`node scripts/server.mjs`, WebSocket-fähig) mit echter PostgreSQL-Datenbank.
  * Voraussetzung: `npm run build`, laufendes PostgreSQL und eine Wegwerf-DB (E2E_DATABASE_URL, Standard `growobserver_e2e`).
  * Start: `npm run test:e2e` (einmalig `npx playwright install chromium`).
  * Die Tests legen eindeutige Nutzer an und löschen keine Daten → nie gegen Produktiv-DBs laufen lassen.
@@ -27,7 +27,7 @@ export default defineConfig({
     { name: "mobile", testMatch: /mobile\.spec/, use: { ...devices["Pixel 5"] } },
   ],
   webServer: {
-    command: `npx next start -p ${port} -H 127.0.0.1`,
+    command: `node scripts/server.mjs -p ${port} -H 127.0.0.1`,
     url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

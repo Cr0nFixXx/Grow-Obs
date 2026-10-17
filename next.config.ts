@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
   turbopack: { root: path.resolve(".") },
   outputFileTracingRoot: path.resolve("."),
   // Native/Node-only Pakete der API nicht bündeln.
-  serverExternalPackages: ["argon2", "postgres"],
+  serverExternalPackages: ["argon2", "postgres", "ws"],
   env: {
     // Standard: eingebettete API (same-origin). `NEXT_PUBLIC_API_URL=` (leer) → Demo-/Mock-Modus,
     // `NEXT_PUBLIC_API_URL=https://api.example.com` → externe API (Docker-Stack).

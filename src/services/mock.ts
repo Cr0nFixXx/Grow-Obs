@@ -33,6 +33,7 @@ import type {
   CommunityService,
   ChatMessage,
   ChatService,
+  ChatPerson,
   ConversationItem,
   ForumComment,
   ForumService,
@@ -414,21 +415,44 @@ const forumService: ForumService = {
   },
 };
 
+/** Mock-Chat (nur Demo): Direktnachrichten mit den Kontakten der Beispieldaten; gelesen/ungelesen bleibt für die Session erhalten. */
+const mockPeople: ChatPerson[] = seedConversations.map((c) => ({ id: `p-${c.id}`, name: c.name, handle: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""), avatar: c.avatar }));
+const readConversations = new Set<string>();
+const extraConversations: ConversationItem[] = [];
+
 const chatService: ChatService = {
   async listConversations() {
     await delay();
-    return seedConversations.map<ConversationItem>(({ messages: _m, ...rest }) => rest);
+    const seeded = seedConversations.map<ConversationItem>(({ messages: _m, ...rest }) => ({ ...rest, unread: readConversations.has(rest.id) ? 0 : rest.unread }));
+    return [...extraConversations, ...seeded];
   },
   async getMessages(conversationId) {
     await delay();
     const c = seedConversations.find((x) => x.id === conversationId);
-    return c ? [...c.messages, ...(chatStore[conversationId] ?? [])] : [];
+    return c ? [...c.messages, ...(chatStore[conversationId] ?? [])] : [...(chatStore[conversationId] ?? [])];
   },
   async sendMessage(conversationId, text, image) {
     await delay(140);
     const msg: ChatMessage = { id: String(Date.now()), from: "me", text, image, time: "jetzt" };
     (chatStore[conversationId] ??= []).push(msg);
     return msg;
+  },
+  async startDirect(userId) {
+    await delay();
+    const person = mockPeople.find((p) => p.id === userId);
+    if (!person) throw new Error("Person nicht gefunden");
+    const existing = [...extraConversations, ...seedConversations].find((c) => c.name === person.name);
+    if (existing) return { id: existing.id, name: existing.name, avatar: existing.avatar, online: existing.online, last: existing.last, time: existing.time, unread: 0 };
+    const created: ConversationItem = { id: `cv-new-${userId}`, name: person.name, avatar: person.avatar, online: false, last: "", time: "", unread: 0 };
+    extraConversations.unshift(created);
+    return created;
+  },
+  async markRead(conversationId) { readConversations.add(conversationId); },
+  async unreadTotal() { return seedConversations.reduce((sum, c) => sum + (readConversations.has(c.id) ? 0 : c.unread), 0); },
+  async searchPeople(query) {
+    await delay(80);
+    const q = query.trim().toLowerCase();
+    return q.length < 2 ? [] : mockPeople.filter((p) => p.name.toLowerCase().includes(q) || p.handle.includes(q)).slice(0, 10);
   },
 };
 

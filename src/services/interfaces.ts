@@ -60,6 +60,8 @@ export interface ChatMessage {
   /** Bild-Anhang: `/media/<id>` (API) bzw. blob:-URL (Mock). */
   image?: string;
   time: string;
+  /** ISO-Zeitpunkt (API); der Mock liefert ihn nicht. */
+  createdAt?: string;
 }
 
 export interface ConversationItem {
@@ -70,6 +72,18 @@ export interface ConversationItem {
   last: string;
   time: string;
   unread: number;
+  /** Gruppenchat? (API) */
+  isGroup?: boolean;
+  /** Gegenstelle einer Direktnachricht (API); dient dem Abgleich mit Online-Status-Ereignissen. */
+  partnerId?: string | null;
+}
+
+/** Treffer der Personensuche für „Neue Nachricht“. */
+export interface ChatPerson {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
 }
 
 export interface NotificationItem {
@@ -126,6 +140,13 @@ export interface ChatService {
   listConversations(): Promise<ConversationItem[]>;
   getMessages(conversationId: string): Promise<ChatMessage[]>;
   sendMessage(conversationId: string, text: string, image?: string): Promise<ChatMessage>;
+  /** Direktnachricht mit einer Person starten bzw. die bestehende öffnen. */
+  startDirect(userId: string): Promise<ConversationItem>;
+  /** Alles bis jetzt als gelesen markieren. */
+  markRead(conversationId: string): Promise<void>;
+  /** Ungelesene Nachrichten insgesamt (Badge). */
+  unreadTotal(): Promise<number>;
+  searchPeople(query: string): Promise<ChatPerson[]>;
 }
 
 export interface NotificationService {

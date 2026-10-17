@@ -37,4 +37,4 @@ if [ "${PREVIEW_REBUILD:-0}" = "1" ] || [ ! -f .next/BUILD_ID ] || [ version.jso
   npm run build
 fi
 echo "Preview: http://localhost:${PORT}  ($(node scripts/version.mjs show))"
-exec npx next start -p "$PORT" -H 0.0.0.0
+exec node scripts/server.mjs -p "$PORT" -H 0.0.0.0

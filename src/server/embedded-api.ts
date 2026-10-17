@@ -64,6 +64,8 @@ export async function handleApiRequest(request: Request): Promise<Response> {
     headers: request.headers,
     // Body-Limit der API: 64 KB → puffern ist unkritisch und vermeidet Stream-Duplex-Sonderfälle.
     body: hasBody ? await request.arrayBuffer() : undefined,
+    // Abbruch durchreichen: beendet z. B. den SSE-Strom, wenn der Browser die Verbindung schließt.
+    signal: request.signal,
   });
   return app.fetch(forwarded);
 }

@@ -13,6 +13,7 @@ import type {
   CommunityService,
   ChatMessage,
   ChatService,
+  ChatPerson,
   ConversationItem,
   ForumComment,
   ForumService,
@@ -123,6 +124,10 @@ const chatService: ChatService = {
   listConversations: () => http.get<ConversationItem[]>("/chat"),
   getMessages: (id) => http.get<ChatMessage[]>(`/chat/${id}/messages`),
   sendMessage: (id, text, image) => http.post<ChatMessage>(`/chat/${id}/messages`, image ? { text, image } : { text }),
+  startDirect: (userId) => http.post<ConversationItem>("/chat", { userId }),
+  markRead: async (id) => { await http.post<void>(`/chat/${id}/read`, {}); },
+  unreadTotal: async () => (await http.get<{ total: number }>("/chat/unread")).total,
+  searchPeople: (query) => http.get<ChatPerson[]>(`/chat/users?q=${encodeURIComponent(query)}`),
 };
 
 const notificationService: NotificationService = {

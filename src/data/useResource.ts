@@ -63,5 +63,5 @@ export function useResource<T>(load: () => Promise<T>) {
     return () => { mounted.current = false; serial.current += 1; registry.delete(silentRefresh); };
   }, [refresh, silentRefresh]);
 
-  return { data, error, loading, refresh };
+  return { data, error, loading, refresh, silentRefresh };
 }

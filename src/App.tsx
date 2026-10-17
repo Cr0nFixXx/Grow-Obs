@@ -12,6 +12,8 @@ import { featureForView } from "@/config/features";
 import { ToastProvider } from "@/components/Toast";
 import { UpdateProvider } from "@/lib/update";
 import { UpdateLayer } from "@/components/UpdateUI";
+import { RealtimeProvider } from "@/lib/realtime-context";
+import { useRealtimeBridge } from "@/data/hooks";
 import { NavProvider, useNav, type ViewKey } from "@/lib/nav";
 import { Background } from "@/components/Particles";
 import AppShell from "@/components/layout/AppShell";
@@ -156,6 +158,12 @@ function PageSkeleton() {
   );
 }
 
+/** Übersetzt Echtzeit-Ereignisse in Datenaktualisierungen (rendert nichts). */
+function RealtimeBridge() {
+  useRealtimeBridge();
+  return null;
+}
+
 function Shell() {
   usePrefetchPrimaryViews();
   const { view } = useNav();
@@ -189,9 +197,12 @@ function Shell() {
           {view === "auth" ? <Router /> : <Auth />}
         </div>
       ) : (
-        <AppShell key={user?.id}>
-          <Router />
-        </AppShell>
+        <RealtimeProvider key={user?.id}>
+          <RealtimeBridge />
+          <AppShell>
+            <Router />
+          </AppShell>
+        </RealtimeProvider>
       )}
       <Onboarding
         open={onboard}

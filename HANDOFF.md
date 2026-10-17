@@ -2,15 +2,27 @@
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
 **Projekt:** Grow|Observer  
-**Stand:** B-58 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
+**Stand:** B-59 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
-typecheck ✅ · lint ✅ · 135 Frontend-Tests ✅ · 108 API-Integrationstests ✅ · 28 Browser-E2E-Tests (Playwright) ✅ ·
+typecheck ✅ · lint ✅ · 169 Frontend-Tests ✅ · 130 API-Integrationstests ✅ · 31 Browser-E2E-Tests (Playwright) ✅ ·
 `next build` ✅ · `build:vite` ✅. Docker-Stack und Touch auf realen Geräten weiterhin ungetestet → TESTING.md.  
 **Sprache der UI:** Deutsch  
 **Vorheriger Agent:** `claude-grow-dev` (Claude · Anthropic)
 
 **Aktuelle Bearbeitung:** Codex (OpenAI). Die frühere Signatur ist historisch, keine Kennung
 dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `PROGRESS.md`.
+
+## B-59: Chat und Echtzeit (Arena Agent)
+
+- Hub `apps/api/src/realtime/hub.ts` (LISTEN/NOTIFY, Zustand an `globalThis.__growRealtimeHub`), Befehle `commands.ts`, WebSocket `ws.ts`, SSE `routes/realtime.ts`,
+  Benachrichtigungen `lib/notify.ts` (`createNotification` = einfügen + live melden – **für neue Benachrichtigungen immer diese Funktion nutzen**).
+- Ereignisse: `chat.message|chat.read|chat.typing|presence|notification|thread.comment|resync` (+ clientseitig `poll`). Neue Ereignisse klein halten (IDs) und in
+  `useRealtimeBridge`/den Hooks (`src/data/hooks.ts`) in Datenaktualisierungen übersetzen.
+- **Server:** `npm start`/`preview`/E2E laufen über `scripts/server.mjs` (Next + WebSocket-Weiterleitung; setzt `app.didWebSocketSetup = true`, weil Next sonst
+  einen eigenen `upgrade`-Listener anhängt, der fremde WebSockets schließt). Der Hub registriert sich beim ersten API-Aufruf in
+  `globalThis.__growRealtimeUpgrade`; das Skript weckt die API beim Start.
+- Client: `src/lib/realtime.ts` (ohne React), `realtime-context.tsx` (`RealtimeProvider` in `Shell`, `useRealtimeEvent`, `useRealtimeTopic`). Mock-Modus: keine Verbindung.
+- Offen: Online-Status nicht abschaltbar; keine Gruppenchats-Erstellung in der UI; Push-Benachrichtigungen bei geschlossener App.
 
 ## B-58: Erzwungener Passwortwechsel (Arena Agent)
 
@@ -97,7 +109,7 @@ dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `
 - **Anzeige:** Login-Footer (`data-testid="app-version"`), Einstellungen → Updates (Frontend/Backend/Build), Dev-Admin.
   Mock-Release („Was ist neu“) nutzt jetzt die aktuelle Frontend-Version.
 - **Module vorbereitet:** `modules` in `version.json` + `moduleVersion()` (Frontend, Backend); ohne Eintrag Vererbung.
-- **Preview:** `npm run preview` (`scripts/preview.sh`): Postgres/DB sicherstellen, bei Bedarf bauen, `next start` auf `0.0.0.0:3000`.
+- **Preview:** `npm run preview` (`scripts/preview.sh`): Postgres/DB sicherstellen, bei Bedarf bauen, `node scripts/server.mjs` (Next + WebSocket) auf `0.0.0.0:3000`.
 - **Falle:** Wer `npm install --prefix apps/api` im selben Checkout ausführt, bekommt eine zweite `drizzle-orm`-Kopie →
   `next build` bricht in `src/server/embedded-api.ts` mit einem Typfehler ab. Für API-Typechecks danach
   `rm -rf apps/api/node_modules` (CI trennt die Jobs, daher dort unkritisch).

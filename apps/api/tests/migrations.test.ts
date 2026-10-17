@@ -14,6 +14,14 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0010 ergänzt Leseposition, Direktnachrichten-Schlüssel (eindeutig, nur wenn gesetzt) und Online-Status", () => {
+    const sql = readFileSync(`${dir}0010_chat_realtime.sql`, "utf8");
+    expect(sql).toContain('"last_read_at" timestamp with time zone DEFAULT now() NOT NULL');
+    expect(sql).toContain('"online_until" timestamp with time zone');
+    expect(sql).toMatch(/CREATE UNIQUE INDEX "conversations_direct_key_uq"[^;]*WHERE "direct_key" IS NOT NULL/);
+    expect(sql).toContain("messages_conversation_created_idx");
+  });
+
   it("0009 ergänzt die Pflichtwechsel-Spalte mit Standard false", () => {
     const sql = readFileSync(`${dir}0009_must_change_password.sql`, "utf8");
     expect(sql).toContain('"must_change_password" boolean DEFAULT false NOT NULL');

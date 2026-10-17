@@ -2,14 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Paperclip, Send } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Avatar, Card, EmptyState, PageHeader, SearchInput, SkeletonCard, SmartImage } from "@/components/ui";
+import { Avatar, Button, Card, EmptyState, PageHeader, SearchInput, SkeletonCard, SmartImage } from "@/components/ui";
+import { NewChatModal } from "@/components/NewChat";
+import { config } from "@/lib/config";
 import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media";
 import { useToast } from "@/components/Toast";
 import { useChat } from "@/data/hooks";
 
 export default function Chat() {
   const toast = useToast();
-  const { conversations, activeId, setActiveId, messages, msgLoading, send, loading, error } = useChat();
+  const { conversations, activeId, setActiveId, messages, msgLoading, send, loading, error, typing, typingIds, notifyTyping, openDirect, live } = useChat();
+  const [newChat, setNewChat] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -17,7 +20,7 @@ export default function Chat() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, typing]);
 
   const deliver = async (body: string, image?: string) => {
     setSending(true);
@@ -34,6 +37,7 @@ export default function Chat() {
     if (!text.trim() || sending) return;
     void deliver(text.trim());
   };
+  const liveLabel = live === "ws" || live === "sse" ? "Live" : live === "polling" ? "Aktualisiert regelmäßig" : live === "connecting" ? "Verbindet …" : "Offline";
   const addEmoji = (emoji: string) => {
     const { next, caret } = insertAtCursor(inputRef.current, text, emoji);
     setText(next);
@@ -47,17 +51,31 @@ export default function Chat() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Chat" subtitle="Direktnachrichten und Gruppen – schnell & privat." icon="MessageCircle" />
+      <PageHeader
+        title="Chat"
+        subtitle="Direktnachrichten und Gruppen – schnell & privat."
+        icon="MessageCircle"
+        actions={<div className="flex items-center gap-3">
+          {!config.useMock && (
+            <span data-testid="live-status" data-live={live} title={live === "polling" ? "Keine Live-Verbindung möglich – neue Nachrichten erscheinen alle paar Sekunden." : undefined} className="inline-flex items-center gap-1.5 text-xs text-fg-muted">
+              <span className={cn("size-2 rounded-full", live === "ws" || live === "sse" ? "bg-leaf-500" : live === "polling" ? "bg-warning" : "bg-fg-subtle")} aria-hidden />{liveLabel}
+            </span>
+          )}
+          <Button onClick={() => setNewChat(true)}><Icon name="Plus" size={16} />Neue Nachricht</Button>
+        </div>}
+      />
+      <NewChatModal open={newChat} onClose={() => setNewChat(false)} onPick={async (person) => { await openDirect(person.id); }} />
       <Card className="grid h-[calc(100dvh-16rem)] min-h-[420px] grid-cols-1 overflow-hidden p-0 sm:h-[calc(100vh-220px)] lg:grid-cols-[320px_1fr]">
         <div className={cn("flex flex-col border-border lg:border-r", conv && "hidden lg:flex")}>
           <div className="border-b border-border p-3"><SearchInput placeholder="Konversation suchen…" /></div>
           <div className="flex-1 overflow-y-auto">
+            {conversations.length === 0 && <div className="p-4"><EmptyState icon="MessageCircle" title="Noch keine Unterhaltungen" desc="Starte mit „Neue Nachricht“ ein Gespräch." /></div>}
             {conversations.map((c) => (
               <button key={c.id} onClick={() => setActiveId(c.id)} className={cn("flex w-full items-center gap-3 p-3 text-left transition hover:bg-surface-2", activeId === c.id && "bg-surface-2")}>
                 <Avatar src={c.avatar} name={c.name} size={44} status={c.online ? "online" : "offline"} />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between"><span className="truncate text-sm font-semibold">{c.name}</span><span className="text-[10px] text-fg-subtle">{c.time}</span></span>
-                  <span className="flex items-center justify-between"><span className="truncate text-xs text-fg-muted">{c.last}</span>{c.unread > 0 && <span className="grid size-5 place-items-center rounded-full bg-accent text-[10px] font-bold text-accent-fg">{c.unread}</span>}</span>
+                  <span className="flex items-center justify-between"><span className={cn("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>{c.name}</span><span className="text-[10px] text-fg-subtle">{c.time}</span></span>
+                  <span className="flex items-center justify-between"><span className={cn("truncate text-xs", typingIds.has(c.id) ? "text-accent" : c.unread > 0 ? "font-medium text-fg" : "text-fg-muted")}>{typingIds.has(c.id) ? "schreibt …" : c.last}</span>{c.unread > 0 && <span data-testid="unread-badge" aria-label={`${c.unread} ungelesen`} className="grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-fg">{c.unread}</span>}</span>
                 </span>
               </button>
             ))}
@@ -72,7 +90,7 @@ export default function Chat() {
                 <Avatar src={conv.avatar} name={conv.name} size={40} status={conv.online ? "online" : "offline"} />
                 <div className="flex-1">
                   <div className="text-sm font-semibold">{conv.name}</div>
-                  <div className="text-xs text-leaf-500 dark:text-leaf-400">{conv.online ? "Online" : "Offline"}</div>
+                  <div data-testid="chat-status" className={cn("text-xs", typing || conv.online ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : conv.online ? "Online" : "Offline"}</div>
                 </div>
                 <button onClick={() => toast.push({ title: conv.name, desc: "Geteilter Grow & Status.", tone: "info", icon: "Info" })} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2" aria-label="Info"><Icon name="Info" size={18} /></button>
               </div>
@@ -88,6 +106,7 @@ export default function Chat() {
                     </div>
                   </div>
                 ))}
+                {typing && <div className="flex justify-start" data-testid="typing-indicator" aria-live="polite"><div className="rounded-2xl rounded-bl-sm bg-surface-2 px-3.5 py-2 text-sm text-fg-muted">schreibt …</div></div>}
                 <div ref={endRef} />
               </div>
 
@@ -96,7 +115,7 @@ export default function Chat() {
                 <input
                   ref={inputRef}
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => { setText(e.target.value); if (e.target.value.trim()) notifyTyping(); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="Nachricht schreiben…"
                   className="h-11 flex-1 rounded-xl border border-border bg-surface-2 px-4 text-sm outline-none focus:border-accent"

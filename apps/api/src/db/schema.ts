@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
@@ -40,6 +40,8 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull().default("member"),
   /** Gesetzt für Betreiber-Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel sind fast alle Endpunkte gesperrt. */
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  /** Online-Status (B-59): gilt als online, solange `online_until` in der Zukunft liegt (Herzschlag verlängert um ~70 s). */
+  onlineUntil: timestamp("online_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -389,16 +391,21 @@ export const conversations = pgTable("conversations", {
   name: text("name").notNull(),
   avatarUrl: text("avatar_url"),
   isGroup: boolean("is_group").notNull().default(false),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  /** Direktnachricht (B-59): sortierte Nutzer-IDs "a:b" → höchstens eine Konversation je Paar. */
+  directKey: text("direct_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [uniqueIndex("conversations_direct_key_uq").on(t.directKey).where(sql`${t.directKey} IS NOT NULL`)]);
 
 export const conversationMembers = pgTable(
   "conversation_members",
   {
     conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
     userId: uuid("user_id").notNull().references(() => users.id),
+    /** Leseposition (B-59): Nachrichten anderer nach diesem Zeitpunkt gelten als ungelesen. */
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("conversation_members_uq").on(t.conversationId, t.userId)]
+  (t) => [uniqueIndex("conversation_members_uq").on(t.conversationId, t.userId), index("conversation_members_user_idx").on(t.userId)]
 );
 
 export const messages = pgTable("messages", {
@@ -409,7 +416,7 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   /** Bild-Anhang (0002): /media/<id> */
   imageUrl: text("image_url"),
-});
+}, (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt)]);
 
 /* ----------------------------- Benachrichtigungen ----------------------------- */
 export const notifications = pgTable("notifications", {

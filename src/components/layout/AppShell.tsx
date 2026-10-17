@@ -23,7 +23,7 @@ import { Avatar, BottomSheet, Button, Drawer, Spinner } from "@/components/ui";
 import { navGroups, bottomNav, type NavItem } from "@/components/layout/nav-config";
 import { useFeatures } from "@/config/FeatureContext";
 import { featureForView } from "@/config/features";
-import { useForumThreads, useGrows, useNotifications, useProducts, useStrains } from "@/data/hooks";
+import { useChatUnread, useForumThreads, useGrows, useNotifications, useProducts, useStrains } from "@/data/hooks";
 import { notificationTarget } from "@/lib/notification-target";
 import { useAuth } from "@/lib/auth";
 import { useInstallApp } from "@/components/InstallApp";
@@ -100,7 +100,8 @@ function NavList({ lid, collapsed }: { lid: string; collapsed?: boolean }) {
   const { items: notes } = useNotifications();
   const activeGrows = grows.filter((g) => g.phase !== "Ernte").length;
   const unread = notes.filter((n) => !n.read).length;
-  const badgeFor = (key: ViewKey) => (key === "grows" && activeGrows ? String(activeGrows) : key === "notifications" && unread ? String(unread) : undefined);
+  const chatUnread = useChatUnread(isEnabled("chat"));
+  const badgeFor = (key: ViewKey) => (key === "grows" && activeGrows ? String(activeGrows) : key === "notifications" && unread ? String(unread) : key === "chat" && chatUnread ? String(chatUnread) : undefined);
   const groups = navGroups
     .map((g) => ({ ...g, items: g.items.filter((it) => isEnabled(featureForView(it.key))) }))
     .filter((g) => g.items.length > 0);
@@ -353,6 +354,7 @@ function BottomNav() {
   const primary = bottomNav.filter((it) => it.key !== "marketplace" && isEnabled(featureForView(it.key)));
   const extra = moreNav.filter((m) => isEnabled(featureForView(m.key)));
   const isMoreActive = extra.some((m) => m.key === view);
+  const chatUnread = useChatUnread(isEnabled("chat"));
   const go = (key: ViewKey) => { vibrate(8); navigate(key); };
 
   // Seitengesten (nur Mobile, nie bei offenem Drawer/Sheet): unten links/rechts = Tab, Mitte → rechts = zurück.
@@ -374,6 +376,7 @@ function BottomNav() {
         <Icon name={icon} size={20} strokeWidth={active ? 2.4 : 2} />
       </motion.span>
       <span className={active ? "text-accent" : "text-fg-subtle"}>{label}</span>
+      {key === ("__mehr" as ViewKey) && chatUnread > 0 && <span data-testid="more-unread-dot" aria-label={`${chatUnread} ungelesene Chat-Nachrichten`} className="absolute right-[calc(50%-1.4rem)] top-1.5 size-2.5 rounded-full bg-danger ring-2 ring-bg" />}
     </button>
   );
 
@@ -391,6 +394,7 @@ function BottomNav() {
             <button key={m.key} onClick={() => { setMoreOpen(false); go(m.key); }} className={cn("card card-hover flex flex-col items-center gap-2 p-4 text-center", m.key === view && "border-accent ring-2 ring-accent/25")}>
               <span className="grid size-11 place-items-center rounded-xl bg-accent/10 text-accent"><Icon name={m.icon} size={20} /></span>
               <span className="text-sm font-medium">{m.label}</span>
+              {m.key === "chat" && chatUnread > 0 && <span className="rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">{chatUnread}</span>}
             </button>
           ))}
         </div>

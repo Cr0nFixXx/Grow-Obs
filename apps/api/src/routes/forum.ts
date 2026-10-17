@@ -6,8 +6,29 @@ import { comments, subs, threadVotes, threads, commentVotes } from "../db/schema
 import { optionalAuth, requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { ago } from "../lib/time.ts";
 import { uuid } from "../lib/validation.ts";
+import { publish } from "../realtime/hub.ts";
+import { createNotification } from "../lib/notify.ts";
 
 export const forum = new Hono<AuthEnv>();
+
+/** Benachrichtigt den Thread-Autor und (bei Antworten) den Autor des Eltern-Kommentars – nie sich selbst, nie doppelt. */
+async function notifyAboutComment(threadId: string, actorId: string, parentId?: string): Promise<void> {
+  try {
+    const [thread] = await db.select({ userId: threads.userId, title: threads.title }).from(threads).where(eq(threads.id, threadId)).limit(1);
+    if (!thread) return;
+    const recipients = new Set<string>();
+    if (thread.userId !== actorId) recipients.add(thread.userId);
+    if (parentId) {
+      const parent = await db.query.comments.findFirst({ where: eq(comments.id, parentId) });
+      if (parent && parent.userId !== actorId) recipients.add(parent.userId);
+    }
+    for (const userId of recipients) {
+      await createNotification(userId, { type: "forum", title: "Neue Antwort im Forum", body: thread.title });
+    }
+  } catch (error) {
+    console.error(JSON.stringify({ event: "comment_notification_failed", message: error instanceof Error ? error.message.slice(0, 120) : "unknown" }));
+  }
+}
 
 type VoteRow = { userId: string; delta: number };
 const tally = (votes: VoteRow[], viewerId?: string) => ({
@@ -170,5 +191,8 @@ forum.post("/threads/:id/comments", requireAuth, async (c) => {
       body: body.data.text,
     })
     .returning();
+  // Echtzeit (B-59): offene Thread-Ansichten laden nach; Thread-Autor bzw. Autor des Eltern-Kommentars werden benachrichtigt.
+  await publish({ topic: `thread:${threadId}` }, { type: "thread.comment", threadId, commentId: cm.id });
+  await notifyAboutComment(threadId, c.get("userId"), body.data.parentId);
   return c.json(await commentToNode(cm.id, c.get("userId")), 201);
 });

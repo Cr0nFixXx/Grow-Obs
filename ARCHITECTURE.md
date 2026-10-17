@@ -58,6 +58,22 @@ Implementierungen: `mock` | `api` (Free-Cloud) | `local` (Paid local-first). UI 
 
 ---
 
+## Echtzeit (B-59)
+
+```
+Browser ── WebSocket /api/realtime/ws ──┐                      ┌── Instanz A (Hub) ── lokale Verbindungen
+        └─ Rückfall SSE /api/realtime/stream ──► API-Instanz ─┤
+                                                  │  NOTIFY   └── Instanz B (Hub) ── lokale Verbindungen
+                                          PostgreSQL LISTEN/NOTIFY (Kanal go_realtime)
+```
+
+- `apps/api/src/realtime/`: `hub.ts` (Verbindungen, Zustellung an Nutzer/Themen, Online-Status, Herzschlag), `commands.ts` (Client→Server),
+  `ws.ts` (WebSocket-Upgrade), `index.ts` (Haken für `scripts/server.mjs`). Quellen der Ereignisse: `routes/chat.ts`, `routes/forum.ts`,
+  `lib/notify.ts`.
+- Frontend: `src/lib/realtime.ts` (Transportwahl WS → SSE → Polling, Backoff, Sichtbarkeit), `realtime-context.tsx` (Provider, Hooks),
+  Übersetzung in Datenaktualisierung über `useRealtimeBridge` und die Hooks in `src/data/hooks.ts`.
+- Grundsatz: Ereignisse tragen nur IDs; Daten kommen über die autorisierte REST-API.
+
 ## Dateien
 
 | Datei | Rolle |

@@ -2,6 +2,15 @@
 
 ## Status
 
+**B-59 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 169/169 ✅, `npm run test:api` 130/130 ✅
+(`realtime.integration.test.ts`: LISTEN/NOTIFY-Zustellung an Nutzer/Themen, Übergröße verworfen, SSE-Auth/-Passwortsperre/-Aufräumen, WebSocket mit
+Cookie, Origin-Sperre, Token-Erstnachricht nur mit `ALLOW_HEADER_SESSION`, Sitzungsende trennt, 5-Verbindungen-Limit, Chat-API: Suche,
+idempotente Direktnachricht, Unread/Read, Fremdzugriff 404, Tippen gedrosselt, Online/Offline, Senden-Limit 429, Forum-Benachrichtigung; Migration 0010),
+E2E 31/31 ✅ (`realtime.spec.ts`). **Real geprüft:** `.archive/diag/realtime-smoke.mjs` gegen den Produktionsserver lokal, durch den
+Sandbox-Vorschau-Proxy (WebSocket mit Token-Erstnachricht und SSE) und gegen den eigenständigen `apps/api/dist` (beide Transporte).
+Nicht geprüft: Verhalten hinter nginx/Traefik, Multi-Instanz-Betrieb mit zwei echten Prozessen (Zustellung läuft über dieselbe
+NOTIFY-Kette, die die Tests abdecken), echte Mobilgeräte (Hintergrund-/Netzwechsel nur per Unit-Test).
+
 **B-58 (Arena Agent) – ausgeführt:** typecheck ✅ (Frontend + `apps/api` Build/`tsconfig.tools.json`), lint ✅, `npm test` 135/135 ✅
 (`ForcedPasswordChange`), `npm run test:api` 108/108 ✅ (neu `password-enforcement.integration.test.ts`: Flag in `/auth/me`, 7 gesperrte
 Endpunkte mit Code, öffentliche Routen anonym, Logout erlaubt, falsches/gleiches Passwort, Entsperrung nach dem Wechsel, normale Konten

@@ -103,9 +103,8 @@ export function clearSessionCookie(c: Context): void {
 
 export interface ActiveSession { sessionId: string; userId: string; role: typeof users.$inferSelect.role; mustChangePassword: boolean }
 
-/** Prüft Cookie → JWT-Signatur → Sitzung in der DB (nicht abgelaufen, nicht widerrufen) und lädt die aktuelle Rolle. */
-export async function authenticate(c: Context): Promise<ActiveSession | null> {
-  const token = readSessionToken(c);
+/** Prüft Token → JWT-Signatur → Sitzung in der DB (nicht abgelaufen, nicht widerrufen) und lädt die aktuelle Rolle. */
+export async function authenticateToken(token: string | undefined): Promise<ActiveSession | null> {
   if (!token) return null;
   let claims;
   try { claims = await verifyToken(token); } catch { return null; }
@@ -121,6 +120,9 @@ export async function authenticate(c: Context): Promise<ActiveSession | null> {
   }
   return { sessionId: row.sessionId, userId: row.userId, role: row.role, mustChangePassword: row.mustChangePassword };
 }
+
+/** Wie `authenticateToken`, liest das Token aus Cookie bzw. (falls freigeschaltet) Header der Anfrage. */
+export const authenticate = (c: Context): Promise<ActiveSession | null> => authenticateToken(readSessionToken(c));
 
 /** Sitzungs-ID aus dem Cookie, auch bei abgelaufener Sitzung (für Logout). */
 export async function sessionIdFromCookie(c: Context): Promise<string | null> {

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/server.mjs",
     "dev:vite": "vite",
     "build:vite": "vite build",
     "preview:vite": "vite preview",
@@ -40,6 +40,7 @@
     "react-dom": "19.2.6",
     "server-only": "^0.0.1",
     "tailwind-merge": "3.4.0",
+    "ws": "^8.22.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -52,6 +53,7 @@
     "@types/node": "22.19.17",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "@types/ws": "^8.18.2",
     "@vitejs/plugin-react": "5.1.1",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
