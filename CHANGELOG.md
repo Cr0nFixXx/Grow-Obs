@@ -31,6 +31,10 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
   serverseitig beendete Sitzung meldet das Gerät bei der nächsten Anfrage automatisch ab (Event `go:session-expired`).
 - `scripts/smoke-live.sh` nutzt einen Cookie-Jar. Entwickler-Hinweis: API-Clients außerhalb des Browsers lesen das Cookie aus
   `Set-Cookie`.
+- **Fix (B-54.1, gemeldet: „nach Registrierung keine Anmeldung möglich“):** Die Preview läuft in einem iframe unter fremder
+  Domain; dort verwirft der Browser `SameSite=Lax`-Cookies. Neu: `COOKIE_SAMESITE=lax|none` (Standard `lax`). `none` setzt
+  `Secure; SameSite=None; Partitioned` (nur für iframe-Einbettung); `scripts/preview.sh` setzt es standardmäßig auf `none`.
+  Der CSRF-Guard bleibt aktiv. Tests: API 65.
 - Tests: Frontend 108 (+10), API 62 (+26), E2E 19 (+6; die E2E-Suite läuft mit `RATE_LIMIT_DISABLED=true`).
 
 ### B-53 – Keine Demo-Daten im API-Modus (Arena Agent)

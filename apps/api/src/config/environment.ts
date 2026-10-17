@@ -17,6 +17,12 @@ export const environmentSchema = z.object({
   S3_ACCESS_KEY: z.string().min(1).optional(),
   S3_SECRET_KEY: z.string().min(8).optional(),
   S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/).default("growobserver"),
+  /**
+   * SameSite des Sitzungs-Cookies. `lax` (Standard) ist richtig für same-origin/same-site-Betrieb.
+   * `none` (→ Secure + Partitioned) nur für Einbettung in einen fremden Rahmen (z. B. iframe-Vorschau), sonst verwirft
+   * der Browser das Cookie in diesem Cross-Site-Kontext. Der CSRF-Guard bleibt in beiden Fällen aktiv.
+   */
+  COOKIE_SAMESITE: z.enum(["lax", "none"]).default("lax"),
   CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:5173"),
   ALLOW_DEMO_SEED: z.enum(["true", "false"]).default("false"),
   /**

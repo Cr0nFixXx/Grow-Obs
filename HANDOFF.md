@@ -25,6 +25,8 @@ dieses Agents. Maßgeblicher Prüfstatus: `TESTING.md` und neuester Eintrag in `
   `api.` derselben Domain) und der Frontend-Origin in `CORS_ORIGINS` steht; der Client sendet `credentials: "include"`.
 - **UI:** `src/components/SessionsCard.tsx` (Profil → Einstellungen). 401 einer Fach-Anfrage → Event `go:session-expired`
   → lokale Abmeldung (`AuthProvider`).
+- **iframe-Einbettung:** `COOKIE_SAMESITE=none` → `Secure; SameSite=None; Partitioned` (nur Vorschau/Einbettung; Standard `lax`).
+  `scripts/preview.sh` setzt `none`. Ohne das verwirft der Browser das Cookie im Cross-Site-iframe (Login scheitert still).
 - **Migration:** Bestehende Nutzer müssen sich einmal neu anmelden (alte Bearer-Token sind ungültig).
 - **Offen:** Passwort-ändern-Endpunkt (soll alle anderen Sitzungen beenden), Anmeldeprotokoll, Gerätelimit,
   mehrinstanzfähiges Rate-Limit.

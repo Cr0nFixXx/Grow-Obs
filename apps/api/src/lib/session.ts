@@ -49,14 +49,23 @@ export async function startSession(c: Context, user: { id: string; role: typeof 
   }).returning({ id: sessions.id });
   const token = await signToken({ sub: user.id, role: user.role, sid: row!.id }, expiresAt);
   setCookie(c, SESSION_COOKIE, token, {
-    httpOnly: true, sameSite: "Lax", path: "/", secure: isHttps(c),
+    ...cookieAttributes(isHttps(c), env.COOKIE_SAMESITE),
     // Ohne „Angemeldet bleiben“ ein echtes Session-Cookie (endet mit dem Browser) – serverseitig zusätzlich begrenzt.
     ...(remember ? { maxAge: Math.floor(ttl / 1000) } : {}),
   });
 }
 
+/** Cookie-Attribute je nach Betriebsart. `none` erzwingt Secure und Partitioned (CHIPS), wie es Browser verlangen. */
+export function cookieAttributes(https: boolean, sameSite: "lax" | "none") {
+  return sameSite === "none"
+    ? { httpOnly: true, path: "/", sameSite: "None" as const, secure: true, partitioned: true }
+    : { httpOnly: true, path: "/", sameSite: "Lax" as const, secure: https };
+}
+
 export function clearSessionCookie(c: Context): void {
-  deleteCookie(c, SESSION_COOKIE, { path: "/", secure: isHttps(c) });
+  // Partitionierte Cookies müssen mit denselben Attributen gelöscht werden, mit denen sie gesetzt wurden.
+  const { httpOnly: _httpOnly, ...attrs } = cookieAttributes(isHttps(c), env.COOKIE_SAMESITE);
+  deleteCookie(c, SESSION_COOKIE, attrs);
 }
 
 export interface ActiveSession { sessionId: string; userId: string; role: typeof users.$inferSelect.role }

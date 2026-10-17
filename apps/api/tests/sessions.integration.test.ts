@@ -8,7 +8,7 @@ import { client, db } from "../src/db/client.ts";
 import { sessions, users } from "../src/db/schema.ts";
 import { signToken } from "../src/lib/jwt.ts";
 import { hashPassword } from "../src/lib/password.ts";
-import { deviceLabel, parseDuration, SESSION_COOKIE } from "../src/lib/session.ts";
+import { cookieAttributes, deviceLabel, parseDuration, SESSION_COOKIE } from "../src/lib/session.ts";
 import { resetRateLimits } from "../src/middleware/rate-limit.ts";
 
 const EMAIL = "sessions@example.test";
@@ -230,6 +230,20 @@ describe("CSRF-Schutz", () => {
     expect(ok.headers.get("access-control-allow-credentials")).toBe("true");
     const bad = await call("/auth/login", { method: "OPTIONS", headers: { Origin: "https://evil.example", "Access-Control-Request-Method": "POST" } });
     expect(bad.headers.get("access-control-allow-origin")).not.toBe("https://evil.example");
+  });
+});
+
+describe("Cookie-Attribute", () => {
+  it("lax (Standard): HttpOnly, SameSite=Lax, Secure nur bei HTTPS", () => {
+    expect(cookieAttributes(false, "lax")).toEqual({ httpOnly: true, path: "/", sameSite: "Lax", secure: false });
+    expect(cookieAttributes(true, "lax")).toMatchObject({ sameSite: "Lax", secure: true });
+  });
+  it("none (iframe-Vorschau): immer Secure + Partitioned, weiterhin HttpOnly", () => {
+    expect(cookieAttributes(false, "none")).toEqual({ httpOnly: true, path: "/", sameSite: "None", secure: true, partitioned: true });
+  });
+  it("Standardbetrieb setzt kein Partitioned/None", async () => {
+    const res = await call("/auth/login", { method: "POST", data: { email: EMAIL, password: PASSWORD } });
+    expect(setCookie(res)!.raw).not.toMatch(/Partitioned|SameSite=None/i);
   });
 });
 
