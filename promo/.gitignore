@@ -1,0 +1,7 @@
+# generated or sandbox-only
+syslibs/
+shots/
+test/
+.frames/
+.render-*.log
+music.wav
