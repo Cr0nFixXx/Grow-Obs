@@ -1,202 +1,106 @@
 # 🌿 Grow|Observer
 
-**Jetzt:** funktionsfähige PWA-UI (React 19 + Vite + Tailwind v4) mit austauschbarer
-Mock-/API-Service-Layer, Feature-Flags, Developer-Admin und Communities-MVP.
+Community-Grow-PWA: Grow-Tagebuch, Sorten- und Wissensdatenbank, Social-Feed, Forum, Chat und Communities mit Moderation –
+als mobile-first Progressive Web App mit selbst gehostetem Backend.
 
-**Self-Host-Backend:** `apps/api` (Hono + Drizzle + PostgreSQL + MinIO + Docker Compose).
-→ [`apps/api/README.md`](./apps/api/README.md)
-
-**Später:** Native Apps, Editionen, E2EE/P2P. → [`MILESTONES.md`](./MILESTONES.md)
-
-> Primärer Build ist **Next.js**: SPA + **eingebettete Self-Host-API unter `/api`** (PostgreSQL, dauerhaft).
-> `NEXT_PUBLIC_API_URL=` (leer) = Demo-/Mock-Modus; externe URL = Docker-API. Vite bleibt als Legacy-Build.
-> Das Next.js-Skeleton ist vorbereitet, aber nicht der aktive Build.
-
-**Status:** PWA + Backend-Fundament + Communities-MVP · **Agents:** [`HANDOFF.md`](./HANDOFF.md) · [`PLAN.md`](./PLAN.md) · [`MILESTONES.md`](./MILESTONES.md)
-
-**Aktuelle Stabilisierung:** Backend-Startfehler und Zugriffsprüfungen korrigiert, private API-
-Antworten aus dem PWA-Cache ausgeschlossen und Betreiberansichten an den Admin-Service angebunden.
-Testdefinitionen sind ergänzt; deren Ausführung sowie Docker-/Browser-Abnahme stehen noch aus.
-Prüfmatrix und Befehle: [`TESTING.md`](./TESTING.md). Kein Anspruch auf Produktionsreife.
-
-Letzte Verifikation: **B-42** – Next-Build, Typecheck, Lint, 52 Frontend-Tests, API-Build und
-13 API-Integrationstests grün (Details: `TESTING.md`). Docker-Stack noch ungetestet.
-beginnt mit `HANDOFF.md` §9.1. Backend-/Testergebnisse sind aus dem Frontend-Build nicht ableitbar.
-
----
-
-## ✨ Highlights
-
-- **Premium-„No-Slop"-Ästhetik**: Glassmorphism + soft Neumorphism, mehrstufige Elevation-Shadows, Glow-Akzente, Grain-Textur.
-- **Vollständiges Light- & Dark-Theme** über CSS-Variablen mit sanftem Toggle-Übergang.
-- **Mobile-First & responsiv** (sm/md/lg/xl/2xl): Sidebar (Desktop, kollaborierbar) + Bottom-Nav & FAB (Mobile) + Drawer.
-- **Native Mobile-Patterns**: Modals werden auf Mobile zu Bottom-Sheets, Notifications als Slide-Up-Sheet, Swipe-Gesten in der Galerie, Safe-Area-Support (Notch & Home-Indikator).
-- **Animationen mit Framer Motion**: Scroll-Reveals, Page-Transitions, Micro-Interactions, Count-up-Statistiken, Layout-Animationen.
-- **Dezente Partikel** (Canvas, schwebende „Pollen/Sporen"), `prefers-reduced-motion`-respektierend.
-- **Eigene SVG-Charts** (Area, Sparkline, Gauge, Donut, Bars) – leichtgewichtig, theme-aware & zuverlässig.
-- **Smart-Image-Loading** mit Shimmer-Placeholder (Skeleton-Lader in Aktion bei echten Fotos).
-- **Command-Palette (⌘K)**, Toaster, Notifications-Dropdown/Sheet, Modals, Drawers, Bottom-Sheets.
-
----
-
-## 🧰 Tech-Stack
-
-| Bereich      | Wahl                                              |
-| ------------ | ------------------------------------------------- |
-| Frontend     | React 19 + TypeScript + Vite                       |
-| Styling      | Tailwind CSS v4 (CSS-Variablen/`@theme`)           |
-| Animation    | Framer Motion                                     |
-| Icons        | lucide-react                                       |
-| Charts       | Eigenbau (SVG) – Recharts-frei & Single-File-tauglich |
-| PWA          | `manifest.webmanifest` + `public/sw.js`           |
-| API          | Hono + Node (`apps/api`)                           |
-| DB / ORM     | PostgreSQL + Drizzle                              |
-| Storage      | MinIO / S3-kompatibel                             |
-| Auth         | JWT + Argon2                                      |
-
-> **Warum keine Recharts?** Der Build nutzt `vite-plugin-singlefile`. Eine Chart-Lib würde das
-> Single-File-Bundle massiv aufblähen. Die eigenen SVG-Charts sind klein, vollständig theme-bar
-> und zu 100 % ausreichend für Mock-Visualisierungen.
+- **Frontend:** Next.js 16 (clientseitige SPA-Hülle) · React 19 · TypeScript · Tailwind CSS v4 · Framer Motion
+- **Backend:** Hono + Drizzle + PostgreSQL (`apps/api`), standardmäßig **eingebettet unter `/api`**; optional als eigener Docker-Dienst mit MinIO
+- **Version und Stand:** Frontend „Ruderalis“, Backend getrennt versioniert (`version.json`); aktueller Stand und offene Punkte: [`HANDOFF.md`](./HANDOFF.md)
+- **Kein Anspruch auf Produktionsreife.** Docker-Stack und Touch auf echten Geräten wurden noch nicht getestet.
 
 ---
 
 ## 🚀 Schnellstart
 
+Voraussetzung: **Node 22**, PostgreSQL (für den API-Modus).
+
 ```bash
-npm install      # Abhängigkeiten installieren
-npm run dev      # Dev-Server (Next.js, http://localhost:3000)
-npm run build    # Production-Build (Next.js)
-npm run build:vite # Legacy: Single-File dist/index.html
-npm run preview  # Build lokal vorschau
+npm install
+cp .env.example .env            # DATABASE_URL der eingebetteten API anpassen
+echo 'JWT_SECRET=<zufälliger Wert>' >> .env.local   # Pflicht in Produktion (openssl rand -base64 48)
+npm run dev                     # Entwicklung, http://localhost:3000 (Migrationen laufen beim ersten Request)
 ```
 
-Backend:
+| Befehl | Zweck |
+|---|---|
+| `npm run dev` | Next.js-Dev-Server (Realtime fällt hier auf SSE zurück) |
+| `npm run build` / `npm start` | Produktions-Build / Produktionsserver (`scripts/server.mjs`, mit WebSocket) |
+| `npm run preview` | Vorschau: baut bei Bedarf, startet PostgreSQL/DB, serviert auf `0.0.0.0:3000` (`PREVIEW_REBUILD=1` erzwingt Build) |
+| `npm run build:vite` | Legacy-Build als einzelne `dist/index.html` (ohne Typecheck, ohne API) |
+| `npm run version:build` | Build-Nummer setzen (nach jeder abgeschlossenen Aufgabe) |
+| `npm run admin:create --prefix apps/api -- --email … [--promote \| --reset-password]` | ersten Betreiber anlegen ([`apps/api/README.md`](./apps/api/README.md)) |
+
+Prüfbefehle (Typecheck, Lint, Tests, E2E): [`docs/TESTING.md`](./docs/TESTING.md).
+
+**Datenmodus** (`NEXT_PUBLIC_API_URL`, wird zur **Build-Zeit** eingebettet):
+
+| Wert | Modus |
+|---|---|
+| nicht gesetzt | eingebettete API unter `/api`, Daten dauerhaft in PostgreSQL (Standard) |
+| leer (`NEXT_PUBLIC_API_URL=`) | Demo-/Mock-Modus: kein Server nötig, Demo-Daten, nicht dauerhaft |
+| `https://api.example.com` | externe API, z. B. der Docker-Stack (siehe unten) |
+
+**Externes Backend (Docker):**
 
 ```bash
 cd apps/api
-cp .env.example .env
-# JWT_SECRET, POSTGRES_PASSWORD und S3_SECRET_KEY eintragen (keine Default-Secrets).
+cp .env.example .env     # JWT_SECRET, POSTGRES_PASSWORD, S3_SECRET_KEY mit getrennten Zufallswerten füllen
 docker compose up --build
 ```
 
-API-Modus im Frontend:
+Frontend dafür bauen mit `NEXT_PUBLIC_API_URL=http://localhost:8787`. Details, Endpunkte und Sicherheit: [`apps/api/README.md`](./apps/api/README.md).
 
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8787
-```
+---
+
+## ✨ Funktionen
+
+- **Grow-Tagebuch** mit Phasen, Umwelt-Charts, Galerie und Logs · **Sorten**, Breeder, Marktplatz, **Wiki** (editierbar)
+- **Social:** Community-Feed, Forum (Votes, Antworten), Chat (live, „schreibt …“, Online-Status), Benachrichtigungen in Echtzeit
+- **Communities:** öffentlich/privat, Einladungscode, Rollen, eigener Feed, Moderation (Ausblenden, Meldungen, Rauswurf/Sperre)
+- **Konto:** Sitzungen und Geräteliste, Passwort ändern, Anmeldeprotokoll · Developer-Admin mit Feature-Flags, Health und Release-Notes
+- **Tools:** Kostenrechner, Verbrauch, Simulation, Grow-Planung, Grow-Report (Druckansicht), KI-Assistent (derzeit nur Oberfläche)
+- **PWA:** installierbar, Offline-Shell, Update-Hinweise · Light/Dark-Theme, Command-Palette (⌘K), Barrierefreiheit (ARIA, Tastatur, Reduced Motion)
+- **Mobile-first:** Bottom-Sheets, Wischgesten, Pull-to-Refresh, Safe-Area · Design-System: [`DESIGN.md`](./DESIGN.md)
 
 ---
 
 ## 📁 Projektstruktur
 
 ```
-src/
-├── App.tsx                  # Provider + View-Router + Page-Transitions + Onboarding
-├── main.tsx                 # Entry + Service-Worker-Registrierung
-├── index.css                # Design-Tokens (Tailwind v4 @theme) + Basis + Utilities
-├── lib/
-│   ├── theme.tsx            # ThemeProvider (Light/Dark, smooth toggle)
-│   ├── nav.tsx              # View-Router mit Browser-History (Context), URLs in routes.ts
-│   ├── hooks.ts             # useMediaQuery, useScrollProgress, useBodyScrollLock …
-│   ├── format.ts            # eur(), pct(), timeAgo() …
-│   └── tokens.ts            # Tone→Tailwind-Klassen-Mapping
-├── mocks/
-│   └── data.ts              # Alle zentralen Mock-Daten + Typen
-├── components/
-│   ├── ui.tsx               # Komponenten-Bibliothek (Button, Card, Modal, Tabs …)
-│   ├── charts.tsx           # SVG-Charts (SeriesChart, Gauge, Donut, Bars, Sparkline)
-│   ├── Icon.tsx             # Icon-Registry (String→lucide)
-│   ├── Particles.tsx        # Canvas-Pollenfeld + Background (Aurora/Grain)
-│   ├── Toast.tsx            # ToastProvider + useToast
-│   ├── motion.tsx           # Reveal / Stagger / CountUp-Helfer
-│   └── layout/
-│       ├── AppShell.tsx     # Sidebar, TopBar, BottomNav, FAB, Drawer, CommandPalette, Notifications
-│       └── nav-config.ts    # Navigations-Struktur
-└── views/                   # Screens (ehemals pages/) inkl. Communities & Developer-Admin
-apps/api/                    # Self-Host REST API + DB/Storage/Docker
-public/
-├── manifest.webmanifest
-├── icon.svg
-└── sw.js
+app/            Next.js-Hülle: Layout, 404-Seite, Catch-All-Route, eingebettete API (/api)
+src/            Frontend: views/, components/, services/ (Mock | API), data/ (Hooks), lib/, config/
+apps/api/       Backend: Hono-API, Drizzle-Schema + Migrationen, Tests, Docker-Compose
+e2e/            Playwright-Browsertests
+scripts/        Server (WebSocket), Preview, Versionierung
+public/         Manifest, Icons, Service Worker
+docs/           TESTING, CHANGELOG, MILESTONES, archive/
 ```
 
-### Dokumentation
-
-| Datei | Zweck |
-|-------|--------|
-| [HANDOFF.md](./HANDOFF.md) | Agent-Einstieg, Fallstricke, DoD |
-| [TESTING.md](./TESTING.md) | Ausführbare Prüfungen und offene Release-Gates |
-| [PLAN.md](./PLAN.md) | Code-Phasen P0–P10 (Next, Backend, CRUD) |
-| [MILESTONES.md](./MILESTONES.md) | Produkt-Nordstern: Editionen, Privacy, Native, Admin |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Service-Layer Mock/API |
-| [apps/api/README.md](./apps/api/README.md) | Backend-Setup, Endpunkte, Sicherheit |
-| [MIGRATION.md](./MIGRATION.md) | Vite → Next.js Monorepo |
-| [DESIGN.md](./DESIGN.md) | Tokens, Komponenten, Bewegung |
-| [CLAUDE.md](./CLAUDE.md) | Konventionen für KI-Agents |
-| [CHANGELOG.md](./CHANGELOG.md) / [PROGRESS.md](./PROGRESS.md) | Historie |
+Vollständige Karte: [`HANDOFF.md`](./HANDOFF.md) §2 · Architektur: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ---
 
-## 🎨 Design-Tokens
+## 📚 Dokumentation
 
-Definiert in `src/index.css` über Tailwind v4 `@theme` und CSS-Variablen:
-
-- **Farbskalen** (statisch): `leaf-*` (Grün), `soil-*` (Erd-/Terracotta), Status `warning/info/danger`.
-- **Semantische Tokens** (theme-switchend): `--bg`, `--surface(-2/-3)`, `--fg(-muted/-subtle)`,
-  `--border(-strong)`, `--accent`, `--accent-2`, Statusfarben → als Utilities nutzbar
-  (`bg-surface`, `text-fg-muted`, `border-border`, `text-accent` …).
-- **Radius-Skala** `--radius-sm … 3xl`, **Elevation** `.elev-1/2/3`, **Glow** `.glow`.
-- **Effekt-Klassen**: `.glass`, `.neu`, `.neu-inset`, `.gradient-text`, `.grain`, `.shimmer`, `.animate-marquee`.
-
-Theme-Umschaltung: `<html data-theme="dark|light">` (no-FOUC via Inline-Script in `index.html`).
-
----
-
-## 📱 Responsive / Mobile
-
-- **Mobile**: Bottom-Nav (4 Haupt-Tabs + „Mehr“), FAB, Scroll-to-Top, Swipe-Drawer.
-- **Desktop**: persistente Sidebar (kollaborierbar), Top-Bar mit Suche.
-- **Overlays**: Modal → auf Mobile Bottom-Sheet; Notifications → auf Mobile Slide-Up-Sheet.
-- **Safe-Area**: `env(safe-area-inset-*)` auf TopBar, BottomNav, FAB, Content-Padding.
-- **Touch**: Tap-Highlight entfernt, `touch-action: manipulation`, Card-`:active`-Feedback.
-- **Gesten**: Drawer horizontal schließen, Sheets/Modals am Griff schließen, passiver Edge-Swipe,
-  Long-Press mit Bewegungs-Guard, Pull-to-Refresh mit Overlay-/Formular-Guard.
-
----
-
-## 🖥️ Screens
-
-Dashboard · Auth (Split-Layout + Partikel-Hero) · Meine Grows (Liste + Detail mit Phasen-Timeline,
-Umwelt-Charts, Masonry-Galerie + Lightbox, Logs) · Sorten-Sammlung (+ Detail-Modal) ·
-Breeder & Seeds (Verzeichnis + Detail) · Marktplatz (Ticker + Grid + Detail) · Wiki (Bibliothek +
-Reader, editierbar) · Forum (Feed + Thread/Kommentare) · Chat (Split + Live-Window) ·
-Community-Feed (Social: Stories, Posts, Like/Teilen, Follow) · Communities (öffentlich/privat,
-Invite-Code, Rollen) ·
-Hall of Fame (Masonry-Showcase) · Kostenrechner (interaktiv) · Verbrauch (Charts + Vergleich) ·
-Simulation (Wachstumskurven) · Grow-Planung (Vergleichstabelle) · Grow-Report (Export-UI) ·
-KI-Assistent (Chat-Streaming + Agenten + Mixture-of-Erd's mit Git-Diff) · Benachrichtigungen ·
-Profil & Einstellungen · Developer-Admin · Telegram-Integration · Onboarding/Splash · 404.
-
----
-
-## ♿️ Qualität
-
-- **Accessibility**: ARIA-Labels, Tastatur-Navigation (ESC schließt Overlays, ⌘K), sichtbare Focus-States, WCAG-AA-Kontraste.
-- **Reduced Motion**: global respektiert; Partikel & Animationen werden deaktiviert/verkürzt.
-- **Performance**: GPU-freundliche Animationen (`transform`/`opacity`), lazy Bilder, Shimmer-Placeholder, tabellarische Nummern.
+| Datei | Inhalt |
+|---|---|
+| [`HANDOFF.md`](./HANDOFF.md) | aktueller Stand, Repo-Karte, Fallstricke, offene Punkte (Einstieg für Agents) |
+| [`CLAUDE.md`](./CLAUDE.md) | verbindliche Regeln für Agents |
+| [`PLAN.md`](./PLAN.md) · [`TODO.md`](./TODO.md) | Roadmap und Beschlüsse · offene Aufgaben |
+| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Schichten, Betriebsarten, Auth, Echtzeit, Moderation, Routing, Versionierung |
+| [`DESIGN.md`](./DESIGN.md) | Design-System: Tokens, Komponenten, Bewegung, Layout-Fallen |
+| [`apps/api/README.md`](./apps/api/README.md) | Backend-Betrieb und Endpunkt-Vertrag |
+| [`docs/TESTING.md`](./docs/TESTING.md) | Teststand, Prüfbefehle, offene Release-Gates |
+| [`docs/CHANGELOG.md`](./docs/CHANGELOG.md) | Änderungen je Aufgabe mit Messwerten |
+| [`docs/MILESTONES.md`](./docs/MILESTONES.md) | Produktvision: Editionen, Datenschutz, Native Apps |
 
 ---
 
 ## 📷 Bildmaterial
 
-Stock-Fotos (Avatare, Pflanzenbilder) via **Pexels** (remote URLs, werden zur Laufzeit geladen).
-Sorten-/Produkt-Cards nutzen CSS-Gradients + Icons, um das Bundle schlank zu halten.
-Der atmosphärische Hero (Auth/Onboarding) ist eine KI-generierte, **inlined** JPG (`src/assets/hero.jpg`).
+Fotos (Avatare, Pflanzen) stammen von **Pexels** und werden zur Laufzeit von dort geladen. Der Hero (Auth/Onboarding) ist eine KI-generierte,
+**eingebettete** JPG (`src/assets/hero.jpg`) – Bild-Importe immer über `assetSrc()`.
 
 ---
 
 *Template-Demo – Inhalte sind fiktiv und dienen ausschließlich Präsentationszwecken. Kein Angebot zum Kauf von Cannabis.*
-
----
-
-> Aktuelle Pflege: Codex (OpenAI), 2026. Frühere Signaturen sind historische Einträge.
