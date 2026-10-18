@@ -1,13 +1,27 @@
 # CHANGELOG.md
 
-Alle nennenswerten Änderungen an **Grow|Observer**.
-Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/).
+Alle nennenswerten Änderungen an **Grow|Observer**, je Aufgabe (B-Nummer) mit den **gemessenen** Prüfergebnissen („Geprüft“, „Tests“, „Nicht geprüft“).
+Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/). Die Ein-Zeilen-Übersicht je Aufgabe steht in [`PROGRESS.md`](PROGRESS.md)
+(das vollständige alte Protokoll mit Bundle-Größen: `archive/PROGRESS-bis-B62.md`).
 
-Historische Einträge tragen `claude-grow-dev`; neue Beiträge werden mit dem tatsächlichen Agenten signiert.
+**Versionen:** Seit B-52 steuert `version.json` die Versionen (Frontend „Ruderalis“ 0.1.1, Backend 0.0.2; vom Eigner vergeben). Die frühere Zählung (`v0.x`, zuletzt 0.50.0)
+und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Einträge tragen keine Agenten-Signatur und nennen ihre Prüfergebnisse selbst; Teststand und offene Gates: `docs/TESTING.md`.
 
 ---
 
-## [Unreleased]
+## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
+
+### Docs – Dokumentations-Umbau (nach B-62)
+
+Reine Dokumentationsaufgabe, kein Code geändert; Versionen unverändert, nur die Build-Nummer wurde aktualisiert.
+
+- **Struktur:** Im Wurzelverzeichnis bleiben die Dateien, die Agenten und Einsteiger brauchen (`README`, `CLAUDE`, `DESIGN`, `TODO`, `PLAN`, `HANDOFF`, `ARCHITECTURE`);
+  `CHANGELOG`, `TESTING` und `MILESTONES` liegen in `docs/`, Altbestände in `docs/archive/` (`MIGRATION`, `HANDOFF-bis-B62`, `TODO-bis-B62`, `PROGRESS-bis-B62`).
+- **Eine Quelle je Fakt:** Endpunkte, Umgebungsvariablen und Betrieb nur in `apps/api/README.md`; Architektur in `ARCHITECTURE.md`; Testzahlen in `docs/TESTING.md`; offene Punkte nur in `TODO.md`.
+  `CLAUDE.md` enthält nur noch Regeln (inkl. Pflegeregeln für die Doku).
+- **Sprachen:** Englisch: CLAUDE, DESIGN, HANDOFF, PLAN, TESTING, TODO, ARCHITECTURE. Deutsch: README, `apps/api/README`, CHANGELOG, MILESTONES.
+- **`PROGRESS.md` → `docs/PROGRESS.md`:** nur noch die Build-Tabelle (eine Zeile je Aufgabe, ohne Signaturspalte); die doppelte Änderungs-Historie lebt hier im Changelog, das alte Protokoll ist archiviert. Die Ergebnisse je Aufgabe stehen zusätzlich als „Geprüft“-Zeilen in diesem Changelog (B-42 bis B-62).
+- Alle Fakten wurden gegen den Code geprüft (u. a. Endpunktvertrag gegen `apps/api/src/routes/*`).
 
 ### B-62 – Echte 404-Seite und Sorten-Detail-URL (Arena Agent)
 
@@ -24,6 +38,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
 - **Verhaltensänderung:** `/auth`, `/create`, `/dev-admin` sind weiterhin keine Adressen (nicht verlinkbar) – sie führen jetzt zu 404 statt zum Dashboard.
 - **Tests:** Frontend 180 → 181 (`routes.test.ts` Strains-Detail + Sicherheitsfälle, `nav.test.tsx` 404-Ansicht ohne Adress-Umschreiben, `back()` zum Dashboard), E2E 34 → 37
   (`routing.spec.ts`: HTTP-Status je Pfad inkl. 400, Server-404 → Startseite, App-404 per `popstate`, Sorte öffnen/Reload/Teilen/Zurück/unbekannte ID). Der alte E2E „unbekannter Pfad → Dashboard“ entfiel.
+- **Geprüft:** Typecheck ✅, Lint ✅, Next-Build ✅ (Vite-Build zuletzt bei B-61). **Nicht geprüft:** 404 im Vite-Legacy-Build (dort gibt es keine Pfade), 404-Seite hinter einem Reverse-Proxy mit eigener Fehlerseite, Offline-Verhalten von `/strains/<id>` im Service Worker (Regel vorhanden, nicht im Browser getestet).
+
 
 ### B-61 – Community-Moderation (Arena Agent)
 
@@ -51,6 +67,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
 - **Tests:** API 139 → 155 (`moderation.integration.test.ts`: Feed-Zugriff, Ausblenden/Kommentare, Admin-Schutz, Meldungen/Queue/Entscheidung/Limit, Rauswurf-Rechte, Sperre per Beitritt/Code,
   Entsperren, Aufräumen; Migration 0012), Frontend 169 → 180 (`moderation.test.tsx` 8, `mock-moderation.test.ts` 3), E2E 31 → 34 (`moderation.spec.ts`: Feed → Melden → Queue → Ausblenden mit
   Benachrichtigung; Kommentar melden/ausblenden und Außenstehende; Rauswurf mit Sperre/Entsperren). Zusätzlich behoben: ein Typfehler im B-59-Test (`tsconfig.tools.json`).
+- **Geprüft:** Typecheck ✅ (inkl. `apps/api`-Build und `tsconfig.tools.json`), Lint ✅. **Nicht geprüft:** mobile Ansicht der neuen Reiter im echten Browser, große Warteschlangen (Paginierung fehlt: höchstens 100 Inhalte), Zusammenspiel mit Echtzeit (der Feed lädt nicht live nach).
+
 
 ### B-60 – Rate-Limit über mehrere Instanzen (Arena Agent)
 
@@ -69,6 +87,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
   11. und 12. = 429 (auf beiden Prozessen).
 - **Tests:** API 130 → 139 (`rate-limit.test.ts`: 25 parallele Treffer → genau 10 erlaubt, zwei getrennte Modulinstanzen teilen den Zähler, neues Fenster,
   alle Schlüssel gezählt, nur Hashes gespeichert, Datenbankausfall → Ersatzzähler, Aufräumen, API-Limits laufen über die Tabelle; Migration 0011).
+- **Geprüft:** Typecheck ✅, Lint ✅, Frontend 169/169 ✅, E2E 31/31 ✅.
+
 
 ### B-59 – Chat- und Echtzeitsystem (Arena Agent)
 
@@ -104,6 +124,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
 - **Tests:** Frontend 135 → 169 (Client mit Fallback/Backoff/Stille/Themen, Provider/Polling, Chat-Hooks, „Neue Nachricht“), API 108 → 130
   (`realtime.integration.test.ts`: Hub, Themen, SSE, WebSocket inkl. Origin/Token/Sitzungsende/Limit, Chat-API, Tippen, Online, Forum-Benachrichtigung;
   Migration 0010), E2E 28 → 31 (`realtime.spec.ts`: WebSocket-Chat mit Badge/„schreibt …“/Online, SSE-Rückfall, Forum live + Glocke).
+- **Geprüft:** Typecheck ✅, Lint ✅. **Real geprüft:** `.archive/diag/realtime-smoke.mjs` gegen den Produktionsserver lokal, durch den Sandbox-Vorschau-Proxy (WebSocket mit Token-Erstnachricht und SSE) und gegen den eigenständigen `apps/api/dist` (beide Transporte). **Nicht geprüft:** Verhalten hinter nginx/Traefik, Multi-Instanz-Betrieb mit zwei echten Prozessen (die Zustellung läuft über dieselbe NOTIFY-Kette, die die Tests abdecken), echte Mobilgeräte (Hintergrund-/Netzwechsel nur per Unit-Test).
+
 
 ### B-58 – Erzwungener Passwortwechsel nach Einmalpasswort (Arena Agent)
 
@@ -122,6 +144,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
 - **Tests:** API 90 → 108 (`password-enforcement.integration.test.ts`, erweiterte `operator.integration.test.ts`, Migration 0009),
   Frontend 134 → 135, E2E 26 → 28 (`forced-password.spec.ts`; das Einmalpasswort-Konto wird dort per SQL-Flag simuliert, die CLI deckt
   der API-Test ab). CLI zusätzlich real gegen `dist/` geprüft (reset ohne Konto, neu, reset, reset bei Mitglied).
+- **Geprüft:** Typecheck ✅ (Frontend + `apps/api`-Build/`tsconfig.tools.json`), Lint ✅. **Nicht ausgeführt:** Docker-Service `admin`.
+
 
 ### B-57 – URL-Routing (Arena Agent)
 
@@ -144,6 +168,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
 - **Vite-Legacy-Build** unverändert: Adresse bleibt `/?view=…` (`config.pathRouting` nur unter Next), History-Einträge gibt es auch dort.
 - **Tests:** Frontend 116 → 134 (`routes.test.ts`, `nav.test.tsx`, SW-Policy), E2E 20 → 26 (`e2e/routing.spec.ts`). Zwei
   Session-Tests mussten angepasst werden, weil ein Reload auf `/profile` jetzt auf dem Profil bleibt.
+- **Geprüft:** Typecheck ✅, Lint ✅, Next-Build ✅. **Nicht geprüft:** Vite-Legacy-Build im Browser, PWA offline auf Deep-Links.
+
 
 ### B-56 – Betreiber-Bootstrap per CLI (Arena Agent)
 
@@ -161,6 +187,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
 - **Tests:** API 83 → 90 (`operator.integration.test.ts`); CLI zusätzlich gegen eine echte Datenbank über `dist/` geprüft
   (ohne Migration, ohne Argumente, `--password` abgelehnt, neu, idempotent, bestehend ohne/mit `--promote`). Dabei fiel ein
   Typfehler auf, den nur `tsc -p apps/api` findet (behoben).
+- **Geprüft:** Typecheck ✅ (Frontend + `apps/api`), Lint ✅, Frontend 116/116 ✅, E2E 20/20 ✅. **Nicht ausgeführt:** Docker-Service `admin` (Docker fehlt).
+
 
 ### B-55 – Passwort ändern, Anmeldeprotokoll, Gerätelimit (Arena Agent)
 
@@ -182,6 +210,8 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
   nur im API-Modus; funktioniert auch mit dem Header-Fallback der Vorschau.
 - **Tests:** API 68 → 83 (`password.integration.test.ts`, Migration 0008), Frontend 110 → 116
   (`AccountSecurity.test.tsx`), E2E 19 → 20 (Passwort ändern mit zwei Geräten).
+- **Geprüft:** Typecheck ✅, Lint ✅.
+
 
 ### B-54 – Session-Härtung: HttpOnly-Cookie, serverseitiger Widerruf, Geräteliste (Arena Agent)
 
@@ -208,7 +238,7 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
 - **Fix (B-54.1, gemeldet: „nach Registrierung keine Anmeldung möglich“):** Die Preview läuft in einem iframe unter fremder
   Domain; dort verwirft der Browser `SameSite=Lax`-Cookies. Neu: `COOKIE_SAMESITE=lax|none` (Standard `lax`). `none` setzt
   `Secure; SameSite=None; Partitioned` (nur für iframe-Einbettung); `scripts/preview.sh` setzt es standardmäßig auf `none`.
-  Der CSRF-Guard bleibt aktiv. Tests: API 65.
+  Der CSRF-Guard bleibt aktiv.
 - **Fix (B-54.2, Ursache des gemeldeten Login-Problems):** Der Sandbox-Proxy der Vorschau (`*.arena.site`) reicht weder
   `Cookie` noch `Authorization` an die App durch (per Echo-Server nachgewiesen; eigene Header kommen an). Deshalb gab es
   nach der Registrierung nur 401. Neu: **`ALLOW_HEADER_SESSION=true`** (Standard `false`) – Login/Registrierung liefern dann
@@ -216,8 +246,9 @@ Versionen unverändert (Frontend v0.1.1, Backend v0.0.2); nur die Build-Nummer w
   DB widerrufbar). `scripts/preview.sh` schaltet das für die Vorschau ein; **Produktion bleibt Cookie-only**. Der Fallback
   ist für JavaScript lesbar (schwächer als HttpOnly) und gehört nicht in echte Deployments.
   Geprüft durch den echten Proxy mit Firefox und Chromium im eingebetteten iframe (Registrieren + Reload ✅).
-  Tests: Frontend 110, API 68.
-- Tests: Frontend 110, API 62 (+26), E2E 19 (+6; die E2E-Suite läuft mit `RATE_LIMIT_DISABLED=true`).
+- **Tests (Endstand B-54):** Frontend 110, API 68 (+32, neu `sessions.integration.test.ts`: Cookie-Flags lax/none, Widerruf, Ablauf, fremde `sid`, Geräteliste, CSRF, CORS-Credentials, Header-Fallback an/aus; Migration 0007), E2E 19 (+6, neu `session.spec.ts`; die E2E-Suite läuft mit `RATE_LIMIT_DISABLED=true`, weil sie mehr als 10 Konten pro Stunde registriert).
+- **Geprüft:** Typecheck ✅, Lint ✅, Next-Build ✅, Vite-Build ✅.
+
 
 ### B-53 – Keine Demo-Daten im API-Modus (Arena Agent)
 
@@ -237,6 +268,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - Unverändert (Referenzinhalt): Rechner, Simulation, Design-System-Galerie.
 - Tests: Frontend 98 (+7, `src/components/ui.test.tsx`), API 36, E2E 12 desktop + 1 mobil (das `test.fixme` ist jetzt ein
   grüner Test; +4 neue).
+- **Geprüft:** Typecheck ✅, Lint ✅, Next-Build ✅.
+
 
 ### B-52 – Zentrale Versionierung, Preview (Arena Agent)
 
@@ -248,6 +281,12 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - **Neu:** `npm run preview` (`scripts/preview.sh`) – Preview ist jederzeit startbar.
 - `package.json`: 0.50.0 → 0.1.1, `apps/api/package.json`: 0.1.0 → 0.0.2 (Vorgabe des Eigners; frühere 0.x-Zählung ist historisch).
 - Tests: Frontend 91 (+5), API 36 (+2), E2E 8 + 1 fixme (+1).
+- **Geprüft:** Typecheck ✅, Lint ✅, API-Typecheck + `tsconfig.tools.json` ✅, Next-Build ✅, Vite-Build ✅.
+
+
+## Vor dem Versions-Neustart (B-51 und älter)
+
+Historische Zählung (`v0.x`, B-Nummern); Einträge bleiben inhaltlich unverändert, ältere tragen die Signatur ihres damaligen Agenten.
 
 ### B-51 – Härtung: Rate-Limits, JWT-Pflicht, Build-Fix (Arena Agent)
 
@@ -265,6 +304,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
   Migration `0006_default_forum_subs.sql` (idempotent), Seed angepasst.
 - **Bekannt:** Dashboard zeigt im API-Modus statische Demo-Daten (`test.fixme`), Avatar-Fallback zeigt Alt-Text.
 - Tests: API 34/34 (+10), Frontend 86/86 (+4), E2E 7 + 1 fixme (Baseline vor B-51: 82 bzw. 24 bzw. 0).
+- **Geprüft (Node 22.23, PostgreSQL 17):** `npx next typegen` ✅, Typecheck ✅, Lint ✅, `npm run check:peers` ✅, Next-Build ✅, Vite-Build ✅ (964,33 kB / 341,18 kB gzip); auf einer frischen DB 6 Forum-Bereiche über Migration 0006 bestätigt. Baseline vor B-51: beide Builds rot (fehlende `src/assets/hero.jpg`). Zahlen älterer Einträge (52/52, 76/76 …) sind historisch.
+
 
 ### B-50 – App-Updates (Claude / Anthropic)
 
@@ -273,6 +314,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - **Neu:** Developer-Admin „Updates“: Release-Notes mit Dringlichkeit, Features hervorheben und
   gleichzeitig freischalten, Pflicht-Updates.
 - Migration `0005_app_releases.sql`; Version 0.50.0.
+- **Geprüft:** API 24/24 (Releases: nur Admin, Validierung, öffentliche Reihenfolge, Löschen). Update-Logik per Unit-Test (verfügbar/Pflicht/ungesehen/Einstellungen/Auto-Anwenden). Zwei aufeinanderfolgende Produktions-Builds: Build-ID im Client entspricht `/api/version`, ein neuer Build meldet eine andere ID.
+
 
 ### B-49 – Globale Feature-Flags + echtes Aktualisieren (Claude / Anthropic)
 
@@ -280,6 +323,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
   Browser des Admins). Server speichert die Flags (`feature_flags`) und sperrt deaktivierte APIs (403).
 - **Fix:** Pull-to-Refresh lädt Daten, Flags und Profil tatsächlich neu und erkennt App-Updates.
 - Migration `0004_feature_flags.sql`; Paritätstest Frontend ↔ API; Tests API 23/23, Frontend 76/76.
+- **Geprüft:** API-Tests (Nicht-Admin 403, Kern-Feature 409, unbekannter Key 404, anderer Nutzer sieht Override, API-Route mit `feature` gesperrt, Reset). Live: Admin deaktiviert ein Feature → ein zweites Konto wird gesperrt.
+
 
 ### B-48 – UI/UX-Fixes (Claude / Anthropic)
 
@@ -290,6 +335,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - „App installieren“ funktioniert (Install-Prompt, iOS-Anleitung); Icons auf echte 192/512 px korrigiert.
 - Forum: Votes (inkl. Zurücknehmen), Kommentar-Votes, Antworten. Kommentare für Hall of Fame und Social.
 - Migration `0003_votes_item_comments.sql`; Tests API 22/22, Frontend 71/71.
+- **Nicht geprüft:** echte Geräte (Slider vs. Scroll, Seitenwischzonen, Installations-Hinweis).
+
 
 ### B-47 – Foto-Uploads, Profil, Emoji, Teilen, Sammlung (Claude / Anthropic)
 
@@ -300,6 +347,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - **Sortensammlung** mit Backend (`strain_collection`) und Filter „Meine Sammlung“.
 - **Deep-Links** `/?view=…` (Allowlist). Migration `0002_media_collection.sql`.
 - Tests: API 20/20, Frontend 64/64; Skript `npm run test:api:local`.
+- **Geprüft:** Live-Check gegen die Vorschau (Upload → ausliefern → anhängen). Kamera-Upload auf echten Geräten ungeprüft.
+
 
 ### B-46 – Backend verbunden, dauerhafte Speicherung (Claude / Anthropic)
 
@@ -309,6 +358,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
   relative Imports auf `.ts` + `rewriteRelativeImportExtensions` (Turbopack-kompatibel).
 - **Sandbox-DB** migriert und mit Demo-Inhalten befüllt.
 - `/api/health` liefert zusätzlich `ok`/`check` und `dataMode: "api-embedded"`.
+- **Geprüft:** echter `next start` gegen PostgreSQL: erster Request migriert (26 Tabellen); Registrieren → Task + Grow → Server-Neustart → Login → Daten noch da; 401 ohne Token; Upload-Presign 503 ohne Speicher. Alle 37 vom Frontend genutzten Endpunkte lieferten 2xx gegen die befüllte Sandbox-DB. Klick-Test im API-Modus stand aus (kein Headless-Browser).
+
 
 ### B-45 – Paket 3 + Backend-Routen (Claude / Anthropic)
 
@@ -321,6 +372,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - **Sicherheit:** `next` 16.3.6 (kritisch), `vite`, `postcss`, `vitest` aktualisiert → Frontend 0
   Advisories; API `drizzle-orm` 0.45.3 (SQL-Injection-Fix), `drizzle-kit` 0.31.11.
 - **Tooling:** Root-`.npmrc` `legacy-peer-deps=true` (Workaround npm-10-Absturz bei vitest-Peers).
+- **Geprüft:** API 15/15; Migrationspfad 0000 → 0001 mit Daten geprüft; `npm audit`: Frontend 0, API 4 moderat (drizzle-kit/esbuild, nur CLI); frisches `npm ci` aus dem neuen Lockfile ✅.
+
 
 ### B-44 – Gesten, Schnellaktionen, Galerie, Sortenvergleich (Claude / Anthropic)
 
@@ -334,6 +387,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - **Sortenvergleich:** funktioniert jetzt Ende-zu-Ende (Sorten → Vergleichsleiste → Planer).
 - **Hall of Fame:** einheitliche Featured-Karte, keine Doppelung, kein Spaltenbruch.
 - Tests: +9 (Gesten-Entscheidungen, Vergleichs-Toggle, Mock-Create-Flows).
+- **Geprüft:** Vitest 61/61 (neu `gestures.test.ts`, `mock-create.test.ts`). Gestenverhalten (Touch, Scroll-Übergabe, Tab-Wischen vs. Edge-Swipe) braucht noch echte Geräte.
+
 
 ### B-43 – Aufräumen (Claude / Anthropic)
 
@@ -348,6 +403,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
   `@testing-library/react`, `rollup-plugin-visualizer` → `devDependencies`.
 - **CI:** läuft zusätzlich bei Push auf Branch `A`.
 - **Doku:** PLAN/MIGRATION mit B-42-Statusbanner, veraltete Regeln (kein Root-PostCSS, pnpm) korrigiert.
+- **Geprüft:** dieselbe Suite wie B-42 nach dem Aufräumen, plus `npm ci` aus dem Lockfile.
+
 
 ### B-42 – Blocker-Fixes + Next.js-Hülle (Claude / Anthropic)
 
@@ -364,6 +421,8 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
   Cache `go-shell-v4-next`. +4 Policy-Tests.
 - **Tooling:** `eslint-plugin-react-hooks`, CI-Lint blockierend, CI baut Next + Vite, npm-Scripts
   `typecheck`/`lint`/`test`/`test:api`, Root-`.gitignore`, API-CORS-Default inkl. Port 3000.
+- **Geprüft (Node 22, PostgreSQL 16):** `next typegen`, Typecheck, Lint (0/0), Vitest 52/52, Next-Build, Vite-Build (870,33 kB / 312,65 kB gzip), API-Typecheck + `tsconfig.tools.json` + Build, API-Integration 13/13 gegen eine Wegwerf-DB, Rauchtest `next start` (`/`, `/api/health`, CSS, `sw.js`, Manifest).
+
 
 ### Mobile Touch B-41 (Codex / OpenAI)
 
@@ -419,14 +478,18 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - Session-Restore/Logout gegen verspätete Antworten abgesichert; HTTP-Timeout/no-store und
   Regressionstests für Cache/Auth/Flags/Requests sowie PostgreSQL-Sicherheitsfälle ergänzt.
 - Frontend-Build bestätigt (862.56 kB, gzip 310.29 kB). Tests, API-Typecheck, Docker und Geräte-
-  Abnahme sind noch nicht ausgeführt. Siehe `TESTING.md`, auch zum offenen Abhängigkeiten-Audit.
+  Abnahme sind noch nicht ausgeführt. Siehe `docs/TESTING.md`, auch zum offenen Abhängigkeiten-Audit.
 
-### Documentation
+### B-35 … B-37 (claude-grow-dev) – Sammeleinträge ohne eigene Überschrift
+
+Die folgenden Blöcke (Dokumentation, Laufzeit-Audit, Communities MVP, Touch-Gesten) stammen aus der Zeit vor der B-Nummerierung je Aufgabe; Inhalt unverändert.
+
+#### Dokumentation
 - `HANDOFF.md` vollständig auf Build B-37, Service-/Backend-/Communities-Stand aktualisiert.
 - README, ARCHITECTURE, PLAN, MILESTONES, TODO, CLAUDE, MIGRATION und API-README synchronisiert;
   beschädigte doppelte MILESTONES-Sektion entfernt. — *claude-grow-dev*
 
-### Fixed
+#### Fixed
 - **Runtime/Registry-Audit:** fehlenden `useEdgeSwipeToOpen`-Import sowie durch frühere parallele
   Edits verlorene Admin-Service-Typen/-Registrierungen wiederhergestellt. `AdminService` ist jetzt
   in Mock + API + `Services` Registry vollständig vorhanden. — *claude-grow-dev*
@@ -436,7 +499,7 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 - **Touch:** Edge-Swipe-Hook hat nun einen stabilen `enabled`-Parameter statt wechselnder No-op-
   Callbacks (keine unnötigen Listener-Neuregistrierungen). — *claude-grow-dev*
 
-### Added
+#### Added
 - **Communities MVP**: neue View `communities` (Feature-Flag + Sidebar/Mehr/⌘K), öffentliche und
   private Gruppen, Suche, Erstellen, öffentlicher Beitritt, Invite-Code-Beitritt (`demo-private`
   im Mock), Detail mit Mitglieder-/Rollenverwaltung und Invite-Code-Erstellung. Vollständig über
@@ -473,7 +536,7 @@ ehrliche Leerzustände. Build-Nummer wurde aktualisiert, Versionen unverändert 
 
 Build: `dist/index.html` ✅ (P0b).
 
-### Fixed — Touch-Gesten (überall sauber)
+#### Fixed — Touch-Gesten (überall sauber)
 - **BottomSheet:** `drag="y"` auf dem ganzen Panel nahm dem Browser das native Scrollen des
   Sheet-Inhalts (framer setzt `touch-action: none`). Drag jetzt **nur über den Griff** via
   `dragListener={false}` + `dragControls` — Inhalt scrollt wieder, Sheet lässt sich am Griff schließen.

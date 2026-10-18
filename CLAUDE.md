@@ -63,10 +63,11 @@ commands or explanations** – those live in the files linked in §5. Read first
 | `apps/api/README.md` | Backend operation, endpoint contract (single source for endpoints) | German |
 | `docs/TESTING.md` | Test status, check commands, coverage, test pitfalls | English |
 | `docs/CHANGELOG.md` | What changed per task, incl. measured results | German |
+| `docs/PROGRESS.md` | One-line build log per task (newest first) | German |
 | `docs/MILESTONES.md` | Product north star | German |
 | `docs/archive/` | Superseded documents (not maintained) | – |
 
-**After every completed task** update `docs/CHANGELOG.md` (entry incl. test numbers), `TODO.md`, `docs/TESTING.md` (status table, if numbers changed),
+**After every completed task** update `docs/CHANGELOG.md` (entry incl. test numbers), `docs/PROGRESS.md` (one new row on top), `TODO.md`, `docs/TESTING.md` (status table, if numbers changed),
 `HANDOFF.md` (only if state or an invariant changed) and `apps/api/README.md` (endpoint changes).
 Single source per fact: versions → `version.json`, test numbers → `docs/TESTING.md`, endpoints → `apps/api/README.md`, current state → `HANDOFF.md`.
 Living docs carry no agent signatures and no `v0.x` tags; history lives in `docs/CHANGELOG.md` and `docs/archive/`.

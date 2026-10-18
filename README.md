@@ -73,7 +73,7 @@ apps/api/       Backend: Hono-API, Drizzle-Schema + Migrationen, Tests, Docker-C
 e2e/            Playwright-Browsertests
 scripts/        Server (WebSocket), Preview, Versionierung
 public/         Manifest, Icons, Service Worker
-docs/           TESTING, CHANGELOG, MILESTONES, archive/
+docs/           TESTING, CHANGELOG, PROGRESS, MILESTONES, archive/
 ```
 
 Vollständige Karte: [`HANDOFF.md`](./HANDOFF.md) §2 · Architektur: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
@@ -92,6 +92,7 @@ Vollständige Karte: [`HANDOFF.md`](./HANDOFF.md) §2 · Architektur: [`ARCHITEC
 | [`apps/api/README.md`](./apps/api/README.md) | Backend-Betrieb und Endpunkt-Vertrag |
 | [`docs/TESTING.md`](./docs/TESTING.md) | Teststand, Prüfbefehle, offene Release-Gates |
 | [`docs/CHANGELOG.md`](./docs/CHANGELOG.md) | Änderungen je Aufgabe mit Messwerten |
+| [`docs/PROGRESS.md`](./docs/PROGRESS.md) | Build-Protokoll: eine Zeile je Aufgabe |
 | [`docs/MILESTONES.md`](./docs/MILESTONES.md) | Produktvision: Editionen, Datenschutz, Native Apps |
 
 ---

@@ -45,7 +45,7 @@ apps/api/
   tests/                  integration suites   seed.ts   Dockerfile   docker-compose.yml (db, minio, migrate, storage-init, api, admin, seed)
 public/                   manifest, icons, sw.js, sw-policy.js (cache allowlist, executed by tests)
 scripts/                  server.mjs (Next + WebSocket), preview.sh, version.mjs, check-peers.mjs, test-api.sh, smoke-live.sh
-e2e/                      Playwright specs        docs/  TESTING, CHANGELOG, MILESTONES, archive/
+e2e/                      Playwright specs        docs/  TESTING, CHANGELOG, PROGRESS, MILESTONES, archive/
 version.json              single source for versions        .github/workflows/ci.yml  frontend, API, E2E jobs
 ```
 
