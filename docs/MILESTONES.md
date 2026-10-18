@@ -4,29 +4,20 @@
 **Projekt:** Grow|Observer  
 **Lies zuerst:** `HANDOFF.md` → `PLAN.md` → **dieses File** (Produkt-Nordstern)
 
-`PLAN.md` = *wie* der nächste Code gebaut wird (P0–P14).  
-`MILESTONES.md` = *was* das Produkt werden soll und welche Meilensteine in welcher Reihenfolge.
+`PLAN.md` = Roadmap und verbindliche Entscheidungen (Phasen P0–P14), `ARCHITECTURE.md` = *wie* der Code gebaut ist.
+`docs/MILESTONES.md` (dieses File) = *was* das Produkt werden soll und in welcher Reihenfolge (Meilensteine M0–M12).
 
-**Status der Vision:** Nordstern beschlossen; Native/Editionen/E2EE bleiben zurückgestellt.  
-Aktueller Code: PWA-Frontend, Service-Layer, Self-Host-API-Grundgerüst und Communities-MVP.
-
-Aktueller Arbeitsblock: Start-/Berechtigungsfehler und privates PWA-Caching korrigieren, dann
-die neue Testmatrix (`TESTING.md`) auf CI/Server ausführen. Code vorhanden ist nicht gleich
-Live-Betrieb verifiziert. Editionen und Native Apps bleiben zurückgestellt.
+**Status der Vision:** Nordstern beschlossen; Native, Editionen, E2EE und In-App-Käufe bleiben zurückgestellt, bis die PWA live ist.
+Die Meilensteine unten sind das Zielbild; ihren tatsächlichen Stand zeigt die Tabelle in §7 (gemessen, nicht geschätzt: Teststand in `docs/TESTING.md`).
 
 ---
 
 ## Aktueller Fokus — PWA first
 
-Jetzt aktiv:
+Aktiv: Self-Host-PWA mit REST-Backend; Auth mit Sitzungen, Grow-Tagebuch, Social, Forum, Chat in Echtzeit, Wiki; Communities mit Rollen und Moderation; Developer-Admin, Feature-Flags und App-Updates.
+Als Nächstes (Reihenfolge entscheidet der Eigner): Start-Gates der PWA (Docker-/Geräte-Abnahme), KI-Proxy, Rest von Tools/Marktplatz — siehe `TODO.md` und `PLAN.md` §3.
 
-- Self-Host-PWA und REST-Backend
-- Auth, Grow-Tagebuch, Social/Forum/Chat/Wiki
-- Communities (öffentlich/privat, Invite-Code, Rollen)
-- Developer-Admin und Feature-Flags
-- als Nächstes: realer API-E2E-Test, Community-Moderation, Feed-Scope und Realtime (Moderation, Feed-Scope und Realtime: inzwischen B-59/B-61 umgesetzt, siehe docs/PROGRESS.md)
-
-Nicht jetzt: Editionen, Native Apps, E2EE/P2P und In-App-Purchases.
+Nicht jetzt: Editionen, Native Apps, E2EE/P2P und In-App-Käufe.
 
 ---
 
@@ -94,7 +85,7 @@ interface Entitlements {
 }
 ```
 
-Lived in `packages/shared`. UI blendet Nav-Punkte anhand `entitlements.*` aus — **nie** nur Client-Check als Sicherheit; Server/Protokoll muss ablehnen.
+Soll in `packages/shared` liegen (bis dahin existiert nur der Flag-Mechanismus in `src/config/features.ts`). UI blendet Nav-Punkte anhand `entitlements.*` aus — **nie** nur Client-Check als Sicherheit; Server/Protokoll muss ablehnen.
 
 ---
 
@@ -138,7 +129,7 @@ Gerät ──(E2EE)──► optionale Relay-Nodes (Paid: nur Ciphertext, zero-k
 
 **Paid darf einen untrusted Relay** (Store-and-forward Ciphertext) nutzen, sonst treffen sich Peers nie. Das ist **nicht** zentrale Klartext-Cloud. In der Kommunikation nicht als „Cloud-Speicher“ verkaufen.
 
-Free: klassische API + DB (PLAN.md Variante A), Felder at-rest encrypted (Disk + App-level envelope wo sinnvoll).
+Free: klassische API + DB (`PLAN.md` §1: Self-Host), Felder at-rest encrypted (Disk + App-level envelope wo sinnvoll).
 
 ### 2.4 Lösch-Propagierung (Authoritative Requirement)
 
@@ -230,19 +221,18 @@ Später iOS: gleicher Code, Entitlements, Push (APNs).
 
 ### 4.3 Rollen
 
-`owner` · `admin` · `moderator` · `member` · `read-only` (Enterprise)
+**Heute umgesetzt** (`ARCHITECTURE.md` §5): Plattform-Rolle `platform_admin` (Betreiber, Developer-Admin) und je Community `admin` · `moderator` · `member`. Eine Rolle `owner` gibt es im Code nicht;
+`read-only` und `owner` (Re-Key/Auflösen) gehören zum Zielbild der Paid-Editionen.
 
-Rechte (Minimum):
+| Aktion | Member | Mod | Admin |
+|---|---|---|---|
+| Posten, Kommentieren | ✓ | ✓ | ✓ |
+| Fremden Inhalt melden | ✓ | ✓ | ✓ |
+| Fremdes verbergen / wieder einblenden (nicht Inhalte von Admins) | | ✓ | ✓ |
+| Mitglieder entfernen (Mod: nur Mitglieder; Admin: auch Moderatoren, nie Admins), optional mit Sperre | | ✓ | ✓ |
+| Invites erzeugen, Rollen vergeben (Moderatoren ernennen), Sperrliste verwalten | | | ✓ |
 
-| Aktion | Member | Mod | Admin | Owner |
-|---|---|---|---|---|
-| Posten | ✓ | ✓ | ✓ | ✓ |
-| Eigenes löschen | ✓ | ✓ | ✓ | ✓ |
-| Fremdes verbergen (moderation hide) | | ✓ | ✓ | ✓ |
-| Mitglieder kicken | | | ✓ | ✓ |
-| Invites | | | ✓ | ✓ |
-| Re-Key / Dissolve | | | | ✓ |
-| Rollen ändern | | | ✓ | ✓ |
+Zielbild (später, Paid): zusätzlich `owner` (Re-Key / Community auflösen) und `read-only` (Enterprise).
 
 **Moderation hide ≠ Author-Delete.** Hide ist Policy-Flag, Delete ist Tombstone des Autors (und nur Autor oder Court-Order-Prozess). In Paid E2EE kann ein Mod **nicht** Klartext „vom Server löschen“ — nur Membership entziehen + Hide-Event, das Clients UI ausblenden lässt. Inhalte auf Offline-Geräten bleiben bis Sync; dokumentieren.
 
@@ -259,6 +249,8 @@ Eigenes Segment, nicht in User-Settings verstecken.
 - Hide / Kick  
 - Audit: wer hat Rolle geändert (Paid: signierte Events)  
 - Speicher: Sync-Status, offene Tombstones  
+
+**Stand:** Die Community-Konsole (Reiter Feed/Mitglieder/Moderation: Meldungen, Ausblenden, Rauswurf, Sperrliste) gibt es seit B-61; die Plattform-Konsole entspricht dem Developer-Admin (Flags, Releases, Betreiber-Listen). Audit-Log und Sync-Status fehlen noch.
 
 ### 5.2 Plattform-Konsole (nur Betreiber, Free-Cloud)
 
@@ -292,11 +284,18 @@ Heute: Mobile-First PWA. Ziel: **echte Desktop-App-Qualität** im Browser (und o
 
 Nummerierung **M0–M12**. Mapping auf `PLAN.md` in Klammern.
 
-### M0 — Template freeze (IST)
+| Meilenstein | Stand | Kurz |
+|---|---|---|
+| M0 Template freeze | ✅ | überholt |
+| M1 Entitlements + Service-Verdrahtung | ◐ | Service-Layer und Flag-Mechanismus ✅; `Entitlements`/Editionen offen |
+| M2 Web-Monorepo Next.js | ◐ | Next 16 im Repo-Root statt `apps/web`; Pfad-URLs, Deep Links und echte 404 ✅ (B-57/B-62); Desktop-Split-Views nicht gesondert abgenommen |
+| M3 Free-Cloud-Backend | ◐ | Auth, PostgreSQL, Communities, Grows, Feed, Persistenz ✅; offen: Verschlüsselung at rest, IAP-Stub, Docker-Stack nie ausgeführt |
+| M4 Community-Rollen + Mod-Dashboard | ◐ | Rollen, Meldungen, Ausblenden, Rauswurf/Sperre, Mod-Reiter ✅ (B-61); offen: Audit-Log, Moderation für globalen Feed/Forum |
+| M5–M12 | ○ | nicht begonnen (Local-First/E2EE, Invite-QR, Android, CSC, IAP, Enterprise, iOS, Mesh) |
 
-**Code heute.** UI vollständig, Mock-Daten, Service-Skeleton, Next-Skeleton.
+### M0 — Template freeze
 
-**Done:** Vite-Build grün, Docs (HANDOFF/PLAN/diese Datei) gelesen.
+Ausgangspunkt: vollständige UI mit Mock-Daten, Service-Skeleton, Next-Skeleton. **Abgeschlossen und überholt** (heute: Next-Hülle, eingebettetes Backend, echte Daten).
 
 ### M1 — Entitlements + Service-Verdrahtung (`PLAN` P1)
 
@@ -387,10 +386,10 @@ Nummerierung **M0–M12**. Mapping auf `PLAN.md` in Klammern.
 
 | PLAN | Milestone | Hinweis |
 |---|---|---|
-| P0–P1 | M0–M1 | Jetzt starten |
-| P2–P3 | M2 | Next + Desktop-Web |
-| P4–P6 | M3 | Free-Cloud |
-| P7 | M4 + Chat später | Forum/Wiki vor P2P |
+| P0–P1 | M0–M1 | erledigt bis auf Entitlements |
+| P2–P3 | M2 | Next + Desktop-Web (P2 ersetzt: Repo-Root statt Monorepo) |
+| P4–P6 | M3 | Free-Cloud (weitgehend erledigt) |
+| P7 | M4 + Chat | Forum, Wiki, Chat umgesetzt; vor P2P |
 | P8 | Teil von M3/M9 | IAP, Marktplatz nur Free-Cloud |
 | P9 | KI hinter Quota; Paid: Kontext **nicht** an LLM ohne Opt-in | |
 | P10 | Harden vor M7 Store | |
@@ -398,7 +397,7 @@ Nummerierung **M0–M12**. Mapping auf `PLAN.md` in Klammern.
 | — | M7–M11 | Native / Editionen |
 | — | M12 | Echtes P2P Mesh |
 
-Agents in den nächsten Wochen: **nicht** M7 anfangen, bevor M1–M3 stehen. Local-First ohne stabile Domain-Hooks wird weggeworfen.
+Agents: **nicht** M7 anfangen, bevor M1–M3 stehen. Local-First ohne stabile Domain-Hooks wird weggeworfen.
 
 ---
 
@@ -416,7 +415,7 @@ Agents in den nächsten Wochen: **nicht** M7 anfangen, bevor M1–M3 stehen. Loc
 
 ## 10. DoD für Vision-Arbeit
 
-Zusätzlich zu HANDOFF DoD:
+Zusätzlich zu den Verifikationsregeln in `CLAUDE.md`:
 
 - Keine Klartext-Community-Inhalte in Paid-Relays (Test: mitzulesen in Devtools/Network).  
 - Tombstone-Test mit 2 Clients automatisiert.  
@@ -425,16 +424,6 @@ Zusätzlich zu HANDOFF DoD:
 
 ---
 
-## 11. Status
-
-```
-Vision (später): Native, Editionen, E2EE — dieses File ab §0
-Jetzt:           PWA + Self-Host-Backend + Feature-Flags + Dev-Admin
-Implementiert:   M0 + Self-Host-API-Grundgerüst + Developer-Admin + Communities-MVP
-Nächster Schritt: API-Modus E2E, Community-Moderation, Feed-Scope und Realtime (PLAN P5)
-Blocker:         Docker/API wurde in dieser Agent-Umgebung nicht real gestartet
-```
-
 ---
 
-> gepflegt von `claude-grow-dev` (Claude · Anthropic) · 2026
+> Stand der Meilensteine: Tabelle in §7. Konkrete offene Arbeit: `TODO.md`. Keine Agenten-Signatur (siehe `CLAUDE.md` §5).
