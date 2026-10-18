@@ -1,131 +1,56 @@
 # TODO.md
 
-Offene Punkte für **Grow|Observer**.
-Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt.
+Open work on **Grow|Observer**, by priority. Roadmap and decisions: `PLAN.md`; current state: `HANDOFF.md`; measured test status and release gates: `docs/TESTING.md`.
+Legend: `[ ]` open · `[~]` in progress. Finished items are removed here and recorded in `docs/CHANGELOG.md`; the old checklist (v0.1–B-62, mostly finished) is kept in `docs/archive/TODO-bis-B62.md`.
 
-- **Template-Scope (UI)** ist vollständig `[x]`.
-- **Nächste Code-Arbeit:** Backend real starten/E2E, dann Communities/Realtime (PLAN P5).
-- **Produkt-Nordstern:** `MILESTONES.md` (nicht an M7 Native beginnen vor M1–M3).
-
-Pflege: `claude-grow-dev` (Claude · Anthropic).
-
-## Aktueller Stabilisierungsschritt (Codex)
-
-- [x] Backend-Import-/Router-Konflikte und NodeNext-Ausgabepfad korrigiert (Code).
-- [x] Chat-Mitgliedschaft, private Discovery, atomare Invites und Last-Admin-Schutz implementiert.
-- [x] Upload-Presign authentifiziert; MIME-/deklarierte Größen-Grenze und getrennte S3-Origins.
-- [x] Öffentliche Shell-Allowlist; keine privaten API-/Signed-URL-Caches.
-- [x] Admin-Rolle aus DB/Session, Health aus AdminService, Bestätigungsdialog für Rollenänderungen.
-- [x] Neue Unit-/Component-/PostgreSQL-Integrationstests sowie separater API-CI-Job geschrieben.
-- [x] Neue Tests/Typechecks tatsächlich ausgeführt (B-51) – [ ] Docker und MinIO Ende-zu-Ende abnehmen.
-- [x] Dashboard & Co. im API-Modus ohne statische Demo-Daten (B-53, E2E grün). Offen: Verbrauch/Kosten, KI-Anbindung, Rezepte, Stories, Bewertungen haben noch keine Datenquelle (Leerzustände).
-- [ ] Abhängigkeiten-Audit: 9 gemeldete Advisories genauer prüfen und beheben (TESTING.md).
-- [x] Auth/Upload-Rate-Limits (B-51; seit B-60 über mehrere Instanzen via PostgreSQL) – [x] Session-Revocation + HttpOnly-Cookie (B-54) – [x] sicheres Betreiber-Bootstrap (B-56, CLI `admin:create`).
-- [x] Community-Moderation: Feed-Scope, Ausblenden, Rauswurf/Sperre, Meldungen + Warteschlange (B-61) – [ ] Moderation für globalen Feed/Forum, Austreten, Warteschlangen-Paginierung
-- [x] Chat-/Echtzeitsystem: WebSocket → SSE → Polling, Direktnachrichten, Badge, „schreibt …“, Online-Status, Live-Benachrichtigungen/Forum (B-59) – [ ] Online-Status verbergen, Gruppenchats anlegen, Web-Push
-- [x] Einmalpasswort erzwingt Passwortwechsel + `--reset-password` (B-58)
-- [x] Sitzungen: Passwort ändern (beendet andere Sitzungen), Anmeldeprotokoll, Gerätelimit 5 (B-55).
-- [ ] Upload-Finalisierung/Byte-Prüfung, EXIF-Bereinigung, Downloadrechte und Storage-Quotas.
-- [ ] Migration einer bereits befüllten Installation testen; Images/Lockfiles pinnen.
-
-Historische `[x]`-Einträge unten dokumentieren Implementierungen, keine pauschale Release-Abnahme.
-
-Prüfstand: **B-62** — Typecheck, Lint, 181 Frontend-Tests, 155 API-Integrationstests, 37 Browser-E2E, Next- und Vite-Build
-ausgeführt und grün (Node 22, PostgreSQL 17). **Docker/MinIO wurden noch nie ausgeführt** (`HANDOFF.md` §9.1).
-
-Touch-Stand: **B-41** implementiert und build-geprüft; echte iOS-/Android-/Keyboard-/Landscape-
-Abnahme und die neuen Touch-Tests bleiben offen (`TESTING.md`).
+The owner decides the order. Last update: B-62.
 
 ---
 
-## 🚀 Jetzt (PWA first)
+## 1. Feature candidates (next up)
 
-- [x] **Feature-Flags** `src/config/features.ts` + Nav/View-Gates. *(PLAN P0b)*
-- [x] **Developer-Admin-Panel** (Flags, Diagnose, Health, User/Content-UI, Audit-Log); echte
-  `/admin/*`-Routen vorhanden, vollständige Frontend-Umstellung darauf noch offen. *(P0b/P4)*
-- [x] **Pages → Services** (Auth, Grows, Social, Strains, Dashboard). *(P1)*
-- [~] **Self-Host-Backend**: API/Docker/Schema/Auth/Grows/Communities implementiert; realer
-  Docker-/API-E2E-Test in dieser Umgebung noch offen. *(P4–P6)*
-- [~] **Community-Funktionen** auf dem Server: Create/List/Join/Invite/Rollen umgesetzt; Feed-Scope,
-  Kick/Hide/Mod-Queue und Tests noch offen. *(P5/P7)*
-- [~] **Backend-E2E**: Playwright-Basis steht (Auth/Grow/Forum/Mobile, B-51); offen: Social, Community-Invite,
-  Admin, Docker-Stack mit `NEXT_PUBLIC_API_URL`.
-- [ ] **AI-Proxy** serverseitig, per Flag. *(P9)*
-- [ ] **PWA-Härtung** (SW, Offline-Shell). *(P10)*
+- [ ] **AI proxy:** server-side, per feature flag; the assistant UI is not connected yet (`PLAN.md` P9).
+- [ ] **Password reset for regular members:** needs an email path or another recovery concept (today only operators can reset, via CLI).
+- [ ] **Hide online status:** per-user option (presence is currently always visible).
+- [ ] **Group chats:** backend supports conversations with several members; no UI to create them.
+- [ ] **Web push:** notifications while the app is closed.
+- [ ] **Moderation beyond communities:** global feed and forum (report, hide); **leave a community**; **paginate** the moderation queue (capped at 100); **live updates** of the community feed.
+- [ ] **Detail URLs** for wiki, showcase and marketplace (`src/lib/routes.ts` + `public/sw-policy.js`).
 
-## 🌙 Später (Nordstern — MILESTONES.md §0)
+## 2. Data sources missing (empty states in API mode)
 
-- [ ] Editionen Free/Pro/CSC/Enterprise
-- [ ] Local-first + E2EE + Tombstones
-- [ ] Native Android/iOS
-- [ ] IAP / Paywall
+- [ ] Cost and consumption data (cost card hidden, consumption page shows an empty state).
+- [ ] Soil recipes, stories, strain ratings/reviews.
+- [ ] AI chat history (input is disabled with an honest notice until the proxy exists).
 
----
+## 3. Quality and release gates
 
-## 🐛 Bekannte Issues / Verifizieren
-- [x] **Desktop-Darstellung**: Sidebar-Overlap (`--sb-w` px) behoben, Sticky via `overflow-x: clip`
-  gesichert (v0.3.0/v0.4.1). — claude-grow-dev
-- [x] **Mobile Notifications**: als responsives Bottom-Sheet umgesetzt, kein Überlauf mehr (v0.3.0/v0.4.2). — claude-grow-dev
+- [ ] **Docker/MinIO stack:** run `docker compose up`, the `admin` tools profile and a presigned upload end to end (never run).
+- [ ] **Dependency audit:** root 3 high via `vite-plugin-singlefile` (upgrade to 2.3.4 or drop the legacy build), `apps/api` 4 moderate via `drizzle-kit`/`esbuild` (dev/CLI only); production dependencies are clean (`docs/TESTING.md` §6).
+- [ ] **Upload hardening:** malware scan, server-side re-encoding, download authorization for private images, cleanup of orphaned uploads, S3 finalization.
+- [ ] **Durable audit records** (feature flags keep only `updated_by`/`updated_at`), real account suspension, rollout by user group/percentage.
+- [ ] **Migration of a populated installation** (beyond the automated upgrade test) and **pinned container images** (`MINIO_IMAGE` is `latest`).
+- [ ] **Real-device acceptance:** iOS Safari / Android Chrome touch, keyboard, landscape; mobile layout of the community tabs.
+- [ ] **Realtime in production-like setups:** behind nginx/Traefik, with several real API instances.
+- [ ] **PWA/legacy:** offline deep links (incl. `/strains/<id>`), 404 behind a reverse proxy with its own error page, legacy Vite build in a browser.
+- [ ] **E2E gaps:** social feed posting, Dev-Admin, wiki/strains, uploads; Docker stack with `NEXT_PUBLIC_API_URL`.
+- [ ] **PWA hardening:** offline queue and sync (`PLAN.md` P10).
 
----
+## 4. Engineering backlog
 
-## ✨ Vorschläge – Mobile / UX
-- [x] **Pull-to-Refresh** (global, `usePullToRefresh` + Indikator). *(v0.6.0)*
-- [x] **Skeleton-Loading-Phasen** beim View-Wechsel (`useDelayedReady` + `PageSkeleton`). *(v0.6.0)*
-- [x] **Lang-Druck-Kontextmenü** (Kopieren/Merken/Melden) auf Hall-of-Fame-Karten. *(v0.6.0)*
-- [x] **Haptisches Feedback** (`navigator.vibrate`) bei Votes/Taps. *(v0.4.0)*
-- [x] **Bottom-Nav "Mehr"-Overflow**: 4 primäre Tabs + „Mehr"-Sheet. *(v0.6.0)*
-- [x] **Bild-Fehler-Placeholder** (SmartImage `onError` → Gradient+Icon). *(v0.5.0)*
+- [ ] Split `src/components/ui.tsx` and `src/components/layout/AppShell.tsx` (large files; deliberately postponed).
+- [ ] Optional: file-based routing per view and `apps/web` monorepo (`PLAN.md`); afterwards remove the legacy Vite build.
+- [ ] Hosting without WebSocket (serverless) works through SSE only; revisit if such hosting becomes a target.
+- [ ] `scripts/server.mjs` relies on the Next internal `didWebSocketSetup`; re-check on every Next upgrade. The 400 guard for malformed URLs exists only in this server.
 
-## ✨ Vorschläge – Features
-- [x] **Manueller Partikel-Toggle** in den Settings (Spec: „abschaltbar"). *(v0.4.0)*
-- [x] **Echtes Marktplatz-Filter** (Zustand + Preis-Slider via Popover). *(v0.5.1)*
-- [x] **Sorten-Farb-Coding** (Sativa=info/Indica=soil/Hybrid=leaf) konsistent umgesetzt. *(v0.5.0)*
-- [x] **Grow-Report als PDF** (Browser-Druckansicht, offline). *(v0.9.0)*
-- [x] **Währungs-/Sprach-Umschalter** (`I18nProvider` + `money()`/`t()`, Switcher in Settings). *(v0.9.1)*
-- [x] **Offline-First**: IndexedDB-Wrapper (`lib/db.ts`), Social-Posts persistiert. *(v0.9.1)*
-- [x] **Erweiterte AI-Agent-Workflows** (Mixture-of-Erd's: dynamischer Rezept-Diff). *(v0.9.1)*
+## 5. Later (north star, `docs/MILESTONES.md`)
 
-## ♿️ Accessibility / Performance
-- [x] **Focus-Trap** in Modals/Drawers/Sheets (`useFocusTrap`). *(v0.4.0)*
-- [x] **Skip-to-Content-Link** am Seitenanfang. *(v0.4.0)*
-- [x] **`role="list"`/`role="listitem"`** für Listen-Widgets (Forum-Kommentare, Aktivitätsfeed). *(v0.7.0)*
-- [x] **`aria-live`** für Toasts & Streaming-Antworten (AI-Chat `role="log"`). *(v0.4.0/v0.5.0)*
-- [x] **Bundle-Analyse** (`vite.analyze.config.ts` + `rollup-plugin-visualizer` → `bundle-stats.html`). *(v0.10.0)*
-- [x] **Font-Subsetting**: Inter-Weights reduziert + Google css2 unicode-range-Subsets. *(v0.10.0)*
-
-## 🧹 Code-Qualität
-- [x] **`DataTable`-Komponente** extrahiert (generisch; Planner-Vergleichstabelle umgestellt). *(v0.5.0)*
-- [x] **Popover-Komponente** ergänzt (`Popover` + `PopoverItem`, im Forum integriert). *(v0.4.2)*
-- [x] **Showcase-Seite** (Design-System-Galerie der Komponenten-Bibliothek). *(v0.9.0)*
-- [x] **Unit-Tests** (Vitest) für `format.ts` & Charts-`smooth` (Edge-Cases). *(v0.7.0)*
-- [x] **ESLint/`tsc --noEmit`** in CI-Pipeline (`.github/workflows/ci.yml` + `eslint.config.js`). *(v0.10.0)*
-
-## 📦 PWA / Deploy
-- [x] **PNG-Icons** (192/512, any + maskable) generiert + im Manifest. *(v0.6.1)*
-- [x] **Background-Sync** im Service Worker (`sync`-Tag `go-sync`, Online-Registrierung). *(v0.6.1)*
-- [x] **`apple-touch-icon`** als PNG (192/512). *(v0.6.1)*
-- [x] **Caching-Strategie** für remote Pexels-Bilder (SW stale-while-revalidate). *(v0.5.1)*
+- [ ] Editions Free/Pro/CSC/Enterprise · [ ] local-first storage + E2EE + tombstones · [ ] native Android/iOS · [ ] in-app purchases / paywall
 
 ---
 
-## ✅ Erledigt (Auswahl)
-- [x] **Alle Sektionen abgearbeitet** 🎉 — Infrastruktur: Bundle-Analyse, ESLint + `tsc` in CI, Font-Subsetting. *(v0.10.0)*
-- [x] **Features-Sektion komplett** (i18n/Währung, Offline-First/IndexedDB, Rezept-Diff). *(v0.9.1)*
-- [x] **Grow-Report als PDF** (Druckansicht) + **Design-System-Showcase** + **`role="list"`**. *(v0.7.0/v0.9.0)*
-- [x] **Community-Feed / Social-Media** (Stories, Compose, Posts, Like/Teilen/Merken, Follow, Trending). *(v0.8.0)*
-- [x] **Unit-Tests (Vitest)** für `format.ts` & Charts-`smooth` + **`role="list"`** auf Listen. *(v0.7.0)*
-- [x] **PWA/Deploy komplett** (PNG-Icons 192/512, maskable, apple-touch-icon PNG, Background-Sync, Bild-Caching). *(v0.5.1/v0.6.1)*
-- [x] **Mobile/UX-Paket** (Pull-to-Refresh, Skeleton beim View-Wechsel, Lang-Druck-Menü, Bottom-Nav „Mehr"). *(v0.6.0)*
-- [x] **Onboarding responsiv** (scrollbare Layer, Safe-Area, responsive Typo) + **Marktplatz-Filter** + **SW-Bild-Caching**. *(v0.5.1)*
-- [x] **Accessibility-Paket** (Focus-Trap, Skip-Link, aria-live) + **Partikel-Toggle** + **Haptik**. *(v0.4.0)*
-- [x] **Tote Schaltflächen interaktiv** (Planner-Auswahl mit State, NotFound, HallOfFame, Profile, Chat-Icons). *(v0.3.1)*
-- [x] Mobile-Shell-Optimierung (TopBar, BottomNav, FAB, Safe-Area). *(v0.2.0)*
-- [x] Modals/Notifications als Bottom-Sheets auf Mobile. *(v0.2.0/v0.3.0)*
-- [x] Count-up, Swipe-Lightbox, Scroll-to-Top, Smart-Image. *(v0.2.0)*
-- [x] Desktop-Sidebar-Overlap-Bugfix. *(v0.3.0)*
-- [x] Doku-Set (README/CLAUDE/DESIGN/CHANGELOG/PROGRESS/TODO). *(v0.3.0)*
+## Recently finished (details in `docs/CHANGELOG.md`)
 
----
-
-> **Dokumentation gepflegt von:** Claude (Anthropic) · Kennung `claude-grow-dev` · Stand 2026
+- B-62 real 404 page and strain detail URL · B-61 community moderation · B-60 shared rate limit · B-59 chat and realtime · B-58 forced password change
+- B-57 URL routing · B-56 operator bootstrap CLI · B-55 password change, login history, device limit · B-54 session hardening (HttpOnly cookie, server-side revocation)
+- B-53 no demo data in API mode · B-52 central versioning · B-51 rate limits, JWT requirement, Playwright E2E
