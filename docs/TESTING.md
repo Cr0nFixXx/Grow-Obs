@@ -19,6 +19,7 @@ Last full run: **B-62** (HEAD `b369275`, build `26101714`), Node 22.23, PostgreS
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (last run at B-61) |
 | Version consistency | `npm run version:check` | ✅ |
+| Doc links and paths | `npm run docs:check` | ✅ |
 | Dependency audit | `npm audit --package-lock-only` | see §6 |
 
 **Never run / not verifiable here:** Docker Compose stack (incl. the `admin` tools profile), MinIO uploads, real iOS/Android touch

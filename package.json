@@ -18,6 +18,7 @@
     "check:peers": "node scripts/check-peers.mjs",
     "test:api:local": "bash scripts/test-api.sh",
     "test:e2e": "playwright test",
+    "docs:check": "node scripts/check-doc-links.mjs",
     "version:show": "node scripts/version.mjs show",
     "version:sync": "node scripts/version.mjs sync",
     "version:check": "node scripts/version.mjs check",

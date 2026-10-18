@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-62** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Local branch `A`, nothing pushed.
+**State: B-62** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 
@@ -44,7 +44,9 @@ apps/api/
   src/{app.ts,index.ts,env.ts,config/,db/,lib/,middleware/,realtime/,routes/,cli/}   drizzle/ (0000–0012 handwritten SQL + journal)
   tests/                  integration suites   seed.ts   Dockerfile   docker-compose.yml (db, minio, migrate, storage-init, api, admin, seed)
 public/                   manifest, icons, sw.js, sw-policy.js (cache allowlist, executed by tests)
-scripts/                  server.mjs (Next + WebSocket), preview.sh, version.mjs, check-peers.mjs, test-api.sh, smoke-live.sh
+scripts/                  server.mjs (Next + WebSocket), preview.sh, version.mjs, check-peers.mjs, check-doc-links.mjs (npm run docs:check), test-api.sh, smoke-live.sh
+promo/                    promo demo video (scene.html, build.sh, PROMODEMO.md); generated: music.wav, syslibs/, .frames/ (ignored)
+.claude/skills/           project skills doc-create, doc-maintain, version-bump (generic copies: docs/skills/)
 e2e/                      Playwright specs        docs/  TESTING, CHANGELOG, PROGRESS, MILESTONES, archive/
 version.json              single source for versions        .github/workflows/ci.yml  frontend, API, E2E jobs
 ```

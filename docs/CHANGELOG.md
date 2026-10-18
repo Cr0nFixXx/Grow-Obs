@@ -11,6 +11,18 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### Docs – Promo-Demo, Agent-Skills und Doku-Linkprüfung (nach B-62)
+
+Kein Produktcode geändert; Versionen unverändert, nur die Build-Nummer wurde aktualisiert.
+
+- **Promo-Demo (Test):** `promo/GrowObserver-Promo.mp4` – 44 s, 1920×1080 @ 30 fps, 10 Szenen als Motion Graphics mit echten Mock-Screenshots und App-Icon, selbst synthetisierter Soundtrack (120 BPM).
+  Die Szene ist eine HTML-Datei (`promo/scene.html`), gerendert Bild für Bild mit Playwright, dann ffmpeg. Komplette Pipeline: `bash promo/build.sh`. Alle Zahlen und Inhalte im Video stammen aus Demo-Daten; die KI-Szene zeigt nur die Oberfläche.
+- **`promo/PROMODEMO.md`:** ausführliche Dokumentation (Englisch): Storyboard, Szenen-Interna, Musik, Neuaufbau, Ressourcen, Hinweise zur Ehrlichkeit, Fehlersuche.
+- **Skills (Englisch):** `.claude/skills/{doc-create,doc-maintain,version-bump}/SKILL.md` (projektspezifisch) und generische Kopien unter `docs/skills/`.
+- **`npm run docs:check`:** neues Skript `scripts/check-doc-links.mjs` prüft relative Links und Pfade in den lebenden Docs (Archiv, Changelog und Progress ausgenommen).
+- **Doc-Map:** `CLAUDE.md` §5, `README.md` und `HANDOFF.md` §2 kennen `promo/`, die Skills und das Prüfskript.
+- **Geprüft:** `npm run docs:check` ✅ (inkl. Negativtest mit absichtlich kaputtem Link), `npm run version:check` ✅, `version.test.ts` ✅, `bash promo/build.sh` einmal komplett neu gelaufen ✅ (Video reproduzierbar). **Nicht geprüft:** Frontend-/API-/E2E-Suiten (kein Code geändert).
+
 ### Docs – Dokumentations-Umbau (nach B-62)
 
 Reine Dokumentationsaufgabe, kein Code geändert; Versionen unverändert, nur die Build-Nummer wurde aktualisiert.

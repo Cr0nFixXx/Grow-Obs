@@ -71,9 +71,11 @@ app/            Next.js-Hülle: Layout, 404-Seite, Catch-All-Route, eingebettete
 src/            Frontend: views/, components/, services/ (Mock | API), data/ (Hooks), lib/, config/
 apps/api/       Backend: Hono-API, Drizzle-Schema + Migrationen, Tests, Docker-Compose
 e2e/            Playwright-Browsertests
-scripts/        Server (WebSocket), Preview, Versionierung
+scripts/        Server (WebSocket), Preview, Versionierung, Doku-Linkprüfung
+promo/          Promo-Demo-Video (Szene als HTML, Render-Pipeline, Musik)
+.claude/skills/ Agent-Skills (projektspezifisch)
 public/         Manifest, Icons, Service Worker
-docs/           TESTING, CHANGELOG, PROGRESS, MILESTONES, archive/
+docs/           TESTING, CHANGELOG, PROGRESS, MILESTONES, skills/ (generisch), archive/
 ```
 
 Vollständige Karte: [`HANDOFF.md`](./HANDOFF.md) §2 · Architektur: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
@@ -94,6 +96,8 @@ Vollständige Karte: [`HANDOFF.md`](./HANDOFF.md) §2 · Architektur: [`ARCHITEC
 | [`docs/CHANGELOG.md`](./docs/CHANGELOG.md) | Änderungen je Aufgabe mit Messwerten |
 | [`docs/PROGRESS.md`](./docs/PROGRESS.md) | Build-Protokoll: eine Zeile je Aufgabe |
 | [`docs/MILESTONES.md`](./docs/MILESTONES.md) | Produktvision: Editionen, Datenschutz, Native Apps |
+| [`promo/PROMODEMO.md`](./promo/PROMODEMO.md) | Promo-Demo-Video (Motion Graphics): Storyboard, Build, Hinweise |
+| [`.claude/skills/`](./.claude/skills) · [`docs/skills/`](./docs/skills) | Agent-Skills: Doku anlegen, Doku pflegen, Version/Build erhöhen (projektspezifisch · generisch) |
 
 ---
 

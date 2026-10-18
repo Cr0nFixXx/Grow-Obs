@@ -65,9 +65,13 @@ commands or explanations** – those live in the files linked in §5. Read first
 | `docs/CHANGELOG.md` | What changed per task, incl. measured results | German |
 | `docs/PROGRESS.md` | One-line build log per task (newest first) | German |
 | `docs/MILESTONES.md` | Product north star | German |
+| `promo/PROMODEMO.md` | Promo demo video: storyboard, build pipeline, honesty notes | English |
+| `.claude/skills/*/SKILL.md` | Project skills `doc-create`, `doc-maintain`, `version-bump` (read the matching skill before doing that kind of task) | English |
+| `docs/skills/*/SKILL.md` | Generic, project-independent copies of the same skills | English |
 | `docs/archive/` | Superseded documents (not maintained) | – |
 
 **After every completed task** update `docs/CHANGELOG.md` (entry incl. test numbers), `docs/PROGRESS.md` (one new row on top), `TODO.md`, `docs/TESTING.md` (status table, if numbers changed),
 `HANDOFF.md` (only if state or an invariant changed) and `apps/api/README.md` (endpoint changes).
 Single source per fact: versions → `version.json`, test numbers → `docs/TESTING.md`, endpoints → `apps/api/README.md`, current state → `HANDOFF.md`.
 Living docs carry no agent signatures and no `v0.x` tags; history lives in `docs/CHANGELOG.md` and `docs/archive/`.
+Procedures: new document → skill `doc-create`; upkeep after a task → `doc-maintain`; versions and build number → `version-bump`. Check links with `npm run docs:check`.
