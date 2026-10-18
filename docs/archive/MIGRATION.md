@@ -1,5 +1,7 @@
 # MIGRATION.md — Vite SPA → Next.js Monorepo
 
+> **Archiviert (Stand B-62, nicht gepflegt):** Der Monorepo-Umzug wurde verworfen (ein npm-Projekt mit Next-Hülle im Repo-Root, `apps/api` separat); File-based Routing wurde anders gelöst (B-57/B-62: Catch-All-Route, `src/lib/routes.ts`). Maßgeblich sind `PLAN.md` §1 und `ARCHITECTURE.md`. Der Text unten ist nur noch Hintergrund.
+
 > **Stand B-42:** Der erste Schritt ist erledigt – aber **im Repo-Root statt in `apps/web`**:
 > `next` installiert, `app/layout.tsx` + `app/page.tsx` (SPA via `dynamic(ssr:false)`),
 > `app/api/health`, `next.config.ts`, Root-`postcss.config.mjs`, `src/pages` → `src/views`.
