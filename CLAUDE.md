@@ -9,7 +9,7 @@ commands or explanations** – those live in the files linked in §5. Read first
 
 - **Versions** are controlled centrally by `version.json`. **Only the owner assigns versions** (frontend version, backend
   version, codename "Ruderalis" = frontend only). Change them only on explicit instruction, then run `npm run version:sync`.
-  Never bump "out of habit". Details: `ARCHITECTURE.md` → Versionierung.
+  Never bump "out of habit". Details: `ARCHITECTURE.md` §7 (versioning).
 - **Build number:** run `npm run version:build` after **every completed task** (format `YYMMDDHH`, Europe/Berlin).
 - **Preview:** a preview must always be possible (`npm run preview`). In an agent sandbox start it as a background process
   and **share the current preview URL** the platform reports; never construct or reuse an old one. If none is reported, say so.
@@ -59,7 +59,7 @@ commands or explanations** – those live in the files linked in §5. Read first
 | `PLAN.md` | Roadmap, decisions, phase status | English |
 | `TODO.md` | Open items by priority | English |
 | `DESIGN.md` | Design system, styling conventions, layout pitfalls | English |
-| `ARCHITECTURE.md` | Layers, modes, auth, realtime, moderation, routing, versioning, recipes | German |
+| `ARCHITECTURE.md` | Layers, modes, auth, realtime, moderation, routing, versioning, recipes | English |
 | `apps/api/README.md` | Backend operation, endpoint contract (single source for endpoints) | German |
 | `docs/TESTING.md` | Test status, check commands, coverage, test pitfalls | English |
 | `docs/CHANGELOG.md` | What changed per task, incl. measured results | German |
