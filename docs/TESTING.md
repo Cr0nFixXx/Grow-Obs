@@ -1,198 +1,129 @@
-# Testing And Verification
+# Testing and Verification
 
-## Status
+What is verified, how to run it, and what is still unverified. **Measured results only** – a check counts as passed only if the
+command actually ran (see `CLAUDE.md`). Per-task history with numbers lives in `docs/CHANGELOG.md`.
 
-**B-62 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 181/181 ✅, API unverändert 155/155 ✅, E2E 37/37 ✅ (Desktop 36 + Mobil 1; `routing.spec.ts`: HTTP 404 für ungültige Pfade,
-200 für gültige, 400 bei kaputter Kodierung, Server-404 → Startseite, App-404 mit stehender Adresse, Sorte `/strains/<id>` mit Reload/Teilen/Zurück/unbekannter ID). **Nicht geprüft:** 404 im Vite-Legacy-Build
-(dort gibt es keine Pfade), 404-Seite hinter einem Reverse-Proxy mit eigener Fehlerseite, Offline-Verhalten für `/strains/<id>` im Service Worker (Regel vorhanden, nicht im Browser getestet).
+## 1. Current status
 
-**B-61 (Arena Agent) – ausgeführt:** typecheck ✅ (inkl. `apps/api` Build und `tsconfig.tools.json`), lint ✅, `npm test` 180/180 ✅, `npm run test:api` 155/155 ✅
-(`moderation.integration.test.ts` 15: Feed nur für Mitglieder/globaler Feed ohne Community-Beiträge, Ausblenden/Einblenden, Admin-Inhalte geschützt, Kommentare, Meldungen
-(doppelt, eigene, Außenstehende, fremde Community, Limit 20/h), Warteschlange gruppiert, Entscheidung hide/dismiss, Rauswurf-Rechtematrix, Sperre öffentlich + per Code,
-Sperrliste nur Admins, Rollenvergabe nur Admins, Aufräumen beim Admin-Löschen; Migration 0012), E2E 34/34 ✅ (`moderation.spec.ts`). Nicht geprüft: mobile Ansicht der neuen Reiter
-im echten Browser, große Warteschlangen (Paginierung fehlt: höchstens 100 Inhalte), Zusammenspiel mit Echtzeit (Feed lädt nicht live nach).
+Last full run: **B-62** (HEAD `b369275`, build `26101714`), Node 22.23, PostgreSQL 17.
 
-**B-60 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm run test:api` 139/139 ✅ (neu in `rate-limit.test.ts`: Atomarität bei 25 parallelen Treffern,
-zwei getrennte Modulinstanzen, Fensterablauf, alle Schlüssel gezählt, nur Hashes, DB-Ausfall → Ersatzzähler, Aufräumen; Migration 0011), Frontend 169/169 ✅,
-E2E 31/31 ✅. **Real geprüft:** zwei `apps/api/dist`-Prozesse (Port 4010/4011) gegen eine Datenbank – das Limit gilt über beide (10× 401, dann 429).
+| Check | Command | Result |
+|---|---|---|
+| Route types | `npx next typegen` | ✅ |
+| Typecheck (frontend) | `npm run typecheck` | ✅ |
+| Lint | `npm run lint` | ✅ |
+| Frontend unit/component tests | `npm test` | ✅ 181 / 181 (28 files) |
+| API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
+| API integration tests | `npm run test:api` | ✅ 155 / 155 (last run at B-61; no API change since) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 37 / 37 (desktop 36 + mobile 1, ≈ 5 min) |
+| Next.js build | `npm run build` | ✅ |
+| Vite legacy build | `npm run build:vite` | ✅ (last run at B-61) |
+| Version consistency | `npm run version:check` | ✅ |
+| Dependency audit | `npm audit --package-lock-only` | see §6 |
 
-**B-59 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 169/169 ✅, `npm run test:api` 130/130 ✅
-(`realtime.integration.test.ts`: LISTEN/NOTIFY-Zustellung an Nutzer/Themen, Übergröße verworfen, SSE-Auth/-Passwortsperre/-Aufräumen, WebSocket mit
-Cookie, Origin-Sperre, Token-Erstnachricht nur mit `ALLOW_HEADER_SESSION`, Sitzungsende trennt, 5-Verbindungen-Limit, Chat-API: Suche,
-idempotente Direktnachricht, Unread/Read, Fremdzugriff 404, Tippen gedrosselt, Online/Offline, Senden-Limit 429, Forum-Benachrichtigung; Migration 0010),
-E2E 31/31 ✅ (`realtime.spec.ts`). **Real geprüft:** `.archive/diag/realtime-smoke.mjs` gegen den Produktionsserver lokal, durch den
-Sandbox-Vorschau-Proxy (WebSocket mit Token-Erstnachricht und SSE) und gegen den eigenständigen `apps/api/dist` (beide Transporte).
-Nicht geprüft: Verhalten hinter nginx/Traefik, Multi-Instanz-Betrieb mit zwei echten Prozessen (Zustellung läuft über dieselbe
-NOTIFY-Kette, die die Tests abdecken), echte Mobilgeräte (Hintergrund-/Netzwechsel nur per Unit-Test).
+**Never run / not verifiable here:** Docker Compose stack (incl. the `admin` tools profile), MinIO uploads, real iOS/Android touch
+behavior, reverse proxies in front of the realtime endpoints, a CI run on the hosting platform (the workflow exists, nobody observed it run).
 
-**B-58 (Arena Agent) – ausgeführt:** typecheck ✅ (Frontend + `apps/api` Build/`tsconfig.tools.json`), lint ✅, `npm test` 135/135 ✅
-(`ForcedPasswordChange`), `npm run test:api` 108/108 ✅ (neu `password-enforcement.integration.test.ts`: Flag in `/auth/me`, 7 gesperrte
-Endpunkte mit Code, öffentliche Routen anonym, Logout erlaubt, falsches/gleiches Passwort, Entsperrung nach dem Wechsel, normale Konten
-unberührt; `operator.integration.test.ts`: Flag bei Neuanlage, `--promote` ohne Flag, `--reset-password` inkl. Fehlerfälle; Migration 0009),
-Playwright **28 ✅** (neu `forced-password.spec.ts`). Zusätzlich manuell: kompiliertes `dist/cli/admin-create.js` gegen frische DB.
-**Nicht ausgeführt:** Docker-Service `admin`.
+## 2. Prerequisites and commands
 
-**B-57 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 134/134 ✅ (neu `routes.test.ts`: Hin-/Rückweg aller Ansichten,
-Detail-IDs, unsichere/zu tiefe Pfade, Legacy-Query, Teilen-Links, Synchronität mit der SW-Liste; `nav.test.tsx`: Start aus Pfad,
-Bereinigung, `?view=`-Umschreibung, Push/Popstate, Rückfall-„Zurück“, `replaceParams`, Legacy-Modus; SW-Policy), `next build` ✅,
-Playwright **26 ✅** (neu `routing.spec.ts`: Adresse folgt Ansicht, Reload, Zurück/Vorwärts, Grow-Detail, tiefer Link nach Login,
-Profil-Tab, `?view=`, unbekannter Pfad, `/api` unberührt). **Nicht geprüft:** Vite-Legacy-Build im Browser, PWA offline auf Deep-Links.
+- **Node 22**, PostgreSQL 16+ (measured with 17), `npx playwright install chromium` once for E2E
+  (Linux may additionally need `npx playwright install-deps chromium`).
+- Disposable databases for a role `grow_test` (password `grow_test`): `growobserver_test` (API tests) and `growobserver_e2e` (E2E).
+  **The API suite deletes data in its database and the E2E suite creates users – never point either at a real installation.**
+  The API suites throw if the database name does not end in `_test`.
 
-**B-56 (Arena Agent) – ausgeführt:** typecheck ✅ (Frontend + `apps/api` Build/`tsconfig.tools.json`), lint ✅, `npm test` 116/116 ✅,
-`npm run test:api` 90/90 ✅ (neu `operator.integration.test.ts`: Anlage auf leerer DB, Login mit Einmalpasswort und
-Betreiberroute, Hash statt Klartext, Protokoll ohne Passwort, Ablehnung ohne `--promote`, Promote beendet Sitzungen und lässt das
-Passwort, Idempotenz, ungültige E-Mail), Playwright 20 ✅. Zusätzlich manuell: kompiliertes `dist/cli/admin-create.js` gegen
-frische Datenbank (Fehlerpfade und Erfolgspfade, Exit-Codes). **Nicht ausgeführt:** der Docker-Service `admin` (Docker fehlt hier).
+```bash
+# Frontend
+npx next typegen && npm run typecheck && npm run lint && npm test
 
-**B-55 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 116/116 ✅ (neu `AccountSecurity.test.tsx`: Formularprüfung,
-Bestätigung abweichend, 403-Meldung, Protokollliste), `npm run test:api` 83/83 ✅ (neu `password.integration.test.ts`: falsches Passwort
-403, andere Sitzungen beendet/aktuelle bleibt, altes Passwort ungültig, schwach/gleich 400, Auth + Rate-Limit, Protokoll nur eigene
-und ohne IP, 90-Tage-Bereinigung, Kaskade, Gerätelimit 5 inkl. „zuletzt genutzt bleibt“; Migration 0008), Playwright **20 ✅**
-(neu: Passwort ändern mit zwei Geräten, altes Passwort abgelehnt, Protokoll sichtbar).
+# API
+npm run typecheck --prefix apps/api
+(cd apps/api && npx tsc -p tsconfig.tools.json)      # seed, drizzle config, tests
+TEST_DATABASE_URL=postgres://grow_test:grow_test@127.0.0.1:5432/growobserver_test npm run test:api
+npx vitest run -c vitest.backend.config.ts apps/api/tests/<file>   # single file
+npm run test:api:local        # creates and drops a throwaway DB (needs a local PostgreSQL superuser)
 
-**B-54 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 110/110 ✅ (Auth-Provider: Marker statt Token, Logout, „Alle Geräte“,
-401-Ereignis, Altlast-JWT wird gelöscht; API-Client: Cookie statt Authorization), `npm run test:api` 68/68 ✅ (inkl. Cookie-Attribute lax/none, Header-Fallback an/aus; zusätzlich manuell durch den Proxy mit Firefox+Chromium im iframe geprüft) (neu:
-`sessions.integration.test.ts` – Cookie-Flags, Widerruf, Ablauf, fremde `sid`, Geräteliste, CSRF, CORS-Credentials,
-Migration 0007), API-Typecheck + `apps/api/tsconfig.tools.json` ✅, `next build` ✅, `build:vite` ✅, Playwright **19 ✅**
-(neu `e2e/session.spec.ts`: HttpOnly/kein Token im Speicher, kopiertes Cookie nach Logout wertlos, zwei Geräte,
-„Alle Geräte“, Auto-Abmeldung, CSRF). Die E2E-Konfiguration setzt `RATE_LIMIT_DISABLED=true`, weil die Suite mehr als
-10 Konten pro Stunde registriert; die Limits prüfen die API-Tests.
+# Browser E2E (production build + scripts/server.mjs on port 3100)
+npm run build && npm run test:e2e
+npx playwright test e2e/<file> --project=desktop     # single spec
 
-**B-53 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 98/98 ✅ (neu: `src/components/ui.test.tsx` – `initialsOf`,
-Avatar-Fallback), `npm run test:api` 36/36 ✅, `next build` ✅, Playwright **13 ✅ (12 desktop + 1 mobil), kein `fixme` mehr**
-(neu: Dashboard ohne Demo-Zahlen, Avatar-Initialen, Passwort-Hinweis, KI ehrlich, Feed ohne Stories/Vorschläge).
-
-**B-52 (Arena Agent) – ausgeführt:** typecheck ✅, lint ✅, `npm test` 91/91 ✅ (neu: `src/lib/version.test.ts` – Version/Build-Format,
-Sync mit `package.json`/Lockfiles/Backend, Build-Nummer inkl. Sommer-/Winterzeit), `npm run test:api` 36/36 ✅ (neu: `/version`,
-Modul-Vererbung), API-Typecheck + `tsc -p tsconfig.tools.json` ✅, `next build` ✅, `build:vite` ✅, Playwright 8 ✅ + 1 `fixme`
-(neu: Versionsanzeige + `/api/version`).
-
-**B-51 (Arena Agent) – Node 22.23, PostgreSQL 17, tatsächlich ausgeführt:** `npx next typegen` ✅,
-`npm run typecheck` ✅, `npm run lint` ✅, `npm test` 86/86 ✅, `npm run test:api` 32/32 ✅ (inkl. 8 neue
-Rate-Limit-Tests), `npm run check:peers` ✅, `npm run build` ✅, `npm run build:vite` ✅ (964.33 kB / 341.18 kB gzip).
-Nach den E2E-Ergänzungen (B-51, später am selben Tag): API 34/34 (+2 Migrations-Tests), **Playwright-E2E 7 grün /
-1 `fixme`** (`npm run test:e2e`: Registrieren/Reload/Abmelden/Login, falsches Passwort, AGB-Pflicht, Grow anlegen,
-Forum-Thread, Deep-Link, Mobile Pixel 5). Auf einer frischen DB bestätigt (6 Forum-Bereiche via Migration 0006).
-Baseline vor den B-51-Änderungen: 82 Frontend- und 24 API-Tests; beide Builds waren wegen der fehlenden
-`src/assets/hero.jpg` rot. Frühere Zahlen weiter unten (52/52, 76/76 …) sind historisch.
-
-**B-42 (Claude / Anthropic) – actually executed, all green (Node 22, PostgreSQL 16):**
-`npx next typegen`, `npm run typecheck`, `npm run lint` (0 errors / 0 warnings), `npm test`
-(52/52), `npm run build` (Next.js), `npm run build:vite` (870.33 kB / 312.65 kB gzip),
-API `npm run typecheck`, `npx tsc -p tsconfig.tools.json`, `npm run build`,
-`npm run test:api` (13/13 against a throwaway `growobserver_test` DB), smoke test of `next start`
-(`/`, `/api/health`, CSS, `sw.js`, manifest).
-
-**B-43:** same suite re-run after cleanup, plus `npm ci` from the lockfile (clean install).
-
-**B-44:** 61/61 unit tests (new: `src/lib/gestures.test.ts`, `src/services/mock-create.test.ts`). Gesture
-behaviour itself (touch, scroll hand-over, tab swipe vs. edge swipe) still needs real-device checks.
-
-**B-45:** API integration 15/15 (new: task isolation, strain/wiki authoring). Migration upgrade path
-0000 → 0001 verified on a database containing data. `npm audit`: frontend 0; API 4 moderate
-(drizzle-kit's bundled esbuild, CLI-only). Fresh `npm ci` from the new lockfile succeeds.
-
-**B-46 (embedded API):** real `next start` against PostgreSQL: first request runs migrations
-(26 tables); register → task + grow → server restart → login → data still present; `401` without token;
-upload presign `503` without storage. All 37 endpoints used by `src/services/api.ts` return 2xx against
-the seeded sandbox DB (contract data removed afterwards). Browser click-through in API mode still pending
-(no headless browser available in this sandbox).
-
-**B-47:** API 20/20 (media magic bytes/size/owner delete/headers, grow photo ownership, chat image,
-profile edit without role escalation, per-user strain collection). Frontend 64/64. Live check against
-the preview (upload → serve → attach) documented in PROGRESS. Real-device camera upload untested.
-
-**B-48:** API 22/22 (vote toggle incl. `myVote`, anonymous listing, threaded replies, comment votes,
-hall/post comments with counts). Frontend 71/71 (swipe zones, remember-me storage, notification targets,
-mock forum/comments). Real-device checks pending: slider vs. scroll, page swipe zones, install prompt.
-
-**B-49:** API 23/23 (flags: non-admin 403, core 409, unknown 404, other user sees override, API route
-blocked with `feature`, reset). Frontend 76/76 (key parity, `refreshAllResources` background reload,
-failure keeps content, unmount cleanup). Live: admin disables feature → second account blocked (see PROGRESS).
-
-**B-50:** API 24/24 (releases: admin-only, validation, public order, delete). Update logic unit-tested
-(available/mandatory/unseen/prefs/auto-apply). Two consecutive production builds verified: client bundle
-build ID matches `/api/version`, and a new build is reported as a different ID.
-
-**Still unverified:** Docker Compose stack, MinIO upload, browser E2E in API mode, real-device
-gesture tests, `npm audit` advisories.
-
-## Frontend
-
-Run from the repository root with Node 22:
-
-```sh
-npm install
-npx tsc --noEmit
-npx vitest run
-npm run build
+# Builds and consistency
+npm run build && npm run build:vite && npm run version:check
 ```
 
-Regression coverage added in this iteration:
+CI (`.github/workflows/ci.yml`) has three jobs: frontend (peers, version, typegen, typecheck, lint, tests, both builds), API (typecheck, build, integration tests
+against PostgreSQL) and E2E (Playwright).
 
-- `src/lib/api.test.ts`: no-store, bearer scope, redirects, readable failures, timeout and 204.
-- `src/lib/cache-policy.test.ts`: executes the actual `public/sw-policy.js`; APIs, signed URLs,
-  external media, authenticated requests and private/error responses never enter the shell cache.
-- `src/lib/diagnostics.test.ts`: liveness does not imply DB health; demo checks stay unknown.
-- `src/config/features.test.ts`: malformed overrides cannot disable core features.
-- `src/lib/auth.test.tsx`: session restoration is fail-closed; late responses cannot undo logout.
-- `src/data/useResource.test.tsx`: last-request-wins; refresh errors do not discard visible data.
-- `src/lib/touch-hooks.test.tsx`: gestapelte Scroll-Locks und Long-Press-Abbruch beim Scrollen.
-- Existing format and chart-path tests remain in place.
+## 3. What is covered
 
-## API Integration
+**Frontend (Vitest, `src/**/*.test.ts[x]`)** – API client (no-store, cookie credentials, redirects, timeout, 204), service-worker cache policy
+(executes `public/sw-policy.js`: APIs, signed URLs, external media and private/error responses never enter the cache; route list in sync with `routes.ts`),
+auth provider (fail-closed restore, late responses cannot undo logout, marker instead of token, 401 event), `useResource` (last request wins, refresh keeps data),
+feature flags (key parity with the API, malformed overrides), routing (`routes.ts`, `nav.tsx`), realtime transport and context, version/build number,
+update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, community moderation UI, mock services.
 
-Use a dedicated disposable PostgreSQL database whose name ends in `_test`.
-**The integration suite truncates its test data. Never point it at a real installation.**
+**API integration (`apps/api/tests`, real PostgreSQL via `app.request()`)**
 
-`vitest` is an `apps/api` devDependency, and `tsconfig.tools.json` includes `tests/`, so the
-integration suite is typechecked together with `seed.ts` and `drizzle.config.ts`.
+| Suite | Covers |
+|---|---|
+| `environment.test.ts` | environment validation, production HTTPS rules |
+| `migrations.test.ts` | migration journal consistency (gapless, ascending timestamps, file present) and the SQL content of migrations 0006–0012 |
+| `security.integration.test.ts` | upload authorization, chat membership, private discovery, invite expiry/hash/parallel redemption, last-admin protection, DB role beats JWT role, admin contracts, registration normalization |
+| `sessions.integration.test.ts` | cookie flags, revocation, expiry, foreign `sid`, device list, CSRF, CORS credentials |
+| `password.integration.test.ts` | password change (other sessions ended, wrong password 403), login history without IP (90 days), device limit 5 |
+| `password-enforcement.integration.test.ts` | forced password change: flag, locked endpoints, unlock after change |
+| `operator.integration.test.ts` | `admin:create` (new, `--promote`, `--reset-password`, errors, idempotency) |
+| `rate-limit.test.ts` | shared counter: atomicity, two module instances, window expiry, hashed keys, DB-failure fallback |
+| `realtime.integration.test.ts` | LISTEN/NOTIFY delivery, SSE and WebSocket auth/limits, chat API, typing, presence, notifications |
+| `moderation.integration.test.ts` | community feed scope, hide/unhide, reports and queue, kick/ban matrix, role assignment |
+| `version.test.ts` | `/version`, module inheritance |
 
-```sh
-npm install --prefix apps/api
-npm run typecheck --prefix apps/api        # runtime code (src/)
-cd apps/api
-npx tsc -p tsconfig.tools.json             # seed + drizzle.config + tests
-cd ../..
-TEST_DATABASE_URL=postgres://grow_test:grow_test@127.0.0.1:5432/growobserver_test \
-  npx vitest run --config vitest.backend.config.ts
-```
+**Browser E2E (`e2e/*.spec.ts`, Playwright, production build)**
 
-The suite applies the committed initial migration and exercises `app.request()` against real
-PostgreSQL. It covers anonymous/unauthorized uploads, chat membership, private discovery,
-invite expiry/hash storage, parallel redemption, last-admin protection, revoked JWT roles,
-admin content contracts and registration normalization.
+| Spec | Covers |
+|---|---|
+| `app.spec.ts` | version display, register/reload/logout/login, wrong password, terms consent, create grow, forum thread, deep link, no demo data in API mode |
+| `session.spec.ts` | HttpOnly cookie, server-side revocation, two devices, "all devices", auto sign-out, CSRF, password change |
+| `forced-password.spec.ts` | one-time password locks the app until changed |
+| `routing.spec.ts` | address follows view, reload/back/forward, grow detail, deep link after login, profile tab, legacy `?view=`, `/api` untouched, HTTP 404/400, strain URL |
+| `realtime.spec.ts` | chat live (WebSocket), SSE fallback, forum comments and bell live |
+| `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
+| `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow |
 
-It does not open a TCP server or complete a MinIO upload. Separate smoke checks must cover the
-compiled Node entry, TLS/CORS, browser uploads, database/storage failure reporting and backups.
+## 4. Test pitfalls
 
-CI (`.github/workflows/ci.yml`) has separate frontend and API jobs. A configured job is not
-proof that it has run successfully. Record the actual run/result before approving a release.
+**Vitest (frontend)** – default environment is `node`: DOM tests need `// @vitest-environment jsdom`. There is no automatic RTL cleanup (call `cleanup()`).
+`useServices` mocks must return a **stable** object. RTL `waitFor` hangs under fake timers. Modals need a `window.matchMedia` stub.
+jsdom `history.back()` is asynchronous – use `vi.waitFor`.
 
-## Manual Acceptance
+**API tests** – files run sequentially (`fileParallelism: false`); a file that runs alone must migrate the DB in `beforeAll`
+(`migrate(db, { migrationsFolder })`). Tests that `vi.resetModules()` and re-import create a second DB client – close it.
+Drizzle wraps Postgres errors: the code is in `error.cause.code`. Root `tsc` does not catch what `tsc -p apps/api` /
+`tsconfig.tools.json` catch. After `npm ci` inside `apps/api`, remove `apps/api/node_modules` and `apps/api/dist` before checking the frontend (duplicate `drizzle-orm`, TS2345).
 
-1. Build the frontend, serve the whole `dist/` directory over HTTPS or localhost.
-2. Upgrade from a previous service worker and verify old `go-shell-*` caches disappear.
-3. Log in to the API, open private data, log out, then log in as another account. No prior private
-   response may be served from Cache Storage. Back/refresh must not reopen the old account.
-4. Open Dev-Admin as a member: no admin page or API data. Open it as a platform admin:
-   DB/storage status must come from `/admin/health`, not `/health`.
-5. Disconnect PostgreSQL and MinIO separately: the affected dependency must show a failed check.
-6. Test an invite from two accounts concurrently; exactly one new membership for a one-use code.
-7. On Android Chrome/iOS Safari, test sheet scrolling, handle drag, drawer scroll, keyboard,
-   landscape and 320/375/414 px widths. These are still unverified on devices.
-8. Test Grow/Hall lightboxes: short drag snaps back, fast flick changes image, down swipe closes;
-   browser zoom/OS gestures must not trap the user (close button remains available).
-9. Test the offer ticker on a coarse-pointer device: no autoplay, manual horizontal snap works,
-   no duplicate items; desktop retains the marquee.
+**E2E** – needs a fresh `npm run build`; never run `npm run preview` in parallel with a build. The suite sets `RATE_LIMIT_DISABLED=true`
+(it registers more than 10 accounts per hour); rate limits are covered by the API tests. Passwords need ≥ 12 characters. Skip onboarding first
+("Überspringen"). Use `{ exact: true }` for ambiguous names ("Senden", "Feed" collides with "Community-Feed"). Clipboard tests need
+`context.grantPermissions(["clipboard-read","clipboard-write"])`. After moving files in `app/`, remove stale route types: `rm -rf .next/types .next/dev`.
 
-## Remaining Release Gates
+## 5. Manual acceptance (not automated)
 
-- Complete dependency audit. The last package installation reported 9 advisories
-  (1 low, 4 moderate, 4 high); no detailed audit or remediation was possible in this tool session.
-- Commit/review backend lockfile and pinned container digests in a normal development environment.
-- Session revocation strategy and security review (auth/upload rate limiting exists since B-51, per process only).
-- Upload finalization with MIME sniffing, size recheck, EXIF removal and malware scanning.
-- Backend-managed feature flags and durable server-side audit records.
+1. Start `npm run preview`. Upgrade from an older service worker: old `go-shell-*` caches disappear.
+2. Log in, open private data, log out, log in as another account: no earlier private response may come from Cache Storage; back/refresh must not reopen the old account.
+3. Dev-Admin as a member: no admin page or API data. As platform admin: DB/storage status comes from `/admin/health`.
+4. Stop PostgreSQL and MinIO separately: the affected dependency shows a failed check.
+5. Redeem a one-use invite from two accounts concurrently: exactly one membership.
+6. Android Chrome / iOS Safari at 320/375/414 px and landscape: sheet scrolling, handle drag, drawer scroll, keyboard, the new community tabs.
+7. Lightboxes: short drag snaps back, fast flick changes the image, down swipe closes; the close button always stays reachable.
+8. Offer ticker on a coarse-pointer device: manual horizontal snap, no autoplay; desktop keeps the marquee.
+9. Realtime behind nginx/Traefik (Upgrade headers, no buffering for SSE) and PWA offline deep links such as `/strains/<id>`.
 
-Maintainer for this update: Codex (OpenAI).
+## 6. Open release gates
+
+- **Docker/MinIO stack** (Compose, `admin` profile, presigned uploads) never run.
+- **Dependency audit** (measured 2026-10-18, `npm audit --package-lock-only`): root 3 high – all through `vite-plugin-singlefile`
+  (legacy Vite build only; fix available in 2.3.4); `apps/api` 4 moderate – `drizzle-kit`/`esbuild` (dev/CLI only). **Production dependencies: 0 advisories** in both packages.
+- **Upload hardening:** magic-byte check, size quota and client-side EXIF removal exist; missing: malware scan, server-side re-encoding, download authorization for private images, cleanup of orphaned uploads.
+- **Durable audit records:** feature flags keep only `updated_by`/`updated_at`.
+- **Populated installation:** migration of an existing, filled installation (beyond the automated upgrade test) and pinned container image digests.
+- **Realtime:** several real API instances and real reverse proxies are untested (delivery runs over the same NOTIFY chain the tests cover).
