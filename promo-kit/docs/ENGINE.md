@@ -29,6 +29,7 @@ engine/fonts.css    offline Inter + Space Grotesk (latin, latin-ext) in engine/f
 | `fade` | `{in,out}` seconds of black at start/end (`0` = none; stills use 0) |
 | `beat` | `{bpm, on:[[from,to],…]}` – time ranges where the scene "pulses" to the beat (camera zoom, glow) |
 | `audio` | cue map for `audio/audio.py` (see below). Indices refer to `stations[]` |
+| `loop` | seconds. Enables **loop mode**: every periodic motion (float, handheld drift, twinkle) snaps to whole cycles per period and particle drift is off, so `renderFrame(t)` ≈ `renderFrame(t + loop)` (only film grain differs). Use for seamless GIF/MP4 loops (`tools/loop.sh`); station time must be past all `enter` animations. Extra loop-only fields: scene `loopCam {yaw,pitch,roll,x,y,zoom}` (camera orbit amplitudes), `loopFloor` (floor-grid cells scrolled per loop, default 3); `pose.sway` (± degrees of wobble), `pose.float` (bob amplitude), phone `loopScroll` (px the screen scrolls down and back). Glows drift automatically when `loopCam` is set. |
 | `meta` | free-form notes |
 
 ## Station

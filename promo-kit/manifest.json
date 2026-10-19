@@ -1,6 +1,6 @@
 {
  "generatedBy": "tools/manifest.mjs",
- "totalBytes": 31424735,
+ "totalBytes": 31429622,
  "files": [
   {
    "path": "audio/audio.py",
@@ -40,7 +40,7 @@
   },
   {
    "path": "docs/ENGINE.md",
-   "bytes": 8145
+   "bytes": 8807
   },
   {
    "path": "engine/engine.css",
@@ -48,7 +48,7 @@
   },
   {
    "path": "engine/engine.js",
-   "bytes": 36931
+   "bytes": 38342
   },
   {
    "path": "engine/fonts.css",
@@ -577,7 +577,7 @@
   },
   {
    "path": "tools/build.sh",
-   "bytes": 2304
+   "bytes": 2390
   },
   {
    "path": "tools/capture.mjs",
@@ -594,6 +594,10 @@
   {
    "path": "tools/lib.mjs",
    "bytes": 1883
+  },
+  {
+   "path": "tools/loop.sh",
+   "bytes": 2728
   },
   {
    "path": "tools/make-assets.py",

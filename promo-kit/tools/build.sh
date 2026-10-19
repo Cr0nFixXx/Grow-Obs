@@ -11,6 +11,7 @@ PM=${PM:-$HOME/.cache/pm}
 [ -d "$PM/syslibs" ] && export LD_LIBRARY_PATH="$PM/syslibs/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
 SCENE=${SCENE:-scenes/promo-60s.json}; OUT=${OUT:-out/GrowObserver-promo.mp4}; WORKERS=${WORKERS:-2}
 FFMPEG=$(python3 -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())" 2>/dev/null || command -v ffmpeg)
+[ -n "$FFMPEG" ] || { echo "ffmpeg not found (pip install imageio-ffmpeg)"; exit 1; }
 FRAMES=$PM/frames; mkdir -p "$(dirname "$OUT")" "$FRAMES" "$PM"
 [ -n "${RESUME:-}" ] || rm -f "$FRAMES"/f*.jpg
 read -r TOTAL FPS < <(node -e "const s=require('./'+process.argv[1]);const d=s.stations.reduce((a,x)=>a+x.dur,0),f=(s.format&&s.format.fps)||30;console.log(Math.round(d*f),f)" "$SCENE")

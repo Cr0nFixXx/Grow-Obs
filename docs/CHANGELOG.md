@@ -19,6 +19,7 @@ Kein Produktcode geändert; Versionen unverändert, nur die Build-Nummer wurde a
 - **Material:** 38 echte Demo-Screenshots (Mock-Modus, mobil und Desktop), 25 transparente Geräte-Mockups, 16 Key-Visuals (4 Motive × 4 Formate), Brand-Assets (Icon als exakte Kopie von `public/icon.svg`, Wortmarke, Lockup, `tokens.json`).
 - **Doku (Englisch):** `promo-kit/README.md`, `BRIEF.md` (Ehrlichkeitsregeln, Look, Story, QA-Liste), `docs/ENGINE.md`, `copy.json` (deutsche Bildschirmtexte), `manifest.json`.
 - **Doc-Map:** `CLAUDE.md` §5, `README.md` und `HANDOFF.md` kennen `promo-kit/`.
+- **Loop:** `promo-kit/tools/loop.sh` erzeugt nahtlose Loops (MP4 + GIF) aus einer Hero-Szene; die Engine hat dafür einen Loop-Modus (`"loop": Sekunden`). Geprüft: Bild bei t und t+5 s unterscheidet sich nur um das Filmkorn (mittlere Abweichung 0,95 im statischen Test). Der Loop ist ruhig bewegt: Kamera-Orbit, schwebende und wippende Geräte, laufendes Bodengitter, wandernde Lichter (`MOTION=` skaliert die Stärke, Standard 0,6; Screen-Scrollen nur auf Wunsch mit `SCROLL=520`, Standard aus). Nahtlosigkeit gemessen: Schritt letztes→erstes Bild 5,96 gegenüber 6,50 typischem Bild-zu-Bild-Schritt. Beispiel: `promo-kit/loops/devices-16x9.{mp4,gif}` (1280 px, 5 s).
 - **Geprüft:** `tools/setup.sh` mit Smoke-Test ✅, Testrender (120 Bilder → mp4) ✅, Soundtrack-Lauf (60,0 s) ✅, Kontaktbögen aller Key-Visuals gesichtet ✅. **Nicht geprüft:** vollständiger 60-s-Render mit dem Kit (die Vorgänger-Pipeline lief komplett).
 
 ### Docs – Promo-Demo, Agent-Skills und Doku-Linkprüfung (nach B-62)

@@ -12,6 +12,7 @@ brand/              icon.svg (exact app icon), icon-512/1024.png, wordmark.svg/p
 screenshots/        real app screenshots, demo/mock data: mobile/ (<key>-f.jpg viewport, <key>-t.jpg tall), desktop/ (d-<key>.jpg), parts/
 mockups/            transparent PNG device mockups: phone-<key>.png (621×1302), browser-<key>.png (1800×1170)
 stills/             16 key visuals: hero-{dashboard,diary,devices,logo}-{16x9,9x16,1x1,4x5}.jpg
+loops/              seamless animated loop of the devices hero: devices-16x9.mp4 (1280 px, 5 s, calm camera orbit + float/sway, no scrolling) + .gif (640 px, 15 fps)
 engine/             the generic renderer (HTML/CSS/JS, offline fonts)
 scenes/             promo-60s.json (hero video), hero-*.json (stills), legacy-scene.html.txt (old single-file version, reference only)
 audio/audio.py      soundtrack synth driven by the scene JSON
@@ -30,6 +31,8 @@ bash tools/build.sh                       # full 60 s video -> out/GrowObserver-
 Requirements: Node ≥ 20, Python ≥ 3.10 (numpy, scipy, pillow, imageio-ffmpeg), Chromium via Playwright, ~2 GB RAM, no GPU needed.
 On minimal Linux images Chromium may need system libs (`npx playwright install-deps chromium`, needs root; otherwise unpack the `.deb`s into
 `$PM/syslibs` – the scripts add `$PM/syslibs/usr/lib/x86_64-linux-gnu` to `LD_LIBRARY_PATH` automatically).
+Rootless recipe (Debian): `apt-get download libnspr4 libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libxdamage1 libxkbcommon0 libasound2t64 libatspi2.0-0t64`, then `dpkg-deb -x <each>.deb $PM/syslibs`;
+for emoji in the chat scene also `fonts-noto-color-emoji` (copy its `.ttf` to `~/.local/share/fonts/`, `fc-cache -f`).
 **`PM`** (default `~/.cache/pm`) is the work directory for frames/temp files – keep it outside the repo.
 
 ## What is where – tools
@@ -39,6 +42,7 @@ On minimal Linux images Chromium may need system libs (`npx playwright install-d
 | `tools/render.mjs --scene S --out DIR [--from --to --q]` | frames as `f00000.jpg…`; resumable; retries after Chromium crashes |
 | `tools/still.mjs --scene S --t 2,5.5 --out DIR [--png --prefix p]` | single frames for review or deliverables |
 | `tools/build.sh` | frames (parallel) → music → mp4. Env: `SCENE`, `OUT`, `WORKERS`, `RESUME=1`, `NO_AUDIO=1`, `PM` |
+| `tools/loop.sh [name]` | seamless 5 s loop (MP4 + GIF) from any `hero-<name>.json` into `loops/` (~2–4 min) |
 | `tools/stills.sh` | all `scenes/hero-*.json` → `stills/*.jpg` (t = 3.5 s) |
 | `tools/gen-promo-scene.mjs` | generates `scenes/promo-60s.json` – edit the generator, not the JSON |
 | `tools/gen-hero.mjs` | generates the 16 `hero-*.json` (layouts per format in `LAYOUTS`) |
@@ -66,6 +70,7 @@ re-verify BRIEF §2 (no real user data, no AI shown as working).
 * **Change a headline / tag:** edit the generator (`tools/gen-promo-scene.mjs` or `tools/gen-hero.mjs`), regenerate, preview with `still.mjs`. Keep texts in `copy.json` in sync.
 * **Add a format (e.g. 21:9):** add it to `FORMATS` in `gen-hero.mjs`, add a layout per variant, `node tools/gen-hero.mjs && bash tools/stills.sh`.
 * **Make a shorter/vertical video:** write a scene JSON (copy a hero scene, give it several stations), set `format`, add an `audio` block, `SCENE=… OUT=… bash tools/build.sh`.
+* **Make a loop (website/README banner):** `bash tools/loop.sh dashboard-16x9` (or any other hero name). Uses the engine's loop mode (`"loop": seconds` in the scene).
 * **Swap the soundtrack:** `NO_AUDIO=1 bash tools/build.sh`, then mux your own track with ffmpeg.
 
 ## Licensing / provenance
@@ -73,4 +78,4 @@ Screens show the app's own demo data (mock mode); the icon is the app's icon; fo
 `engine/fonts/`); the music is synthesized by `audio/audio.py` (no samples, no third-party material).
 
 ## Size
-≈ 31 MB of sources (mockups 16 MB, screenshots 9 MB, stills 5 MB, brand 0.5 MB, engine + fonts 0.4 MB). Don't commit videos or frames.
+≈ 38 MB of sources (mockups 16 MB, loops 10 MB, screenshots 9 MB, stills 5 MB, brand 0.5 MB, engine + fonts 0.4 MB). Don't commit videos or frames.

@@ -27,6 +27,10 @@ const D2R = Math.PI / 180;
 let CFG, W = 1920, H = 1080, FPS = 30, STX = 14000, ST = [], DUR = 60, PCAM = 1500;
 let SE = [], SO = [];           // station containers / station object instances
 const DIM = {};
+/* Seamless-loop mode: scene.loop = period in seconds. Every sinusoidal motion frequency is snapped to a whole number of cycles per period
+   (w), and the constant particle drift is switched off, so renderFrame(t) === renderFrame(t + loop) apart from film grain. */
+let LP = 0;
+const w = a => LP ? Math.max(1, Math.round(a * LP / (2 * Math.PI))) * 2 * Math.PI / LP : a;
 
 /* ---------- assets ---------- */
 function assetUrl(n, ext) {
@@ -84,7 +88,8 @@ function poseCalc(p, lt) {
   p = p || {}; const at = p.at || [0, 0, 0], rot = p.rot || [0, 0, 0];
   const o = { x: at[0], y: at[1], z: at[2], rx: rot[0], ry: rot[1], rz: rot[2], s: p.s == null ? 1 : p.s };
   if (p.enter) { const e = p.enter, q = P(lt, e.start || 0, e.dur || 1.1, E[e.ease || 'out5']); const f = e.from || {}; for (const k in f) o[k] += f[k] * (1 - q) }
-  if (p.float) o.y += Math.sin(lt * 1.1 + (p.floatPhase || 0)) * 9 * p.float;
+  if (p.float) o.y += Math.sin(lt * w(1.1) + (p.floatPhase || 0)) * 9 * p.float;
+  if (LP && p.sway) { const a = 2 * Math.PI * lt / LP + (p.floatPhase || 0); o.ry += Math.sin(a) * p.sway; o.rx += Math.cos(a) * p.sway * .35; o.rz += Math.sin(a * 2) * p.sway * .12 }
   return o;
 }
 function mixc(a, b, t) { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const x = p(a), y = p(b); return '#' + x.map((v, i) => Math.round(lerp(v, y[i], t)).toString(16).padStart(2, '0')).join('') }
@@ -179,6 +184,7 @@ OBJ.phone = {
     for (const v of sp.views) st[v] = { o: toViews.has(v) ? 0 : 1, x: 0, z: 1, sc: 0 };
     for (const w of swaps) { const k = P(lt, w.t, w.dur || .4, E.out3); st[w.from].o *= 1 - k * .9; st[w.from].x = -k * 70; st[w.to].o = k; st[w.to].x = (1 - k) * 90; st[w.to].z = 2 }
     for (const s of sp.scroll || []) { const mx = maxScroll(s.view); st[s.view].sc = P(lt, s.start, s.dur, E[s.ease || 'io']) * Math.min(mx, s.to); }
+    if (LP && sp.loopScroll) { const v = sp.views[0]; st[v].sc = (.5 - .5 * Math.cos(2 * Math.PI * lt / LP + (sp.pose && sp.pose.floatPhase || 0))) * Math.min(maxScroll(v), sp.loopScroll) }
     for (const v of sp.views) vset(el, v, st[v]);
     if (sp.fingers) {
       let f = null; for (const g of sp.fingers) { f = g.kind === 'swipe' ? swipeState(lt, g.t, g.d, g.x0, g.y0, g.x1, g.y1) : tapState(lt, g.t, g.x, g.y); if (f) break }
@@ -200,7 +206,7 @@ function pwaUpdate(inst, lt) {
   q('.drawerImg').style.transform = `translateX(${(1 - dOpen) * -310}px)`;
   const d2 = P(lt, T.drawer2, .25, E.out3);
   vset(ph, 'dash', { o: 1 }); vset(ph, 'drawer2', { o: d2, z: 3 });
-  const hl = q('.hl'); hl.style.opacity = (lt > T.hl0 && lt < T.hl1) ? P(lt, T.hl0, .25) * (.6 + .4 * Math.sin(lt * 10)) : 0;
+  const hl = q('.hl'); hl.style.opacity = (lt > T.hl0 && lt < T.hl1) ? P(lt, T.hl0, .25) * (.6 + .4 * Math.sin(lt * w(10))) : 0;
   const hm = P(lt, T.home, .4, E.out3); const home = q('.homeL'); home.style.display = hm > .001 ? 'block' : 'none'; home.style.opacity = hm;
   const ap = P(lt, T.icon, .6, E.back); const ai = q('.appIcon'); ai.style.opacity = clamp(ap * 3); ai.style.transform = `translateY(${(1 - ap) * -120}px) scale(${.3 + .7 * ap})`;
   q('.appLbl').style.opacity = P(lt, T.label, .3);
@@ -272,7 +278,7 @@ OBJ.tag = {
   update(inst, lt, C) {
     const sp = inst.sp, o = inst.el, at = sp.at, dx = sp.dx || 0; const p = P(lt, sp.start, .55, E.back);
     o.style.display = p <= .001 ? 'none' : 'block';
-    pose3(o, { x: at[0] + dx * (1 - p), y: at[1] + (1 - p) * 30 + Math.sin(lt * 1.3 + at[0]) * 6, z: at[2], ry: -C.yaw * .9, rx: -C.pitch * .6, s: .7 + .3 * p });
+    pose3(o, { x: at[0] + dx * (1 - p), y: at[1] + (1 - p) * 30 + Math.sin(lt * w(1.3) + at[0]) * 6, z: at[2], ry: -C.yaw * .9, rx: -C.pitch * .6, s: .7 + .3 * p });
     o.firstChild.style.opacity = clamp(p * 2.2) * (sp.out == null ? 1 : 1 - P(lt, sp.out, .3));
   }
 };
@@ -313,7 +319,7 @@ OBJ.carousel = {
     const spin = lerp(0, sp.spinDeg == null ? 150 : sp.spinDeg, P(lt, 0, st.dur, E.io)) + (sp.spinOffset || 0);
     inst.items.forEach((el, i) => {
       const it = sp.items[i], th = (i * step + spin) * D2R, p = P(lt, .05 + i * (sp.stagger == null ? .07 : sp.stagger), 1.0, E.out5), r = R * (1 + (1 - p) * .8), isW = it.kind === 'window';
-      pose3(el, { x: Math.sin(th) * r, y: (isW ? -10 : 20) + Math.sin(lt * 1.1 + i) * 8 + (1 - p) * 500, z: -Math.cos(th) * r, ry: -th / D2R, s: isW ? (sp.windowScale || .7) : (sp.phoneScale || 1.05) });
+      pose3(el, { x: Math.sin(th) * r, y: (isW ? -10 : 20) + Math.sin(lt * w(1.1) + i) * 8 + (1 - p) * 500, z: -Math.cos(th) * r, ry: -th / D2R, s: isW ? (sp.windowScale || .7) : (sp.phoneScale || 1.05) });
       if (!isW && it.scroll) vset(el, it.view, { sc: P(lt, .5, 6, E.io) * Math.min(maxScroll(it.view), it.scroll) });
     });
   }
@@ -371,8 +377,9 @@ function camAt(t, withFx = true) {
     const Wp = whip(t); C.yaw += Wp.yaw; C.roll += Wp.roll; C.zoom *= Wp.zm; C.W = Wp;
     const pu = beatPulse(t); C.P = PCAM * (1 - .07 * pu); C.zoom *= 1 + .012 * pu;
     let sh = 0; for (let i = 1; i < ST.length - 1; i++) { const d = t - ST[i]; if (d >= 0 && d < .7) sh = Math.max(sh, Math.exp(-d * 9)) }
-    C.yaw += Math.sin(t * 1.9) * .35 + Math.sin(t * 93) * .5 * sh; C.pitch += Math.sin(t * 1.3 + 1) * .25 + Math.cos(t * 81) * .5 * sh; C.roll += Math.sin(t * .9) * .3 + Math.sin(t * 67) * .8 * sh;
-    C.x += Math.sin(t * 2.3) * 4; C.y += Math.cos(t * 1.7) * 4;
+    C.yaw += Math.sin(t * w(1.9)) * .35 + Math.sin(t * w(93)) * .5 * sh; C.pitch += Math.sin(t * w(1.3) + 1) * .25 + Math.cos(t * w(81)) * .5 * sh; C.roll += Math.sin(t * w(.9)) * .3 + Math.sin(t * w(67)) * .8 * sh;
+    C.x += Math.sin(t * w(2.3)) * 4; C.y += Math.cos(t * w(1.7)) * 4;
+    if (LP && CFG.loopCam) { const o = CFG.loopCam, a = 2 * Math.PI * t / LP; C.yaw += Math.sin(a) * (o.yaw || 0); C.pitch += Math.sin(a * 2 + 1) * (o.pitch || 0); C.roll += Math.sin(a + 2) * (o.roll || 0); C.x -= Math.sin(a) * (o.x || 0); C.y += Math.cos(a) * (o.y || 0); C.zoom *= 1 + Math.sin(a * 2) * (o.zoom || 0) }
   }
   return C;
 }
@@ -416,27 +423,27 @@ function bgDraw(t, C, Cp) {
   const g = cx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#08120b'); g.addColorStop(.6, '#050906'); g.addColorStop(1, '#040704'); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
   cx.globalCompositeOperation = 'lighter';
   const si = C.si, ox = si * STX;
-  for (const [x, y, z, R, a] of S.glows || []) glow(ox + x, y, z, R, a * (1 + pu * .25), C);
+  let gi = 0; for (const [x, y, z, R, a] of S.glows || []) { const sw = LP && CFG.loopCam ? Math.sin(2 * Math.PI * t / LP + gi * 2.1) * 260 : 0; glow(ox + x + sw, y, z, R, a * (1 + pu * .25) * (LP ? 1 + .18 * Math.sin(2 * Math.PI * t / LP + gi) : 1), C); gi++ }
   if (S.floor !== false) {
     const gs = 240, FY = S.floorY == null ? 520 : S.floorY, cxs = Math.round(C.x / gs) * gs, czs = Math.round(C.z / gs) * gs;
     cx.lineWidth = 1.6;
     for (let pass = 0; pass < 2; pass++) {
       cx.beginPath();
       for (let i = -20; i <= 20; i++) { const x = cxs + i * gs; const major = ((Math.round(x / gs)) % 5 + 5) % 5 === 0; if (major !== !!pass) continue; seg(cx, [x, FY, czs - 7200], [x, FY, czs + 1600], C) }
-      for (let j = -30; j <= 7; j++) { const z = czs + j * gs; const major = ((Math.round(z / gs)) % 5 + 5) % 5 === 0; if (major !== !!pass) continue; seg(cx, [cxs - 4800, FY, z], [cxs + 4800, FY, z], C) }
+      for (let j = -30; j <= 7; j++) { const fo = LP ? ((t / LP * (CFG.loopFloor == null ? 3 : CFG.loopFloor)) % 1) * gs : 0; const z = czs + j * gs + fo; const major = ((Math.round(czs / gs) + j) % 5 + 5) % 5 === 0; if (major !== !!pass) continue; seg(cx, [cxs - 4800, FY, z], [cxs + 4800, FY, z], C) }
       cx.strokeStyle = pass ? 'rgba(140,255,165,1)' : 'rgba(111,242,139,1)'; cx.globalAlpha = (pass ? .34 : .17) * (1 + pu * .5) * (S.floorBoost || 1); cx.stroke();
     }
   }
   cx.globalAlpha = 1;
   const R_ = [], rg = S.rings;
-  if (rg && rg.kind === 'tunnel') for (let i = 0; i < rg.count; i++) { const z = (rg.z0 == null ? -100 : rg.z0) - i * rg.spacing; const fl = rg.flicker === false ? 1 : .55 + .45 * Math.sin(t * 6 + i * 1.7); R_.push([0, 0, z, rg.radius + (rg.jitter ? (i % 3) * rg.jitter : 0), rg.flicker === false ? (rg.alpha || .5) : .55 * fl + .15, rg.lw || 3]) }
+  if (rg && rg.kind === 'tunnel') for (let i = 0; i < rg.count; i++) { const z = (rg.z0 == null ? -100 : rg.z0) - i * rg.spacing; const fl = rg.flicker === false ? 1 : .55 + .45 * Math.sin(t * w(6) + i * 1.7); R_.push([0, 0, z, rg.radius + (rg.jitter ? (i % 3) * rg.jitter : 0), rg.flicker === false ? (rg.alpha || .5) : .55 * fl + .15, rg.lw || 3]) }
   if (rg && rg.kind === 'burst') for (let k = 0; k < rg.count; k++) { const u = C.lt - (rg.delay || .1) - k * .22; if (u < 0) continue; const p = P(u, 0, 2.2, E.out3); R_.push([0, 0, -40 - k * 30, 300 + p * 2200, (1 - p) * .8, 4]) }
   for (const [x, y, z, r, a, lw] of R_) ring(ox + x, y, z, r, C, 'rgba(111,242,139,1)', lw, a * (1 + pu * .4));
   const bx = 4800, by = 3000, bz = 6000;
   for (const p of PART) {
     const wx = (((p.x - C.x + bx / 2) % bx) + bx) % bx - bx / 2 + C.x, wy = (((p.y - C.y + by / 2) % by) + by) % by - by / 2 + C.y, wz = (((p.z - C.z + bz / 2) % bz) + bz) % bz - bz / 2 + C.z;
     const v = cam3(wx, wy, wz, C), q = proj(v, C); if (!q) continue;
-    const tw = .55 + .45 * Math.sin(t * 1.7 + p.ph); const r = Math.max(.6, p.r * q[2]);
+    const tw = .55 + .45 * Math.sin(t * w(1.7) + p.ph); const r = Math.max(.6, p.r * q[2]);
     const vp = cam3(wx, wy, wz, Cp), qp = proj(vp, Cp);
     cx.globalAlpha = Math.min(1, p.a * tw * (.7 + pu * .5)); cx.strokeStyle = cx.fillStyle = 'rgb(140,255,165)';
     const dd = qp ? Math.hypot(q[0] - qp[0], q[1] - qp[1]) : 0;
@@ -458,7 +465,7 @@ function fgDraw(t, C, Cp) {
     fx2.beginPath(); fx2.moveTo(W / 2 + ca * r0 * 1.5, H / 2 + sa * r0); fx2.lineTo(W / 2 + ca * r1 * 1.5, H / 2 + sa * r1); fx2.stroke()
   }
   for (const b of BOKEH) {
-    const x = ((b.x * (W + 280) - C.yaw * b.k * 26 - C.x * .05 * b.k + t * 12 * b.k) % (W + 280) + (W + 280)) % (W + 280) - 140, y = b.y * (H + 100) - 100 - C.pitch * b.k * 14 + Math.sin(t * .5 + b.ph) * 30; const br = b.r * sc;
+    const x = ((b.x * (W + 280) - C.yaw * b.k * 26 - C.x * .05 * b.k + (LP ? 0 : t * 12 * b.k)) % (W + 280) + (W + 280)) % (W + 280) - 140, y = b.y * (H + 100) - 100 - C.pitch * b.k * 14 + Math.sin(t * w(.5) + b.ph) * 30; const br = b.r * sc;
     const g = fx2.createRadialGradient(x, y, 0, x, y, br); g.addColorStop(0, `rgba(111,242,139,${b.a * (1 + pu * .8)})`); g.addColorStop(.7, `rgba(111,242,139,${b.a * .5})`); g.addColorStop(1, 'rgba(111,242,139,0)');
     fx2.fillStyle = g; fx2.fillRect(x - br, y - br, br * 2, br * 2)
   }
@@ -495,6 +502,7 @@ function renderFrame(t) {
 
 async function init() {
   CFG = window.__SCENE__ || await (await fetch(Q.get('scene') || '../scenes/promo-60s.json')).json();
+  LP = +CFG.loop || 0;
   const F = CFG.format || {}; W = F.w || 1920; H = F.h || 1080; FPS = F.fps || 30; STX = CFG.stationX || 14000; PCAM = CFG.perspective || 1500;
   document.documentElement.style.setProperty('--W', W + 'px'); document.documentElement.style.setProperty('--H', H + 'px');
   ST = [0]; CFG.stations.forEach(s => ST.push(ST[ST.length - 1] + s.dur)); DUR = ST[ST.length - 1];
