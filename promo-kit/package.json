@@ -1,0 +1,17 @@
+{
+  "name": "grow-observer-promo-kit",
+  "private": true,
+  "type": "module",
+  "description": "Grow|Observer motion-graphics promo kit (sources). See README.md.",
+  "scripts": {
+    "setup": "bash tools/setup.sh",
+    "scene": "node tools/gen-promo-scene.mjs",
+    "hero": "node tools/gen-hero.mjs && bash tools/stills.sh",
+    "brand": "node tools/brand.mjs",
+    "mockups": "node tools/mockups.mjs",
+    "audio": "python3 audio/audio.py --out out/music.wav",
+    "build": "bash tools/build.sh",
+    "manifest": "node tools/manifest.mjs"
+  },
+  "dependencies": { "playwright": "^1.64.1" }
+}

@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| Docs | Motion-Graphics-Promo-Kit `promo-kit/` (Engine, Szenen, Screenshots, Mockups, Key-Visuals, Brand, Briefing); kein Produktcode geändert | Setup-Smoke-Test ✅ Testrender ✅ Audio ✅ voller 60-s-Render nicht neu gelaufen |
 | Docs | Promo-Demo-Video (`promo/`), `PROMODEMO.md`, drei Agent-Skills (+ generische Kopien), `npm run docs:check`; kein Produktcode geändert | docs:check ✅ version:check ✅ Promo-Build reproduziert ✅ |
 | Docs | Dokumentations-Umbau (Struktur, Sprachen, eine Quelle je Fakt; kein Code geändert) | Links und Fakten gegen den Code geprüft ✅ |
 | B-62 | Echte 404 (HTTP 404 + `not-found.tsx`, App-Ansicht `notFound`), Sorten-Detail-URL `/strains/<id>`, 400 bei kaputter URL-Kodierung | typecheck ✅ lint ✅ vitest 181/181 ✅ API 155/155 ✅ E2E 37/37 ✅ |

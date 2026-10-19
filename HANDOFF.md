@@ -46,6 +46,7 @@ apps/api/
 public/                   manifest, icons, sw.js, sw-policy.js (cache allowlist, executed by tests)
 scripts/                  server.mjs (Next + WebSocket), preview.sh, version.mjs, check-peers.mjs, check-doc-links.mjs (npm run docs:check), test-api.sh, smoke-live.sh
 promo/                    promo demo video (scene.html, build.sh, PROMODEMO.md); generated: music.wav, syslibs/, .frames/ (ignored)
+promo-kit/                motion-graphics promo kit (BRIEF.md, engine/, scenes/, screenshots/, mockups/, stills/, brand/, tools/); sources only, frames live outside the repo
 .claude/skills/           project skills doc-create, doc-maintain, version-bump (generic copies: docs/skills/)
 e2e/                      Playwright specs        docs/  TESTING, CHANGELOG, PROGRESS, MILESTONES, archive/
 version.json              single source for versions        .github/workflows/ci.yml  frontend, API, E2E jobs

@@ -73,6 +73,7 @@ apps/api/       Backend: Hono-API, Drizzle-Schema + Migrationen, Tests, Docker-C
 e2e/            Playwright-Browsertests
 scripts/        Server (WebSocket), Preview, Versionierung, Doku-Linkprüfung
 promo/          Promo-Demo-Video (Szene als HTML, Render-Pipeline, Musik)
+promo-kit/      Motion-Graphics-Promo-Kit (Engine, Szenen, Screenshots, Mockups, Brand, Briefing; nur Quellen)
 .claude/skills/ Agent-Skills (projektspezifisch)
 public/         Manifest, Icons, Service Worker
 docs/           TESTING, CHANGELOG, PROGRESS, MILESTONES, skills/ (generisch), archive/
@@ -97,6 +98,7 @@ Vollständige Karte: [`HANDOFF.md`](./HANDOFF.md) §2 · Architektur: [`ARCHITEC
 | [`docs/PROGRESS.md`](./docs/PROGRESS.md) | Build-Protokoll: eine Zeile je Aufgabe |
 | [`docs/MILESTONES.md`](./docs/MILESTONES.md) | Produktvision: Editionen, Datenschutz, Native Apps |
 | [`promo/PROMODEMO.md`](./promo/PROMODEMO.md) | Promo-Demo-Video (Motion Graphics): Storyboard, Build, Hinweise |
+| [`promo-kit/README.md`](./promo-kit/README.md) | Promo-Kit für andere Agenten: Briefing (`promo-kit/BRIEF.md`), Engine (`promo-kit/docs/ENGINE.md`), Werkzeuge |
 | [`.claude/skills/`](./.claude/skills) · [`docs/skills/`](./docs/skills) | Agent-Skills: Doku anlegen, Doku pflegen, Version/Build erhöhen (projektspezifisch · generisch) |
 
 ---

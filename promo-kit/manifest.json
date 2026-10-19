@@ -1,0 +1,631 @@
+{
+ "generatedBy": "tools/manifest.mjs",
+ "totalBytes": 31424735,
+ "files": [
+  {
+   "path": "audio/audio.py",
+   "bytes": 9122
+  },
+  {
+   "path": "brand/icon-1024.png",
+   "bytes": 351187,
+   "size": "1024x1024"
+  },
+  {
+   "path": "brand/icon-512.png",
+   "bytes": 99236,
+   "size": "512x512"
+  },
+  {
+   "path": "brand/icon.svg",
+   "bytes": 644
+  },
+  {
+   "path": "brand/lockup.png",
+   "bytes": 83219,
+   "size": "1900x420"
+  },
+  {
+   "path": "brand/tokens.json",
+   "bytes": 924
+  },
+  {
+   "path": "brand/wordmark.png",
+   "bytes": 27714,
+   "size": "1500x300"
+  },
+  {
+   "path": "brand/wordmark.svg",
+   "bytes": 352
+  },
+  {
+   "path": "docs/ENGINE.md",
+   "bytes": 8145
+  },
+  {
+   "path": "engine/engine.css",
+   "bytes": 6704
+  },
+  {
+   "path": "engine/engine.js",
+   "bytes": 36931
+  },
+  {
+   "path": "engine/fonts.css",
+   "bytes": 5638
+  },
+  {
+   "path": "engine/fonts/Inter-latin-567244.woff2",
+   "bytes": 48256
+  },
+  {
+   "path": "engine/fonts/Inter-latin-ext-395290.woff2",
+   "bytes": 85068
+  },
+  {
+   "path": "engine/fonts/SpaceGrotesk-latin-ecea81.woff2",
+   "bytes": 22288
+  },
+  {
+   "path": "engine/fonts/SpaceGrotesk-latin-ext-611be2.woff2",
+   "bytes": 18940
+  },
+  {
+   "path": "engine/index.html",
+   "bytes": 1275
+  },
+  {
+   "path": "mockups/browser-calc.png",
+   "bytes": 590228,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-chat.png",
+   "bytes": 522409,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-dashboard.png",
+   "bytes": 751929,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-feed.png",
+   "bytes": 874656,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-forum.png",
+   "bytes": 577529,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-growdetail.png",
+   "bytes": 1212755,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-grows.png",
+   "bytes": 872627,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-hall.png",
+   "bytes": 1923920,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-market.png",
+   "bytes": 833933,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-sim.png",
+   "bytes": 616576,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-strains.png",
+   "bytes": 719120,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/browser-wiki.png",
+   "bytes": 632758,
+   "size": "1800x1170"
+  },
+  {
+   "path": "mockups/phone-calc.png",
+   "bytes": 328122,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-chat.png",
+   "bytes": 377522,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-dash.png",
+   "bytes": 412659,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-drawer.png",
+   "bytes": 277762,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-feed.png",
+   "bytes": 514740,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-forum.png",
+   "bytes": 431478,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-growdetail.png",
+   "bytes": 649229,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-grows.png",
+   "bytes": 759310,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-hall.png",
+   "bytes": 806724,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-market.png",
+   "bytes": 450052,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-sim.png",
+   "bytes": 382680,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-strains.png",
+   "bytes": 380464,
+   "size": "621x1302"
+  },
+  {
+   "path": "mockups/phone-wiki.png",
+   "bytes": 441561,
+   "size": "621x1302"
+  },
+  {
+   "path": "scenes/hero-dashboard-16x9.json",
+   "bytes": 1061
+  },
+  {
+   "path": "scenes/hero-dashboard-1x1.json",
+   "bytes": 979
+  },
+  {
+   "path": "scenes/hero-dashboard-4x5.json",
+   "bytes": 967
+  },
+  {
+   "path": "scenes/hero-dashboard-9x16.json",
+   "bytes": 1052
+  },
+  {
+   "path": "scenes/hero-devices-16x9.json",
+   "bytes": 1409
+  },
+  {
+   "path": "scenes/hero-devices-1x1.json",
+   "bytes": 1112
+  },
+  {
+   "path": "scenes/hero-devices-4x5.json",
+   "bytes": 1183
+  },
+  {
+   "path": "scenes/hero-devices-9x16.json",
+   "bytes": 1194
+  },
+  {
+   "path": "scenes/hero-diary-16x9.json",
+   "bytes": 1069
+  },
+  {
+   "path": "scenes/hero-diary-1x1.json",
+   "bytes": 985
+  },
+  {
+   "path": "scenes/hero-diary-4x5.json",
+   "bytes": 974
+  },
+  {
+   "path": "scenes/hero-diary-9x16.json",
+   "bytes": 1060
+  },
+  {
+   "path": "scenes/hero-logo-16x9.json",
+   "bytes": 895
+  },
+  {
+   "path": "scenes/hero-logo-1x1.json",
+   "bytes": 898
+  },
+  {
+   "path": "scenes/hero-logo-4x5.json",
+   "bytes": 900
+  },
+  {
+   "path": "scenes/hero-logo-9x16.json",
+   "bytes": 901
+  },
+  {
+   "path": "scenes/legacy-scene.html.txt",
+   "bytes": 43494
+  },
+  {
+   "path": "scenes/promo-60s.json",
+   "bytes": 17716
+  },
+  {
+   "path": "screenshots/desktop/d-calc.jpg",
+   "bytes": 213725,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-chat.jpg",
+   "bytes": 173347,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-dashboard.jpg",
+   "bytes": 237423,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-feed.jpg",
+   "bytes": 229699,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-forum.jpg",
+   "bytes": 209246,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-growdetail.jpg",
+   "bytes": 281056,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-grows.jpg",
+   "bytes": 227668,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-hall.jpg",
+   "bytes": 391098,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-market.jpg",
+   "bytes": 248594,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-sim.jpg",
+   "bytes": 205862,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-strains.jpg",
+   "bytes": 240276,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/desktop/d-wiki.jpg",
+   "bytes": 218127,
+   "size": "2160x1350"
+  },
+  {
+   "path": "screenshots/mobile/calc-f.jpg",
+   "bytes": 99164,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/calc-t.jpg",
+   "bytes": 252141,
+   "size": "780x4080"
+  },
+  {
+   "path": "screenshots/mobile/chat-f.jpg",
+   "bytes": 115258,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/dash-f.jpg",
+   "bytes": 116328,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/dash-t.jpg",
+   "bytes": 407169,
+   "size": "780x5570"
+  },
+  {
+   "path": "screenshots/mobile/drawer-f.jpg",
+   "bytes": 78257,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/drawer2-f.jpg",
+   "bytes": 72695,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/feed-f.jpg",
+   "bytes": 149150,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/feed-t.jpg",
+   "bytes": 525878,
+   "size": "780x5038"
+  },
+  {
+   "path": "screenshots/mobile/forum-f.jpg",
+   "bytes": 138540,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/forum-t.jpg",
+   "bytes": 276177,
+   "size": "780x3150"
+  },
+  {
+   "path": "screenshots/mobile/growdetail-f.jpg",
+   "bytes": 184756,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/growdetail-t.jpg",
+   "bytes": 494140,
+   "size": "780x5556"
+  },
+  {
+   "path": "screenshots/mobile/grows-f.jpg",
+   "bytes": 207466,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/grows-t.jpg",
+   "bytes": 281588,
+   "size": "780x2816"
+  },
+  {
+   "path": "screenshots/mobile/hall-f.jpg",
+   "bytes": 212624,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/hall-t.jpg",
+   "bytes": 757205,
+   "size": "780x7200"
+  },
+  {
+   "path": "screenshots/mobile/market-f.jpg",
+   "bytes": 131029,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/market-t.jpg",
+   "bytes": 273474,
+   "size": "780x3456"
+  },
+  {
+   "path": "screenshots/mobile/more-f.jpg",
+   "bytes": 75081,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/sim-f.jpg",
+   "bytes": 113643,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/sim-t.jpg",
+   "bytes": 227914,
+   "size": "780x3626"
+  },
+  {
+   "path": "screenshots/mobile/strains-f.jpg",
+   "bytes": 116472,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/strains-t.jpg",
+   "bytes": 357855,
+   "size": "780x6178"
+  },
+  {
+   "path": "screenshots/mobile/wiki-f.jpg",
+   "bytes": 133910,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/mobile/wiki-t.jpg",
+   "bytes": 245563,
+   "size": "780x3188"
+  },
+  {
+   "path": "screenshots/parts/chat-blank-f.jpg",
+   "bytes": 77789,
+   "size": "780x1688"
+  },
+  {
+   "path": "screenshots/parts/chat-m0.png",
+   "bytes": 22520,
+   "size": "410x106"
+  },
+  {
+   "path": "screenshots/parts/chat-m1.png",
+   "bytes": 66472,
+   "size": "516x150"
+  },
+  {
+   "path": "screenshots/parts/chat-m2.png",
+   "bytes": 18028,
+   "size": "310x119"
+  },
+  {
+   "path": "screenshots/parts/chat-m3.png",
+   "bytes": 74821,
+   "size": "516x148"
+  },
+  {
+   "path": "screenshots/parts/chat-m4.png",
+   "bytes": 23989,
+   "size": "456x110"
+  },
+  {
+   "path": "stills/hero-dashboard-16x9.jpg",
+   "bytes": 368876,
+   "size": "1920x1080"
+  },
+  {
+   "path": "stills/hero-dashboard-1x1.jpg",
+   "bytes": 222418,
+   "size": "1080x1080"
+  },
+  {
+   "path": "stills/hero-dashboard-4x5.jpg",
+   "bytes": 254668,
+   "size": "1080x1350"
+  },
+  {
+   "path": "stills/hero-dashboard-9x16.jpg",
+   "bytes": 310763,
+   "size": "1080x1920"
+  },
+  {
+   "path": "stills/hero-devices-16x9.jpg",
+   "bytes": 424015,
+   "size": "1920x1080"
+  },
+  {
+   "path": "stills/hero-devices-1x1.jpg",
+   "bytes": 257951,
+   "size": "1080x1080"
+  },
+  {
+   "path": "stills/hero-devices-4x5.jpg",
+   "bytes": 302214,
+   "size": "1080x1350"
+  },
+  {
+   "path": "stills/hero-devices-9x16.jpg",
+   "bytes": 376358,
+   "size": "1080x1920"
+  },
+  {
+   "path": "stills/hero-diary-16x9.jpg",
+   "bytes": 384168,
+   "size": "1920x1080"
+  },
+  {
+   "path": "stills/hero-diary-1x1.jpg",
+   "bytes": 234321,
+   "size": "1080x1080"
+  },
+  {
+   "path": "stills/hero-diary-4x5.jpg",
+   "bytes": 277316,
+   "size": "1080x1350"
+  },
+  {
+   "path": "stills/hero-diary-9x16.jpg",
+   "bytes": 347270,
+   "size": "1080x1920"
+  },
+  {
+   "path": "stills/hero-logo-16x9.jpg",
+   "bytes": 379100,
+   "size": "1920x1080"
+  },
+  {
+   "path": "stills/hero-logo-1x1.jpg",
+   "bytes": 238881,
+   "size": "1080x1080"
+  },
+  {
+   "path": "stills/hero-logo-4x5.jpg",
+   "bytes": 266498,
+   "size": "1080x1350"
+  },
+  {
+   "path": "stills/hero-logo-9x16.jpg",
+   "bytes": 311320,
+   "size": "1080x1920"
+  },
+  {
+   "path": "tools/brand.mjs",
+   "bytes": 2540
+  },
+  {
+   "path": "tools/build.sh",
+   "bytes": 2304
+  },
+  {
+   "path": "tools/capture.mjs",
+   "bytes": 5151
+  },
+  {
+   "path": "tools/gen-hero.mjs",
+   "bytes": 6608
+  },
+  {
+   "path": "tools/gen-promo-scene.mjs",
+   "bytes": 11163
+  },
+  {
+   "path": "tools/lib.mjs",
+   "bytes": 1883
+  },
+  {
+   "path": "tools/make-assets.py",
+   "bytes": 1732
+  },
+  {
+   "path": "tools/manifest.mjs",
+   "bytes": 1335
+  },
+  {
+   "path": "tools/mockups.mjs",
+   "bytes": 3427
+  },
+  {
+   "path": "tools/render.mjs",
+   "bytes": 1504
+  },
+  {
+   "path": "tools/setup.sh",
+   "bytes": 1211
+  },
+  {
+   "path": "tools/sheet.py",
+   "bytes": 580
+  },
+  {
+   "path": "tools/still.mjs",
+   "bytes": 984
+  },
+  {
+   "path": "tools/stills.sh",
+   "bytes": 724
+  }
+ ]
+}

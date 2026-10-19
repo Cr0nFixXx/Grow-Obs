@@ -1,0 +1,35 @@
+{
+  "_note": "All on-screen texts are German (target audience: German-speaking growers). Do not translate unless asked. Only demo data; no invented statistics, no store badges, no URL, no 'in development' status.",
+  "brand": { "name": "Grow|Observer", "claim": "Dein Grow. Auf jedem Gerät.", "legend": "Screens mit Demo-Daten" },
+  "hero_scene_60s": [
+    { "station": "intro", "kicker": null, "title": "Grow|Observer", "tags": ["MOBIL · DESKTOP · DEIN GROW"] },
+    { "station": "devices", "kicker": "Mobil · Desktop", "title": "Ein Grow. Alle Geräte." },
+    { "station": "desktop", "kicker": "Desktop", "title": "Dein Dashboard." },
+    { "station": "diary", "kicker": "Grow-Tagebuch", "title": "Jeder Tag. Dokumentiert.", "tags": ["Tag 64 von 98", "Phase: Blüte"] },
+    { "station": "carousel", "kicker": "Community", "title": "Wissen teilen." },
+    { "station": "chat", "kicker": "Chat", "title": "Schreib mit Growern.", "tags": ["Direktnachrichten", "Kostenrechner", "Simulation"] },
+    { "station": "pwa", "kicker": "Mobil", "title": "In Daumen-Reichweite.", "tags": ["Edge-Swipe-Menü", "Installierbar (PWA)"] },
+    { "station": "hyperflight", "title": null },
+    { "station": "outro", "title": "Grow|Observer", "claim": "Dein Grow. Auf jedem Gerät." }
+  ],
+  "hero_stills": {
+    "dashboard": { "kicker": "01 · Dashboard", "title": "Alles auf einen Blick.", "tags": ["Aktive Grows", "Offene Tasks"] },
+    "diary": { "kicker": "03 · Grow-Tagebuch", "title": "Jeder Tag. Dokumentiert.", "tags": ["Phase: Blüte", "Tag 64 von 98"] },
+    "devices": { "kicker": "Mobil · Desktop", "title": "Ein Grow. Alle Geräte." },
+    "logo": { "title": "Grow|Observer", "claim": "Dein Grow. Auf jedem Gerät." }
+  },
+  "safe_feature_phrases": [
+    "Dashboard mit Grows, Tasks, Kosten und Gesundheit",
+    "Grow-Tagebuch mit Phasenverlauf",
+    "Community: Forum, Feed, Hall of Fame, Marktplatz, Wiki, Sorten",
+    "Direktnachrichten",
+    "Kostenrechner und Simulation",
+    "Edge-Swipe-Menü, installierbar als PWA"
+  ],
+  "do_not_say": [
+    "Zahlen aus der Mock-Landingpage (12.400 Grower, 3.200 Showcases, 98 % KI-Treffer)",
+    "Alles, was die KI als arbeitend zeigt (KI-Chat/Assistent nur ehrlich als Hinweis, nicht als Feature bewerben)",
+    "App-Store-/Play-Store-Badges, Download-Links, URLs",
+    "Status wie 'in Entwicklung' im Outro"
+  ]
+}

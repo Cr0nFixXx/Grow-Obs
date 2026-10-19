@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<title>Grow|Observer – Promo Engine</title>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="engine.css">
+</head><body>
+<div id="stage">
+<svg width="0" height="0" style="position:absolute"><defs>
+<filter id="fx" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+ <feGaussianBlur id="fxb" in="SourceGraphic" stdDeviation="0 0" result="bl"/>
+ <feColorMatrix in="bl" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="R"/>
+ <feColorMatrix in="bl" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="G"/>
+ <feColorMatrix in="bl" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="B"/>
+ <feOffset id="fxr" in="R" dx="0" dy="0" result="R2"/><feOffset id="fxbl" in="B" dx="0" dy="0" result="B2"/>
+ <feBlend in="R2" in2="G" mode="screen" result="RG"/><feBlend in="RG" in2="B2" mode="screen"/>
+</filter></defs></svg>
+<div id="fxw">
+  <canvas id="bg"></canvas>
+  <div id="view"><div id="world"></div></div>
+  <canvas id="fg"></canvas>
+</div>
+<div id="legend"></div>
+<div id="flash"></div><div id="grain"></div><div id="vig"></div><div id="fade"></div>
+</div>
+<script src="engine.js"></script>
+</body></html>

@@ -11,6 +11,16 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### Docs – Motion-Graphics-Promo-Kit `promo-kit/` (nach B-62)
+
+Kein Produktcode geändert; Versionen unverändert, nur die Build-Nummer wurde aktualisiert.
+
+- **Kit (nur Quellen, keine Videos):** generische 3D-Engine (`engine/`, Szenen als JSON, Inter/Space Grotesk offline), Hero-Szene `scenes/promo-60s.json` (60 s, 16:9, 140 BPM) und 16 Key-Visual-Szenen, Soundtrack-Synthese aus den Szenendaten (`audio/audio.py`), Render-Werkzeuge mit Wiederaufnahme und Neustart bei Chromium-Absturz.
+- **Material:** 38 echte Demo-Screenshots (Mock-Modus, mobil und Desktop), 25 transparente Geräte-Mockups, 16 Key-Visuals (4 Motive × 4 Formate), Brand-Assets (Icon als exakte Kopie von `public/icon.svg`, Wortmarke, Lockup, `tokens.json`).
+- **Doku (Englisch):** `promo-kit/README.md`, `BRIEF.md` (Ehrlichkeitsregeln, Look, Story, QA-Liste), `docs/ENGINE.md`, `copy.json` (deutsche Bildschirmtexte), `manifest.json`.
+- **Doc-Map:** `CLAUDE.md` §5, `README.md` und `HANDOFF.md` kennen `promo-kit/`.
+- **Geprüft:** `tools/setup.sh` mit Smoke-Test ✅, Testrender (120 Bilder → mp4) ✅, Soundtrack-Lauf (60,0 s) ✅, Kontaktbögen aller Key-Visuals gesichtet ✅. **Nicht geprüft:** vollständiger 60-s-Render mit dem Kit (die Vorgänger-Pipeline lief komplett).
+
 ### Docs – Promo-Demo, Agent-Skills und Doku-Linkprüfung (nach B-62)
 
 Kein Produktcode geändert; Versionen unverändert, nur die Build-Nummer wurde aktualisiert.
