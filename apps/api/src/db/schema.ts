@@ -449,6 +449,8 @@ export const conversations = pgTable("conversations", {
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   /** Direktnachricht (B-59): sortierte Nutzer-IDs "a:b" → höchstens eine Konversation je Paar. */
   directKey: text("direct_key"),
+  /** Gruppen (B-65): sehen später Beigetretene ältere Nachrichten? Aus = nur ab Beitritt (Standard). */
+  historyVisible: boolean("history_visible").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("conversations_direct_key_uq").on(t.directKey).where(sql`${t.directKey} IS NOT NULL`)]);
 
@@ -459,6 +461,10 @@ export const conversationMembers = pgTable(
     userId: uuid("user_id").notNull().references(() => users.id),
     /** Leseposition (B-59): Nachrichten anderer nach diesem Zeitpunkt gelten als ungelesen. */
     lastReadAt: timestamp("last_read_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Gruppen (B-65): `admin` verwaltet Mitglieder, Themen und Einstellungen; Direktnachrichten nutzen `member`. */
+    role: memberRoleEnum("role").notNull().default("member"),
+    /** Gruppen (B-65): Beitrittszeitpunkt – Ausgangspunkt für „Ungelesen“ und (ohne `history_visible`) für den sichtbaren Verlauf. */
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("conversation_members_uq").on(t.conversationId, t.userId), index("conversation_members_user_idx").on(t.userId)]
 );
@@ -471,7 +477,60 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   /** Bild-Anhang (0002): /media/<id> */
   imageUrl: text("image_url"),
-}, (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt)]);
+  /** Gruppen (B-65): Thema der Nachricht (Direktnachrichten: leer). */
+  topicId: uuid("topic_id"),
+  /** `user` = normale Nachricht, `system` = Hinweiszeile („Anna hat Bernd eingeladen“): zählt nicht als ungelesen, löst keinen Push aus. */
+  kind: text("kind").notNull().default("user"),
+}, (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt), index("messages_topic_created_idx").on(t.topicId, t.createdAt)]);
+
+/* ----------------------------- Gruppen: Themen, Einladungen (B-65) ----------------------------- */
+/** Themen einer Gruppe (wie Telegram-Foren): jede Gruppe hat ein Standardthema „Allgemein“. Private Themen sehen nur ihre Mitglieder und die Gruppen-Admins. */
+export const conversationTopics = pgTable("conversation_topics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  emoji: text("emoji").notNull().default(""),
+  isDefault: boolean("is_default").notNull().default(false),
+  isPrivate: boolean("is_private").notNull().default(false),
+  /** Nur Gruppen-Admins schreiben (Ankündigungen). */
+  adminsOnly: boolean("admins_only").notNull().default(false),
+  /** Geschlossen: nur Gruppen-Admins schreiben noch (Verlauf bleibt lesbar). */
+  closed: boolean("closed").notNull().default(false),
+  pinned: boolean("pinned").notNull().default(false),
+  position: integer("position").notNull().default(0),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("conversation_topics_conversation_idx").on(t.conversationId, t.position)]);
+
+/** Mitglieder privater Themen. */
+export const topicMembers = pgTable("topic_members", {
+  topicId: uuid("topic_id").notNull().references(() => conversationTopics.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+}, (t) => [uniqueIndex("topic_members_uq").on(t.topicId, t.userId)]);
+
+/** Persönlicher Stand je Thema: Leseposition (fehlt = Beitritt) und Stummschaltung. */
+export const topicUserState = pgTable("topic_user_state", {
+  topicId: uuid("topic_id").notNull().references(() => conversationTopics.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+  muted: boolean("muted").notNull().default(false),
+}, (t) => [uniqueIndex("topic_user_state_uq").on(t.topicId, t.userId)]);
+
+/** Einladungen in Gruppen: Beitritt nur nach Annahme; offene Einladungen laufen nach 7 Tagen ab. */
+export const conversationInvites = pgTable("conversation_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  inviterId: uuid("inviter_id").references(() => users.id, { onDelete: "set null" }),
+  inviteeId: uuid("invitee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** pending | accepted | declined | revoked */
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
+}, (t) => [
+  uniqueIndex("conversation_invites_pending_uq").on(t.conversationId, t.inviteeId).where(sql`${t.status} = 'pending'`),
+  index("conversation_invites_invitee_idx").on(t.inviteeId, t.status),
+]);
 
 /* ----------------------------- Benachrichtigungen ----------------------------- */
 export const notifications = pgTable("notifications", {

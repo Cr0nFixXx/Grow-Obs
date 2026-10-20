@@ -93,11 +93,18 @@ export function pushInBackground(userId: string, input: PushInput): Promise<Push
   });
 }
 
-/** Neue Direktnachricht → Push an alle anderen Mitglieder (Kategorie `messages`; mit Vorschau: Absender + Textanfang). */
-export async function pushChatMessage(args: { members: string[]; senderId: string; conversationId: string; text: string; hasImage: boolean }): Promise<void> {
-  const recipients = args.members.filter((id) => id !== args.senderId);
+/**
+ * Neue Chatnachricht → Push an die anderen Empfänger (Kategorie `messages`; mit Vorschau: Absender + Textanfang, in Gruppen
+ * Gruppenname als Titel und „Absender: Text“). `members` sind bereits die Personen, die das Thema sehen; stumm geschaltete
+ * Themen (`topicId`) erhalten keinen Push.
+ */
+export async function pushChatMessage(args: { members: string[]; senderId: string; conversationId: string; text: string; hasImage: boolean; group?: { name: string; topicId: string; muted: Set<string> } }): Promise<void> {
+  const recipients = args.members.filter((id) => id !== args.senderId && !args.group?.muted.has(id));
   if (!recipients.length || !pushConfigured()) return;
   const [sender] = await db.select({ name: users.name }).from(users).where(eq(users.id, args.senderId)).limit(1);
   const snippet = args.text.trim() ? args.text.trim().replace(/\s+/g, " ") : (args.hasImage ? "Bild" : "");
-  await Promise.all(recipients.map((id) => pushInBackground(id, { category: "messages", title: sender?.name ?? "Neue Nachricht", body: snippet, url: "/chat", tag: `go-chat-${args.conversationId.slice(0, 8)}` })));
+  const title = args.group ? (args.group.name || "Gruppe") : (sender?.name ?? "Neue Nachricht");
+  const body = args.group ? `${sender?.name ?? "Jemand"}: ${snippet}` : snippet;
+  const tag = `go-chat-${args.conversationId.slice(0, 8)}${args.group ? `-${args.group.topicId.slice(0, 8)}` : ""}`;
+  await Promise.all(recipients.map((id) => pushInBackground(id, { category: "messages", title, body, url: "/chat", tag })));
 }

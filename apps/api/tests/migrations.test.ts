@@ -14,6 +14,19 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0014 ergänzt Gruppenchats: Rollen, Beitrittszeit, Themen, Einladungen (eine offene je Person und Gruppe)", () => {
+    const sql = readFileSync(`${dir}0014_chat_groups.sql`, "utf8");
+    expect(sql).toContain('ALTER TABLE "conversations" ADD COLUMN "history_visible" boolean DEFAULT false NOT NULL');
+    expect(sql).toContain('ALTER TABLE "conversation_members" ADD COLUMN "role" "member_role" DEFAULT \'member\' NOT NULL');
+    expect(sql).toContain('ADD COLUMN "joined_at" timestamp with time zone DEFAULT now() NOT NULL');
+    expect(sql).toContain('ALTER TABLE "messages" ADD COLUMN "kind" text DEFAULT \'user\' NOT NULL');
+    expect(sql).toMatch(/CREATE TABLE "conversation_topics"/);
+    expect(sql).toMatch(/"conversation_topics_conversation_id_conversations_id_fk" FOREIGN KEY \("conversation_id"\) REFERENCES "public"\."conversations"\("id"\) ON DELETE cascade/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX "topic_members_uq"/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX "topic_user_state_uq"/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX "conversation_invites_pending_uq" ON "conversation_invites" USING btree \("conversation_id","invitee_id"\) WHERE "status" = 'pending'/);
+  });
+
   it("0013 legt Push-Abos (je Gerät, eindeutiger Endpunkt, mit Sitzung/Konto kaskadierend) und Push-Einstellungen an", () => {
     const sql = readFileSync(`${dir}0013_web_push.sql`, "utf8");
     expect(sql).toMatch(/CREATE TABLE "push_subscriptions"/);

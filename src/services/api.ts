@@ -5,6 +5,9 @@ import type {
 } from "@/types";
 import type {
   ActivityService,
+  GroupDetail,
+  InviteResult,
+  MyGroupInvite,
   AdminContentItem,
   AdminService,
   AdminStats,
@@ -122,12 +125,28 @@ const forumService: ForumService = {
 
 const chatService: ChatService = {
   listConversations: () => http.get<ConversationItem[]>("/chat"),
-  getMessages: (id) => http.get<ChatMessage[]>(`/chat/${id}/messages`),
-  sendMessage: (id, text, image) => http.post<ChatMessage>(`/chat/${id}/messages`, image ? { text, image } : { text }),
+  getMessages: (id, topicId) => http.get<ChatMessage[]>(`/chat/${id}/messages${topicId ? `?topicId=${topicId}` : ""}`),
+  sendMessage: (id, text, image, topicId) => http.post<ChatMessage>(`/chat/${id}/messages`, { text, ...(image ? { image } : {}), ...(topicId ? { topicId } : {}) }),
   startDirect: (userId) => http.post<ConversationItem>("/chat", { userId }),
-  markRead: async (id) => { await http.post<void>(`/chat/${id}/read`, {}); },
+  markRead: async (id, topicId) => { await http.post<void>(`/chat/${id}/read`, topicId ? { topicId } : {}); },
   unreadTotal: async () => (await http.get<{ total: number }>("/chat/unread")).total,
   searchPeople: (query) => http.get<ChatPerson[]>(`/chat/users?q=${encodeURIComponent(query)}`),
+  createGroup: (input) => http.post<GroupDetail & { skipped: InviteResult["skipped"] }>("/chat/groups", input),
+  getGroup: (id) => http.get<GroupDetail>(`/chat/groups/${id}`),
+  updateGroup: (id, patch) => http.patch<GroupDetail>(`/chat/groups/${id}`, patch),
+  inviteToGroup: (id, userIds) => http.post<InviteResult>(`/chat/groups/${id}/invites`, { userIds }),
+  revokeInvite: async (id, inviteId) => { await http.delete<void>(`/chat/groups/${id}/invites/${inviteId}`); },
+  listInvites: () => http.get<MyGroupInvite[]>("/chat/invites"),
+  acceptInvite: (inviteId) => http.post<{ conversationId: string }>(`/chat/invites/${inviteId}/accept`, {}),
+  declineInvite: async (inviteId) => { await http.post<void>(`/chat/invites/${inviteId}/decline`, {}); },
+  removeMember: async (id, userId) => { await http.delete<void>(`/chat/groups/${id}/members/${userId}`); },
+  leaveGroup: async (id) => { await http.post<void>(`/chat/groups/${id}/leave`, {}); },
+  createTopic: (id, input) => http.post<GroupDetail>(`/chat/groups/${id}/topics`, input),
+  updateTopic: (id, topicId, patch) => http.patch<GroupDetail>(`/chat/groups/${id}/topics/${topicId}`, patch),
+  deleteTopic: async (id, topicId) => { await http.delete<void>(`/chat/groups/${id}/topics/${topicId}`); },
+  moveTopic: (id, topicId, direction) => http.post<GroupDetail>(`/chat/groups/${id}/topics/${topicId}/move`, { direction }),
+  setTopicMembers: (id, topicId, userIds) => http.put<GroupDetail>(`/chat/groups/${id}/topics/${topicId}/members`, { userIds }),
+  muteTopic: async (id, topicId, muted) => { await http.put<void>(`/chat/groups/${id}/topics/${topicId}/me`, { muted }); },
 };
 
 const notificationService: NotificationService = {

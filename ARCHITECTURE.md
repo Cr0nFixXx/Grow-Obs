@@ -115,6 +115,17 @@ browser ── WebSocket /api/realtime/ws ──┐                      ┌─�
   listener that closes foreign sockets. The hub registers itself on the first API call in `globalThis.__growRealtimeUpgrade`.
 - Reverse proxy: forward `Upgrade`/`Connection` for `/realtime/ws`, disable buffering for `/realtime/stream`, read timeout ≥ 60 s (nginx example: `apps/api/README.md`).
 
+### Group chats (B-65)
+
+Conversations with `is_group` get roles, topics and invitations; direct messages are unchanged (`topic_id` null).
+
+- Tables (`0014`): `conversations.history_visible`; `conversation_members.role|joined_at`; `conversation_topics` (name, emoji, `is_default`, `is_private`, `admins_only`, `closed`, `pinned`, `position`); `topic_members` (private topics); `topic_user_state` (`last_read_at`, `muted`); `conversation_invites` (`pending|accepted|declined|revoked|expired`, 7 days, partial unique index per group and invitee while pending); `messages.topic_id|kind` (`system` = notice line).
+- Rules: joining only by accepted invitation; only admins invite, remove, rename and manage topics; anyone may leave (no admin left → oldest member is promoted; empty group is deleted). Members + open invitations ≤ 20, enforced under `SELECT … FOR UPDATE` on the conversation row. A private topic is visible to its members and all admins; closed or `admins_only` topics accept messages from admins only.
+- History: group messages are returned only from `joined_at` on unless `history_visible`. Unread is **per topic** (own and system messages never count; reading = `topic_user_state.last_read_at`); the list and `/chat/unread` sum all accessible, non-muted topics.
+- Realtime: `chat.message` carries `topicId` and goes to the topic audience (private topics: members + admins); `chat.group {conversationId}` tells all members (and invitees) to reload members, topics and invitations; `chat.typing` may carry `topicId`.
+- Push: title = group name, body "Sender: text" (neutral text unless preview is on), tag per topic, muted members skipped, system lines never push. An invitation is a normal notification (category `messages`).
+- Code: `apps/api/src/lib/chat-groups.ts` (limits, access, audience, system lines, unread), `routes/chat-groups.ts` (mounted under `/chat`), `routes/chat.ts`; frontend `src/lib/chat-groups.ts` (pure helpers), `useChat` (`group`, `activeTopic`, `groupActions`), `src/components/{NewGroup,GroupInfo,GroupTopics,GroupInvites,TopicBar,PeoplePicker}.tsx`. Groups need the server: the demo (mock) mode hides the buttons.
+
 ### Web push (B-63)
 
 Notifications reach devices whose app is closed. In-app delivery stays the source of truth; push is an add-on whose failure never fails a request.

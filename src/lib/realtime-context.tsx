@@ -8,7 +8,7 @@ type Listener = (event: RealtimeEvent) => void;
 interface RealtimeValue {
   status: RealtimeStatus;
   subscribe: (topic: string) => () => void;
-  typing: (conversationId: string) => void;
+  typing: (conversationId: string, topicId?: string) => void;
   on: (listener: Listener) => () => void;
 }
 
@@ -46,7 +46,7 @@ export function RealtimeProvider({ children, enabled = !config.useMock }: { chil
   }, [status]);
 
   const subscribe = useCallback((topic: string) => client?.subscribe(topic) ?? (() => undefined), [client]);
-  const typing = useCallback((conversationId: string) => client?.typing(conversationId), [client]);
+  const typing = useCallback((conversationId: string, topicId?: string) => client?.typing(conversationId, topicId), [client]);
   const on = useCallback((listener: Listener) => { listeners.current.add(listener); return () => { listeners.current.delete(listener); }; }, []);
   const value = useMemo(() => ({ status, subscribe, typing, on }), [status, subscribe, typing, on]);
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

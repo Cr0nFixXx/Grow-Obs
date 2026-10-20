@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-65 | Gruppenchats: Einladung mit Annahme, Rollen (Admin), Gruppenbild, Themen (privat, nur Admins, geschlossen, angeheftet, stumm, Ungelesen je Thema), Verlauf einstellbar, Hinweiszeilen, Push je Thema (Migration 0014) | typecheck ✅ lint ✅ vitest 222/222 ✅ API 219/219 ✅ E2E 39 ✅ (1 übersprungen) build ✅ · echtes Gerät nicht geprüft |
 | B-64 | PNG-App-Icons (192, 512, maskable 512) aus `icon.svg`, ≈ 190 KB; vom Manifest referenziert, fehlten seit `2a81529` | vitest ✅ build ✅ · Launcher-Zuschnitt/Android-Installation nicht geprüft |
 | B-63 | Web-Push: Kategorien, neutraler Sperrbildschirm (Vorschau optional), Ruhezeit, kein Push bei Online, Geräte je Sitzung, VAPID über `push:keys`, Feature-Flag `push` (Migration 0013) | typecheck ✅ lint ✅ vitest 203/203 ✅ API 192/192 ✅ E2E 38 ✅ (1 übersprungen) · echte Gerätezustellung nicht geprüft |
 | Docs | Motion-Graphics-Promo-Kit `promo-kit/` (Engine, Szenen, Screenshots, Mockups, Key-Visuals, Brand, Briefing); kein Produktcode geändert | Setup-Smoke-Test ✅ Testrender ✅ Audio ✅ nahtloser Loop ✅ voller 60-s-Render nicht neu gelaufen |

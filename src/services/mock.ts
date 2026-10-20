@@ -448,6 +448,8 @@ const mockPeople: ChatPerson[] = seedConversations.map((c) => ({ id: `p-${c.id}`
 const readConversations = new Set<string>();
 const extraConversations: ConversationItem[] = [];
 
+const noGroups = async (): Promise<never> => { throw new Error("Gruppen brauchen den Server"); };
+
 const chatService: ChatService = {
   async listConversations() {
     await delay();
@@ -482,6 +484,23 @@ const chatService: ChatService = {
     const q = query.trim().toLowerCase();
     return q.length < 2 ? [] : mockPeople.filter((p) => p.name.toLowerCase().includes(q) || p.handle.includes(q)).slice(0, 10);
   },
+  // Gruppenchats (B-65) brauchen den Server (Einladungen, Rollen, Themen): die Oberfläche blendet sie in der Demo aus.
+  createGroup: noGroups,
+  getGroup: noGroups,
+  updateGroup: noGroups,
+  inviteToGroup: noGroups,
+  revokeInvite: noGroups,
+  async listInvites() { return []; },
+  acceptInvite: noGroups,
+  declineInvite: noGroups,
+  removeMember: noGroups,
+  leaveGroup: noGroups,
+  createTopic: noGroups,
+  updateTopic: noGroups,
+  deleteTopic: noGroups,
+  moveTopic: noGroups,
+  setTopicMembers: noGroups,
+  muteTopic: noGroups,
 };
 
 /** Gelesen-Status bleibt für die Session erhalten. */

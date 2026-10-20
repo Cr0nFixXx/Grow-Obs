@@ -1,36 +1,34 @@
 import { Hono } from "hono";
 import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
-import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { imageRef } from "../lib/media-ref.ts";
 import { db } from "../db/client.ts";
-import { conversationMembers, conversations, messages, users } from "../db/schema.ts";
+import { conversationMembers, conversations, messages, topicUserState, users } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { ago } from "../lib/time.ts";
 import { pageLimit, uuid } from "../lib/validation.ts";
 import { onlineAmong, publish } from "../realtime/hub.ts";
 import { pushChatMessage } from "../lib/push.ts";
+import { canWrite, defaultTopic, groupUnreadByTopic, mutedUsers, requireAccess, requireTopic, topicAudience, visibleTopics } from "../lib/chat-groups.ts";
+import { chatGroups } from "./chat-groups.ts";
 import { announceTyping } from "../realtime/commands.ts";
 
 export const chat = new Hono<AuthEnv>();
 chat.use("*", requireAuth);
-
-/** Mitglieder-IDs der Konversation; 404, wenn der Nutzer kein Mitglied ist. */
-async function requireMembers(id: string, userId: string): Promise<string[]> {
-  const rows = await db.select({ userId: conversationMembers.userId }).from(conversationMembers).where(eq(conversationMembers.conversationId, id));
-  if (!rows.some((r) => r.userId === userId)) throw new HTTPException(404, { message: "Konversation nicht gefunden" });
-  return rows.map((r) => r.userId);
-}
+// Gruppen, Themen, Einladungen (B-65) – vor den `/:id/…`-Routen eingehängt.
+chat.route("/", chatGroups);
 
 export interface ConversationDto {
   id: string; name: string; avatar: string; online: boolean; last: string; time: string; unread: number;
   isGroup: boolean; partnerId: string | null;
+  /** Gruppen: eigene Rolle und Mitgliederzahl (Direktnachrichten: null/2). */
+  role: "admin" | "moderator" | "member" | null; memberCount: number;
 }
 
 /** Konversationen des Nutzers (neueste Aktivität zuerst) mit Gegenstelle, Online-Status und ungelesenen Nachrichten. */
 async function conversationList(userId: string, opts: { ids?: string[]; limit?: number; includeEmpty?: boolean } = {}): Promise<ConversationDto[]> {
-  const mine = await db.select({ cv: conversations, lastReadAt: conversationMembers.lastReadAt })
+  const mine = await db.select({ cv: conversations, role: conversationMembers.role })
     .from(conversationMembers).innerJoin(conversations, eq(conversations.id, conversationMembers.conversationId))
     .where(and(eq(conversationMembers.userId, userId), opts.ids ? inArray(conversations.id, opts.ids) : undefined));
   if (!mine.length) return [];
@@ -38,15 +36,29 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
 
   const members = await db.select({ conversationId: conversationMembers.conversationId, id: users.id, name: users.name, avatar: users.avatarUrl })
     .from(conversationMembers).innerJoin(users, eq(users.id, conversationMembers.userId)).where(inArray(conversationMembers.conversationId, ids));
-  const lastRows = await db.execute<{ conversation_id: string; text: string; image_url: string | null; created_at: Date }>(sql`
-    SELECT DISTINCT ON (conversation_id) conversation_id, text, image_url, created_at FROM messages
-    WHERE conversation_id IN ${ids} ORDER BY conversation_id, created_at DESC`);
+  // Letzte sichtbare Nachricht: in Gruppen nur ab Beitritt (außer Verlauf offen) und nur aus Themen, die der Nutzer sehen darf.
+  const lastRows = await db.execute<{ conversation_id: string; text: string; image_url: string | null; created_at: Date; kind: string; sender_id: string | null; sender_name: string | null }>(sql`
+    SELECT DISTINCT ON (m.conversation_id) m.conversation_id, m.text, m.image_url, m.created_at, m.kind, m.sender_id, u.name AS sender_name
+    FROM messages m
+    JOIN conversations c ON c.id = m.conversation_id
+    JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ${userId}
+    LEFT JOIN conversation_topics t ON t.id = m.topic_id
+    LEFT JOIN users u ON u.id = m.sender_id
+    WHERE m.conversation_id IN ${ids} AND (NOT c.is_group OR (
+      (c.history_visible OR m.created_at >= cm.joined_at) AND t.id IS NOT NULL
+      AND (NOT t.is_private OR cm.role = 'admin' OR EXISTS (SELECT 1 FROM topic_members tm WHERE tm.topic_id = t.id AND tm.user_id = ${userId}))))
+    ORDER BY m.conversation_id, m.created_at DESC`);
   const unreadRows = await db.execute<{ conversation_id: string; n: number }>(sql`
     SELECT m.conversation_id, count(*)::int AS n FROM messages m
+    JOIN conversations c ON c.id = m.conversation_id AND NOT c.is_group
     JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ${userId}
     WHERE m.conversation_id IN ${ids} AND m.sender_id <> ${userId} AND m.created_at > cm.last_read_at GROUP BY m.conversation_id`);
   const last = new Map(lastRows.map((r) => [r.conversation_id, r]));
   const unread = new Map(unreadRows.map((r) => [r.conversation_id, r.n]));
+  // Gruppen: Summe der Themen ohne stumm geschaltete.
+  for (const g of await groupUnreadByTopic(userId, ids)) if (!g.muted) unread.set(g.conversationId, (unread.get(g.conversationId) ?? 0) + g.n);
+  const memberCounts = new Map<string, number>();
+  for (const m of members) memberCounts.set(m.conversationId, (memberCounts.get(m.conversationId) ?? 0) + 1);
   const partners = new Map<string, { id: string; name: string; avatar: string | null }>();
   for (const cv of mine.map((m) => m.cv).filter((c) => !c.isGroup)) {
     const others = members.filter((m) => m.conversationId === cv.id && m.id !== userId);
@@ -56,7 +68,7 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
 
   const rows = mine
     .filter(({ cv }) => opts.includeEmpty || cv.isGroup || last.has(cv.id) || cv.createdBy === userId || cv.createdBy === null)
-    .map(({ cv }) => {
+    .map(({ cv, role }) => {
       const partner = partners.get(cv.id);
       const lastMessage = last.get(cv.id);
       const at = new Date(lastMessage?.created_at ?? cv.createdAt).getTime();
@@ -65,16 +77,26 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
         name: partner?.name ?? cv.name,
         avatar: partner ? (partner.avatar ?? "") : (cv.avatarUrl ?? ""),
         online: partner ? online.has(partner.id) : false,
-        last: lastMessage ? (lastMessage.text || (lastMessage.image_url ? "📷 Bild" : "")) : "",
+        last: lastMessage ? lastPreview(lastMessage, cv.isGroup, userId) : "",
         time: lastMessage ? ago(lastMessage.created_at) : "",
         unread: unread.get(cv.id) ?? 0,
         isGroup: cv.isGroup,
         partnerId: partner?.id ?? null,
+        role: cv.isGroup ? role : null,
+        memberCount: memberCounts.get(cv.id) ?? 0,
       };
       return { dto, at };
     })
     .sort((a, b) => b.at - a.at);
   return rows.slice(0, opts.limit ?? 200).map((r) => r.dto);
+}
+
+/** Vorschauzeile der Konversationsliste; in Gruppen mit Absender („Anna: Hallo“), Hinweiszeilen ohne Präfix. */
+function lastPreview(m: { text: string; image_url: string | null; kind: string; sender_id: string | null; sender_name: string | null }, isGroup: boolean, userId: string): string {
+  const text = m.text || (m.image_url ? "📷 Bild" : "");
+  if (!isGroup || m.kind === "system") return text;
+  const who = m.sender_id === userId ? "Du" : (m.sender_name ?? "").split(" ")[0] || "Jemand";
+  return `${who}: ${text}`;
 }
 
 chat.get("/", async (c) => c.json(await conversationList(c.get("userId"), { limit: pageLimit(c.req.query("limit")) })));
@@ -83,9 +105,12 @@ chat.get("/", async (c) => c.json(await conversationList(c.get("userId"), { limi
 chat.get("/unread", async (c) => {
   const userId = c.get("userId");
   const [row] = await db.execute<{ n: number }>(sql`
-    SELECT count(*)::int AS n FROM messages m JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ${userId}
+    SELECT count(*)::int AS n FROM messages m
+    JOIN conversations cv ON cv.id = m.conversation_id AND NOT cv.is_group
+    JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ${userId}
     WHERE m.sender_id <> ${userId} AND m.created_at > cm.last_read_at`);
-  return c.json({ total: row?.n ?? 0 });
+  const groups = (await groupUnreadByTopic(userId)).filter((g) => !g.muted).reduce((sum, g) => sum + g.n, 0);
+  return c.json({ total: (row?.n ?? 0) + groups });
 });
 
 /** Personensuche für „Neue Nachricht“ (mind. 2 Zeichen, höchstens 10 Treffer, ohne sich selbst). */
@@ -118,45 +143,78 @@ chat.post("/", rateLimit({ name: "chat-start", limit: 30, windowMs: 10 * 60_000,
   return c.json(item, created ? 201 : 200);
 });
 
+/** Nachricht für die Oberfläche; `senderName` zeigt die Gruppenansicht, `kind: "system"` sind Hinweiszeilen. */
+function messageDto(m: typeof messages.$inferSelect, userId: string, senderName: string | null, now = false) {
+  return {
+    id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined,
+    time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
+    senderId: m.senderId, senderName: senderName ?? "", kind: m.kind === "system" ? "system" : "user", topicId: m.topicId,
+  };
+}
+
 chat.get("/:id/messages", async (c) => {
   const userId = c.get("userId");
   const id = uuid(c.req.param("id"));
-  await requireMembers(id, userId);
-  const msgs = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.conversationId, id))
-    .orderBy(desc(messages.createdAt)).limit(pageLimit(c.req.query("limit")));
-  return c.json(
-    msgs.reverse().map((m) => ({ id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined, time: ago(m.createdAt), createdAt: m.createdAt.toISOString() }))
-  );
+  const access = await requireAccess(id, userId);
+  const limit = pageLimit(c.req.query("limit"));
+  const conds = [eq(messages.conversationId, id)];
+  if (access.cv.isGroup) {
+    // Thema (Standard: „Allgemein“), nur wenn sichtbar; ohne offenen Verlauf nur ab Beitritt.
+    const topicId = c.req.query("topicId");
+    const topic = topicId ? await requireTopic(id, uuid(topicId), access) : await defaultTopic(id);
+    conds.push(eq(messages.topicId, topic.id));
+    if (!access.cv.historyVisible) conds.push(sql`${messages.createdAt} >= ${access.me.joinedAt.toISOString()}::timestamptz`);
+  }
+  const rows = await db.select({ m: messages, senderName: users.name }).from(messages).leftJoin(users, eq(users.id, messages.senderId))
+    .where(and(...conds)).orderBy(desc(messages.createdAt)).limit(limit);
+  return c.json(rows.reverse().map((r) => messageDto(r.m, userId, r.senderName)));
 });
 
 chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 60_000, keys: userKey }), async (c) => {
   const id = uuid(c.req.param("id"));
   const userId = c.get("userId");
-  const members = await requireMembers(id, userId);
-  const body = z.object({ text: z.string().trim().max(10000).default(""), image: imageRef.optional() })
+  const access = await requireAccess(id, userId);
+  const body = z.object({ text: z.string().trim().max(10000).default(""), image: imageRef.optional(), topicId: z.string().uuid().optional() })
     .refine((v) => v.text.length > 0 || !!v.image, "Text oder Bild erforderlich")
     .safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
+  let topic = null;
+  if (access.cv.isGroup) {
+    topic = body.data.topicId ? await requireTopic(id, body.data.topicId, access) : await defaultTopic(id);
+    if (!canWrite(topic, access.isAdmin)) return c.json({ error: topic.closed ? "Dieses Thema ist geschlossen" : "In diesem Thema dürfen nur Admins schreiben" }, 403);
+  }
   const [m] = await db
     .insert(messages)
-    .values({ conversationId: id, senderId: userId, text: body.data.text, imageUrl: body.data.image ?? null })
+    .values({ conversationId: id, senderId: userId, text: body.data.text, imageUrl: body.data.image ?? null, topicId: topic?.id ?? null })
     .returning();
-  // Wer schreibt, hat den Chat gelesen (eigene Nachricht erhöht nie den eigenen Zähler).
-  await db.update(conversationMembers).set({ lastReadAt: m!.createdAt }).where(and(eq(conversationMembers.conversationId, id), eq(conversationMembers.userId, userId)));
-  await publish({ users: members }, { type: "chat.message", conversationId: id, messageId: m!.id, senderId: userId });
-  void pushChatMessage({ members, senderId: userId, conversationId: id, text: m!.text, hasImage: !!m!.imageUrl }).catch(() => undefined);
-  return c.json({ id: m!.id, from: "me", text: m!.text, image: m!.imageUrl ?? undefined, time: "jetzt", createdAt: m!.createdAt.toISOString() }, 201);
+  // Wer schreibt, hat den Chat bzw. das Thema gelesen (eigene Nachricht erhöht nie den eigenen Zähler).
+  if (topic) {
+    await db.insert(topicUserState).values({ topicId: topic.id, userId, lastReadAt: m!.createdAt }).onConflictDoUpdate({ target: [topicUserState.topicId, topicUserState.userId], set: { lastReadAt: m!.createdAt } });
+  } else {
+    await db.update(conversationMembers).set({ lastReadAt: m!.createdAt }).where(and(eq(conversationMembers.conversationId, id), eq(conversationMembers.userId, userId)));
+  }
+  const audience = topic ? await topicAudience(access, topic) : access.memberIds;
+  await publish({ users: audience }, { type: "chat.message", conversationId: id, ...(topic ? { topicId: topic.id } : {}), messageId: m!.id, senderId: userId });
+  const group = topic ? { name: access.cv.name, topicId: topic.id, muted: await mutedUsers(topic.id) } : undefined;
+  void pushChatMessage({ members: audience, senderId: userId, conversationId: id, text: m!.text, hasImage: !!m!.imageUrl, group }).catch(() => undefined);
+  return c.json(messageDto(m!, userId, null, true), 201);
 });
 
-/** Leseposition setzen: alles bis jetzt gilt als gelesen. Andere Geräte des Nutzers aktualisieren ihr Badge. */
+/** Leseposition setzen: alles bis jetzt gilt als gelesen (Gruppen: je Thema, ohne `topicId` alle sichtbaren Themen). Andere Geräte des Nutzers aktualisieren ihr Badge. */
 chat.post("/:id/read", async (c) => {
   const id = uuid(c.req.param("id"));
   const userId = c.get("userId");
-  await requireMembers(id, userId);
-  await db.update(conversationMembers).set({ lastReadAt: new Date() }).where(and(eq(conversationMembers.conversationId, id), eq(conversationMembers.userId, userId)));
+  const access = await requireAccess(id, userId);
+  const now = new Date();
+  if (access.cv.isGroup) {
+    const parsed = z.object({ topicId: z.string().uuid().optional() }).safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json({ error: "Ungültige Daten" }, 400);
+    const topics = parsed.data.topicId ? [await requireTopic(id, parsed.data.topicId, access)] : await visibleTopics(id, userId, access.isAdmin);
+    if (topics.length) await db.insert(topicUserState).values(topics.map((t) => ({ topicId: t.id, userId, lastReadAt: now })))
+      .onConflictDoUpdate({ target: [topicUserState.topicId, topicUserState.userId], set: { lastReadAt: now } });
+  } else {
+    await db.update(conversationMembers).set({ lastReadAt: now }).where(and(eq(conversationMembers.conversationId, id), eq(conversationMembers.userId, userId)));
+  }
   await publish({ users: [userId] }, { type: "chat.read", conversationId: id });
   return c.body(null, 204);
 });
@@ -164,7 +222,8 @@ chat.post("/:id/read", async (c) => {
 /** „schreibt …“ – REST-Variante für den SSE-Rückfall (bei WebSocket läuft es über die Verbindung). */
 chat.post("/:id/typing", async (c) => {
   const id = uuid(c.req.param("id"));
-  await requireMembers(id, c.get("userId"));
-  await announceTyping(c.get("userId"), id);
+  await requireAccess(id, c.get("userId"));
+  const topicId = z.string().uuid().safeParse(((await c.req.json().catch(() => ({}))) as { topicId?: unknown }).topicId);
+  await announceTyping(c.get("userId"), id, topicId.success ? topicId.data : undefined);
   return c.body(null, 204);
 });

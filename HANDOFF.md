@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-64** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
+**State: B-65** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 
@@ -96,7 +96,8 @@ Full list with priorities: `TODO.md`. Release gates (audit, uploads, Docker …)
 
 - Docker stack, MinIO and the compose `admin` service are untested; real iOS/Android behavior is untested.
 - No data source yet (empty states in API mode): cost/consumption, AI chat (UI only, no server proxy), soil recipes, stories, strain ratings.
-- Accounts: no password reset for regular members (no email infrastructure); online status cannot be hidden; no UI to create group chats.
+- Accounts: no password reset for regular members (no email infrastructure); online status cannot be hidden.
+- Group chats (B-65): invitation-only, max 20 members incl. open invitations, topics (private/admins-only/closed/pinned/muted). No group deletion and no explicit admin promotion yet; the demo mode has no groups. Not tested on real devices (group push, small screens beyond the E2E viewport).
 - Web push (B-63): delivery to real devices (Android, iOS PWA, lock screen) has never been observed; the sandbox cannot reach a push service. Without `VAPID_*` env vars push is off (the settings card says so).
 - Moderation covers community content only (not the global feed or the forum); no "leave community"; the report queue is capped at 100; the community feed does not update live.
 - Routing: no SSR/file-based routing per view (the shell is client-side); wiki/showcase/marketplace details partly have no own URL; a 404 behind a reverse proxy with its own error page is untested;

@@ -12,7 +12,7 @@ The owner decides the order. Last update: B-62.
 - [ ] **AI proxy:** server-side, per feature flag; the assistant UI is not connected yet (`PLAN.md` P9).
 - [ ] **Password reset for regular members:** needs an email path or another recovery concept (today only operators can reset, via CLI).
 - [ ] **Hide online status:** per-user option (presence is currently always visible).
-- [ ] **Group chats:** backend supports conversations with several members; no UI to create them.
+- [ ] **Group chats (B-65 done):** follow-ups: group deletion by an admin, explicit admin promotion, per-topic message search, invitation links (deliberately not built), real-device check of the group push.
 - [ ] **Web push, follow-ups:** real-device acceptance (Android, iOS PWA), push for further triggers (task reminders, community invites), per-conversation mute.
 - [ ] **Moderation beyond communities:** global feed and forum (report, hide); **leave a community**; **paginate** the moderation queue (capped at 100); **live updates** of the community feed.
 - [ ] **Detail URLs** for wiki, showcase and marketplace (`src/lib/routes.ts` + `public/sw-policy.js`).

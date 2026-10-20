@@ -106,7 +106,7 @@ export class RealtimeClient {
   }
 
   /** „schreibt …“ melden. */
-  typing(conversationId: string): void { this.command({ type: "typing", conversationId }); }
+  typing(conversationId: string, topicId?: string): void { this.command({ type: "typing", conversationId, ...(topicId ? { topicId } : {}) }); }
 
   /* ----------------------------- intern ----------------------------- */
   private setStatus(status: RealtimeStatus) {

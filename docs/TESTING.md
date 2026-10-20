@@ -5,19 +5,19 @@ command actually ran (see `CLAUDE.md`). Per-task history with numbers lives in `
 
 ## 1. Current status
 
-Last full run: **B-63** (on top of `d495d75`), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
+Last full run: **B-65** (on top of `c8a45e7`), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
 
 | Check | Command | Result |
 |---|---|---|
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 203 / 203 (31 files) |
+| Frontend unit/component tests | `npm test` | ✅ 222 / 222 (35 files) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 192 / 192 (14 files) |
-| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 38 passed, 1 skipped (desktop 37 + mobile 1, ≈ 5.5 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
+| API integration tests | `npm run test:api` | ✅ 219 / 219 (15 files) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 39 passed, 1 skipped (desktop 38 + mobile 1, ≈ 5.8 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
-| Vite legacy build | `npm run build:vite` | ✅ (B-63) |
+| Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
 | Version consistency | `npm run version:check` | ✅ |
 | Doc links and paths | `npm run docs:check` | ✅ |
 | Dependency audit | `npm audit --package-lock-only` | see §6 |
@@ -93,6 +93,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `realtime.spec.ts` | chat live (WebSocket), SSE fallback, forum comments and bell live |
 | `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
 | `push.spec.ts` | push settings card: categories, preview, quiet hours persist across reload; enabling a device only runs where the browser may subscribe (otherwise skipped) |
+| `groups.spec.ts` | group chat with two users: create, invite, accept, topic, message with sender and unread counter, admins-only lock – live |
 | `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow |
 
 ## 4. Test pitfalls

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServices } from "./DataContext";
 import { useResource } from "./useResource";
 import { useRealtime, useRealtimeEvent, useRealtimeTopic } from "@/lib/realtime-context";
+import { resolveTopic } from "@/lib/chat-groups";
+import type { CreateGroupInput, TopicInput, TopicPatch } from "@/services/interfaces";
 
 /**
  * Invalidierung über Hook-Instanzen hinweg (z. B. Glocke, Drawer-Badge und Benachrichtigungsseite
@@ -241,18 +243,31 @@ const TYPING_TTL_MS = 5000;
 /** Eigenes „schreibt …“ höchstens so oft melden. */
 const TYPING_SEND_INTERVAL_MS = 3000;
 
+export type GroupActions = ReturnType<typeof useChat>["groupActions"];
+
 export function useChat() {
   const svc = useServices();
   const realtime = useRealtime();
   const conv = useAsync(() => svc.chat.listConversations(), [svc]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveIdState] = useState<string | null>(null);
+  /** Gewähltes Thema je Gruppe (ohne Wahl: „Allgemein“). */
+  const [topicChoice, setTopicChoice] = useState<Record<string, string>>({});
   const selectedInitially = useRef(false);
+  const chosenTopic = activeId ? topicChoice[activeId] : undefined;
   const msgs = useAsync(
-    () => (activeId ? svc.chat.getMessages(activeId) : Promise.resolve([])),
-    [svc, activeId]
+    () => (activeId ? (chosenTopic ? svc.chat.getMessages(activeId, chosenTopic) : svc.chat.getMessages(activeId)) : Promise.resolve([])),
+    [svc, activeId, chosenTopic]
   );
+  const isGroup = !!conv.data?.find((c) => c.id === activeId)?.isGroup;
+  const groupQuery = useAsync(
+    () => (activeId && isGroup ? svc.chat.getGroup(activeId).catch(() => null) : Promise.resolve(null)),
+    [svc, activeId, isGroup]
+  );
+  const invitesQuery = useAsync(() => svc.chat.listInvites().catch(() => []), [svc]);
   const { silentRefresh: refreshList } = conv;
   const { silentRefresh: refreshMessages } = msgs;
+  const { silentRefresh: refreshGroup } = groupQuery;
+  const { silentRefresh: refreshInvites } = invitesQuery;
   const [presence, setPresence] = useState<Record<string, boolean>>({});
   const [typingIds, setTypingIds] = useState<Set<string>>(new Set());
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -260,42 +275,72 @@ export function useChat() {
   const activeRef = useRef(activeId);
   activeRef.current = activeId;
 
-  const markRead = useCallback(async (id: string) => {
-    try { await svc.chat.markRead(id); } catch { return; }
+  const group = activeId && groupQuery.data?.id === activeId ? groupQuery.data : null;
+  const activeTopic = group ? resolveTopic(group.topics, chosenTopic) : null;
+  const activeTopicRef = useRef<string | null>(null);
+  activeTopicRef.current = activeTopic?.id ?? null;
+
+  const markRead = useCallback(async (id: string, topicId?: string) => {
+    try { await (topicId ? svc.chat.markRead(id, topicId) : svc.chat.markRead(id)); } catch { return; }
     invalidate("chat");
     void refreshList();
-  }, [svc, refreshList]);
+    if (topicId) void refreshGroup();
+  }, [svc, refreshList, refreshGroup]);
 
-  useRealtimeEvent(["chat.message", "chat.read", "chat.typing", "presence", "resync", "poll"], (event) => {
+  const clearTyping = (key: string) => {
+    const timer = typingTimers.current.get(key);
+    if (!timer) return;
+    clearTimeout(timer);
+    typingTimers.current.delete(key);
+    setTypingIds((s) => { const n = new Set(s); n.delete(key); return n; });
+  };
+  const bumpTyping = (key: string) => {
+    setTypingIds((s) => new Set(s).add(key));
+    clearTimeout(typingTimers.current.get(key));
+    typingTimers.current.set(key, setTimeout(() => {
+      typingTimers.current.delete(key);
+      setTypingIds((s) => { const n = new Set(s); n.delete(key); return n; });
+    }, TYPING_TTL_MS));
+  };
+
+  useRealtimeEvent(["chat.message", "chat.read", "chat.typing", "chat.group", "presence", "resync", "poll"], (event) => {
     switch (event.type) {
       case "chat.message": {
+        const id = String(event.conversationId);
+        const topic = event.topicId ? String(event.topicId) : undefined;
         void refreshList();
-        if (event.conversationId === activeRef.current) {
-          void refreshMessages();
-          if (document.visibilityState === "visible") void markRead(activeRef.current!);
+        if (id === activeRef.current) {
+          void refreshGroup(); // Zähler der Themen
+          const open = activeTopicRef.current;
+          if (!topic || !open || topic === open) {
+            void refreshMessages();
+            if (document.visibilityState === "visible") void markRead(id, open ?? undefined);
+          }
         }
         // Die Nachricht beendet „schreibt …“.
-        const id = String(event.conversationId);
-        const timer = typingTimers.current.get(id);
-        if (timer) { clearTimeout(timer); typingTimers.current.delete(id); setTypingIds((s) => { const n = new Set(s); n.delete(id); return n; }); }
+        clearTyping(id);
+        if (topic) clearTyping(`${id}:${topic}`);
         break;
       }
       case "chat.typing": {
         const id = String(event.conversationId);
-        setTypingIds((s) => new Set(s).add(id));
-        clearTimeout(typingTimers.current.get(id));
-        typingTimers.current.set(id, setTimeout(() => {
-          typingTimers.current.delete(id);
-          setTypingIds((s) => { const n = new Set(s); n.delete(id); return n; });
-        }, TYPING_TTL_MS));
+        bumpTyping(id);
+        if (event.topicId) bumpTyping(`${id}:${String(event.topicId)}`);
         break;
       }
+      case "chat.group":
+        void refreshList();
+        void refreshInvites();
+        if (String(event.conversationId) === activeRef.current) { void refreshGroup(); void refreshMessages(); }
+        invalidate("chat");
+        break;
       case "presence":
         setPresence((p) => ({ ...p, [String(event.userId)]: event.online === true }));
         break;
       default: // chat.read, resync, poll
         void refreshList();
-        if (activeRef.current) void refreshMessages();
+        if (activeRef.current) { void refreshMessages(); void refreshGroup(); }
+        if (event.type !== "chat.read") void refreshInvites();
         // Stand nach Wiederverbindung: veraltete Online-Hinweise verwerfen, die Liste liefert den aktuellen Stand.
         if (event.type !== "chat.read") setPresence({});
     }
@@ -305,10 +350,11 @@ export function useChat() {
   const send = useCallback(
     async (text: string, image?: string) => {
       if (!activeId) return;
-      await svc.chat.sendMessage(activeId, text, image);
-      await Promise.all([refreshMessages(), refreshList()]);
+      const topicId = activeTopicRef.current;
+      await (topicId ? svc.chat.sendMessage(activeId, text, image, topicId) : svc.chat.sendMessage(activeId, text, image));
+      await Promise.all([refreshMessages(), refreshList(), refreshGroup()]);
     },
-    [svc, activeId, refreshMessages, refreshList]
+    [svc, activeId, refreshMessages, refreshList, refreshGroup]
   );
   const conversations = useMemo(
     () => (conv.data ?? []).map((c) => (c.partnerId && c.partnerId in presence ? { ...c, online: presence[c.partnerId] } : c)),
@@ -316,31 +362,91 @@ export function useChat() {
   );
   const active = conversations.find((c) => c.id === activeId);
   const activeUnread = active?.unread ?? 0;
+  const topicUnread = activeTopic?.unread ?? 0;
 
   useEffect(() => {
     if (!selectedInitially.current && conv.data?.length) {
       selectedInitially.current = true;
-      setActiveId(conv.data[0].id);
+      setActiveIdState(conv.data[0].id);
     }
   }, [conv.data]);
-  // Geöffnete Konversation mit ungelesenen Nachrichten = gelesen (nur im sichtbaren Tab).
+  // Gruppe verlassen/entfernt: die Auswahl verschwindet mit ihr.
+  const knownGroups = useRef(new Set<string>());
   useEffect(() => {
-    if (activeId && activeUnread > 0 && document.visibilityState === "visible") void markRead(activeId);
-  }, [activeId, activeUnread, markRead]);
+    if (!conv.data) return;
+    if (activeId && knownGroups.current.has(activeId) && !conv.data.some((c) => c.id === activeId)) setActiveIdState(null);
+    for (const c of conv.data) if (c.isGroup) knownGroups.current.add(c.id);
+  }, [activeId, conv.data]);
+  // Geöffnete Konversation (Gruppe: geöffnetes Thema) mit ungelesenen Nachrichten = gelesen (nur im sichtbaren Tab).
+  useEffect(() => {
+    if (!activeId || document.visibilityState !== "visible") return;
+    if (isGroup) { if (activeTopic && topicUnread > 0) void markRead(activeId, activeTopic.id); }
+    else if (activeUnread > 0) void markRead(activeId);
+  }, [activeId, isGroup, activeTopic, topicUnread, activeUnread, markRead]);
 
   /** Eigene Eingabe melden (gedrosselt). */
   const notifyTyping = useCallback(() => {
     const id = activeRef.current;
     if (!id || Date.now() - lastTypingSent.current < TYPING_SEND_INTERVAL_MS) return;
     lastTypingSent.current = Date.now();
-    realtime.typing(id);
+    const topicId = activeTopicRef.current;
+    if (topicId) realtime.typing(id, topicId); else realtime.typing(id);
   }, [realtime]);
   const openDirect = useCallback(async (userId: string) => {
     const item = await svc.chat.startDirect(userId);
     await refreshList();
-    setActiveId(item.id);
+    setActiveIdState(item.id);
     return item;
   }, [svc, refreshList]);
+
+  const selectTopic = useCallback((topicId: string) => {
+    const id = activeRef.current;
+    if (id) setTopicChoice((c) => ({ ...c, [id]: topicId }));
+  }, []);
+
+  /** Gruppenaktionen (B-65): führen aus und laden Liste, Gruppe, Einladungen und Verlauf neu. */
+  const gid = () => { const id = activeRef.current; if (!id) throw new Error("Keine Gruppe geöffnet"); return id; };
+  const act = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    const result = await fn();
+    await Promise.all([refreshList(), refreshGroup(), refreshInvites(), refreshMessages()]);
+    invalidate("chat");
+    return result;
+  };
+  const groupActions = {
+    async create(input: CreateGroupInput) {
+      const created = await svc.chat.createGroup(input);
+      await Promise.all([refreshList(), refreshInvites()]);
+      setActiveIdState(created.id);
+      invalidate("chat");
+      return created;
+    },
+    update: (patch: { name?: string; avatar?: string | null; historyVisible?: boolean }) => act(() => svc.chat.updateGroup(gid(), patch)),
+    invite: (userIds: string[]) => act(() => svc.chat.inviteToGroup(gid(), userIds)),
+    revokeInvite: (inviteId: string) => act(() => svc.chat.revokeInvite(gid(), inviteId)),
+    removeMember: (userId: string) => act(() => svc.chat.removeMember(gid(), userId)),
+    async leave() {
+      await svc.chat.leaveGroup(gid());
+      setActiveIdState(null);
+      await Promise.all([refreshList(), refreshInvites()]);
+      invalidate("chat");
+    },
+    createTopic: (input: TopicInput) => act(() => svc.chat.createTopic(gid(), input)),
+    updateTopic: (topicId: string, patch: TopicPatch) => act(() => svc.chat.updateTopic(gid(), topicId, patch)),
+    deleteTopic: (topicId: string) => act(() => svc.chat.deleteTopic(gid(), topicId)),
+    moveTopic: (topicId: string, direction: "up" | "down") => act(() => svc.chat.moveTopic(gid(), topicId, direction)),
+    setTopicMembers: (topicId: string, userIds: string[]) => act(() => svc.chat.setTopicMembers(gid(), topicId, userIds)),
+    muteTopic: (topicId: string, muted: boolean) => act(() => svc.chat.muteTopic(gid(), topicId, muted)),
+    async accept(inviteId: string) {
+      const { conversationId } = await svc.chat.acceptInvite(inviteId);
+      await Promise.all([refreshList(), refreshInvites()]);
+      setActiveIdState(conversationId);
+      invalidate("chat");
+    },
+    async decline(inviteId: string) {
+      await svc.chat.declineInvite(inviteId);
+      await refreshInvites();
+    },
+  };
 
   return {
     conversations,
@@ -348,16 +454,21 @@ export function useChat() {
     error: conv.error,
     refresh: conv.refresh,
     activeId,
-    setActiveId,
+    setActiveId: setActiveIdState,
     messages: msgs.data ?? [],
     msgLoading: msgs.loading,
     reloadMessages: msgs.refresh,
     send,
-    typing: activeId ? typingIds.has(activeId) : false,
+    typing: activeId ? typingIds.has(activeTopic ? `${activeId}:${activeTopic.id}` : activeId) : false,
     typingIds,
     notifyTyping,
     openDirect,
     live: realtime.status,
+    group,
+    activeTopic,
+    selectTopic,
+    invites: invitesQuery.data ?? [],
+    groupActions,
   };
 }
 
@@ -371,7 +482,7 @@ export function useChatUnread(enabled = true): number {
 
 /** Übersetzt Echtzeit-Ereignisse in Datenaktualisierungen (einmal in der App-Hülle einbinden). */
 export function useRealtimeBridge(): void {
-  useRealtimeEvent(["notification", "chat.message", "chat.read", "resync", "poll"], (event) => {
+  useRealtimeEvent(["notification", "chat.message", "chat.read", "chat.group", "resync", "poll"], (event) => {
     if (event.type === "notification" || event.type === "resync" || event.type === "poll") invalidate("notifications");
     if (event.type !== "notification") invalidate("chat");
   });

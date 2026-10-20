@@ -180,11 +180,19 @@ für S3 sind noch offen. Bilder über `/media` (unten) liegen dagegen in Postgre
 
 | Methode / Pfad | Zugriff / Verhalten |
 | --- | --- |
-| GET `/chat` | Auth; eigene Unterhaltungen mit `unread`, Partnername/Avatar, `online` |
+| GET `/chat` | Auth; eigene Unterhaltungen mit `unread`, Partnername/Avatar, `online`; Gruppen zusätzlich `role`, `memberCount` (Vorschau „Anna: Text“, `unread` ohne stumme Themen) |
 | POST `/chat` `{userId}` | Direktchat starten oder öffnen (idempotent, einer je Paar); 201 neu / 200 vorhanden; 30 pro 10 min |
 | GET `/chat/users?q=` | Personensuche (≥ 2 Zeichen), 60/min |
 | GET `/chat/unread`, POST `/chat/:id/read`, POST `/chat/:id/typing` | Summe ungelesen, Leseposition, Tippen (REST-Variante für SSE) |
-| GET/POST `/chat/:id/messages` | nur Mitglieder (Außenstehende erhalten 404); Text oder Bild; Senden 90/min |
+| GET/POST `/chat/:id/messages` | nur Mitglieder (Außenstehende erhalten 404); Text oder Bild; Senden 90/min. Gruppen: `?topicId=` bzw. Body `topicId` (ohne Angabe „Allgemein“); Nachrichten tragen `senderId`, `senderName`, `kind` (`user`/`system`), `topicId` |
+| POST `/chat/groups` `{name, avatar?, userIds}` | Gruppe anlegen (Name 1–60 Zeichen, mindestens 1 und höchstens 19 Einladungen; Ersteller = Admin, Thema „Allgemein“); 10 pro 10 min. Antwort = Gruppen-Detail plus `skipped` |
+| GET `/chat/groups/:id` | Mitglieder (Rolle, online), Themen (`unread`, `muted`, `canWrite`, bei Admins `memberIds` privater Themen), `historyVisible`, `role`; offene Einladungen nur für Admins; Nicht-Mitglieder 404 |
+| PATCH `/chat/groups/:id` `{name?, avatar?\|null, historyVisible?}` | nur Admins; Umbenennen schreibt eine Hinweiszeile |
+| POST `/chat/groups/:id/invites` `{userIds}` · DELETE `…/invites/:inviteId` | nur Admins; Einladung (7 Tage gültig), In-App-Benachrichtigung + Push (Kategorie `messages`); übersprungen werden Mitglieder, schon Eingeladene und Personen mit 20 offenen Einladungen; **Mitglieder + offene Einladungen ≤ 20** (sonst 409); Zurückziehen 204; 30 pro 10 min |
+| GET `/chat/invites` · POST `/chat/invites/:id/accept` · `…/decline` | eigene offene Einladungen; Annehmen in einer Transaktion mit Sperre auf der Gruppe (409 nicht mehr gültig/voll, 410 abgelaufen); fremde Einladungen 404 |
+| DELETE `/chat/groups/:id/members/:userId` · POST `/chat/groups/:id/leave` | Entfernen nur Admins (nicht sich selbst); Verlassen jeder; ohne Admin wird das am längsten dabei seiende Mitglied Admin, die letzte Person löscht die Gruppe samt Nachrichten; Hinweiszeilen |
+| POST `/chat/groups/:id/topics` `{name, emoji?, private?, adminsOnly?, userIds?}` · PATCH/DELETE `…/topics/:tid` | nur Admins; Name 1–40, Emoji ≤ 8 Zeichen, höchstens 50 Themen; PATCH `name, emoji, adminsOnly, closed, pinned` (`private` ist nach dem Anlegen fest); „Allgemein“ nicht löschbar; Löschen entfernt die Nachrichten des Themas |
+| POST `…/topics/:tid/move` `{direction}` · PUT `…/topics/:tid/members` `{userIds}` · PUT `…/topics/:tid/me` `{muted}` | Reihenfolge (innerhalb angehefteter/übriger), Mitglieder privater Themen (nur Gruppenmitglieder; Admins sehen immer alles), eigene Stummschaltung (jedes Mitglied) |
 | GET `/realtime/stream`, POST `/realtime/command` | SSE-Ereignisstrom (60/min) und Client→Server-Befehle (`subscribe`/`unsubscribe` `thread:<uuid>`, `typing`; 240/min) |
 | WS `/realtime/ws` (eingebettet: `/api/realtime/ws`) | WebSocket: Cookie-Auth oder (mit `ALLOW_HEADER_SESSION=true`) erste Nachricht `{type:"auth",token}` binnen 5 s; Origin muss zum Host oder zu `CORS_ORIGINS` passen |
 

@@ -11,6 +11,19 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-65 – Gruppenchats
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Funktion:** Gruppen mit Name (Pflicht, ≤ 60 Zeichen), Gruppenbild (Upload), Rollen und Themen. Der Ersteller ist Admin; **Beitritt nur per Einladung mit Annahme** (7 Tage gültig, Admin kann zurückziehen, Hinweis in der Glocke plus Push, Banner über der Chatliste). Nur Admins laden ein, entfernen, benennen um und verwalten Themen; alle dürfen gehen (ohne Admin rückt das am längsten dabei seiende Mitglied nach, die letzte Person löscht die Gruppe). Höchstens 20 Mitglieder **inklusive offener Einladungen**, 20 offene Einladungen je Person.
+- **Themen (wie Telegram-Foren):** Standardthema „Allgemein“ (nicht löschbar), Name + Emoji, schließen/öffnen, „nur Admins schreiben“, anheften, Reihenfolge, **private Themen** mit eigener Mitgliederliste (Admins sehen sie immer), persönliche Stummschaltung, Ungelesen-Zähler je Thema (stumme zählen nicht in Liste, Badge und Push). Höchstens 50 Themen.
+- **Verlauf:** Neue Mitglieder sehen standardmäßig nur Nachrichten ab ihrem Beitritt; Admins können den älteren Verlauf freigeben (`historyVisible`). Hinweiszeilen („Anna hat Bernd eingeladen“, „… ist der Gruppe beigetreten“, „… hat die Gruppe verlassen“, umbenannt, Thema erstellt/geschlossen) lösen weder Zähler noch Push aus.
+- **Echtzeit/Push:** `chat.message` mit `topicId` an die Zielgruppe des Themas, neues Ereignis `chat.group` (Mitglieder, Themen, Einladungen), „schreibt …“ je Thema. Gruppen-Push: Titel = Gruppenname, „Absender: Text“ nur mit „Vorschau anzeigen“ (sonst neutral), Tag je Thema.
+- **API/DB:** Migration `0014_chat_groups` (siehe `ARCHITECTURE.md`), neue Routen unter `/chat/groups`, `/chat/invites` (siehe `apps/api/README.md`); Nachrichten tragen `senderId`, `senderName`, `kind`, `topicId`.
+- **Frontend:** „Neue Gruppe“, Gruppen-Info (Allgemein, Mitglieder mit Einladungen, Themen), Themenleiste mit Zähler/Schloss, Absendernamen und Hinweiszeilen im Verlauf, gesperrte Eingabe mit Begründung. Die Demo (Mock) kennt keine Gruppen und blendet die Schaltflächen aus.
+- **Geprüft:** typecheck ✅ (Frontend, API) · lint ✅ · Vitest 222/222 (neu 19: Hilfsfunktionen, `NewGroupModal`, `InviteBanner`, `TopicBar`, `useChat` mit Themen) · API 219/219 (neu 27, u. a. Rechte, Einladungen inkl. Ablauf und Obergrenze unter Parallelität, privater Zugriff, Verlauf, Zähler, Stummschaltung, Push-Inhalt, Migration) · E2E 39 bestanden, 1 übersprungen (neu: zwei Nutzer legen Gruppe an, Einladung annehmen, Thema, Nachricht, Schreibsperre – live) · `next build` ✅ · Oberfläche per Screenshots gesichtet.
+- **Nicht geprüft:** Gruppen-Push auf einem echten Gerät, Darstellung auf kleinen Telefonen über den E2E-Viewport hinaus (Themenleiste scrollt waagerecht), Gruppen mit 20 echten Mitgliedern im Browser. **Bewusst nicht gebaut:** Einladungslink, Gruppe löschen, Admin ernennen.
+
 ### B-64 – PNG-App-Icons
 
 Versionen unverändert, nur die Build-Nummer wurde aktualisiert.

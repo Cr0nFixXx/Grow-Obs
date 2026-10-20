@@ -1,18 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Paperclip, Send } from "lucide-react";
+import { ArrowLeft, Paperclip, Send, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
 import { Avatar, Button, Card, EmptyState, PageHeader, SearchInput, SkeletonCard, SmartImage } from "@/components/ui";
 import { NewChatModal } from "@/components/NewChat";
+import { NewGroupModal } from "@/components/NewGroup";
+import { GroupInfoModal, type GroupTab } from "@/components/GroupInfo";
+import { InviteBanner } from "@/components/GroupInvites";
+import { TopicBar } from "@/components/TopicBar";
+import { inviteSummary, showSenderName, writeBlockReason } from "@/lib/chat-groups";
 import { config } from "@/lib/config";
 import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media";
 import { useToast } from "@/components/Toast";
 import { useChat } from "@/data/hooks";
 
+const memberLabel = (n: number | undefined) => (n === undefined ? "Gruppe" : n === 1 ? "1 Mitglied" : `${n} Mitglieder`);
+
 export default function Chat() {
   const toast = useToast();
-  const { conversations, activeId, setActiveId, messages, msgLoading, send, loading, error, typing, typingIds, notifyTyping, openDirect, live } = useChat();
+  const { conversations, activeId, setActiveId, messages, msgLoading, send, loading, error, typing, typingIds, notifyTyping, openDirect, live, group, activeTopic, selectTopic, invites, groupActions } = useChat();
   const [newChat, setNewChat] = useState(false);
+  const [newGroup, setNewGroup] = useState(false);
+  const [info, setInfo] = useState<GroupTab | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +57,7 @@ export default function Chat() {
   if (error) return <EmptyState icon="AlertTriangle" title="Chat nicht geladen" desc={error} />;
 
   const conv = conversations.find((c) => c.id === activeId) ?? null;
+  const blockReason = conv?.isGroup ? writeBlockReason(activeTopic) : null;
 
   return (
     <div className="space-y-4">
@@ -61,18 +71,25 @@ export default function Chat() {
               <span className={cn("size-2 rounded-full", live === "ws" || live === "sse" ? "bg-leaf-500" : live === "polling" ? "bg-warning" : "bg-fg-subtle")} aria-hidden />{liveLabel}
             </span>
           )}
+          {!config.useMock && <Button variant="secondary" onClick={() => setNewGroup(true)}><Users className="size-4" />Neue Gruppe</Button>}
           <Button onClick={() => setNewChat(true)}><Icon name="Plus" size={16} />Neue Nachricht</Button>
         </div>}
       />
+      <NewGroupModal open={newGroup} onClose={() => setNewGroup(false)} onCreate={async (input) => {
+        const created = await groupActions.create(input);
+        toast.push({ title: `Gruppe „${created.name}“ erstellt`, desc: inviteSummary({ invited: created.invites.map((i) => i.userId), skipped: created.skipped }), tone: "leaf", icon: "CheckCircle2" });
+      }} />
+      {group && <GroupInfoModal open={info !== null} onClose={() => setInfo(null)} group={group} actions={groupActions} initialTab={info ?? "general"} />}
       <NewChatModal open={newChat} onClose={() => setNewChat(false)} onPick={async (person) => { await openDirect(person.id); }} />
       <Card className="grid h-[calc(100dvh-16rem)] min-h-[420px] grid-cols-1 overflow-hidden p-0 sm:h-[calc(100vh-220px)] lg:grid-cols-[320px_1fr]">
         <div className={cn("flex flex-col border-border lg:border-r", conv && "hidden lg:flex")}>
           <div className="border-b border-border p-3"><SearchInput placeholder="Konversation suchen…" /></div>
+          <InviteBanner invites={invites} onAccept={groupActions.accept} onDecline={groupActions.decline} />
           <div className="flex-1 overflow-y-auto">
             {conversations.length === 0 && <div className="p-4"><EmptyState icon="MessageCircle" title="Noch keine Unterhaltungen" desc="Starte mit „Neue Nachricht“ ein Gespräch." /></div>}
             {conversations.map((c) => (
               <button key={c.id} onClick={() => setActiveId(c.id)} className={cn("flex w-full items-center gap-3 p-3 text-left transition hover:bg-surface-2", activeId === c.id && "bg-surface-2")}>
-                <Avatar src={c.avatar} name={c.name} size={44} status={c.online ? "online" : "offline"} />
+                {c.isGroup ? <span className="relative"><Avatar src={c.avatar} name={c.name} size={44} /><span className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-surface text-fg-muted ring-1 ring-border" aria-label="Gruppe"><Users className="size-2.5" /></span></span> : <Avatar src={c.avatar} name={c.name} size={44} status={c.online ? "online" : "offline"} />}
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between"><span className={cn("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>{c.name}</span><span className="text-[10px] text-fg-subtle">{c.time}</span></span>
                   <span className="flex items-center justify-between"><span className={cn("truncate text-xs", typingIds.has(c.id) ? "text-accent" : c.unread > 0 ? "font-medium text-fg" : "text-fg-muted")}>{typingIds.has(c.id) ? "schreibt …" : c.last}</span>{c.unread > 0 && <span data-testid="unread-badge" aria-label={`${c.unread} ungelesen`} className="grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-fg">{c.unread}</span>}</span>
@@ -87,19 +104,28 @@ export default function Chat() {
             <>
               <div className="flex items-center gap-3 border-b border-border p-3">
                 <button onClick={() => setActiveId(null)} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 lg:hidden" aria-label="Zurück"><ArrowLeft className="size-5" /></button>
-                <Avatar src={conv.avatar} name={conv.name} size={40} status={conv.online ? "online" : "offline"} />
-                <div className="flex-1">
-                  <div className="text-sm font-semibold">{conv.name}</div>
-                  <div data-testid="chat-status" className={cn("text-xs", typing || conv.online ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : conv.online ? "Online" : "Offline"}</div>
+                <Avatar src={conv.avatar} name={conv.name} size={40} status={conv.isGroup ? undefined : conv.online ? "online" : "offline"} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{conv.name}</div>
+                  {conv.isGroup
+                    ? <div data-testid="chat-status" className={cn("text-xs", typing ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : memberLabel(conv.memberCount ?? group?.memberCount)}</div>
+                    : <div data-testid="chat-status" className={cn("text-xs", typing || conv.online ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : conv.online ? "Online" : "Offline"}</div>}
                 </div>
-                <button onClick={() => toast.push({ title: conv.name, desc: "Geteilter Grow & Status.", tone: "info", icon: "Info" })} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2" aria-label="Info"><Icon name="Info" size={18} /></button>
+                {conv.isGroup
+                  ? <button onClick={() => setInfo("general")} disabled={!group} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 disabled:opacity-50" aria-label="Gruppen-Info"><Icon name="Info" size={18} /></button>
+                  : <button onClick={() => toast.push({ title: conv.name, desc: "Geteilter Grow & Status.", tone: "info", icon: "Info" })} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2" aria-label="Info"><Icon name="Info" size={18} /></button>}
               </div>
+              {conv.isGroup && group && <TopicBar topics={group.topics} activeId={activeTopic?.id ?? null} onSelect={selectTopic} onManage={() => setInfo("topics")} />}
 
               <div className="flex-1 space-y-2 overflow-y-auto p-4" role="log" aria-live="polite" aria-label="Chat-Verlauf">
                 {msgLoading && <SkeletonCard />}
-                {messages.map((m) => (
+                {conv.isGroup && !msgLoading && messages.length === 0 && <p className="py-6 text-center text-sm text-fg-subtle">In diesem Thema ist noch nichts geschrieben.</p>}
+                {messages.map((m, index) => m.kind === "system" ? (
+                  <div key={m.id} data-testid="system-line" className="py-1 text-center text-xs text-fg-subtle">{m.text}</div>
+                ) : (
                   <div key={m.id} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
                     <div className={cn("max-w-[78%] rounded-2xl px-3.5 py-2 text-sm", m.from === "me" ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-2 text-fg")}>
+                      {conv.isGroup && showSenderName(messages, index) && <div data-testid="sender-name" className="mb-0.5 text-xs font-semibold text-accent">{m.senderName || "Unbekannt"}</div>}
                       {m.image && <SmartImage src={m.image} alt="Bild-Anhang" className={cn("-mx-1.5 mb-1 aspect-[4/3] w-56 max-w-full rounded-xl", m.text ? "" : "-mt-0.5")} />}
                       {m.text}
                       <div className={cn("mt-0.5 text-[10px]", m.from === "me" ? "text-accent-fg/70" : "text-fg-subtle")}>{m.time}</div>
@@ -110,6 +136,9 @@ export default function Chat() {
                 <div ref={endRef} />
               </div>
 
+              {blockReason ? (
+                <div data-testid="composer-blocked" role="status" className="flex items-center gap-2 border-t border-border bg-surface-2 p-3 text-sm text-fg-muted"><Icon name="Lock" size={16} />{blockReason}</div>
+              ) : (
               <div className="flex items-center gap-2 border-t border-border p-3">
                 <ImagePickButton onUploaded={(path) => deliver(text.trim(), path)} disabled={sending} label="Bild senden" className="grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted hover:bg-surface-2"><Paperclip className="size-5" /></ImagePickButton>
                 <input
@@ -123,6 +152,7 @@ export default function Chat() {
                 <EmojiPicker onPick={addEmoji} />
                 <button onClick={handleSend} disabled={sending || !text.trim()} className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-50" aria-label="Senden"><Send className="size-5" /></button>
               </div>
+              )}
             </>
           ) : (
             <div className="grid flex-1 place-items-center p-6"><EmptyState icon="MessageCircle" title="Kein Chat ausgewählt" desc="Wähle links eine Konversation, um zu starten." /></div>

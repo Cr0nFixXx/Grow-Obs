@@ -66,6 +66,11 @@ export interface ChatMessage {
   time: string;
   /** ISO-Zeitpunkt (API); der Mock liefert ihn nicht. */
   createdAt?: string;
+  /** Gruppen (B-65): Absender, Art (`system` = Hinweiszeile) und Thema. */
+  senderId?: string | null;
+  senderName?: string;
+  kind?: "user" | "system";
+  topicId?: string | null;
 }
 
 export interface ConversationItem {
@@ -80,7 +85,51 @@ export interface ConversationItem {
   isGroup?: boolean;
   /** Gegenstelle einer Direktnachricht (API); dient dem Abgleich mit Online-Status-Ereignissen. */
   partnerId?: string | null;
+  /** Gruppen (B-65): eigene Rolle und Mitgliederzahl. */
+  role?: "admin" | "moderator" | "member" | null;
+  memberCount?: number;
 }
+
+/** Thema einer Gruppe (B-65). */
+export interface GroupTopic {
+  id: string;
+  name: string;
+  emoji: string;
+  isDefault: boolean;
+  private: boolean;
+  adminsOnly: boolean;
+  closed: boolean;
+  pinned: boolean;
+  /** Darf ich hier schreiben? (geschlossen/„nur Admins“ sperren Mitglieder) */
+  canWrite: boolean;
+  unread: number;
+  muted: boolean;
+  /** Nur für Admins bei privaten Themen. */
+  memberIds?: string[];
+}
+export interface GroupMember { id: string; name: string; handle: string; avatar: string; role: "admin" | "moderator" | "member"; online: boolean; joinedAt: string }
+/** Offene Einladung (nur Admins sehen sie). */
+export interface GroupInvite { id: string; userId: string; name: string; handle: string; avatar: string; invitedBy: string; expiresAt: string }
+export interface GroupDetail {
+  id: string;
+  meId: string;
+  name: string;
+  avatar: string;
+  historyVisible: boolean;
+  role: "admin" | "moderator" | "member";
+  memberCount: number;
+  maxMembers: number;
+  members: GroupMember[];
+  topics: GroupTopic[];
+  invites: GroupInvite[];
+  createdAt: string;
+}
+/** Meine offenen Einladungen in Gruppen. */
+export interface MyGroupInvite { id: string; conversationId: string; groupName: string; groupAvatar: string; inviterName: string; memberCount: number; createdAt: string; expiresAt: string }
+export interface InviteResult { invited: string[]; skipped: { userId: string; reason: string }[] }
+export interface CreateGroupInput { name: string; avatar?: string; userIds: string[] }
+export interface TopicInput { name: string; emoji?: string; private?: boolean; adminsOnly?: boolean; userIds?: string[] }
+export interface TopicPatch { name?: string; emoji?: string; adminsOnly?: boolean; closed?: boolean; pinned?: boolean }
 
 /** Treffer der Personensuche für „Neue Nachricht“. */
 export interface ChatPerson {
@@ -142,15 +191,34 @@ export interface ForumThreadDetail extends ForumThreadBrief {
 
 export interface ChatService {
   listConversations(): Promise<ConversationItem[]>;
-  getMessages(conversationId: string): Promise<ChatMessage[]>;
-  sendMessage(conversationId: string, text: string, image?: string): Promise<ChatMessage>;
+  /** Gruppen: `topicId` wählt das Thema (ohne Angabe: „Allgemein“). */
+  getMessages(conversationId: string, topicId?: string): Promise<ChatMessage[]>;
+  sendMessage(conversationId: string, text: string, image?: string, topicId?: string): Promise<ChatMessage>;
   /** Direktnachricht mit einer Person starten bzw. die bestehende öffnen. */
   startDirect(userId: string): Promise<ConversationItem>;
-  /** Alles bis jetzt als gelesen markieren. */
-  markRead(conversationId: string): Promise<void>;
+  /** Alles bis jetzt als gelesen markieren (Gruppen: ein Thema, ohne Angabe alle sichtbaren). */
+  markRead(conversationId: string, topicId?: string): Promise<void>;
   /** Ungelesene Nachrichten insgesamt (Badge). */
   unreadTotal(): Promise<number>;
   searchPeople(query: string): Promise<ChatPerson[]>;
+
+  /* Gruppenchats (B-65) – nur mit Server; die Demo wirft „Gruppen brauchen den Server“. */
+  createGroup(input: CreateGroupInput): Promise<GroupDetail & { skipped: InviteResult["skipped"] }>;
+  getGroup(conversationId: string): Promise<GroupDetail>;
+  updateGroup(conversationId: string, patch: { name?: string; avatar?: string | null; historyVisible?: boolean }): Promise<GroupDetail>;
+  inviteToGroup(conversationId: string, userIds: string[]): Promise<InviteResult>;
+  revokeInvite(conversationId: string, inviteId: string): Promise<void>;
+  listInvites(): Promise<MyGroupInvite[]>;
+  acceptInvite(inviteId: string): Promise<{ conversationId: string }>;
+  declineInvite(inviteId: string): Promise<void>;
+  removeMember(conversationId: string, userId: string): Promise<void>;
+  leaveGroup(conversationId: string): Promise<void>;
+  createTopic(conversationId: string, input: TopicInput): Promise<GroupDetail>;
+  updateTopic(conversationId: string, topicId: string, patch: TopicPatch): Promise<GroupDetail>;
+  deleteTopic(conversationId: string, topicId: string): Promise<void>;
+  moveTopic(conversationId: string, topicId: string, direction: "up" | "down"): Promise<GroupDetail>;
+  setTopicMembers(conversationId: string, topicId: string, userIds: string[]): Promise<GroupDetail>;
+  muteTopic(conversationId: string, topicId: string, muted: boolean): Promise<void>;
 }
 
 export interface NotificationService {

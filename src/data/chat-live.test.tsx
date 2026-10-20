@@ -16,6 +16,8 @@ const chat = {
   markRead: vi.fn(async () => undefined),
   unreadTotal: vi.fn(async () => 3),
   searchPeople: vi.fn(async () => []),
+  listInvites: vi.fn(async () => []),
+  getGroup: vi.fn(async () => null),
 };
 const forum = { getThread: vi.fn(async () => ({ id: "t1", commentsList: [] })) };
 const services = { chat, forum }; // stabil wie die echte Service-Registry
@@ -166,5 +168,69 @@ describe("Badge & Thread live (B-59)", () => {
     expect(forum.getThread).toHaveBeenCalledTimes(1);
     await emit({ type: "thread.comment", threadId: "t1" });
     await waitFor(() => expect(forum.getThread).toHaveBeenCalledTimes(2));
+  });
+
+  describe("Gruppen (B-65)", () => {
+    const topic = (id: string, extra: Record<string, unknown> = {}) => ({ id, name: id, emoji: "", isDefault: false, private: false, adminsOnly: false, closed: false, pinned: false, canWrite: true, unread: 0, muted: false, ...extra });
+    const group = { id: "g1", meId: "me", name: "Gruppe", avatar: "", historyVisible: false, role: "admin", memberCount: 2, maxMembers: 20, members: [], invites: [], createdAt: "2026-10-20T00:00:00Z", topics: [topic("t-all", { isDefault: true, unread: 2 }), topic("t-tech")] };
+
+    beforeEach(() => {
+      chat.listConversations.mockImplementation(async () => [conv("g1", { isGroup: true, partnerId: null, unread: 2 }), conv("c2")]);
+      chat.getGroup.mockImplementation(async () => group as never);
+    });
+    afterEach(() => {
+      chat.listConversations.mockImplementation(async () => [conv("c1", { unread: 2 }), conv("c2")]);
+      chat.getGroup.mockImplementation(async () => null as never);
+    });
+
+    it("lädt die Gruppe, öffnet „Allgemein“ und markiert nur dieses Thema als gelesen", async () => {
+      const { useChat } = await hooksPromise;
+      const { result } = renderHook(() => useChat(), { wrapper });
+      await waitFor(() => expect(result.current.activeTopic?.id).toBe("t-all"));
+      expect(chat.getGroup).toHaveBeenCalledWith("g1");
+      await waitFor(() => expect(chat.markRead).toHaveBeenCalledWith("g1", "t-all"));
+    });
+
+    it("Themenwechsel lädt dessen Nachrichten; Senden und „schreibt …“ tragen die Themen-ID", async () => {
+      const { useChat } = await hooksPromise;
+      const { result } = renderHook(() => useChat(), { wrapper });
+      await waitFor(() => expect(result.current.activeTopic?.id).toBe("t-all"));
+      act(() => result.current.selectTopic("t-tech"));
+      await waitFor(() => expect(chat.getMessages).toHaveBeenCalledWith("g1", "t-tech"));
+      await act(async () => { await result.current.send("Hallo"); });
+      expect(chat.sendMessage).toHaveBeenCalledWith("g1", "Hallo", undefined, "t-tech");
+      act(() => result.current.notifyTyping());
+      expect(realtime.typing).toHaveBeenCalledWith("g1", "t-tech");
+      await emit({ type: "chat.typing", conversationId: "g1", topicId: "t-all" });
+      expect(result.current.typing).toBe(false); // anderes Thema
+      await emit({ type: "chat.typing", conversationId: "g1", topicId: "t-tech" });
+      expect(result.current.typing).toBe(true);
+    });
+
+    it("chat.message aus einem anderen Thema lädt Liste und Gruppe, aber nicht den offenen Verlauf", async () => {
+      const { useChat } = await hooksPromise;
+      const { result } = renderHook(() => useChat(), { wrapper });
+      await waitFor(() => expect(result.current.activeTopic?.id).toBe("t-all"));
+      chat.getMessages.mockClear(); chat.getGroup.mockClear(); chat.listConversations.mockClear();
+      await emit({ type: "chat.message", conversationId: "g1", topicId: "t-tech" });
+      await waitFor(() => expect(chat.getGroup).toHaveBeenCalled());
+      expect(chat.listConversations).toHaveBeenCalled();
+      expect(chat.getMessages).not.toHaveBeenCalled();
+    });
+
+    it("chat.group lädt Liste, Einladungen, Gruppe und Verlauf neu; verlassen leert die Auswahl", async () => {
+      const { useChat } = await hooksPromise;
+      const { result } = renderHook(() => useChat(), { wrapper });
+      await waitFor(() => expect(result.current.activeTopic?.id).toBe("t-all"));
+      chat.getGroup.mockClear(); chat.listInvites.mockClear(); chat.getMessages.mockClear();
+      await emit({ type: "chat.group", conversationId: "g1" });
+      await waitFor(() => expect(chat.getGroup).toHaveBeenCalled());
+      expect(chat.listInvites).toHaveBeenCalled();
+      expect(chat.getMessages).toHaveBeenCalled();
+      // Gruppe verschwindet aus der Liste (entfernt): Auswahl wird leer
+      chat.listConversations.mockImplementation(async () => [conv("c2")]);
+      await emit({ type: "chat.group", conversationId: "g1" });
+      await waitFor(() => expect(result.current.activeId).toBeNull());
+    });
   });
 });
