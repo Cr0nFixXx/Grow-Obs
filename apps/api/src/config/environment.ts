@@ -10,6 +10,13 @@ export const environmentSchema = z.object({
   ),
   /** Maximale Sitzungsdauer („Angemeldet bleiben“); Sitzungen sind serverseitig widerrufbar. */
   JWT_TTL: z.string().regex(/^\d+[smhd]$/).default("30d"),
+  /**
+   * Maximale Datenbankverbindungen dieser Instanz (Standard 10). Auf Serverless (Vercel) klein halten (z. B. 3):
+   * jede Instanz öffnet einen eigenen Pool, und gepoolte Anbieter (Supabase/Neon) haben nur wenige Plätze.
+   */
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+  /** "true" überspringt die Migrationen beim API-Start (nur eingebetteter Modus). Erst setzen, wenn das Schema aktuell ist. */
+  SKIP_MIGRATIONS: z.enum(["true", "false"]).default("false"),
   S3_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_PUBLIC_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),

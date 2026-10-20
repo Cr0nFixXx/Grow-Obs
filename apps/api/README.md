@@ -82,6 +82,8 @@ Schema und Regeln: `src/config/environment.ts`. Vorlage: `.env.example`.
 | `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` | Objektspeicher (Standalone Pflicht, eingebettet optional) |
 | `API_EMBEDDED` | `true` im eingebetteten Betrieb: S3 optional, CORS-HTTPS-Regel entfällt |
 | `TRUST_PROXY`, `RATE_LIMIT_DISABLED` | Rate-Limit: `TRUST_PROXY=false` ignoriert `X-Forwarded-For`; `RATE_LIMIT_DISABLED=true` schaltet ab (nur E2E) |
+| `DB_POOL_MAX` | Obergrenze der Datenbankverbindungen je Instanz (Standard 10, 1–50). Auf Serverless/gepoolten Anbietern (Vercel + Supabase/Neon) klein setzen, z. B. `3` |
+| `SKIP_MIGRATIONS` | `true` überspringt die Migrationen beim Start der eingebetteten API (spart Zeit und Verbindungen bei jedem Kaltstart). Erst setzen, wenn das Schema aktuell ist; nach einem Update mit neuer Migration wieder entfernen und einmal starten |
 | `ALLOW_EPHEMERAL_JWT_SECRET` | nur eingebettet: erlaubt ein Prozess-Secret in Produktion (Demos) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web-Push (B-63), optional: alle drei oder keiner (`mailto:…` oder `https://…`). Schlüsselpaar erzeugen: `npm run push:keys` (gibt nur aus). Ohne Werte ist Push aus |
 | `ALLOW_DEMO_SEED`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Demo-Seed (siehe unten) |

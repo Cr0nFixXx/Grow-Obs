@@ -5,16 +5,16 @@ command actually ran (see `CLAUDE.md`). Per-task history with numbers lives in `
 
 ## 1. Current status
 
-Last full run: **B-65** (on top of `c8a45e7`), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
+Last full run: **B-66** (on top of `1940f14`; E2E last run for B-65, mode `auto` unchanged), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
 
 | Check | Command | Result |
 |---|---|---|
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 222 / 222 (35 files) |
+| Frontend unit/component tests | `npm test` | ✅ 226 / 226 (36 files) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 219 / 219 (15 files) |
+| API integration tests | `npm run test:api` | ✅ 221 / 221 (15 files) |
 | Browser E2E (Playwright) | `npm run test:e2e` | ✅ 39 passed, 1 skipped (desktop 38 + mobile 1, ≈ 5.8 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |

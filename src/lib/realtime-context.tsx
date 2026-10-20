@@ -28,6 +28,7 @@ export function RealtimeProvider({ children, enabled = !config.useMock }: { chil
   const client = useMemo(() => enabled ? new RealtimeClient({
     baseUrl: config.apiBaseUrl,
     getToken: getSessionHeaderToken,
+    pollingOnly: config.realtimeMode === "polling",
     onStatus: setStatus,
     onEvent: (event) => { for (const listener of [...listeners.current]) listener(event); },
   }) : null, [enabled]);

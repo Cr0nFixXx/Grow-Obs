@@ -188,6 +188,19 @@ describe("RealtimeClient", () => {
     expect(failing.mock.calls.length).toBeGreaterThan(before);
   });
 
+  it("pollingOnly (Serverless): Status polling, weder WebSocket noch SSE, Abos sind wirkungslos", async () => {
+    make({ pollingOnly: true }).start();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(statuses).toEqual(["polling"]);
+    expect(FakeSocket.instances).toHaveLength(0);
+    expect(sse.calls).toHaveLength(0);
+    client.subscribe("thread:x")();
+    client.typing("c1");
+    expect(sse.calls).toHaveLength(0);
+    client.stop();
+    expect(client.getStatus()).toBe("offline");
+  });
+
   it("Stille über 75 s → Verbindung wird neu aufgebaut", async () => {
     make().start();
     const ws = FakeSocket.instances[0]!;

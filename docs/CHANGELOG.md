@@ -11,6 +11,18 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-66 – Vercel-Betrieb (Verbindungen, Polling, Diagnose)
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Anlass:** Auf Vercel + Supabase (Session Pooler) antwortete die eingebettete API zeitweise mit 503 „Backend nicht verfügbar“ (`Failed query: CREATE SCHEMA IF NOT EXISTS "drizzle"`). Aus den Logs: Fehler in Wellen (bis 199 × 503 in einer Minute), Antwortzeit ≈ 100 ms (abgelehnt, kein Timeout), keine fehlgeschlagene Abfrage in Postgres, 21 Instanzen in 13 Minuten, 300-s-SSE-Ströme je Tab. Wahrscheinliche Ursache: der Pooler ist voll (die Pooler-Logs lagen nicht vor – nicht bewiesen).
+- **`DB_POOL_MAX`** (Standard 10, 1–50) begrenzt die Verbindungen je Instanz; **`SKIP_MIGRATIONS=true`** überspringt den Migrationslauf beim Start; beide nur Opt-in, das Standardverhalten ist unverändert.
+- **Reines Polling:** `NEXT_PUBLIC_REALTIME=polling` (Build-Zeit) öffnet weder WebSocket noch SSE; Status `polling`, alle 8 s ein Neuladen bei sichtbarem Tab. Auf Vercel-Builds ist das der Standard (`next.config.ts`), `NEXT_PUBLIC_REALTIME=auto` stellt das alte Verhalten wieder her. Folge: kein Online-Status, kein „schreibt …“ in diesem Modus.
+- **Diagnose:** `embedded_api_boot_failed` protokolliert zusätzlich `causeCode` und `cause` (Treiberfehler, gekürzt, ohne Zugangsdaten).
+- **Supabase (Betrieb, kein Code):** Row Level Security auf allen 43 Tabellen in `public` aktiviert (Linter: „RLS Disabled in Public“); die App verbindet sich als Tabellenbesitzer und ist nicht betroffen.
+- **Geprüft:** typecheck ✅ · lint ✅ · Vitest 226/226 (neu 4: `pollingOnly`, `config.realtimeMode`) · API 221/221 (neu 2: `DB_POOL_MAX`, `SKIP_MIGRATIONS`) · `next.config.ts` liefert `polling` mit `VERCEL=1` und `auto` ohne ✅ · produktive Vercel-Seite antwortet nach RLS weiter (`/api/releases`, `/api/features`, `/api/version` 200).
+- **Nicht geprüft:** Verhalten unter Last auf Vercel (Pooler-Auslastung nach den Änderungen), ein Vercel-Build mit gesetztem `VERCEL`, E2E (nur der Standardmodus `auto` ist betroffen, nicht neu gelaufen).
+
 ### B-65 – Gruppenchats
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.

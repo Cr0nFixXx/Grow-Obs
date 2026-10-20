@@ -32,6 +32,8 @@ const nextConfig: NextConfig = {
     // Standard: eingebettete API (same-origin). `NEXT_PUBLIC_API_URL=` (leer) → Demo-/Mock-Modus,
     // `NEXT_PUBLIC_API_URL=https://api.example.com` → externe API (Docker-Stack).
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "/api",
+    // Echtzeit: auf Vercel (Serverless, kein WebSocket) nur Polling; sonst automatisch WebSocket → SSE → Polling.
+    NEXT_PUBLIC_REALTIME: process.env.NEXT_PUBLIC_REALTIME ?? (process.env.VERCEL ? "polling" : "auto"),
     NEXT_PUBLIC_APP_VERSION: APP_VERSION,
     NEXT_PUBLIC_APP_BUILD: BUILD_ID,
     NEXT_PUBLIC_APP_BUILT_AT: BUILT_AT,

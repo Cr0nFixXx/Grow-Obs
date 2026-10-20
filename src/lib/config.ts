@@ -33,6 +33,15 @@ function readPathRouting(): boolean {
   try { return !!process.env.NEXT_PUBLIC_APP_BUILD; } catch { return false; }
 }
 
+/**
+ * Echtzeit-Transport: `auto` (WebSocket → SSE → Polling) oder `polling` (nur Polling, keine Dauerverbindung).
+ * Serverless-Hosts (Vercel) können keine WebSockets und halten SSE-Verbindungen als teure, begrenzte Funktionsaufrufe;
+ * next.config.ts setzt dort standardmäßig `polling`. Überschreibbar mit `NEXT_PUBLIC_REALTIME=auto|polling` (Build-Zeit).
+ */
+function readRealtimeMode(): "auto" | "polling" {
+  try { return process.env.NEXT_PUBLIC_REALTIME === "polling" ? "polling" : "auto"; } catch { return "auto"; }
+}
+
 export const config = {
   /** Basis-URL des Backends (ohne Trailing-Slash). */
   apiBaseUrl,
@@ -40,4 +49,6 @@ export const config = {
   useMock: !apiBaseUrl,
   /** true unter Next.js: URL spiegelt Ansicht (Pfad), false im Vite-Legacy-Build. */
   pathRouting: readPathRouting(),
+  /** Echtzeit-Transport (siehe `readRealtimeMode`). */
+  realtimeMode: readRealtimeMode(),
 } as const;

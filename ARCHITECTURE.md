@@ -113,6 +113,7 @@ browser ── WebSocket /api/realtime/ws ──┐                      ┌─�
   translation into data refreshes via `useRealtimeBridge` and `src/data/hooks.ts`. Mock mode opens no connection.
 - Next route handlers cannot accept WebSocket upgrades, hence `scripts/server.mjs`; it sets `app.didWebSocketSetup = true` (Next internals) because Next otherwise attaches its own `upgrade`
   listener that closes foreign sockets. The hub registers itself on the first API call in `globalThis.__growRealtimeUpgrade`.
+- Polling-only mode (`NEXT_PUBLIC_REALTIME=polling`, build time): the client never opens a WebSocket or SSE stream; the status stays `polling` and the provider emits a `poll` event every 8 s while the tab is visible. `next.config.ts` makes this the default when the build runs on Vercel (`VERCEL` set); `NEXT_PUBLIC_REALTIME=auto` overrides it. Side effects: no presence (users appear offline), no typing indicator.
 - Reverse proxy: forward `Upgrade`/`Connection` for `/realtime/ws`, disable buffering for `/realtime/stream`, read timeout ≥ 60 s (nginx example: `apps/api/README.md`).
 
 ### Group chats (B-65)
@@ -144,6 +145,15 @@ createNotification / POST /chat/:id/messages ─► lib/push.ts sendPushToUser(u
 - Code: `apps/api/src/lib/{push-core,push}.ts` (pure logic / delivery with injectable sender), `routes/push.ts`; frontend `public/sw-push.js` + `sw.js`, `src/lib/push.ts`, `src/components/{PushCard,PushBridge}.tsx`.
 
 ---
+
+### Serverless deployment (Vercel + Supabase, test setups)
+
+- Works as the embedded API (route handler `app/api/[...route]`, Node runtime). Verified in the local build trace: `apps/api/drizzle/*` and the native `argon2` binary are part of the function bundle.
+- Env: `DATABASE_URL`, `JWT_SECRET` (≥ 32 characters), `NEXT_PUBLIC_SITE_URL` (full `https://…` URL, build time; without the scheme `new URL()` aborts the build). Optional: `S3_*` (uploads), `VAPID_*` (push). Never set the sandbox variables `ALLOW_HEADER_SESSION` / `COOKIE_SAMESITE`.
+- **Connections:** every serverless instance opens its own pool (`DB_POOL_MAX`, default 10) and each one starts with a migration run. Many instances at once exhaust a small pooler (Supabase session pooler); the embedded API then answers 503 `Backend nicht verfügbar` (the instance retries on the next request). Counter-measures: `DB_POOL_MAX=3`, `SKIP_MIGRATIONS=true` once migrated, polling-only realtime (a 300 s SSE stream keeps an instance and a `LISTEN` connection busy).
+- Use the **session** pooler (port 5432) or the direct connection, not the transaction pooler (6543): `LISTEN/NOTIFY` and prepared statements need session semantics. Put the function region next to the database (Supabase `eu-west-1` → Vercel `dub1`).
+- `embedded_api_boot_failed` log lines carry `causeCode`/`cause` (driver error, no credentials) next to `type`.
+- Supabase exposes `public` tables through its Data API: disable it or enable row level security (the app connects as table owner `postgres` and is unaffected). New migration tables are not covered automatically.
 
 ## 5. Community moderation
 

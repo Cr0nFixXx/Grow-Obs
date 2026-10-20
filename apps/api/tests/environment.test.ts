@@ -30,6 +30,18 @@ describe("deployment environment", () => {
     expect(parsed.ALLOW_DEMO_SEED).toBe("false");
   });
 });
+describe("Serverless-Schalter (Vercel)", () => {
+  it("DB_POOL_MAX: Standard 10, begrenzt auf 1–50, nur ganze Zahlen", () => {
+    expect(environmentSchema.parse(base).DB_POOL_MAX).toBe(10);
+    expect(environmentSchema.parse({ ...base, DB_POOL_MAX: "3" }).DB_POOL_MAX).toBe(3);
+    for (const bad of ["0", "51", "2.5", "viele"]) expect(environmentSchema.safeParse({ ...base, DB_POOL_MAX: bad }).success).toBe(false);
+  });
+  it("SKIP_MIGRATIONS: Standard false, nur true/false erlaubt", () => {
+    expect(environmentSchema.parse(base).SKIP_MIGRATIONS).toBe("false");
+    expect(environmentSchema.parse({ ...base, SKIP_MIGRATIONS: "true" }).SKIP_MIGRATIONS).toBe("true");
+    expect(environmentSchema.safeParse({ ...base, SKIP_MIGRATIONS: "1" }).success).toBe(false);
+  });
+});
 describe("Web-Push-Konfiguration (VAPID)", () => {
   const vapid = { VAPID_PUBLIC_KEY: `B${"a".repeat(86)}`, VAPID_PRIVATE_KEY: "b".repeat(43), VAPID_SUBJECT: "mailto:betreiber@example.test" };
   it("ist optional: ohne Werte ist Push aus, alle drei zusammen sind gültig", () => {

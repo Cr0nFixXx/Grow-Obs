@@ -17,6 +17,8 @@ export interface RealtimeClientOptions {
   onStatus: (status: RealtimeStatus) => void;
   /** WebSocket abschalten (Tests/Diagnose). */
   disableWebSocket?: boolean;
+  /** Keine Dauerverbindung (Serverless): Status bleibt `polling`, der Provider löst das Neuladen per Timer aus. */
+  pollingOnly?: boolean;
 }
 
 const HELLO_TIMEOUT_MS = 6000;
@@ -69,6 +71,7 @@ export class RealtimeClient {
   start(): void {
     if (this.running) return;
     this.running = true;
+    if (this.opts.pollingOnly) { this.setStatus("polling"); return; }
     if (typeof window !== "undefined") {
       document.addEventListener("visibilitychange", this.onVisibility);
       window.addEventListener("online", this.onOnline);

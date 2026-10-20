@@ -33,7 +33,8 @@ async function boot(): Promise<FetchApp> {
     import("../../apps/api/src/db/client.ts"),
     import("drizzle-orm/postgres-js/migrator"),
   ]);
-  await migrate(db, { migrationsFolder: path.join(process.cwd(), "apps/api/drizzle") });
+  // Auf Serverless startet jede Instanz neu: SKIP_MIGRATIONS=true spart den Migrationslauf (Schema vorher einmal migrieren).
+  if (process.env.SKIP_MIGRATIONS !== "true") await migrate(db, { migrationsFolder: path.join(process.cwd(), "apps/api/drizzle") });
   return app;
 }
 
@@ -53,7 +54,13 @@ export async function handleApiRequest(request: Request): Promise<Response> {
   try {
     app = await getApp();
   } catch (error) {
-    console.error(JSON.stringify({ event: "embedded_api_boot_failed", type: error instanceof Error ? error.message.slice(0, 200) : "unknown" }));
+    // Treiber-Fehler verpacken die Ursache (`cause`, z. B. Pooler voll, Timeout) → Code und Text mitprotokollieren (ohne Zugangsdaten).
+    const cause = error instanceof Error ? (error as Error & { cause?: { code?: string; message?: string } }).cause : undefined;
+    console.error(JSON.stringify({
+      event: "embedded_api_boot_failed",
+      type: error instanceof Error ? error.message.slice(0, 200) : "unknown",
+      ...(cause ? { causeCode: cause.code ?? null, cause: String(cause.message ?? "").slice(0, 200) } : {}),
+    }));
     return Response.json({ error: "Backend nicht verfügbar" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
   const url = new URL(request.url);
