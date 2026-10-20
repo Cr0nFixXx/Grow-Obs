@@ -11,6 +11,21 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-63 – Web-Push
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Funktion:** Benachrichtigungen erreichen Geräte, auf denen die App geschlossen ist. Auslöser: jede In-App-Benachrichtigung (`createNotification`) und neue Direktnachrichten (nur an die anderen Mitglieder). Kategorien `messages`, `community`, `grows` (Typen grow, task), `other` (shop, ai, system), alle standardmäßig an.
+- **Datenschutz:** Auf dem Sperrbildschirm steht standardmäßig nur „Neue Nachricht“ o. Ä. (kein Name, kein Text); „Vorschau anzeigen“ (Standard aus) zeigt Absender und Textanfang.
+- **Wann nicht:** Push-Dienst nicht eingerichtet, Feature `push` aus, Kategorie abgeschaltet, Ruhezeit (Zeitzone des Browsers, Fenster über Mitternacht möglich), Nutzer ist online (Live-Verbindung), gleiche Gruppe in den letzten 15 s. Die In-App-Benachrichtigung bleibt davon unberührt; ein Versandfehler lässt nie eine Anfrage scheitern.
+- **Geräte:** Abo je Gerät (höchstens 5, ältestes fällt weg), an die Sitzung gebunden (Abmeldung/„Alle Geräte“ löschen es), bei 404/410 oder nach 5 Fehlschlägen entfernt. Endpunkte nur von bekannten Push-Diensten (SSRF-Schutz).
+- **Betrieb:** `web-push`, VAPID-Schlüssel einmalig per `npm run push:keys` (`apps/api`), Umgebungsvariablen `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (alle drei oder keine; ohne sie ist Push aus und die App sagt das). Neues Feature-Flag `push` (Admin-schaltbar, Paritätstest).
+- **API/DB:** Migration `0013_web_push` (`push_subscriptions`, `push_prefs`), Routen `/push/*` (siehe `apps/api/README.md`).
+- **Frontend:** Service Worker (`public/sw-push.js`, Ereignisse `push` und `notificationclick`, nur App-Pfade als Ziel), Karte „Push-Benachrichtigungen“ im Profil (Gerät aktivieren, Kategorien, Vorschau, Ruhezeit, Test, Geräteliste), `PushBridge` (Abo mit Sitzung abgleichen, Klick → Ansicht). Der frühere Schalter „Push-Benachrichtigungen“ war nur lokal und ohne Wirkung und entfällt; im Demo-Modus erscheint ein ehrlicher Hinweis. iOS: Hinweis, dass Push nur in der installierten App (16.4+) geht.
+- **Geprüft:** typecheck ✅ (Frontend, API, Tests) · lint ✅ · Vitest 203/203 · API 192/192 (neu 37, u. a. Versand mit Fake-Sender, echte `web-push`-Bibliothek erzeugt eine verschlüsselte, signierte Anfrage) · E2E 38 bestanden, 1 übersprungen · `next build` ✅ · `build:vite` ✅.
+- **Nicht geprüft:** Zustellung an ein echtes Gerät (Android, iOS-PWA, Sperrbildschirm), Verhalten hinter Proxys, der übersprungene E2E-Test (Gerät aktivieren; die Headless-Sandbox verweigert die Berechtigung). Die PNG-Icons des Manifests fehlen im Repository (seit `2a81529`), die Meldungen haben daher kein eigenes Icon.
+- **Nebenbei:** zwei Lint-Fehler aus früheren Aufgaben behoben (`promo-kit/tools/manifest.mjs`, `scripts/check-doc-links.mjs`).
+
 ### Docs – Motion-Graphics-Promo-Kit `promo-kit/` (nach B-62)
 
 Kein Produktcode geändert; Versionen unverändert, nur die Build-Nummer wurde aktualisiert.

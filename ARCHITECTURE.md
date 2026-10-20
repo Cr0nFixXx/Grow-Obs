@@ -105,7 +105,7 @@ browser ── WebSocket /api/realtime/ws ──┐                      ┌─�
 
 - Transport chain WebSocket → SSE → polling (8 s). Events travel over PostgreSQL `LISTEN/NOTIFY` – several API instances need no Redis, a load balancer needs no stickiness.
 - `apps/api/src/realtime/`: `hub.ts` (connections, delivery to users/topics, presence, heartbeat), `commands.ts` (client → server), `ws.ts` (upgrade), `index.ts` (hook for `scripts/server.mjs`).
-  Sources: `routes/{chat,forum,realtime}.ts`, `lib/notify.ts` (`createNotification` = store + push live).
+  Sources: `routes/{chat,forum,realtime}.ts`, `lib/notify.ts` (`createNotification` = store + push live + web push).
 - Events: `chat.message|chat.read|chat.typing|presence|notification|thread.comment|resync`. **They carry IDs only** (payload < 7.5 KB); data comes through the authorized REST API.
 - Limits: 5 connections per account (the oldest closes with 4008); sessions are re-checked every 25 s, so logout / "all devices" / password change close live connections (code 4401).
 - WebSocket auth: cookie, or (only with `ALLOW_HEADER_SESSION`) a first message `{type:"auth",token}` within 5 s; the Origin must match the host or `CORS_ORIGINS`.
@@ -114,6 +114,23 @@ browser ── WebSocket /api/realtime/ws ──┐                      ┌─�
 - Next route handlers cannot accept WebSocket upgrades, hence `scripts/server.mjs`; it sets `app.didWebSocketSetup = true` (Next internals) because Next otherwise attaches its own `upgrade`
   listener that closes foreign sockets. The hub registers itself on the first API call in `globalThis.__growRealtimeUpgrade`.
 - Reverse proxy: forward `Upgrade`/`Connection` for `/realtime/ws`, disable buffering for `/realtime/stream`, read timeout ≥ 60 s (nginx example: `apps/api/README.md`).
+
+### Web push (B-63)
+
+Notifications reach devices whose app is closed. In-app delivery stays the source of truth; push is an add-on whose failure never fails a request.
+
+```
+createNotification / POST /chat/:id/messages ─► lib/push.ts sendPushToUser(userId, {category,…})
+   checks in order: VAPID configured → feature flag `push` → subscriptions exist → category enabled
+                    → quiet hours (user's IANA timezone) → user online (live connection) → throttle (1 per tag / 15 s)
+   ─► web-push (VAPID, encrypted payload) ─► browser push service ─► public/sw.js `push` ─► showNotification
+```
+
+- Tables (`0013`): `push_subscriptions` (one row per device, unique `endpoint`, bound to a `session` and cascading with it; removed on 404/410 or after 5 failures; max 5 per user) and `push_prefs` (categories `messages|community|grows|other`, `show_preview`, quiet hours, timezone).
+- Payload is **neutral by default** ("Neue Nachricht", no names or text); with `show_preview` the real title/body (truncated). The URL is an in-app path (`/chat`, `/forum`, …); the service worker only accepts app paths and posts `GO_NAVIGATE` to an open window (else `openWindow`).
+- Endpoints are restricted to the browsers' push hosts (`isAllowedEndpoint`, SSRF guard). Operators generate VAPID keys once (`npm run push:keys` in `apps/api`) and set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`; all three or none.
+- "Online" is user-level (`onlineAmong`): a user online on desktop gets no push on a closed phone PWA. iOS needs the installed PWA (16.4+).
+- Code: `apps/api/src/lib/{push-core,push}.ts` (pure logic / delivery with injectable sender), `routes/push.ts`; frontend `public/sw-push.js` + `sw.js`, `src/lib/push.ts`, `src/components/{PushCard,PushBridge}.tsx`.
 
 ---
 
@@ -197,6 +214,7 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0010 | chat/realtime: read position, direct-message key, presence |
 | 0011 | shared rate-limit table (`rate_limits`, UNLOGGED) |
 | 0012 | community feed, hiding, ban list (`community_bans`), reports (`reports`) |
+| 0013 | web push: `push_subscriptions` (per device, unique endpoint, cascades with session/user), `push_prefs` |
 
 ---
 

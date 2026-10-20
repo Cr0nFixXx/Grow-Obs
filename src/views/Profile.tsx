@@ -13,6 +13,7 @@ import { Avatar, Badge, Button, Card, Field, Input, Modal, PageHeader, Segmented
 import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
 import { AccountSecurity } from "@/components/AccountSecurity";
+import { PushCard } from "@/components/PushCard";
 import { Reveal } from "@/components/motion";
 import { useAuth, useCurrentUser } from "@/lib/auth";
 import { useActivity } from "@/data/hooks";
@@ -42,7 +43,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const swipeRef = useRef<HTMLDivElement>(null);
   useSwipeTabs(swipeRef, profileTabs, tab, setTab);
-  const [prefs, setPrefs] = useState({ push: true, telegram: me.telegram, weekly: true, sound: false });
+  const [prefs, setPrefs] = useState({ telegram: me.telegram, weekly: true, sound: false });
 
   return (
     <div ref={swipeRef} className="space-y-6">
@@ -146,12 +147,12 @@ export default function Profile() {
           <Reveal delay={0.05}>
             <Card className="space-y-4 p-5">
               <h2 className="text-sm font-semibold text-fg-muted">{t("settings.notifications")}</h2>
-              <ToggleRow label="Push-Benachrichtigungen" desc="Tasks & KI-Empfehlungen" checked={prefs.push} onChange={(v) => setPrefs((p) => ({ ...p, push: v }))} />
               <ToggleRow label="Telegram-Bot" desc="Status via Telegram" checked={prefs.telegram} onChange={(v) => setPrefs((p) => ({ ...p, telegram: v }))} />
               <ToggleRow label="Wöchentlicher Report" desc="Jeden Sonntag um 18 Uhr" checked={prefs.weekly} onChange={(v) => setPrefs((p) => ({ ...p, weekly: v }))} />
               <ToggleRow label="Sounds" desc="Akustische Signale" checked={prefs.sound} onChange={(v) => setPrefs((p) => ({ ...p, sound: v }))} />
             </Card>
           </Reveal>
+          <Reveal delay={0.07}><PushCard /></Reveal>
           <Reveal delay={0.1}>
             <Card className="space-y-4 p-5">
               <h2 className="text-sm font-semibold text-fg-muted">Konto</h2>

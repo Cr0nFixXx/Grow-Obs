@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-63 | Web-Push: Kategorien, neutraler Sperrbildschirm (Vorschau optional), Ruhezeit, kein Push bei Online, Geräte je Sitzung, VAPID über `push:keys`, Feature-Flag `push` (Migration 0013) | typecheck ✅ lint ✅ vitest 203/203 ✅ API 192/192 ✅ E2E 38 ✅ (1 übersprungen) · echte Gerätezustellung nicht geprüft |
 | Docs | Motion-Graphics-Promo-Kit `promo-kit/` (Engine, Szenen, Screenshots, Mockups, Key-Visuals, Brand, Briefing); kein Produktcode geändert | Setup-Smoke-Test ✅ Testrender ✅ Audio ✅ nahtloser Loop ✅ voller 60-s-Render nicht neu gelaufen |
 | Docs | Promo-Demo-Video (`promo/`), `PROMODEMO.md`, drei Agent-Skills (+ generische Kopien), `npm run docs:check`; kein Produktcode geändert | docs:check ✅ version:check ✅ Promo-Build reproduziert ✅ |
 | Docs | Dokumentations-Umbau (Struktur, Sprachen, eine Quelle je Fakt; kein Code geändert) | Links und Fakten gegen den Code geprüft ✅ |

@@ -1,7 +1,8 @@
 /* Static shell only. APIs, external media and signed/private URLs are network-only. */
-importScripts("/sw-policy.js");
+importScripts("/sw-policy.js", "/sw-push.js");
 const CACHE = "go-shell-v4-next";
 const policy = self.GrowCachePolicy;
+const push = self.GrowPush;
 const origin = self.location.origin;
 
 async function fetchAndStore(request) {
@@ -36,6 +37,26 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "CLEAR_PRIVATE_CACHES") {
     event.waitUntil(removeLegacyCaches().then(() => event.ports[0]?.postMessage({ ok: true })));
   }
+});
+// Web-Push (B-63): jede Push-Nachricht MUSS eine Meldung anzeigen (iOS/Safari widerruft das Abo sonst).
+self.addEventListener("push", (event) => {
+  const msg = push.parse(event.data);
+  event.waitUntil(self.registration.showNotification(msg.title, push.options(msg)));
+});
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = push.safePath(event.notification.data && event.notification.data.url);
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const open = windows.find((w) => new URL(w.url).origin === origin);
+    if (open) {
+      // Offene App: fokussieren und die Ziel-Ansicht im Router öffnen (kein Neuladen, Zustand bleibt).
+      await open.focus();
+      open.postMessage({ type: "GO_NAVIGATE", url });
+      return;
+    }
+    await self.clients.openWindow(new URL(url, origin).href);
+  })());
 });
 self.addEventListener("sync", (event) => {
   if (event.tag === "go-sync") event.waitUntil(warmShell());

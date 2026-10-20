@@ -11,7 +11,7 @@ export { CORE_FEATURES, FEATURE_KEYS, isFeatureKey, type FeatureKey } from "./fe
 const ROUTE_FEATURES: [prefix: string, feature: FeatureKey][] = [
   ["/grows", "grows"], ["/strains", "strains"], ["/breeders", "breeders"], ["/social", "social"],
   ["/communities", "communities"], ["/forum", "forum"], ["/chat", "chat"], ["/wiki", "wiki"],
-  ["/hall", "hallOfFame"], ["/products", "marketplace"], ["/offers", "marketplace"],
+  ["/hall", "hallOfFame"], ["/push", "push"], ["/products", "marketplace"], ["/offers", "marketplace"],
 ];
 export function featureForPath(path: string): FeatureKey | null {
   const hit = ROUTE_FEATURES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));

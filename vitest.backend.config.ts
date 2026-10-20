@@ -18,6 +18,10 @@ export default defineConfig({
       S3_SECRET_KEY: "test-storage-not-for-deploy",
       S3_BUCKET: "growobserver-test",
       CORS_ORIGINS: "http://localhost:5173",
+      // Nur für Tests erzeugtes VAPID-Paar (kein Geheimnis, nirgends produktiv): Push gilt dadurch als eingerichtet; gesendet wird nie real.
+      VAPID_PUBLIC_KEY: "BEcxMBNPs4EXEYkVI3q70p5hp_3ZX-xAFtgO6V8wNWtdHMymxB8Azr5iF0WaIRMbBopjjO5hJQofUmzpfVKHVrw",
+      VAPID_PRIVATE_KEY: "DvS0bLStOkLDsh1IKckFRVzKkQKde6K2MuS3pYRZphw",
+      VAPID_SUBJECT: "mailto:test@example.test",
     },
   },
 });

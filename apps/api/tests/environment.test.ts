@@ -30,3 +30,16 @@ describe("deployment environment", () => {
     expect(parsed.ALLOW_DEMO_SEED).toBe("false");
   });
 });
+describe("Web-Push-Konfiguration (VAPID)", () => {
+  const vapid = { VAPID_PUBLIC_KEY: `B${"a".repeat(86)}`, VAPID_PRIVATE_KEY: "b".repeat(43), VAPID_SUBJECT: "mailto:betreiber@example.test" };
+  it("ist optional: ohne Werte ist Push aus, alle drei zusammen sind gültig", () => {
+    expect(environmentSchema.safeParse(base).success).toBe(true);
+    expect(environmentSchema.safeParse({ ...base, ...vapid }).success).toBe(true);
+    expect(environmentSchema.safeParse({ ...base, ...vapid, VAPID_SUBJECT: "https://app.example.test" }).success).toBe(true);
+  });
+  it("lehnt Teilkonfiguration und Fehlformate ab", () => {
+    expect(environmentSchema.safeParse({ ...base, VAPID_PUBLIC_KEY: vapid.VAPID_PUBLIC_KEY }).success).toBe(false);
+    expect(environmentSchema.safeParse({ ...base, ...vapid, VAPID_SUBJECT: "betreiber@example.test" }).success).toBe(false);
+    expect(environmentSchema.safeParse({ ...base, ...vapid, VAPID_PRIVATE_KEY: "zu kurz!" }).success).toBe(false);
+  });
+});

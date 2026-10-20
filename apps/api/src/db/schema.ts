@@ -484,6 +484,39 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Web-Push-Abos (B-63): ein Eintrag je Browser/Gerät; hängt an der Sitzung und verschwindet mit ihr (Abmelden, „Alle Geräte“). */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    failureCount: integer("failure_count").notNull().default(0),
+  },
+  (t) => [uniqueIndex("push_subscriptions_endpoint_uq").on(t.endpoint), index("push_subscriptions_user_idx").on(t.userId)]
+);
+
+/** Push-Einstellungen je Konto (B-63): Kategorien, Vorschau, Ruhezeit (Minuten seit Mitternacht, in der Zeitzone des Nutzers). */
+export const pushPrefs = pgTable("push_prefs", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  messages: boolean("messages").notNull().default(true),
+  community: boolean("community").notNull().default(true),
+  grows: boolean("grows").notNull().default(true),
+  other: boolean("other").notNull().default(true),
+  showPreview: boolean("show_preview").notNull().default(false),
+  quietEnabled: boolean("quiet_enabled").notNull().default(false),
+  quietStart: integer("quiet_start").notNull().default(1320),
+  quietEnd: integer("quiet_end").notNull().default(420),
+  timezone: text("timezone").notNull().default("Europe/Berlin"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ----------------------------- Relations ----------------------------- */
 export const usersRelations = relations(users, ({ many }) => ({
   grows: many(grows),

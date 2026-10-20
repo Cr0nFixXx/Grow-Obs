@@ -44,7 +44,7 @@ for (const rel of walk(root)) {
   for (const m of text.matchAll(/`((?:\.[a-z]+\/)?[A-Za-z0-9_./-]+\.[a-z0-9]+|[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]*)`/g)) {
     const p = m[1].replace(/\/$/, "");
     if (!ROOTS.some((r) => p.startsWith(r)) && !/^[A-Z]+\.md$/.test(p)) continue;
-    if (/[*<>{}\[\]]/.test(p) || p.includes("...")) continue;
+    if (/[*<>{}[\]]/.test(p) || p.includes("...")) continue;
     if (IGNORED_PATHS.some((re) => re.test(p))) continue;
     if (!exists(p, dir)) problems.push(`${rel}: missing path (${p})`);
   }

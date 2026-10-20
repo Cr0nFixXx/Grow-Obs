@@ -10,6 +10,7 @@ import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { ago } from "../lib/time.ts";
 import { pageLimit, uuid } from "../lib/validation.ts";
 import { onlineAmong, publish } from "../realtime/hub.ts";
+import { pushChatMessage } from "../lib/push.ts";
 import { announceTyping } from "../realtime/commands.ts";
 
 export const chat = new Hono<AuthEnv>();
@@ -146,6 +147,7 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
   // Wer schreibt, hat den Chat gelesen (eigene Nachricht erhöht nie den eigenen Zähler).
   await db.update(conversationMembers).set({ lastReadAt: m!.createdAt }).where(and(eq(conversationMembers.conversationId, id), eq(conversationMembers.userId, userId)));
   await publish({ users: members }, { type: "chat.message", conversationId: id, messageId: m!.id, senderId: userId });
+  void pushChatMessage({ members, senderId: userId, conversationId: id, text: m!.text, hasImage: !!m!.imageUrl }).catch(() => undefined);
   return c.json({ id: m!.id, from: "me", text: m!.text, image: m!.imageUrl ?? undefined, time: "jetzt", createdAt: m!.createdAt.toISOString() }, 201);
 });
 

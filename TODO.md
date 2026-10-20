@@ -13,7 +13,7 @@ The owner decides the order. Last update: B-62.
 - [ ] **Password reset for regular members:** needs an email path or another recovery concept (today only operators can reset, via CLI).
 - [ ] **Hide online status:** per-user option (presence is currently always visible).
 - [ ] **Group chats:** backend supports conversations with several members; no UI to create them.
-- [ ] **Web push:** notifications while the app is closed.
+- [ ] **Web push, follow-ups:** real-device acceptance (Android, iOS PWA), PNG app icons for the notification (`/icon-192.png` is referenced by the manifest but not in the repo), push for further triggers (task reminders, community invites), per-conversation mute.
 - [ ] **Moderation beyond communities:** global feed and forum (report, hide); **leave a community**; **paginate** the moderation queue (capped at 100); **live updates** of the community feed.
 - [ ] **Detail URLs** for wiki, showcase and marketplace (`src/lib/routes.ts` + `public/sw-policy.js`).
 

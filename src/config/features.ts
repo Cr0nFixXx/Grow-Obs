@@ -31,6 +31,7 @@ export const defaultFeatures = {
   simulation: true,
   report: true,
   showcase: true,
+  push: true,
   /** Betreiber-Konsole (nicht Community-Mod). */
   devAdmin: true,
 } as const;
@@ -60,6 +61,7 @@ export const featureMeta: { key: FeatureKey; label: string; blurb: string; core?
   { key: "simulation", label: "Simulation", blurb: "Wachstumskurven" },
   { key: "report", label: "Grow-Report", blurb: "Auswertung & PDF" },
   { key: "showcase", label: "Design-System", blurb: "Komponenten-Galerie" },
+  { key: "push", label: "Web-Push", blurb: "Benachrichtigungen bei geschlossener App" },
   { key: "devAdmin", label: "Developer-Admin", blurb: "Betreiber: Flags, Health, User", core: true },
 ];
 

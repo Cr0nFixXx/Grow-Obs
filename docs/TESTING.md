@@ -5,24 +5,24 @@ command actually ran (see `CLAUDE.md`). Per-task history with numbers lives in `
 
 ## 1. Current status
 
-Last full run: **B-62** (HEAD `b369275`, build `26101714`), Node 22.23, PostgreSQL 17.
+Last full run: **B-63** (on top of `d495d75`), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
 
 | Check | Command | Result |
 |---|---|---|
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 181 / 181 (28 files) |
+| Frontend unit/component tests | `npm test` | ✅ 203 / 203 (31 files) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 155 / 155 (last run at B-61; no API change since) |
-| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 37 / 37 (desktop 36 + mobile 1, ≈ 5 min) |
+| API integration tests | `npm run test:api` | ✅ 192 / 192 (14 files) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 38 passed, 1 skipped (desktop 37 + mobile 1, ≈ 5.5 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
-| Vite legacy build | `npm run build:vite` | ✅ (last run at B-61) |
+| Vite legacy build | `npm run build:vite` | ✅ (B-63) |
 | Version consistency | `npm run version:check` | ✅ |
 | Doc links and paths | `npm run docs:check` | ✅ |
 | Dependency audit | `npm audit --package-lock-only` | see §6 |
 
-**Never run / not verifiable here:** Docker Compose stack (incl. the `admin` tools profile), MinIO uploads, real iOS/Android touch
+**Never run / not verifiable here:** delivery of a web push to a real device (Android, iOS PWA, lock screen; the sandbox cannot reach a push service), Docker Compose stack (incl. the `admin` tools profile), MinIO uploads, real iOS/Android touch
 behavior, reverse proxies in front of the realtime endpoints, a CI run on the hosting platform (the workflow exists, nobody observed it run).
 
 ## 2. Prerequisites and commands
@@ -61,14 +61,14 @@ against PostgreSQL) and E2E (Playwright).
 (executes `public/sw-policy.js`: APIs, signed URLs, external media and private/error responses never enter the cache; route list in sync with `routes.ts`),
 auth provider (fail-closed restore, late responses cannot undo logout, marker instead of token, 401 event), `useResource` (last request wins, refresh keeps data),
 feature flags (key parity with the API, malformed overrides), routing (`routes.ts`, `nav.tsx`), realtime transport and context, version/build number,
-update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, community moderation UI, mock services.
+update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, community moderation UI, mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
 
 **API integration (`apps/api/tests`, real PostgreSQL via `app.request()`)**
 
 | Suite | Covers |
 |---|---|
 | `environment.test.ts` | environment validation, production HTTPS rules |
-| `migrations.test.ts` | migration journal consistency (gapless, ascending timestamps, file present) and the SQL content of migrations 0006–0012 |
+| `migrations.test.ts` | migration journal consistency (gapless, ascending timestamps, file present) and the SQL content of migrations 0006–0013 |
 | `security.integration.test.ts` | upload authorization, chat membership, private discovery, invite expiry/hash/parallel redemption, last-admin protection, DB role beats JWT role, admin contracts, registration normalization |
 | `sessions.integration.test.ts` | cookie flags, revocation, expiry, foreign `sid`, device list, CSRF, CORS credentials |
 | `password.integration.test.ts` | password change (other sessions ended, wrong password 403), login history without IP (90 days), device limit 5 |
@@ -77,6 +77,9 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `rate-limit.test.ts` | shared counter: atomicity, two module instances, window expiry, hashed keys, DB-failure fallback |
 | `realtime.integration.test.ts` | LISTEN/NOTIFY delivery, SSE and WebSocket auth/limits, chat API, typing, presence, notifications |
 | `moderation.integration.test.ts` | community feed scope, hide/unhide, reports and queue, kick/ban matrix, role assignment |
+| `push-core.test.ts` | web push pure logic: categories, quiet hours (overnight window, DST, timezone fallback), neutral/preview payload, endpoint allow-list (SSRF) |
+| `push.integration.test.ts` | web push API and delivery with a fake sender: subscribe validation/limit 5/re-assignment, session cascade, prefs, category/quiet-hours/online/throttle/flag skips, 404/410 cleanup, failure counting, DM and notification triggers, test push |
+| `push-vapid.test.ts` | the real `web-push` library accepts the configured VAPID keys and builds an encrypted request (no network) |
 | `version.test.ts` | `/version`, module inheritance |
 
 **Browser E2E (`e2e/*.spec.ts`, Playwright, production build)**
@@ -89,6 +92,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `routing.spec.ts` | address follows view, reload/back/forward, grow detail, deep link after login, profile tab, legacy `?view=`, `/api` untouched, HTTP 404/400, strain URL |
 | `realtime.spec.ts` | chat live (WebSocket), SSE fallback, forum comments and bell live |
 | `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
+| `push.spec.ts` | push settings card: categories, preview, quiet hours persist across reload; enabling a device only runs where the browser may subscribe (otherwise skipped) |
 | `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow |
 
 ## 4. Test pitfalls
@@ -118,6 +122,7 @@ Drizzle wraps Postgres errors: the code is in `error.cause.code`. Root `tsc` doe
 7. Lightboxes: short drag snaps back, fast flick changes the image, down swipe closes; the close button always stays reachable.
 8. Offer ticker on a coarse-pointer device: manual horizontal snap, no autoplay; desktop keeps the marquee.
 9. Realtime behind nginx/Traefik (Upgrade headers, no buffering for SSE) and PWA offline deep links such as `/strains/<id>`.
+10. **Web push on real devices** (nothing here has been observed yet): set `VAPID_*` (`npm run push:keys --prefix apps/api`), build and serve over HTTPS. Android Chrome: enable push in Settings → Push-Benachrichtigungen, close the app, send a DM from another account → neutral "Neue Nachricht"; tap → opens `/chat`; with "Vorschau anzeigen" sender and text show. Quiet hours: nothing arrives inside the window. Online on desktop: nothing arrives on the phone. iOS: only from the installed PWA (16.4+); the Safari tab shows the install hint. "Alle Geräte" removes the device entries; revoking the browser permission removes the device after the next failed send (404/410).
 
 ## 6. Open release gates
 

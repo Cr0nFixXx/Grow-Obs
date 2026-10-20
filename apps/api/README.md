@@ -83,6 +83,7 @@ Schema und Regeln: `src/config/environment.ts`. Vorlage: `.env.example`.
 | `API_EMBEDDED` | `true` im eingebetteten Betrieb: S3 optional, CORS-HTTPS-Regel entfällt |
 | `TRUST_PROXY`, `RATE_LIMIT_DISABLED` | Rate-Limit: `TRUST_PROXY=false` ignoriert `X-Forwarded-For`; `RATE_LIMIT_DISABLED=true` schaltet ab (nur E2E) |
 | `ALLOW_EPHEMERAL_JWT_SECRET` | nur eingebettet: erlaubt ein Prozess-Secret in Produktion (Demos) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web-Push (B-63), optional: alle drei oder keiner (`mailto:…` oder `https://…`). Schlüsselpaar erzeugen: `npm run push:keys` (gibt nur aus). Ohne Werte ist Push aus |
 | `ALLOW_DEMO_SEED`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Demo-Seed (siehe unten) |
 | `POSTGRES_PASSWORD`, `MINIO_IMAGE` | nur Compose; `MINIO_IMAGE` steht auf `latest` und gehört vor einem Deployment auf einen geprüften Digest gepinnt |
 
@@ -119,7 +120,7 @@ Der Seed ist transaktional, nur für die Entwicklung und ausdrücklich opt-in. E
 
 ## Datenbank-Änderungen
 
-- `src/db/schema.ts` ist das ORM-Schema. Die Migrationen `drizzle/0000` bis `0012` sind **handgeschriebenes SQL** mit eingechecktem Journal (Übersicht: [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) §9).
+- `src/db/schema.ts` ist das ORM-Schema. Die Migrationen `drizzle/0000` bis `0013` sind **handgeschriebenes SQL** mit eingechecktem Journal (Übersicht: [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) §9).
 - `0000_initial.sql` gilt nur für eine **leere** Datenbank. Nie über Tabellen spielen, die frühere, unversionierte `drizzle-kit push`-Läufe angelegt haben; bestehende Installationen vorher sichern und baselinen.
 - Neue Migrationen werden geprüft, eingecheckt und bewusst ausgerollt, nie beim Start erzeugt.
 - Es gibt **keinen** Drizzle-Snapshot. `db:generate` nicht blind ausführen (doppelte `CREATE`-Statements); entweder zuerst in einer Wegwerf-Datenbank einen passenden Snapshot herstellen oder bei geprüftem handgeschriebenem SQL bleiben.
@@ -186,6 +187,21 @@ für S3 sind noch offen. Bilder über `/media` (unten) liegen dagegen in Postgre
 | GET/POST `/chat/:id/messages` | nur Mitglieder (Außenstehende erhalten 404); Text oder Bild; Senden 90/min |
 | GET `/realtime/stream`, POST `/realtime/command` | SSE-Ereignisstrom (60/min) und Client→Server-Befehle (`subscribe`/`unsubscribe` `thread:<uuid>`, `typing`; 240/min) |
 | WS `/realtime/ws` (eingebettet: `/api/realtime/ws`) | WebSocket: Cookie-Auth oder (mit `ALLOW_HEADER_SESSION=true`) erste Nachricht `{type:"auth",token}` binnen 5 s; Origin muss zum Host oder zu `CORS_ORIGINS` passen |
+
+### Web-Push
+
+Feature-Flag `push` (aus → 403). Alle Pfade verlangen Anmeldung.
+
+| Methode / Pfad | Zugriff / Verhalten |
+| --- | --- |
+| GET `/push/config` | `{configured, publicKey}` (öffentlicher VAPID-Schlüssel, nie der private) |
+| GET `/push` | Einstellungen (`prefs`, Uhrzeiten als `HH:MM`) und Geräte (`devices`: Gerätename, `current`; Endpunkt und Schlüssel werden nicht zurückgegeben) |
+| PUT `/push/prefs` | Teiländerung: `messages`, `community`, `grows`, `other`, `showPreview`, `quietEnabled`, `quietStart`, `quietEnd`, `timezone` (IANA); sonst 400 |
+| POST `/push/subscribe` | `{endpoint, keys:{p256dh, auth}}`; Endpunkt nur HTTPS bei bekannten Push-Diensten (sonst 400), an die Sitzung gebunden, idempotent, höchstens 5 Geräte (das älteste fällt weg); 503 ohne VAPID; 30 pro 10 min |
+| POST `/push/unsubscribe` `{endpoint}`, DELETE `/push/devices/:id` | nur eigene Geräte |
+| POST `/push/test` | Test-Meldung an alle eigenen Geräte (ignoriert Kategorien/Ruhezeit); 409 ohne Gerät, 503 ohne VAPID; 6 pro Minute |
+
+Versand (`lib/push.ts`): Konfiguration → Feature → Abos → Kategorie → Ruhezeit → Nutzer online → Drosselung (1 je Gruppe/15 s). Standardtext neutral, mit „Vorschau“ der echte Inhalt.
 
 ### Communities und Moderation
 

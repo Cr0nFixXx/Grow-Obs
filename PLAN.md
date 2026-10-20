@@ -40,7 +40,7 @@ Legend: ✅ done · ◐ partly · ○ not started · ✖ dropped or replaced.
 | P4 | Backend foundation (`apps/api`) | ✅ | DB, auth, sessions, storage, CRUD, Docker files. Docker/MinIO stack itself never run. |
 | P5 | Communities and realtime | ✅ | Communities with roles and invites, moderation (B-61), chat and realtime (B-59). Open: leave community, queue pagination, live community feed. |
 | P6 | Social graph | ◐ | Feed, follow, likes, bookmarks work. Stories have no data source; global feed has no moderation. |
-| P7 | Forum, chat, wiki, notifications | ◐ | All four work and are live-updated. Open: group-chat UI, web push, wiki/showcase/marketplace detail URLs. |
+| P7 | Forum, chat, wiki, notifications | ◐ | All four work and are live-updated. Web push is in (B-63, without real-device acceptance). Open: group-chat UI, wiki/showcase/marketplace detail URLs. |
 | P8 | Tools, marketplace, report, Telegram | ◐ | Calculator, simulation and read-only catalog exist. Open: saved calculator scenarios, user listings, server-side PDF report, Telegram bot (only a `telegram` setting flag exists). |
 | P9 | AI assistant | ○ | UI exists, input disabled with an honest notice (B-53). Needs the server proxy, history, soil recipes. |
 | P10 | Harden and launch | ◐ | Done: rate limits (shared, B-60), session hardening, E2E suite, CI, PWA shell. Open: observability, legal pages, TLS/backup concept, Docker validation, real-device acceptance, offline queue. |
@@ -58,7 +58,7 @@ The concrete list with priorities is `TODO.md`. Suggested order for the next fea
 1. **P10 gates first:** run the Docker/MinIO stack once, pin container images, check realtime behind a reverse proxy, real-device acceptance (these decide whether the PWA can launch).
 2. **P9:** AI proxy (`POST /ai/chat`, server-side context, token budget and rate limit per user, history table, streaming into `AIAssistant`), then soil recipes (`soil_recipes` with `parent_id`, fork = insert, diff stays client-side).
 3. **P8 remainder:** persist calculator scenarios, user listings (after profile/auth, which exist), server-side PDF report (auth-gated; no jsPDF in the client bundle), Telegram link with a signed token (bot token server-only).
-4. **P7/P6 remainder:** group-chat UI, web push, moderation for global feed and forum, hide online status, password reset for members.
+4. **P7/P6 remainder:** group-chat UI, moderation for global feed and forum, hide online status, password reset for members.
 5. **P10 launch checklist:** observability (error tracking, request IDs), legal pages (terms, privacy, imprint), staging deploy with a production-like DB.
 
 Launch checklist (all must be true): sign-up and login, grow CRUD, feed, one real AI call, installable PWA, error tracking live, staging deploy green.

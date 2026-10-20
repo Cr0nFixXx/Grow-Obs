@@ -36,9 +36,18 @@ export const environmentSchema = z.object({
    * Dann sind CORS-Header wirkungslos und Object Storage ist optional.
    */
   API_EMBEDDED: z.enum(["true", "false"]).default("false"),
+  /**
+   * Web-Push (B-63): VAPID-Schlüsselpaar (`npm run push:keys --prefix apps/api`) und Kontakt (`mailto:` oder `https:`).
+   * Fehlt eines davon, ist Push aus (die App zeigt es ehrlich an); alle drei zusammen aktivieren es.
+   */
+  VAPID_PUBLIC_KEY: z.string().regex(/^[A-Za-z0-9_-]{80,100}$/, "VAPID public key (base64url) expected").optional(),
+  VAPID_PRIVATE_KEY: z.string().regex(/^[A-Za-z0-9_-]{40,50}$/, "VAPID private key (base64url) expected").optional(),
+  VAPID_SUBJECT: z.string().regex(/^(mailto:[^\s@]+@[^\s@]+|https:\/\/\S+)$/, "VAPID_SUBJECT must be mailto:… or https://…").optional(),
   SEED_ADMIN_EMAIL: z.string().optional(),
   SEED_ADMIN_PASSWORD: z.string().optional(),
 }).superRefine((env, ctx) => {
+  const vapid = [env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY, env.VAPID_SUBJECT].filter(Boolean).length;
+  if (vapid !== 0 && vapid !== 3) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["VAPID_PUBLIC_KEY"], message: "Set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT together (or none)" });
   const origins = env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean);
   if (!origins.length || origins.some((origin) => {
     try { const url = new URL(origin); return !["http:", "https:"].includes(url.protocol) || url.origin !== origin; }

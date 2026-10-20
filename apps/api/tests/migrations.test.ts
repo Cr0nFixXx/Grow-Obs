@@ -14,6 +14,17 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0013 legt Push-Abos (je Gerät, eindeutiger Endpunkt, mit Sitzung/Konto kaskadierend) und Push-Einstellungen an", () => {
+    const sql = readFileSync(`${dir}0013_web_push.sql`, "utf8");
+    expect(sql).toMatch(/CREATE TABLE "push_subscriptions"/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX "push_subscriptions_endpoint_uq" ON "push_subscriptions" USING btree \("endpoint"\)/);
+    expect(sql).toMatch(/"push_subscriptions_session_id_sessions_id_fk" FOREIGN KEY \("session_id"\) REFERENCES "public"\."sessions"\("id"\) ON DELETE cascade/);
+    expect(sql).toMatch(/"push_subscriptions_user_id_users_id_fk" FOREIGN KEY \("user_id"\) REFERENCES "public"\."users"\("id"\) ON DELETE cascade/);
+    expect(sql).toMatch(/CREATE TABLE "push_prefs"/);
+    expect(sql).toContain('"show_preview" boolean DEFAULT false NOT NULL');
+    expect(sql).toContain('"timezone" text DEFAULT \'Europe/Berlin\' NOT NULL');
+  });
+
   it("0012 ergänzt Community-Feed, Ausblenden, Sperrliste und Meldungen (eine Meldung je Person und Inhalt)", () => {
     const sql = readFileSync(`${dir}0012_community_moderation.sql`, "utf8");
     expect(sql).toMatch(/ALTER TABLE "posts" ADD COLUMN "community_id" uuid/);

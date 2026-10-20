@@ -38,6 +38,10 @@ export default defineConfig({
       NODE_ENV: "production",
       // Die E2E-Suite legt mehr als 10 Konten pro Stunde an (Register-Limit pro IP); die Limits selbst prüfen die API-Tests.
       RATE_LIMIT_DISABLED: "true",
+      // Test-VAPID-Paar (kein Geheimnis): Push gilt als eingerichtet; die UI-Tests senden nie real.
+      VAPID_PUBLIC_KEY: "BEcxMBNPs4EXEYkVI3q70p5hp_3ZX-xAFtgO6V8wNWtdHMymxB8Azr5iF0WaIRMbBopjjO5hJQofUmzpfVKHVrw",
+      VAPID_PRIVATE_KEY: "DvS0bLStOkLDsh1IKckFRVzKkQKde6K2MuS3pYRZphw",
+      VAPID_SUBJECT: "mailto:test@example.test",
     },
   },
 });
