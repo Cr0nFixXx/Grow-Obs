@@ -11,6 +11,14 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-64 – PNG-App-Icons
+
+Versionen unverändert, nur die Build-Nummer wurde aktualisiert.
+
+- **Problem:** `public/manifest.webmanifest` verweist auf `icon-192.png`, `icon-512.png` und `icon-maskable-512.png`; die Dateien fehlten seit `2a81529` (damals 1,2-MB-Dateien entfernt). Folge: Push-Meldungen ohne Icon, Android-Installierbarkeit unsicher.
+- **Lösung:** drei neue PNGs, aus `public/icon.svg` mit Chromium gerendert: `icon-192.png` (16 KB), `icon-512.png` (99 KB), beide mit transparenten Ecken; `icon-maskable-512.png` (78 KB) vollflächig, Blatt auf 66 % in der Sicherheitszone (Maskable-Mitte 80 %). Zusammen ≈ 190 KB.
+- **Geprüft:** Bilder gesichtet ✅ · Größen/Modi per Skript ✅ · vitest ✅ · `next build` ✅. **Nicht geprüft:** Aussehen in einem echten Launcher (Maskable-Zuschnitt), Installation auf Android.
+
 ### B-63 – Web-Push
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
@@ -23,7 +31,7 @@ Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert
 - **API/DB:** Migration `0013_web_push` (`push_subscriptions`, `push_prefs`), Routen `/push/*` (siehe `apps/api/README.md`).
 - **Frontend:** Service Worker (`public/sw-push.js`, Ereignisse `push` und `notificationclick`, nur App-Pfade als Ziel), Karte „Push-Benachrichtigungen“ im Profil (Gerät aktivieren, Kategorien, Vorschau, Ruhezeit, Test, Geräteliste), `PushBridge` (Abo mit Sitzung abgleichen, Klick → Ansicht). Der frühere Schalter „Push-Benachrichtigungen“ war nur lokal und ohne Wirkung und entfällt; im Demo-Modus erscheint ein ehrlicher Hinweis. iOS: Hinweis, dass Push nur in der installierten App (16.4+) geht.
 - **Geprüft:** typecheck ✅ (Frontend, API, Tests) · lint ✅ · Vitest 203/203 · API 192/192 (neu 37, u. a. Versand mit Fake-Sender, echte `web-push`-Bibliothek erzeugt eine verschlüsselte, signierte Anfrage) · E2E 38 bestanden, 1 übersprungen · `next build` ✅ · `build:vite` ✅.
-- **Nicht geprüft:** Zustellung an ein echtes Gerät (Android, iOS-PWA, Sperrbildschirm), Verhalten hinter Proxys, der übersprungene E2E-Test (Gerät aktivieren; die Headless-Sandbox verweigert die Berechtigung). Die PNG-Icons des Manifests fehlen im Repository (seit `2a81529`), die Meldungen haben daher kein eigenes Icon.
+- **Nicht geprüft:** Zustellung an ein echtes Gerät (Android, iOS-PWA, Sperrbildschirm), Verhalten hinter Proxys, der übersprungene E2E-Test (Gerät aktivieren; die Headless-Sandbox verweigert die Berechtigung). Die PNG-Icons des Manifests fehlten im Repository (seit `2a81529`), siehe B-64.
 - **Nebenbei:** zwei Lint-Fehler aus früheren Aufgaben behoben (`promo-kit/tools/manifest.mjs`, `scripts/check-doc-links.mjs`).
 
 ### Docs – Motion-Graphics-Promo-Kit `promo-kit/` (nach B-62)
