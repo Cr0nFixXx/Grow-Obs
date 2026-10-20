@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-66** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
+**State: B-67** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 
@@ -98,6 +98,7 @@ Full list with priorities: `TODO.md`. Release gates (audit, uploads, Docker …)
 - No data source yet (empty states in API mode): cost/consumption, AI chat (UI only, no server proxy), soil recipes, stories, strain ratings.
 - Accounts: no password reset for regular members (no email infrastructure); online status cannot be hidden.
 - Vercel (B-66): see `ARCHITECTURE.md` "Serverless deployment". `DB_POOL_MAX`, `SKIP_MIGRATIONS`, `NEXT_PUBLIC_REALTIME` (polling is the default on Vercel builds). 503 `Backend nicht verfügbar` = boot failure, read `embedded_api_boot_failed` (`causeCode`). Not verified under load on Vercel.
+- Mobile (B-67): below 1024 px an open chat is a fullscreen portal (`data-testid="chat-fullscreen"`, z-45); zoom is disabled via viewport meta + `touch-action`; `translate="no"`. Verified only in Chromium emulation (Pixel 5), not on real Android/iOS devices or with the on-screen keyboard.
 - Group chats (B-65): invitation-only, max 20 members incl. open invitations, topics (private/admins-only/closed/pinned/muted). No group deletion and no explicit admin promotion yet; the demo mode has no groups. Not tested on real devices (group push, small screens beyond the E2E viewport).
 - Web push (B-63): delivery to real devices (Android, iOS PWA, lock screen) has never been observed; the sandbox cannot reach a push service. Without `VAPID_*` env vars push is off (the settings card says so).
 - Moderation covers community content only (not the global feed or the forum); no "leave community"; the report queue is capped at 100; the community feed does not update live.

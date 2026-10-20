@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-67 | Mobil: Pinch-Zoom aus, `translate="no"`, Chat als Vollbild auf Telefon, kein Überlauf bei 360 px, Seite scrollt im Chat nicht mit | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E 40 + 1 übersprungen ✅ · echtes Android/iOS nicht geprüft |
 | B-66 | Vercel-Betrieb: `DB_POOL_MAX`, `SKIP_MIGRATIONS`, reines Polling (`NEXT_PUBLIC_REALTIME`, Standard auf Vercel), Ursache im Boot-Log; Supabase-RLS aktiviert | typecheck ✅ lint ✅ vitest 226/226 ✅ API 221/221 ✅ · Last auf Vercel/E2E nicht geprüft |
 | B-65 | Gruppenchats: Einladung mit Annahme, Rollen (Admin), Gruppenbild, Themen (privat, nur Admins, geschlossen, angeheftet, stumm, Ungelesen je Thema), Verlauf einstellbar, Hinweiszeilen, Push je Thema (Migration 0014) | typecheck ✅ lint ✅ vitest 222/222 ✅ API 219/219 ✅ E2E 39 ✅ (1 übersprungen) build ✅ · echtes Gerät nicht geprüft |
 | B-64 | PNG-App-Icons (192, 512, maskable 512) aus `icon.svg`, ≈ 190 KB; vom Manifest referenziert, fehlten seit `2a81529` | vitest ✅ build ✅ · Launcher-Zuschnitt/Android-Installation nicht geprüft |

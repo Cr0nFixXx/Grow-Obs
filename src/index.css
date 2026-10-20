@@ -187,12 +187,12 @@
     border-radius: 4px;
   }
 
-  /* Native app feel: kill tap-highlight, prevent double-tap zoom */
+  /* Native app feel: kill tap-highlight, no pinch/double-tap zoom (zusätzlich zu maximum-scale im Viewport-Meta) */
   button, a, [role="button"] {
     -webkit-tap-highlight-color: transparent;
   }
   html {
-    touch-action: manipulation;
+    touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;
   }
 

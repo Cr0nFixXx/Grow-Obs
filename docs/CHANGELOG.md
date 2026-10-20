@@ -11,6 +11,19 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-67 – Mobil: Zoom aus, kein Übersetzungsangebot, Chat passt auf den Bildschirm
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Ursache „Seite lässt sich verschieben/zoomen“:** Der Chat war breiter als der Bildschirm (Kopfzeilen-Knöpfe, Eingabezeile; Spalte mit `min-content`-Breite). Chrome Android weitet dann den Layout-Viewport auf und verkleinert die Seite (gemessen: `innerHeight` 761 gegen `visualViewport` 727). Zusätzlich verschob `scrollIntoView` beim Scrollen der Nachrichten die ganze Seite, und die Kopfzeile lief bei 360 px um 8 px über.
+- **Chat auf Telefon/Tablet (< 1024 px):** geöffnete Unterhaltung als Vollbild-Ebene (Portal an `document.body`, `fixed inset-0`, unter Safe-Area-Rändern), Nachrichten scrollen intern (`overscroll-contain`), Eingabefeld immer sichtbar; Liste im normalen Seitenfluss; Knöpfe der Kopfzeile umbrechen. Desktop unverändert. Der runde Schnellaktions-Knopf ist im Chat ausgeblendet (verdeckte „Senden“). Eingabefeld 16 px auf Telefon (kein Auto-Zoom auf iOS). Nachrichten scrollen nur noch den eigenen Bereich.
+- **Zoom:** Viewport-Meta `maximum-scale=1, user-scalable=no`, `interactive-widget=resizes-content`; `html { touch-action: pan-x pan-y }`. Abwägung: Das nimmt sehbehinderten Nutzern das Vergrößern (WCAG 1.4.4). iOS Safari ignoriert `user-scalable=no` teilweise.
+- **Übersetzen:** `<html translate="no">` und `<meta name="google" content="notranslate">`. Das Chrome-Übersetzungsangebot beim Markieren kommt aus Chrome selbst; die Seite kann es mit diesen Hinweisen nur unterdrücken, nicht erzwingen.
+- **Kopfzeile:** Markenschrift unter 400 px etwas kleiner (kein Überlauf bei 360 px).
+- **Geprüft:** typecheck ✅ · lint ✅ · Vitest 226/226 · Build ✅ · E2E 40 bestanden, 1 übersprungen (Desktop 38, mobil 2).
+- **Test:** `e2e/mobile.spec.ts` (neu): Viewport-/Übersetzungs-Meta; Liste und offener Chat bei 360×600, 393×727 und Querformat 740×360 ohne horizontalen Überlauf und ohne Seiten-Scroll, Eingabefeld sichtbar, letzte Nachricht unten, Zurück zur Liste.
+- **Nicht geprüft:** echtes Chrome auf einem Android-Gerät (nur Chromium-Emulation Pixel 5), iOS Safari, Bildschirmtastatur (`resizes-content` ungetestet), das Übersetzungsangebot selbst. Das Modal „Neue Nachricht“ im Querformat 740×360 blieb im Test von der Abdeckung überlagert (nicht untersucht, außerhalb dieser Aufgabe).
+
 ### B-66 – Vercel-Betrieb (Verbindungen, Polling, Diagnose)
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.

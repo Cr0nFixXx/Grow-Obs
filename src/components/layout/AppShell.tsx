@@ -42,7 +42,7 @@ export function Brand({ compact }: { compact?: boolean }) {
         <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-leaf-300 ring-2 ring-bg" />
       </div>
       {!compact && (
-        <span className="font-display text-[17px] font-bold tracking-tight">
+        <span className="font-display text-[15px] font-bold tracking-tight min-[400px]:text-[17px]">
           Grow<span className="text-fg-subtle">|</span>
           <span className="gradient-text">Observer</span>
         </span>
@@ -405,11 +405,13 @@ function BottomNav() {
 
 function Fab() {
   const [open, setOpen] = useState(false);
-  const { navigate } = useNav();
+  const { navigate, view } = useNav();
   const { isEnabled } = useFeatures();
   const actions = (Object.keys(createKinds) as CreateKind[])
     .filter((kind) => isEnabled(createKinds[kind].feature))
     .map((kind) => ({ kind, icon: createKinds[kind].icon, label: createKinds[kind].title.replace("Wiki-Artikel erstellen", "Wiki-Artikel"), tone: createKinds[kind].tone }));
+  // Im Chat verdeckt der runde Knopf die Senden-Schaltfläche.
+  if (view === "chat") return null;
   return (
     <>
       <motion.button

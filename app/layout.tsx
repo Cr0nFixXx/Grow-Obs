@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description:
     "Community-getriebenes Cannabis-Grow-Dashboard mit persönlichem Tagebuch, Kostenoptimierung und KI-Assistenz.",
   manifest: "/manifest.webmanifest",
+  // Die Oberfläche ist deutsch; Chrome soll keine Übersetzung anbieten (Leiste/Menü beim Markieren, bricht außerdem React-DOM).
+  other: { google: "notranslate" },
   applicationName: "Grow Observer",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Grow Observer" },
   icons: {
@@ -26,7 +28,12 @@ export const viewport: Viewport = {
   themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#090c09" }, { media: "(prefers-color-scheme: light)", color: "#f4f6f0" }],
   width: "device-width",
   initialScale: 1,
+  // Native App-Gefühl: kein Pinch-Zoom (verhindert auch das Verkleinern bei breiten Inhalten).
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
+  // Bildschirmtastatur verkleinert den Layout-Viewport (Eingabefeld bleibt sichtbar) statt ihn zu überdecken.
+  interactiveWidget: "resizes-content",
 };
 
 /** No-FOUC: Theme vor dem ersten Paint setzen (wie zuvor im index.html inline). */
@@ -34,7 +41,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem("go-theme")||"da
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" data-theme="dark" suppressHydrationWarning>
+    <html lang="de" translate="no" data-theme="dark" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
