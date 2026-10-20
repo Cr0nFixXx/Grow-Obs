@@ -191,6 +191,18 @@
   button, a, [role="button"] {
     -webkit-tap-highlight-color: transparent;
   }
+  /* Bedienoberfläche nicht markierbar: sonst blendet Chrome Android beim langen Drücken seine Leiste
+     „Suchergebnisse anzeigen“ ein. Eingabefelder bleiben normal bedienbar (Markieren, Kopieren, Einfügen). */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
   html {
     touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;

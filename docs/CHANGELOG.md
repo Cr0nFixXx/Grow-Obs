@@ -11,6 +11,15 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-68 – Chrome-Suchleiste beim Markieren, Fehlerdiagnose der API
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Markieren:** Chrome Android blendete nach dem Entfernen des Übersetzen-Banners (B-67) beim langen Drücken die eigene Leiste „Suchergebnisse anzeigen“ ein. Sie kommt aus Chrome, die Seite kann sie nicht abschalten. Entscheidung des Eigners: Die Oberfläche ist jetzt **überall nicht markierbar** (`body { user-select: none; -webkit-touch-callout: none }`); nur Eingabefelder (`input`, `textarea`, `contenteditable`) bleiben markierbar. Folge: Nachrichten, Beiträge und Wiki-Texte lassen sich nicht mehr durch Markieren kopieren.
+- **API-Log:** `api_error` (HTTP 500 „Interner Fehler“) enthält zusätzlich Methode, Pfad (UUIDs als `:id`), den Postgres-/Treiber-Fehlercode und die auf 120 Zeichen gekürzte Meldung der Ursache. Kein SQL, keine Parameter. Anlass: auf Vercel schlugen einzelne Chat-Nachrichten mit „Interner Fehler“ fehl; die Ursache war aus dem Log nicht ablesbar.
+- **Geprüft:** typecheck ✅ · lint ✅ · Vitest 226/226 · Build ✅ · E2E `mobile.spec.ts` 2/2 (prüft `user-select`: Oberfläche `none`, Eingabefeld `text`).
+- **Nicht geprüft:** die Chrome-Leiste auf einem echten Android-Gerät; die API-Tests (Log-Erweiterung nur per typecheck), E2E der Desktop-Specs (nur eine CSS-Regel betroffen); die Ursache der 500er (offen, Laufzeit-Log von Vercel nötig).
+
 ### B-67 – Mobil: Zoom aus, kein Übersetzungsangebot, Chat passt auf den Bildschirm
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.

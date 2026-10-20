@@ -92,7 +92,12 @@ app.onError((error, c) => {
   if (error instanceof HTTPException) return c.json({ error: error.message }, error.status);
   const requestId = randomUUID();
   // No SQL, request bodies, credentials, invitation codes or signed URLs in logs.
-  console.error(JSON.stringify({ event: "api_error", requestId, type: error.name }));
+  // Nur Fehlercode und gekürzte Treibermeldung der Ursache (kein SQL/Parameter: die äußere drizzle-Meldung enthält beides).
+  const cause = (error as { cause?: { code?: unknown; message?: unknown } }).cause;
+  const own = (error as { code?: unknown }).code;
+  const code = typeof cause?.code === "string" ? cause.code : typeof own === "string" ? own : undefined;
+  const causeMessage = typeof cause?.message === "string" ? cause.message.slice(0, 120) : undefined;
+  console.error(JSON.stringify({ event: "api_error", requestId, type: error.name, method: c.req.method, path: c.req.path.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, ":id"), ...(code ? { code } : {}), ...(causeMessage ? { cause: causeMessage } : {}) }));
   return c.json({ error: "Interner Fehler", requestId }, 500);
 });
 app.notFound((c) => c.json({ error: "Nicht gefunden" }, 404));

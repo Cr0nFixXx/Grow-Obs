@@ -39,6 +39,8 @@ test("Mobil: Zoom und Übersetzungsangebot sind aus, der Chat füllt den Bildsch
   await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", /user-scalable=no/);
   await expect(page.locator('meta[name="google"]')).toHaveAttribute("content", "notranslate");
   await expect(page.locator("html")).toHaveAttribute("translate", "no");
+  // Oberfläche nicht markierbar (Chrome-Suchleiste), Eingabefelder weiterhin
+  expect(await page.evaluate(() => getComputedStyle(document.body).userSelect)).toBe("none");
 
   await page.getByRole("button", { name: "Mehr", exact: true }).last().click();
   await page.getByRole("button", { name: /^Chat/ }).last().click();
@@ -51,6 +53,7 @@ test("Mobil: Zoom und Übersetzungsangebot sind aus, der Chat füllt den Bildsch
   await page.getByRole("button", { name: new RegExp(b) }).click();
   const box = page.getByPlaceholder("Nachricht schreiben…");
   await expect(box).toBeVisible();
+  expect(await box.evaluate((el) => getComputedStyle(el).userSelect)).toBe("text");
   for (let i = 0; i < 10; i++) {
     await box.fill(`Nachricht ${i} ${"lang ".repeat(i * 4)}`);
     await page.getByRole("button", { name: "Senden", exact: true }).click();
