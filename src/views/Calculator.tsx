@@ -14,7 +14,7 @@ function SliderRow({ label, value, min, max, step, unit, onChange }: { label: st
         <span className="text-fg-muted">{label}</span>
         <span className="font-semibold tnum">{value}{unit}</span>
       </div>
-      <Slider value={value} min={min} max={max} step={step} onChange={(e) => onChange(Number(e.target.value))} />
+      <Slider aria-label={label} value={value} min={min} max={max} step={step} onChange={(e) => onChange(Number(e.target.value))} />
     </div>
   );
 }

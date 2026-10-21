@@ -79,3 +79,19 @@ test("Mobil: Zoom und Übersetzungsangebot sind aus, der Chat füllt den Bildsch
   await expect(page.getByRole("button", { name: "Neue Nachricht" })).toBeVisible();
   await expectFitsScreen(page, false); // die Liste darf die Seite verlängern, aber nie seitlich überlaufen
 });
+
+test("Mobil 360 px: Einstellungen, Simulation und Telegram laufen nicht über den Rand; Seitentitel wechselt mit der Ansicht", async ({ page }) => {
+  const name = `mob_v_${stamp}`;
+  await register(page, name, uniqueEmail(name));
+  await page.setViewportSize({ width: 360, height: 640 });
+  for (const [path, title] of [["/profile/settings", "Profil"], ["/simulation", "Simulation"], ["/telegram", "Telegram"], ["/strains", "Sorten"]] as const) {
+    await page.goto(path);
+    await expect(page).toHaveTitle(`${title} · Grow|Observer`);
+    await page.waitForTimeout(600); // Einblend-Animation der Ansicht
+    await expectFitsScreen(page, false);
+  }
+  // Eingabefelder auf dem Telefon mind. 16 px (iOS zoomt sonst beim Fokussieren)
+  await page.goto("/strains");
+  const sizes = await page.locator("input:visible, textarea:visible, select:visible").evaluateAll((els) => els.map((el) => parseFloat(getComputedStyle(el).fontSize)));
+  for (const size of sizes) expect(size).toBeGreaterThanOrEqual(16);
+});

@@ -5,7 +5,7 @@ command actually ran (see `CLAUDE.md`). Per-task history with numbers lives in `
 
 ## 1. Current status
 
-Last full run: **B-67** (on top of B-66; E2E re-run in B-67), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
+Last full run: **B-69** (E2E re-run in B-69; API tests last run in B-66), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
 
 | Check | Command | Result |
 |---|---|---|
@@ -15,7 +15,7 @@ Last full run: **B-67** (on top of B-66; E2E re-run in B-67), **Node 20.20** and
 | Frontend unit/component tests | `npm test` | ✅ 226 / 226 (36 files) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
 | API integration tests | `npm run test:api` | ✅ 221 / 221 (15 files) |
-| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 40 passed, 1 skipped (desktop 38 + mobile 2, ≈ 6.1 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 41 passed, 1 skipped (desktop 38 + mobile 3, ≈ 6.6 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
 | Version consistency | `npm run version:check` | ✅ |
@@ -94,7 +94,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
 | `push.spec.ts` | push settings card: categories, preview, quiet hours persist across reload; enabling a device only runs where the browser may subscribe (otherwise skipped) |
 | `groups.spec.ts` | group chat with two users: create, invite, accept, topic, message with sender and unread counter, admins-only lock – live |
-| `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow; viewport/translate meta; list and open chat fit 360×600, 393×727, 740×360 (no page scroll, composer visible) |
+| `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow; viewport/translate meta; list and open chat fit 360×600, 393×727, 740×360 (no page scroll, composer visible); `user-select`; no overflow at 360 px on settings/simulation/telegram, page titles, inputs ≥ 16 px |
 
 ## 4. Test pitfalls
 

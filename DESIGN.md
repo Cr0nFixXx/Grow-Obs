@@ -105,7 +105,7 @@ Why no chart library: the legacy build is a single file (`vite-plugin-singlefile
 | **Mobile** (`<sm`) | TopBar (permanent burger + brand + search/bell/avatar), bottom nav (4 tabs + "Mehr" sheet), FAB bottom right, drawer; modals and notifications become bottom sheets; safe areas |
 | **≥ lg** | persistent sidebar (collapsible 272 ↔ 80 px via `--sb-w`), top bar with search, centered content (`max-w-1440`) |
 
-- **Safe area:** `env(safe-area-inset-*)` on TopBar, BottomNav, FAB and content padding. **Touch:** `-webkit-tap-highlight-color: transparent`, `touch-action: manipulation`, card `:active` feedback, targets ≥ 44 px.
+- **Safe area:** `env(safe-area-inset-*)` on TopBar, BottomNav, FAB and content padding. **Touch:** `-webkit-tap-highlight-color: transparent`, `touch-action: pan-x pan-y` (no pinch/double-tap zoom, B-67), `user-select: none` except inputs (B-68), card `:active` feedback, targets ≥ 44 px.
 - **Gestures:** drawer closes horizontally, sheets/modals follow the finger and snap back when cancelled, passive edge swipe (off on iOS), long-press with a movement guard, pull-to-refresh with overlay/form guard.
   Rules and do-not-roll-back details: `HANDOFF.md` §4. Lightboxes support flick/swipe; mobile tickers are manual snap carousels. Real-device and on-screen-keyboard acceptance is still open (`docs/TESTING.md`).
 - **Command palette** (⌘K), skip link, focus traps in modals/drawers/sheets, `aria-live` for toasts and streamed answers, visible focus states, WCAG-AA contrasts.

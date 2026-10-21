@@ -184,7 +184,7 @@ export default function Dashboard() {
               <SectionHead
                 title="Aktive Grows"
                 icon="Sprout"
-                action={<button onClick={() => navigate("grows")} className="text-sm text-accent hover:underline">Alle</button>}
+                action={<button onClick={() => navigate("grows")} className="-my-2 py-2 text-sm text-accent hover:underline">Alle</button>}
               />
               {activeGrows.length === 0 && (
                 <EmptyState icon="Sprout" title="Noch kein aktiver Grow" desc="Lege deinen ersten Grow an, um Fortschritt, Gesundheit und Tasks zu verfolgen." action={<Button size="sm" onClick={() => navigate("create", { kind: "grow" })}><Plus className="size-4" /> Neuer Grow</Button>} />
@@ -376,7 +376,7 @@ export default function Dashboard() {
           {demo && (
           <Reveal delay={0.1}>
             <Card className="p-4 sm:p-5">
-              <SectionHead title="Kosten-Snapshot" icon="Euro" action={<button onClick={() => navigate("consumption")} className="text-sm text-accent hover:underline">Details</button>} />
+              <SectionHead title="Kosten-Snapshot" icon="Euro" action={<button onClick={() => navigate("consumption")} className="-my-2 py-2 text-sm text-accent hover:underline">Details</button>} />
               <div className="flex items-center gap-4">
                 <Donut data={costBreakdown} size={108} stroke={14}>
                   <div>

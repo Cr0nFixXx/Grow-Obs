@@ -86,7 +86,7 @@ export default function Showcase() {
             <Textarea placeholder="Mehrzeilige Eingabe…" rows={2} />
             <div>
               <div className="mb-2 flex items-center justify-between text-sm"><span>Slider</span><span className="tnum font-medium">{slider}</span></div>
-              <Slider min={0} max={100} value={slider} onChange={(e) => setSlider(Number(e.target.value))} />
+              <Slider aria-label="Slider" min={0} max={100} value={slider} onChange={(e) => setSlider(Number(e.target.value))} />
             </div>
             <div className="flex items-center justify-between"><span className="text-sm">Toggle</span><Toggle checked={toggle} onChange={setToggle} /></div>
             <Segmented value={seg} onChange={setSeg} options={[{ value: "a", label: "Eins" }, { value: "b", label: "Zwei" }, { value: "c", label: "Drei" }]} />

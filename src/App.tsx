@@ -88,8 +88,17 @@ const views: Record<ViewKey, ComponentType> = {
   notFound: NotFound,
 };
 
+/** Seitentitel je Ansicht (Browser-Tab, Verlauf, Screenreader-Ansage beim Wechsel). */
+const TITLES: Record<ViewKey, string> = {
+  dashboard: "Dashboard", grows: "Grows", strains: "Sorten", ai: "KI-Assistent", planner: "Planer", breeders: "Breeder", marketplace: "Marktplatz",
+  wiki: "Wiki", forum: "Forum", hallOfFame: "Hall of Fame", social: "Community-Feed", communities: "Communities", showcase: "Showcase",
+  calculator: "Rechner", consumption: "Verbrauch", simulation: "Simulation", report: "Report", chat: "Chat", notifications: "Benachrichtigungen",
+  profile: "Profil", telegram: "Telegram", auth: "Anmelden", devAdmin: "Betrieb", create: "Erstellen", notFound: "Nicht gefunden",
+};
+
 function Router() {
   const { view } = useNav();
+  useEffect(() => { document.title = `${TITLES[view]} · Grow|Observer`; }, [view]);
   return (
     <AnimatePresence mode="wait">
       <motion.div

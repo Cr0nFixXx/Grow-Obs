@@ -145,6 +145,11 @@
 
 /* ===================== BASE ===================== */
 @layer base {
+  /* Raster ohne eigene Spaltenvorgabe: eine schrumpfbare Spalte statt „min-content“ – sonst weitet breiter Inhalt
+     (Segment-Schalter, lange Wörter, Diagramme) die Seite über den Bildschirmrand (Chrome Android zoomt dann heraus). */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   *,
   ::before,
   ::after {
@@ -419,5 +424,14 @@ html.theme-anim *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* Telefon: Eingabefelder mit mindestens 16 px, sonst zoomt iOS Safari beim Fokussieren hinein (ignoriert user-scalable=no). */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px;
   }
 }

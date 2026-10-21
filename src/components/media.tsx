@@ -71,6 +71,7 @@ export function EmojiPicker({ onPick, className }: { onPick: (emoji: string) => 
   return (
     <Popover
       align="start"
+      label="Emoji einfügen"
       trigger={<Smile className="size-5" />}
       triggerClassName={cn("grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted transition hover:bg-surface-2", className)}
     >

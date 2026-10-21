@@ -54,11 +54,11 @@ export default function Simulation() {
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div>
                 <div className="mb-1.5 flex justify-between text-sm"><span className="text-fg-muted">Dauer</span><span className="font-semibold tnum">{weeks} Wo.</span></div>
-                <Slider value={weeks} min={8} max={20} step={1} onChange={(e) => setWeeks(Number(e.target.value))} />
+                <Slider aria-label="Dauer in Wochen" value={weeks} min={8} max={20} step={1} onChange={(e) => setWeeks(Number(e.target.value))} />
               </div>
               <div>
                 <div className="mb-1.5 flex justify-between text-sm"><span className="text-fg-muted">LED</span><span className="font-semibold tnum">{light} W</span></div>
-                <Slider value={light} min={150} max={1000} step={10} onChange={(e) => setLight(Number(e.target.value))} />
+                <Slider aria-label="LED-Leistung in Watt" value={light} min={150} max={1000} step={10} onChange={(e) => setLight(Number(e.target.value))} />
               </div>
               <div className="rounded-xl bg-leaf-500/10 p-3 text-center">
                 <div className="text-xl font-bold tnum text-leaf-600 dark:text-leaf-400">~{estYield} g</div>

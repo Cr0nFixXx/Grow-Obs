@@ -132,7 +132,7 @@ export function Chip({
   return (
     <button
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+        "inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-0",
         active
           ? "border-accent/40 bg-accent/12 text-accent"
           : "border-border bg-surface-2 text-fg-muted hover:text-fg hover:bg-surface-3",
@@ -186,7 +186,7 @@ export function Avatar({
   const initials = initialsOf(label);
   const ringClass = ring && "ring-2 ring-accent/50 ring-offset-2 ring-offset-bg";
   return (
-    <span className={cn("relative inline-block shrink-0", className)} style={{ width: size, height: size }}>
+    <span className={cn("relative inline-block shrink-0 rounded-full", className)} style={{ width: size, height: size }}>
       {showImage ? (
         <img
           src={url}
@@ -313,7 +313,7 @@ export function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={cn("relative inline-flex h-6 w-11 items-center rounded-full transition-colors", checked ? "bg-accent" : "bg-surface-3")}
+      className={cn("relative inline-flex h-6 w-11 items-center rounded-full transition-colors after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-['']", checked ? "bg-accent" : "bg-surface-3")}
     >
       <span className={cn("inline-block size-5 transform rounded-full bg-white shadow transition-transform", checked ? "translate-x-[22px]" : "translate-x-0.5")} />
     </button>
@@ -565,28 +565,37 @@ export function RatingStars({
   onChange?: (v: number) => void;
   className?: string;
 }) {
-  const pct = (value / 5) * 100;
+  const pct = Math.min(100, Math.max(0, (value / 5) * 100));
+  const stars = [0, 1, 2, 3, 4];
+  const label = `${value} von 5 Sternen`;
   return (
-    <div className={cn("relative inline-flex", className)} style={{ width: size * 5 + 8 }} title={`${value} / 5`}>
-      <div className="flex gap-0.5 text-fg-subtle">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <Star key={i} size={size} className="fill-current" strokeWidth={0} />
-        ))}
+    <div
+      className={cn("relative inline-flex", className)}
+      style={{ width: size * 5 + 8 }}
+      title={`${value} / 5`}
+      {...(onChange ? { role: "group", "aria-label": "Bewertung" } : { role: "img", "aria-label": label })}
+    >
+      <div className="flex gap-0.5 text-fg-subtle" aria-hidden="true">
+        {stars.map((i) => <Star key={i} size={size} className="fill-current" strokeWidth={0} />)}
       </div>
-      <div className="absolute inset-0 flex gap-0.5 overflow-hidden text-leaf-500 dark:text-leaf-400" style={{ width: `${pct}%` }}>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <button
-            key={i}
-            type="button"
-            disabled={!onChange}
-            onClick={() => onChange?.(i + 1)}
-            className={cn(onChange && "cursor-pointer")}
-            aria-label={`${i + 1} Sterne`}
-          >
-            <Star size={size} className="fill-current" strokeWidth={0} />
-          </button>
-        ))}
+      <div className="pointer-events-none absolute inset-0 flex gap-0.5 overflow-hidden text-leaf-500 dark:text-leaf-400" style={{ width: `${pct}%` }} aria-hidden="true">
+        {stars.map((i) => <Star key={i} size={size} className="fill-current" strokeWidth={0} />)}
       </div>
+      {/* Bedienbar nur mit onChange: Schaltflächen über der ganzen Breite (nicht nur über dem gefüllten Teil), Trefferfläche ≥ 44 px hoch. */}
+      {onChange && (
+        <div className="absolute inset-0 flex">
+          {stars.map((i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onChange(i + 1)}
+              className="relative flex-1 cursor-pointer after:absolute after:inset-x-0 after:-inset-y-3.5 after:content-['']"
+              aria-label={`${i + 1} Sterne`}
+              aria-pressed={value >= i + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1189,12 +1198,15 @@ export function Popover({
   align = "start",
   triggerClassName,
   className,
+  label,
 }: {
   trigger: ReactNode;
   children: (close: () => void) => ReactNode;
   align?: "start" | "end";
   triggerClassName?: string;
   className?: string;
+  /** Zugänglicher Name des Auslösers (Pflicht, wenn er nur ein Symbol zeigt). */
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1211,7 +1223,7 @@ export function Popover({
   }, [open]);
   return (
     <div ref={ref} className="relative inline-block">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className={cn("inline-flex items-center", triggerClassName)}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label={label} aria-haspopup="menu" aria-expanded={open} className={cn("inline-flex items-center", triggerClassName)}>
         {trigger}
       </button>
       <AnimatePresence>

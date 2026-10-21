@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-69 | Code-Audit: Überlauf in Einstellungen/Simulation/Telegram behoben, Eingaben ≥ 16 px, Beschriftungen, Sterne, Touch-Ziele, Avatar-Ring, Seitentitel | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E 41 + 1 übersprungen ✅ |
 | B-68 | Markieren aus (außer Eingabefelder, gegen Chrome-Suchleiste); `api_error` loggt Code, Pfad und Ursache | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E mobil 2/2 ✅ · Ursache der 500er offen |
 | B-67 | Mobil: Pinch-Zoom aus, `translate="no"`, Chat als Vollbild auf Telefon, kein Überlauf bei 360 px, Seite scrollt im Chat nicht mit | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E 40 + 1 übersprungen ✅ · echtes Android/iOS nicht geprüft |
 | B-66 | Vercel-Betrieb: `DB_POOL_MAX`, `SKIP_MIGRATIONS`, reines Polling (`NEXT_PUBLIC_REALTIME`, Standard auf Vercel), Ursache im Boot-Log; Supabase-RLS aktiviert | typecheck ✅ lint ✅ vitest 226/226 ✅ API 221/221 ✅ · Last auf Vercel/E2E nicht geprüft |

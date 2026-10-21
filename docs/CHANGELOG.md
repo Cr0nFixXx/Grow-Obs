@@ -11,6 +11,23 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-69 – Code-Audit und UI-Fehler
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Vorgehen:** Statische Prüfung (Muster wie `dangerouslySetInnerHTML`, `console.log`, rohes SQL, `any`, TODO; Authentifizierung aller API-Routen; `npm audit --omit=dev`) und ein automatischer Durchlauf aller 23 Pfade in vier Bildschirmgrößen (360×640, 393×727, 768×1024, 1280×800) mit Messung von Überlauf, Konsolenfehlern, Touch-Zielen, Beschriftungen und Eingabeschrift.
+- **Statisch unauffällig:** keine `any`/`@ts-ignore`, kein `console.log` im Anwendungscode (nur CLI), einziges `dangerouslySetInnerHTML` ist das eigene Theme-Skript, alle Schreib-Routen der API hinter `requireAuth` (Sammel-Middleware oder je Route), `npm audit` ohne Funde (Produktionsabhängigkeiten).
+- **Behoben (gefunden im Durchlauf):**
+  - **Seitlicher Überlauf auf dem Telefon** in Profil → Einstellungen (59 px bei 360 px), Simulation (9 px) und Telegram (3 px). Ursache: Raster ohne Spaltenvorgabe (`grid gap-6 lg:grid-cols-2`) hat auf dem Telefon eine Spalte mit `min-content`-Breite. Globale Vorgabe `.grid { grid-template-columns: minmax(0, 1fr) }` in der Basis-Ebene (Tailwind-Klassen `grid-cols-*` überschreiben sie).
+  - **Eingabefelder < 16 px** (iOS Safari zoomt beim Fokussieren; `user-scalable=no` wird dort teils ignoriert): auf Telefonbreite (< 768 px) mindestens 16 px.
+  - **Beschriftungen:** sechs Schieberegler (Rechner, Simulation, Showcase) und der Emoji-Auswähler hatten keinen zugänglichen Namen (`aria-label`, `Popover` bekommt `label`).
+  - **Bewertungssterne:** reine Anzeige ist jetzt `role="img"` mit Text („4,5 von 5 Sternen“) statt fünf deaktivierter Schaltflächen; bedienbar nur mit `onChange`, dort über die ganze Breite (vorher nur über dem gefüllten Teil, also bei Wert 0 nicht klickbar) und mit ≥ 44 px Trefferfläche.
+  - **Touch-Ziele:** Filter-Chips mind. 40 px hoch auf dem Telefon (vorher 30 px), Schalter (`Toggle`) und die Links „Alle“/„Details“ im Dashboard mit größerer Trefferfläche.
+  - **Avatar-Ring:** `ring-*` am Profilbild lag auf einem eckigen Rahmen (dunkles Quadrat hinter dem Kreis); der Rahmen ist jetzt rund.
+  - **Seitentitel:** jede Ansicht setzt `document.title` („Chat · Grow|Observer“); vorher überall derselbe Titel.
+- **Geprüft:** typecheck ✅ · lint ✅ · Vitest 226/226 (ein Lauf mit einem fehlgeschlagenen Test, zwei Wiederholungen grün; welcher Test, wurde nicht ermittelt) · Build ✅ · E2E 41 bestanden, 1 übersprungen (Desktop 38, mobil 3; neuer Test: Überlauf bei 360 px, Seitentitel, Eingabeschrift). Nicht ausgeführt: API-Tests.
+- **Nicht behoben / offen:** Toggle-Höhe visuell weiterhin 24 px (nur die Trefferfläche wuchs); Dashboard/Planer/Showcase u. a. sind auf dem Telefon lang (kein Fehler); Ansicht „Report“ ohne Grow hat keine `h1`; Sterne im Showcase nur dort bedienbar. Keine Tests auf echten Geräten, kein Kontrast-/Tastaturtest, keine Lasttests.
+
 ### B-68 – Chrome-Suchleiste beim Markieren, Fehlerdiagnose der API
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
