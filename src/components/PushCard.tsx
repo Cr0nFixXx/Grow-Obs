@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
-import { Badge, Button, Card, Input, Toggle } from "@/components/ui";
+import { Badge, Button, Card, CollapsibleCard, Input, Toggle } from "@/components/ui";
 import { useFeatures } from "@/config/FeatureContext";
 import { ApiError, http } from "@/lib/api";
 import { config } from "@/lib/config";
@@ -93,11 +93,7 @@ export function PushCard() {
   const notConfigured = state && !state.configured;
   const prefs = state?.prefs;
   return (
-    <Card className="space-y-4 p-5" data-testid="push-card">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-muted">Push-Benachrichtigungen</h2>
-        {active && <Badge tone="leaf">Aktiv</Badge>}
-      </div>
+    <CollapsibleCard icon="Smartphone" title="Push-Benachrichtigungen" action={active ? <Badge tone="leaf">Aktiv</Badge> : undefined} className="p-5" bodyClassName="space-y-4" testId="push-card">
       {error && <p role="alert" className="text-sm text-danger">{error} <button className="underline" onClick={() => void load()}>Erneut laden</button></p>}
       {!state && !error && <p className="text-sm text-fg-subtle">Lade…</p>}
       {notConfigured && <p className="text-sm text-fg-muted" data-testid="push-not-configured">Push ist auf diesem Server nicht eingerichtet. Der Betreiber muss dafür Schlüssel hinterlegen.</p>}
@@ -143,6 +139,6 @@ export function PushCard() {
           )}
         </div>
       )}
-    </Card>
+    </CollapsibleCard>
   );
 }

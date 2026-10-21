@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, CollapsibleCard } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { ApiError, http } from "@/lib/api";
 import { config } from "@/lib/config";
@@ -53,11 +53,7 @@ export function SessionsCard({ onSignedOut, refreshKey = 0 }: { onSignedOut?: ()
   };
 
   return (
-    <Card className="space-y-3 p-5" data-testid="sessions-card">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-muted">Sitzungen &amp; Geräte</h2>
-        {sessions && <span className="text-xs text-fg-subtle">{sessions.length} aktiv</span>}
-      </div>
+    <CollapsibleCard icon="Smartphone" title="Sitzungen &amp; Geräte" action={sessions ? <span className="text-xs text-fg-subtle">{sessions.length} aktiv</span> : undefined} className="p-5" bodyClassName="space-y-3" testId="sessions-card">
       {error && <p role="alert" className="text-sm text-danger">{error} <button className="underline" onClick={() => void load()}>Erneut laden</button></p>}
       {!sessions && !error && <p className="text-sm text-fg-subtle">Lade…</p>}
       <ul className="space-y-2">
@@ -79,6 +75,6 @@ export function SessionsCard({ onSignedOut, refreshKey = 0 }: { onSignedOut?: ()
         <Icon name="LogOut" size={16} /> Auf allen Geräten abmelden
       </Button>
       <p className="text-xs text-fg-subtle">Beendet jede Anmeldung dieses Kontos, auch diese. Nutze das, wenn ein Gerät verloren ging.</p>
-    </Card>
+    </CollapsibleCard>
   );
 }

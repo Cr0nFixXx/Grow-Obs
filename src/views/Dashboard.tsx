@@ -5,7 +5,7 @@ import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, Button, Card, Chip, EmptyState, ProgressBar, SmartImage, StatCard } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Chip, CollapsibleCard, EmptyState, ProgressBar, SmartImage, StatCard } from "@/components/ui";
 import { Donut, Gauge, Sparkline } from "@/components/charts";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/motion";
 import { climate, consumptionSeries, quickStats } from "@/mocks/data";
@@ -117,7 +117,7 @@ export default function Dashboard() {
       )}
 
       {/* Quick stats */}
-      <StaggerGroup className={cn("grid grid-cols-2 gap-3", stats.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+      <StaggerGroup className={cn("grid grid-cols-2 gap-3 [&>:last-child:nth-child(odd)]:col-span-2 lg:[&>:last-child:nth-child(odd)]:col-span-1", stats.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
         {stats.map((s) => (
           <StaggerItem key={s.id}>
             <StatCard label={s.label} value={s.value} delta={s.delta} trend={s.trend} icon={s.icon} tone={s.color as never} />
@@ -254,8 +254,7 @@ export default function Dashboard() {
 
           {/* Activity feed */}
           <Reveal>
-            <Card className="p-4 sm:p-5">
-              <SectionHead title="Aktivität" icon="Activity" />
+            <CollapsibleCard title="Aktivität" icon="Activity">
               {activity.length === 0 && <p className="py-3 text-center text-sm text-fg-muted">Noch keine Aktivität.</p>}
               <div className="space-y-1" role="list">
                 {activity.map((a) => (
@@ -272,7 +271,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-            </Card>
+            </CollapsibleCard>
           </Reveal>
         </div>
 
@@ -375,8 +374,7 @@ export default function Dashboard() {
           {/* Kosten-Snapshot (Demo: erfundene Zahlen; im API-Modus gibt es noch keine Kostendaten) */}
           {demo && (
           <Reveal delay={0.1}>
-            <Card className="p-4 sm:p-5">
-              <SectionHead title="Kosten-Snapshot" icon="Euro" action={<button onClick={() => navigate("consumption")} className="-my-2 py-2 text-sm text-accent hover:underline">Details</button>} />
+            <CollapsibleCard title="Kosten-Snapshot" icon="Euro" action={<button onClick={() => navigate("consumption")} className="-my-2 py-2 text-sm text-accent hover:underline">Details</button>}>
               <div className="flex items-center gap-4">
                 <Donut data={costBreakdown} size={108} stroke={14}>
                   <div>
@@ -401,7 +399,7 @@ export default function Dashboard() {
                 </div>
                 <Sparkline data={consumptionSeries.map((c) => c.kosten)} height={40} />
               </div>
-            </Card>
+            </CollapsibleCard>
           </Reveal>
           )}
 

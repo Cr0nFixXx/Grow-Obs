@@ -54,6 +54,23 @@ export default function Calculator() {
       <PageHeader title="Kostenrechner & Optimierer" subtitle="Plane dein Budget – live & interaktiv." icon="Euro"
         actions={<Button variant="secondary" onClick={() => toast.push({ title: "Als Vorlage gespeichert", tone: "leaf", icon: "Euro" })}>Speichern</Button>} />
 
+      {/* Nur Telefon/Tablet: Ergebnis bleibt beim Bewegen der Regler sichtbar */}
+      <div
+        className="card elev-2 sticky top-[calc(4rem+1px+env(safe-area-inset-top)+0.5rem)] z-20 flex items-center justify-between gap-3 bg-surface/95 px-4 py-2.5 backdrop-blur lg:hidden"
+        role="status"
+        aria-label="Kostenübersicht"
+        data-testid="calc-sticky"
+      >
+        <div>
+          <div className="text-[11px] text-fg-subtle">Gesamt / Mo.</div>
+          <div className="text-lg font-bold tnum">{eur(r.totalMonth, true)}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[11px] text-fg-subtle">Pro Cycle ({weeks} Wo.)</div>
+          <div className="text-lg font-bold tnum text-accent">{eur(r.totalCycle, true)}</div>
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Inputs */}
         <Reveal className="lg:col-span-2">

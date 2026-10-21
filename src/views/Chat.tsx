@@ -11,6 +11,8 @@ import { InviteBanner } from "@/components/GroupInvites";
 import { TopicBar } from "@/components/TopicBar";
 import { inviteSummary, showSenderName, writeBlockReason } from "@/lib/chat-groups";
 import { config } from "@/lib/config";
+import { sendErrorText } from "@/lib/chat-errors";
+import { copyText } from "@/lib/clipboard";
 import { useMediaQuery } from "@/lib/hooks";
 import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media";
 import { useToast } from "@/components/Toast";
@@ -26,6 +28,8 @@ export default function Chat() {
   const [info, setInfo] = useState<GroupTab | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  // Letzter fehlgeschlagener Sendeversuch: bleibt sichtbar, bis erneut gesendet, verworfen oder die Unterhaltung gewechselt wird.
+  const [failed, setFailed] = useState<{ body: string; image?: string; reason: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   // Telefon/Tablet: geöffnete Unterhaltung füllt den Bildschirm (wie ein Messenger), die Seite scrollt nicht mit.
@@ -43,12 +47,18 @@ export default function Chat() {
     setSending(true);
     try {
       await send(body, image);
-      if (!image) setText("");
+      setFailed(null);
+      if (!image) setText((cur) => (cur.trim() === body ? "" : cur));
     } catch (error) {
-      toast.push({ title: "Nicht gesendet", desc: error instanceof Error ? error.message : "Unbekannter Fehler", tone: "danger", icon: "AlertTriangle" });
+      setFailed({ body, image, reason: sendErrorText(error) });
     } finally {
       setSending(false);
     }
+  };
+  useEffect(() => { setFailed(null); }, [activeId, activeTopic?.id]);
+  const copyMessage = async (value: string) => {
+    const ok = await copyText(value);
+    toast.push(ok ? { title: "Nachricht kopiert", tone: "leaf", icon: "Check" } : { title: "Kopieren nicht möglich", tone: "danger", icon: "AlertTriangle" });
   };
   const handleSend = () => {
     if (!text.trim() || sending) return;
@@ -104,11 +114,24 @@ export default function Chat() {
                   <div key={m.id} data-testid="system-line" className="py-1 text-center text-xs text-fg-subtle">{m.text}</div>
                 ) : (
                   <div key={m.id} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
-                    <div className={cn("max-w-[78%] rounded-2xl px-3.5 py-2 text-sm [overflow-wrap:anywhere]", m.from === "me" ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-2 text-fg")}>
+                    <div className={cn("group max-w-[78%] rounded-2xl px-3.5 py-2 text-sm [overflow-wrap:anywhere]", m.from === "me" ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-2 text-fg")}>
                       {conv.isGroup && showSenderName(messages, index) && <div data-testid="sender-name" className="mb-0.5 text-xs font-semibold text-accent">{m.senderName || "Unbekannt"}</div>}
                       {m.image && <SmartImage src={m.image} alt="Bild-Anhang" className={cn("-mx-1.5 mb-1 aspect-[4/3] w-56 max-w-full rounded-xl", m.text ? "" : "-mt-0.5")} />}
                       {m.text}
-                      <div className={cn("mt-0.5 text-[10px]", m.from === "me" ? "text-accent-fg/70" : "text-fg-subtle")}>{m.time}</div>
+                      <div className={cn("mt-0.5 flex items-center justify-between gap-3 text-[10px]", m.from === "me" ? "text-accent-fg/70" : "text-fg-subtle")}>
+                        <span>{m.time}</span>
+                        {m.text && (
+                          <button
+                            type="button"
+                            onClick={() => void copyMessage(m.text)}
+                            aria-label="Nachricht kopieren"
+                            title="Nachricht kopieren"
+                            className="relative -my-1 grid size-6 place-items-center rounded-md opacity-0 transition-opacity before:absolute before:-inset-2 before:content-[''] hover:bg-black/10 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-70"
+                          >
+                            <Icon name="Copy" size={13} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -119,6 +142,20 @@ export default function Chat() {
               {blockReason ? (
                 <div data-testid="composer-blocked" role="status" className="flex items-center gap-2 border-t border-border bg-surface-2 p-3 text-sm text-fg-muted"><Icon name="Lock" size={16} />{blockReason}</div>
               ) : (
+              <>
+              {failed && (
+                <div role="alert" data-testid="send-failed" className="flex shrink-0 items-start gap-2 border-t border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+                  <Icon name="AlertTriangle" size={16} className="mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">Nicht gesendet</div>
+                    <div className="text-xs [overflow-wrap:anywhere]">{failed.reason}</div>
+                    <div className="mt-1.5 flex gap-2">
+                      <Button size="sm" variant="secondary" disabled={sending} onClick={() => void deliver(failed.body, failed.image)}>Erneut senden</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setFailed(null)}>Verwerfen</Button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="flex shrink-0 items-center gap-2 border-t border-border p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:pb-3">
                 <ImagePickButton onUploaded={(path) => deliver(text.trim(), path)} disabled={sending} label="Bild senden" className="grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted hover:bg-surface-2"><Paperclip className="size-5" /></ImagePickButton>
                 <input
@@ -132,6 +169,7 @@ export default function Chat() {
                 <EmojiPicker onPick={addEmoji} />
                 <button onClick={handleSend} disabled={sending || !text.trim()} className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-50" aria-label="Senden"><Send className="size-5" /></button>
               </div>
+              </>
               )}
             </>
           ) : (

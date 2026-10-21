@@ -9,7 +9,7 @@ import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, Button, Card, Field, Input, Modal, PageHeader, Segmented, Toggle } from "@/components/ui";
+import { Avatar, Badge, Button, Card, CollapsibleCard, Field, Input, Modal, PageHeader, Segmented, Toggle } from "@/components/ui";
 import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
 import { AccountSecurity } from "@/components/AccountSecurity";
@@ -115,18 +115,16 @@ export default function Profile() {
             <UpdateSettingsCard />
           </Reveal>
           <Reveal>
-            <Card className="space-y-4 p-5">
-              <h2 className="text-sm font-semibold text-fg-muted">{t("settings.appearance")}</h2>
+            <CollapsibleCard icon="SunMedium" title={t("settings.appearance")} className="p-5" bodyClassName="space-y-4">
               <Field label="Design"><div className="flex gap-2">{([["light", "Hell", Sun], ["dark", "Dunkel", Moon]] as const).map(([val, label, Ico]) => (
                 <button key={val} onClick={() => setTheme(val)} className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition", theme === val ? "border-accent bg-accent/10 text-accent" : "border-border text-fg-muted hover:bg-surface-2")}><Ico className="size-4" /> {label}</button>
               ))}</div></Field>
               <ToggleRow label="Animationen reduzieren" desc="Berücksichtigt prefers-reduced-motion" checked={false} onChange={() => toast.push({ title: "Systemeinstellung", tone: "info", icon: "Info" })} />
               <ToggleRow label="Partikel-Effekte" desc="Schwebende Sporen im Hintergrund" checked={particles} onChange={setParticles} />
-            </Card>
+            </CollapsibleCard>
           </Reveal>
           <Reveal delay={0.04}>
-            <Card className="space-y-4 p-5">
-              <h2 className="text-sm font-semibold text-fg-muted">{t("settings.language")} & {t("settings.currency")}</h2>
+            <CollapsibleCard icon="Globe" title={`${t("settings.language")} & ${t("settings.currency")}`} className="p-5" bodyClassName="space-y-4">
               <Field label={t("settings.language")}>
                 <div className="flex gap-2">
                   {([["de", "Deutsch"], ["en", "English"]] as const).map(([code, label]) => (
@@ -142,20 +140,18 @@ export default function Profile() {
                 </div>
               </Field>
               <div className="rounded-xl bg-surface-2 p-3 text-sm text-fg-muted">{t("demo.cost")}: <span className="font-semibold tnum text-fg">{money(168)}</span></div>
-            </Card>
+            </CollapsibleCard>
           </Reveal>
           <Reveal delay={0.05}>
-            <Card className="space-y-4 p-5">
-              <h2 className="text-sm font-semibold text-fg-muted">{t("settings.notifications")}</h2>
+            <CollapsibleCard icon="Bell" title={t("settings.notifications")} className="p-5" bodyClassName="space-y-4">
               <ToggleRow label="Telegram-Bot" desc="Status via Telegram" checked={prefs.telegram} onChange={(v) => setPrefs((p) => ({ ...p, telegram: v }))} />
               <ToggleRow label="Wöchentlicher Report" desc="Jeden Sonntag um 18 Uhr" checked={prefs.weekly} onChange={(v) => setPrefs((p) => ({ ...p, weekly: v }))} />
               <ToggleRow label="Sounds" desc="Akustische Signale" checked={prefs.sound} onChange={(v) => setPrefs((p) => ({ ...p, sound: v }))} />
-            </Card>
+            </CollapsibleCard>
           </Reveal>
           <Reveal delay={0.07}><PushCard /></Reveal>
           <Reveal delay={0.1}>
-            <Card className="space-y-4 p-5">
-              <h2 className="text-sm font-semibold text-fg-muted">Konto</h2>
+            <CollapsibleCard icon="User" title="Konto" className="p-5" bodyClassName="space-y-4">
               <div className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
                 <Avatar src={me.avatar} name={me.name} size={40} />
                 <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{me.name}</div><div className="truncate text-xs text-fg-subtle">{me.handle} · {me.title}</div></div>
@@ -163,7 +159,7 @@ export default function Profile() {
               </div>
               <Button variant="secondary" className="w-full" onClick={() => navigate("telegram")}><Icon name="Send" size={16} /> Telegram verknüpfen</Button>
               <Button variant="ghost" className="w-full text-danger hover:bg-danger/10" onClick={() => { logout(); navigate("auth"); }}><LogOut className="size-4" /> Abmelden</Button>
-            </Card>
+            </CollapsibleCard>
           </Reveal>
           {!isGuest && (
             <Reveal delay={0.12}>
@@ -171,11 +167,10 @@ export default function Profile() {
             </Reveal>
           )}
           <Reveal delay={0.15}>
-            <Card className="space-y-2 border-danger/30 p-5">
-              <h2 className="text-sm font-semibold text-danger">Gefahrenzone</h2>
+            <CollapsibleCard icon="AlertTriangle" tone="danger" title="Gefahrenzone" className="border-danger/30 p-5" bodyClassName="space-y-2">
               <p className="text-sm text-fg-muted">Lösche dein Konto unwiderruflich inkl. aller Grows & Daten.</p>
               <Button variant="danger" onClick={() => toast.push({ title: "Bestätigung nötig", desc: "Demo – keine Löschung.", tone: "danger", icon: "AlertTriangle" })}>Konto löschen</Button>
-            </Card>
+            </CollapsibleCard>
           </Reveal>
         </div>
       )}

@@ -6,7 +6,7 @@ import { useFeatures } from "@/config/FeatureContext";
 import { featureMeta, type FeatureKey } from "@/config/features";
 import { APP_CODENAME, BACKEND_VERSION, BUILD_NUMBER, FRONTEND_VERSION, versionLabel } from "@/lib/app-version";
 import { Icon } from "@/components/Icon";
-import { Badge, BottomSheet, Button, Card, Segmented, Toggle } from "@/components/ui";
+import { Badge, BottomSheet, Button, Card, CollapsibleCard, Segmented, Toggle } from "@/components/ui";
 import type { Release } from "@/lib/update-logic";
 
 const severityLabel: Record<Release["severity"], { label: string; tone: "info" | "warning" | "danger" }> = {
@@ -110,8 +110,7 @@ export function UpdateSettingsCard() {
         : u.status === "error" ? "Prüfung fehlgeschlagen – offline?"
           : u.lastChecked ? `Aktuell · geprüft ${u.lastChecked.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "Noch nicht geprüft";
   return (
-    <Card className="space-y-4 p-5">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Download" size={16} /> App-Updates</h2>
+    <CollapsibleCard icon="Download" title="App-Updates" className="p-5" bodyClassName="space-y-4" defaultOpen={false}>
       <div className="space-y-1.5">
         <span className="text-sm font-medium">Bei neuer Version</span>
         <Segmented value={u.prefs.mode} onChange={(mode) => u.setPrefs({ mode })}
@@ -134,7 +133,7 @@ export function UpdateSettingsCard() {
           : <Button variant="secondary" loading={u.status === "checking"} onClick={() => void u.check()}>Nach Updates suchen</Button>}
         <Button variant="ghost" onClick={u.openWhatsNew}>Was ist neu</Button>
       </div>
-    </Card>
+    </CollapsibleCard>
   );
 }
 

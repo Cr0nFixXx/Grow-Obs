@@ -68,7 +68,7 @@ export default function Planner() {
               <Button size="sm" variant="ghost" onClick={() => navigate("strains")}>Zu den Sorten</Button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
             {strains.map((s) => (
               <Chip key={s.id} active={selected.includes(s.id)} onClick={() => toggle(s.id)}>
                 {selected.includes(s.id) && <Check className="size-3.5" />} {s.name}
@@ -129,9 +129,9 @@ export default function Planner() {
       {/* Medium compare */}
       <div>
         <h2 className="mb-3 text-sm font-semibold text-fg-muted">Substrat im Vergleich</h2>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="-mx-3.5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3.5 pb-2 sm:-mx-6 sm:px-6 md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 md:pb-0">
           {mediums.map((m, i) => (
-            <Reveal key={m.name} delay={i * 0.05}>
+            <Reveal key={m.name} delay={i * 0.05} className="w-[84%] shrink-0 snap-center md:w-auto">
               <Card className={cn("flex h-full flex-col p-5 transition-all", selMedium === m.name && "border-accent ring-2 ring-accent/25")}>
                 <div className="flex items-center justify-between">
                   <span className={cn("grid size-11 place-items-center rounded-xl", m.tone === "leaf" ? "bg-leaf-500/12 text-leaf-500 dark:text-leaf-400" : m.tone === "soil" ? "bg-soil-500/12 text-soil-600 dark:text-soil-300" : "bg-info-500/12 text-info-500 dark:text-info-400")}><Icon name={m.icon} size={22} /></span>

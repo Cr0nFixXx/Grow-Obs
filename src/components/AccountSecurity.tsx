@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Icon } from "@/components/Icon";
 import { SessionsCard } from "@/components/SessionsCard";
 import { useToast } from "@/components/Toast";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, CollapsibleCard, Field, Input } from "@/components/ui";
 import { ApiError, http } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { config } from "@/lib/config";
@@ -44,9 +44,8 @@ export function PasswordCard({ onChanged }: { onChanged?: () => void }) {
   };
 
   return (
-    <Card className="p-5" data-testid="password-card">
+    <CollapsibleCard icon="Lock" title="Passwort ändern" className="p-5" testId="password-card">
       <form className="space-y-3" onSubmit={(e) => void submit(e)} noValidate>
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Lock" size={16} /> Passwort ändern</h2>
         <Field label="Aktuelles Passwort">
           <Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </Field>
@@ -60,7 +59,7 @@ export function PasswordCard({ onChanged }: { onChanged?: () => void }) {
         <Button type="submit" variant="secondary" className="w-full" disabled={busy}>{busy ? "Speichere…" : "Passwort ändern"}</Button>
         <p className="text-xs text-fg-subtle">Alle anderen Geräte werden dabei abgemeldet. Dieses Gerät bleibt angemeldet.</p>
       </form>
-    </Card>
+    </CollapsibleCard>
   );
 }
 
@@ -85,8 +84,7 @@ export function LoginHistoryCard({ refreshKey = 0 }: { refreshKey?: number }) {
   useEffect(() => { void load(); }, [load, refreshKey]);
 
   return (
-    <Card className="space-y-3 p-5" data-testid="login-history-card">
-      <h2 className="text-sm font-semibold text-fg-muted">Anmeldeprotokoll</h2>
+    <CollapsibleCard icon="ShieldCheck" title="Anmeldeprotokoll" className="p-5" bodyClassName="space-y-3" testId="login-history-card">
       {error && <p role="alert" className="text-sm text-danger">{error} <button className="underline" onClick={() => void load()}>Erneut laden</button></p>}
       {!events && !error && <p className="text-sm text-fg-subtle">Lade…</p>}
       {events?.length === 0 && <p className="text-sm text-fg-subtle">Noch keine Einträge.</p>}
@@ -105,7 +103,7 @@ export function LoginHistoryCard({ refreshKey = 0 }: { refreshKey?: number }) {
         })}
       </ul>
       <p className="text-xs text-fg-subtle">Es werden nur Zeit, Gerät und Ergebnis gespeichert, keine IP-Adresse. Einträge werden nach 90 Tagen gelöscht.</p>
-    </Card>
+    </CollapsibleCard>
   );
 }
 

@@ -105,7 +105,7 @@ Why no chart library: the legacy build is a single file (`vite-plugin-singlefile
 | **Mobile** (`<sm`) | TopBar (permanent burger + brand + search/bell/avatar), bottom nav (4 tabs + "Mehr" sheet), FAB bottom right, drawer; modals and notifications become bottom sheets; safe areas |
 | **≥ lg** | persistent sidebar (collapsible 272 ↔ 80 px via `--sb-w`), top bar with search, centered content (`max-w-1440`) |
 
-- **Safe area:** `env(safe-area-inset-*)` on TopBar, BottomNav, FAB and content padding. **Touch:** `-webkit-tap-highlight-color: transparent`, `touch-action: pan-x pan-y` (no pinch/double-tap zoom, B-67), `user-select: none` except inputs (B-68), card `:active` feedback, targets ≥ 44 px.
+- **Safe area:** `env(safe-area-inset-*)` on TopBar, BottomNav, FAB and content padding. **Touch:** `-webkit-tap-highlight-color: transparent`, `touch-action: pan-x pan-y` (no pinch/double-tap zoom, B-67), `user-select: none` except inputs (B-68; hence the copy button on chat bubbles, B-70), card `:active` feedback, targets ≥ 44 px.
 - **Gestures:** drawer closes horizontally, sheets/modals follow the finger and snap back when cancelled, passive edge swipe (off on iOS), long-press with a movement guard, pull-to-refresh with overlay/form guard.
   Rules and do-not-roll-back details: `HANDOFF.md` §4. Lightboxes support flick/swipe; mobile tickers are manual snap carousels. Real-device and on-screen-keyboard acceptance is still open (`docs/TESTING.md`).
 - **Command palette** (⌘K), skip link, focus traps in modals/drawers/sheets, `aria-live` for toasts and streamed answers, visible focus states, WCAG-AA contrasts.
@@ -140,3 +140,10 @@ table-heavy content wraps into rows on narrow viewports, the local session log i
 - **Density mode** (`data-density="compact"`) for moderation/admin tables on `xl`.
 - **Edition gates:** hide navigation entries via `entitlements.*` instead of scattering hard `if (edition === "pro")` checks.
 - **Native app:** reuse the tokens (color, radius, type scale); do **not** copy components 1:1 from `ui.tsx` (DOM) to React Native.
+
+## B-70 patterns (phone)
+
+- **`CollapsibleCard`** (`src/components/ui.tsx`): long settings/dashboard groups collapse below 1024 px (heading is a button with `aria-expanded`, closed by default) and are always open from 1024 px. Use it for any card that is secondary on the phone; body stays in the DOM.
+- **Sticky result:** when sliders and their result are far apart on the phone, show a compact sticky summary under the top bar (`lg:hidden`, `top-[calc(4rem+1px+env(safe-area-inset-top)+0.5rem)]`), e.g. cost calculator.
+- **Horizontal strips:** chip lists and card groups that would stack for several screens scroll horizontally on the phone (`-mx-3.5 px-3.5 overflow-x-auto`, cards `snap-center`), grid from `md`.
+- **Short landscape screens:** `Modal` aligns to the top when the viewport is ≤ 480 px high (no jumping when its content grows).

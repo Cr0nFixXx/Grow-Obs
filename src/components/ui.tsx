@@ -100,6 +100,64 @@ export function Card({
   );
 }
 
+/**
+ * Karte mit Kopfzeile, die auf Telefon/Tablet (< 1024 px) ein- und ausklappbar ist (lange Seiten kürzer machen);
+ * ab 1024 px immer offen, die Überschrift ist dann reiner Text. Der Inhalt bleibt im DOM (Zustand der Kinder geht nicht verloren).
+ */
+export function CollapsibleCard({
+  title,
+  icon,
+  action,
+  defaultOpen = false,
+  tone,
+  className,
+  bodyClassName,
+  testId,
+  children,
+}: {
+  title: ReactNode;
+  icon?: string;
+  /** Zusatzbedienelement rechts in der Kopfzeile (löst das Einklappen nicht aus). */
+  action?: ReactNode;
+  defaultOpen?: boolean;
+  tone?: "danger";
+  className?: string;
+  bodyClassName?: string;
+  testId?: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const collapsible = useMediaQuery("(max-width: 1023px)");
+  const expanded = !collapsible || open;
+  const bodyId = useId();
+  const headClass = cn("flex items-center gap-2 text-sm font-semibold", tone === "danger" ? "text-danger" : "text-fg-muted");
+  const heading = <>{icon && <Icon name={icon} size={16} />} <span className="min-w-0 flex-1 truncate">{title}</span></>;
+  return (
+    <Card className={cn("p-4 sm:p-5", className)} data-testid={testId}>
+      <div className={cn("flex items-center justify-between gap-2", expanded && "mb-3")}>
+        {collapsible ? (
+          <h2 className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              aria-controls={bodyId}
+              className={cn(headClass, "-my-2 min-h-11 w-full py-2 text-left")}
+            >
+              {heading}
+              <ChevronDown className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} aria-hidden="true" />
+            </button>
+          </h2>
+        ) : (
+          <h2 className={cn(headClass, "min-w-0 flex-1")}>{heading}</h2>
+        )}
+        {action}
+      </div>
+      <div id={bodyId} hidden={!expanded} className={bodyClassName}>{children}</div>
+    </Card>
+  );
+}
+
 /* ============================== Badge / Chip ============================== */
 export function Badge({
   tone = "leaf",
@@ -754,7 +812,7 @@ export function Modal({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-start sm:p-4 sm:[@media(min-height:481px)]:items-center">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/55 backdrop-blur-sm" />
           <motion.div
             ref={panelRef}
@@ -1121,7 +1179,7 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-dashed border-border-strong px-6 py-14 text-center", className)}>
+    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-dashed border-border-strong px-6 py-10 text-center sm:py-14", className)}>
       <div className="grid size-14 place-items-center rounded-2xl bg-accent/10 text-accent">
         <Icon name={icon} size={26} />
       </div>

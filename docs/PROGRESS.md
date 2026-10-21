@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-70 | Chat: Nachricht kopieren, sichtbarer Sendefehler mit „Erneut senden“; einklappbare Einstellungen, Dashboard kompakter, Rechner-Ergebnisleiste, Planer-Karussell; Dialog oben im Querformat | typecheck ✅ lint ✅ vitest 230/230 ✅ E2E 41 + 1 übersprungen, 2 flaky/Schwelle behoben und einzeln grün |
 | B-69 | Code-Audit: Überlauf in Einstellungen/Simulation/Telegram behoben, Eingaben ≥ 16 px, Beschriftungen, Sterne, Touch-Ziele, Avatar-Ring, Seitentitel | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E 41 + 1 übersprungen ✅ |
 | B-68 | Markieren aus (außer Eingabefelder, gegen Chrome-Suchleiste); `api_error` loggt Code, Pfad und Ursache | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E mobil 2/2 ✅ · Ursache der 500er offen |
 | B-67 | Mobil: Pinch-Zoom aus, `translate="no"`, Chat als Vollbild auf Telefon, kein Überlauf bei 360 px, Seite scrollt im Chat nicht mit | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E 40 + 1 übersprungen ✅ · echtes Android/iOS nicht geprüft |

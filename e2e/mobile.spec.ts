@@ -95,3 +95,89 @@ test("Mobil 360 px: Einstellungen, Simulation und Telegram laufen nicht über de
   const sizes = await page.locator("input:visible, textarea:visible, select:visible").evaluateAll((els) => els.map((el) => parseFloat(getComputedStyle(el).fontSize)));
   for (const size of sizes) expect(size).toBeGreaterThanOrEqual(16);
 });
+
+test("Mobil: Nachricht kopieren, fehlgeschlagenes Senden bleibt sichtbar und lässt sich erneut senden", async ({ page, browser }) => {
+  const [a, b] = [`mob_c_${stamp}`, `mob_d_${stamp}`];
+  const other = await (await browser.newContext()).newPage();
+  await register(other, b, uniqueEmail(b));
+  await register(page, a, uniqueEmail(a));
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/chat");
+  await page.getByRole("button", { name: "Neue Nachricht" }).click();
+  await page.getByLabel("Person suchen").fill(b);
+  await page.getByRole("button", { name: new RegExp(b) }).click();
+  const box = page.getByPlaceholder("Nachricht schreiben…");
+  const log = page.getByRole("log", { name: "Chat-Verlauf" });
+
+  // Erste Nachricht geht durch → Kopieren-Knopf (Text ist nicht mehr markierbar)
+  await box.fill("Hallo zum Kopieren");
+  await page.getByRole("button", { name: "Senden", exact: true }).click();
+  await expect(log.getByText("Hallo zum Kopieren")).toBeVisible();
+  await log.getByRole("button", { name: "Nachricht kopieren" }).first().click();
+  await expect(page.getByText("Nachricht kopiert")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Hallo zum Kopieren");
+
+  // Netzwerkfehler beim Senden: Hinweis bleibt stehen, Text bleibt im Feld
+  let offline = true;
+  await page.route("**/api/chat/*/messages", (route) => {
+    if (offline && route.request().method() === "POST") return route.abort("failed");
+    return route.continue();
+  });
+  await box.fill("Zweite Nachricht");
+  await page.getByRole("button", { name: "Senden", exact: true }).click();
+  const banner = page.getByTestId("send-failed");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("Keine Verbindung");
+  await expect(box).toHaveValue("Zweite Nachricht");
+  await page.waitForTimeout(1500);
+  await expect(banner).toBeVisible(); // verschwindet nicht von allein (anders als ein Toast)
+
+  // Verbindung wieder da → „Erneut senden“
+  offline = false;
+  await banner.getByRole("button", { name: "Erneut senden" }).click();
+  await expect(banner).toHaveCount(0);
+  await expect(log.getByText("Zweite Nachricht")).toBeVisible();
+  await expect(box).toHaveValue("");
+});
+
+test("Mobil 360 px: Einstellungs-Gruppen klappen auf, Kostenrechner zeigt das Ergebnis dauerhaft, Dialog im Querformat oben", async ({ page }) => {
+  const name = `mob_s_${stamp}`;
+  await register(page, name, uniqueEmail(name));
+  await page.setViewportSize({ width: 360, height: 640 });
+
+  // Einstellungen: standardmäßig zu → kurze Seite (vorher ≈ 3360 px), per Tipp aufklappbar
+  await page.goto("/profile/settings");
+  await page.waitForTimeout(600);
+  const heightClosed = await page.evaluate(() => document.documentElement.scrollHeight);
+  expect(heightClosed).toBeLessThan(2000);
+  const group = page.getByRole("button", { name: "Darstellung" });
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByText("Partikel-Effekte")).toBeHidden();
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Partikel-Effekte")).toBeVisible();
+  await expectFitsScreen(page, false);
+
+  // Kostenrechner: Ergebnisleiste klebt unter der Kopfzeile, auch nach dem Scrollen
+  await page.goto("/calculator");
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.scrollTo(0, 500));
+  const sticky = page.getByTestId("calc-sticky");
+  await expect(sticky).toBeVisible();
+  const top = await sticky.evaluate((el) => el.getBoundingClientRect().top);
+  expect(top).toBeGreaterThan(40);
+  expect(top).toBeLessThan(110);
+
+  // Dashboard: keine Lücke neben der dritten Kennzahl
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: /^Hallo,/ })).toBeVisible();
+  await expectFitsScreen(page, false);
+
+  // Querformat: der Dialog „Neue Nachricht“ sitzt oben (wächst beim Suchen nicht unter der Fingerspitze weg)
+  await page.setViewportSize({ width: 740, height: 360 });
+  await page.goto("/chat");
+  await page.getByRole("button", { name: "Neue Nachricht" }).click();
+  await page.getByLabel("Person suchen").fill("zz");
+  const dialogTop = await page.getByRole("dialog").evaluate((el) => el.getBoundingClientRect().top);
+  expect(dialogTop).toBeLessThan(40);
+});

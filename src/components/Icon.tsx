@@ -1,7 +1,7 @@
 import {
   Activity, AlertTriangle, ArrowLeft, ArrowRight, Bell, Bot, BookOpen, BrainCircuit,
   CalendarDays, Camera, ChartColumn, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  Clock, Cloud, CloudSun, Code2, Command, Cpu, Database, Download, Droplets, Euro,
+  Clock, Cloud, CloudSun, Code2, Command, Copy, Cpu, Database, Download, Droplets, Euro,
   ExternalLink, Filter, Flag, Flame, GitBranch, GitCommit, GitFork, GitPullRequest, Globe,
   Heart, HeartPulse, Home, Image, Info, Layers, LayoutGrid, Leaf, Lightbulb, List, ListChecks,
   Lock, Mail, MapPin, Menu, MessageCircle, MessagesSquare, Microscope, Moon, MoreHorizontal,
@@ -15,7 +15,7 @@ import {
 export const icons: Record<string, LucideIcon> = {
   Activity, AlertTriangle, ArrowLeft, ArrowRight, Bell, Bot, BookOpen, BrainCircuit,
   CalendarDays, Camera, ChartColumn, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  Clock, Cloud, CloudSun, Code2, Command, Cpu, Database, Download, Droplets, Euro,
+  Clock, Cloud, CloudSun, Code2, Command, Copy, Cpu, Database, Download, Droplets, Euro,
   ExternalLink, Filter, Flag, Flame, GitBranch, GitCommit, GitFork, GitPullRequest, Globe,
   Heart, HeartPulse, Home, Image, Info, Layers, LayoutGrid, Leaf, Lightbulb, List, ListChecks,
   Lock, Mail, MapPin, Menu, MessageCircle, MessagesSquare, Microscope, Moon, MoreHorizontal,
