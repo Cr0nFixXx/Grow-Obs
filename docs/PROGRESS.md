@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-72 | Schalter mit langem Beschreibungstext nicht mehr gequetscht (`Toggle` `shrink-0`) | Breite gemessen: vorher 27/25 px, nachher 44 px |
 | B-71 | Profil/Einstellungen: erfundene Abzeichen und wirkungsloser Telegram-Schalter entfernt; Animationen reduzieren, Sounds und Wochenreport (Opt-in, Cron) wirken | typecheck ✅ lint ✅ vitest 232/232 ✅ API 227/227 ✅ E2E 45 + 1 übersprungen ✅ |
 | B-70 | Chat: Nachricht kopieren, sichtbarer Sendefehler mit „Erneut senden“; einklappbare Einstellungen, Dashboard kompakter, Rechner-Ergebnisleiste, Planer-Karussell; Dialog oben im Querformat | typecheck ✅ lint ✅ vitest 230/230 ✅ E2E 41 + 1 übersprungen, 2 flaky/Schwelle behoben und einzeln grün |
 | B-69 | Code-Audit: Überlauf in Einstellungen/Simulation/Telegram behoben, Eingaben ≥ 16 px, Beschriftungen, Sterne, Touch-Ziele, Avatar-Ring, Seitentitel | typecheck ✅ lint ✅ vitest 226/226 ✅ E2E 41 + 1 übersprungen ✅ |

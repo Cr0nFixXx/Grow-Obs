@@ -219,7 +219,7 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
 function ToggleRow({ label, desc, checked, onChange, disabled }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div><div className="text-sm font-medium">{label}</div><div className="text-xs text-fg-subtle">{desc}</div></div>
+      <div className="min-w-0"><div className="text-sm font-medium">{label}</div><div className="text-xs text-fg-subtle">{desc}</div></div>
       <Toggle checked={checked} onChange={onChange} label={label} disabled={disabled} />
     </div>
   );

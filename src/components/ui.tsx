@@ -374,7 +374,7 @@ export function Toggle({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("disabled:cursor-not-allowed disabled:opacity-50 relative inline-flex h-6 w-11 items-center rounded-full transition-colors after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-['']", checked ? "bg-accent" : "bg-surface-3")}
+      className={cn("disabled:cursor-not-allowed disabled:opacity-50 relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-['']", checked ? "bg-accent" : "bg-surface-3")}
     >
       <span className={cn("inline-block size-5 transform rounded-full bg-white shadow transition-transform", checked ? "translate-x-[22px]" : "translate-x-0.5")} />
     </button>

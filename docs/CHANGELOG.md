@@ -11,6 +11,12 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-72 – Schalter mit langem Beschreibungstext nicht mehr gequetscht
+
+- **Fehler:** In Einstellungen waren „Animationen reduzieren“, „Sounds“ (und „Wochenreport“) als schmale, verzerrte Schalter zu sehen, „Partikel-Effekte“ dagegen korrekt. Ursache: `Toggle` war ein Flex-Kind ohne `shrink-0`; bei langem Beschreibungstext schrumpfte der Schalter. Gemessen auf 390 px Breite vorher 27 px / 25 px, nachher 44 px (Soll `w-11`).
+- **Fix:** `Toggle` bekommt `shrink-0` (wirkt in allen Zeilen, auch Gruppen-Themen, Push, Telegram); der Textblock in `ToggleRow` bekommt `min-w-0`.
+- **Geprüft:** Demo-Modus im Browser (390 px), Schalterbreite vorher/nachher gemessen. Nicht neu gelaufen: Vitest/E2E (reine CSS-Klassen).
+
 ### B-71 – Profil und Einstellungen: nur Echtes, drei Einstellungen mit Wirkung
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert. Auftrag des Eigners: erst Profil/Einstellungen, danach Grows/Tagebuch (offen, siehe `TODO.md`).
