@@ -14,7 +14,7 @@ import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
 import { AccountSecurity } from "@/components/AccountSecurity";
 import { PushCard } from "@/components/PushCard";
-import { atHandle, FollowListModal, FollowRequestsCard } from "@/components/members";
+import { atHandle, FollowListModal, FollowRequestsCard, ProfileBanner } from "@/components/members";
 import { GROW_SINCE_MIN, INTERESTS, INTERESTS_MAX, MEDIA, BIO_MAX, LOCATION_MAX, HANDLE_COOLDOWN_DAYS, HANDLE_PATTERN } from "@/lib/profile-fields";
 import type { ProfileVisibility } from "@/services/interfaces";
 import { Reveal } from "@/components/motion";
@@ -61,7 +61,7 @@ export default function Profile() {
       {/* Identity */}
       <Reveal>
         <Card className="overflow-hidden p-0">
-          <div className="h-28 bg-gradient-to-br from-leaf-600/70 to-leaf-950" />
+          <ProfileBanner src={me.cover} className="h-28 sm:h-36" />
           <div className="px-5 pb-5">
             <div className="-mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex items-end gap-4">
@@ -247,6 +247,7 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [name, setName] = useState(me.name);
   const [title, setTitle] = useState(me.title);
   const [avatar, setAvatar] = useState(me.avatar);
+  const [cover, setCover] = useState(me.cover ?? "");
   const [bio, setBio] = useState(me.bio ?? "");
   const [location, setLocation] = useState(me.location ?? "");
   const [growSince, setGrowSince] = useState(me.growSince ? String(me.growSince) : "");
@@ -269,7 +270,7 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
     setBusy(true);
     try {
       await updateProfile({
-        name: name.trim(), title: title.trim() || "Grower", avatar,
+        name: name.trim(), title: title.trim() || "Grower", avatar, cover,
         bio: bio.trim(), location: location.trim(), growSince: yearNumber, medium, interests,
         ...(handleChanged ? { handle: handle.trim() } : {}),
       });
@@ -285,6 +286,15 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
     <Modal open={open} onClose={onClose} title="Profil bearbeiten"
       footer={<><Button variant="ghost" onClick={onClose}>Abbrechen</Button><Button onClick={save} loading={busy} disabled={invalid}>Speichern</Button></>}>
       <div className="space-y-4">
+        <div>
+          <div className="relative overflow-hidden rounded-xl"><ProfileBanner src={cover} className="h-24" /></div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <ImagePickButton onUploaded={setCover} label="Titelbild ändern" className="flex min-h-10 items-center gap-1.5 rounded-xl border border-border px-3 text-sm font-medium transition hover:bg-surface-2">
+              <Icon name="Image" size={16} /> Titelbild wählen
+            </ImagePickButton>
+            {cover && <Button size="sm" variant="ghost" onClick={() => setCover("")}>Entfernen</Button>}
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           <Avatar src={avatar} name={me.name} size={72} />
           <div className="flex flex-wrap gap-2">

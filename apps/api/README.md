@@ -80,6 +80,7 @@ Schema und Regeln: `src/config/environment.ts`. Vorlage: `.env.example`.
 | `COOKIE_SAMESITE` | `lax` (Standard) oder `none` (nur iframe-Einbettung; erzwingt `Secure` + `Partitioned`) |
 | `ALLOW_HEADER_SESSION` | `true` nur für Proxys, die Cookie/Authorization verschlucken (Sandbox-Vorschau); **nie in Produktion** |
 | `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` | Objektspeicher (Standalone Pflicht, eingebettet optional) |
+| `MEDIA_STORAGE` | `database` (Standard) oder `s3`: wo `POST /media` die Bilder ablegt. `s3` braucht `S3_*`; `GET /media/:id` leitet dann auf einen signierten Link (1 h) um, der Bucket bleibt privat. Zugangsdaten allein schalten nie um |
 | `API_EMBEDDED` | `true` im eingebetteten Betrieb: S3 optional, CORS-HTTPS-Regel entfällt |
 | `TRUST_PROXY`, `RATE_LIMIT_DISABLED` | Rate-Limit: `TRUST_PROXY=false` ignoriert `X-Forwarded-For`; `RATE_LIMIT_DISABLED=true` schaltet ab (nur E2E) |
 | `DB_POOL_MAX` | Obergrenze der Datenbankverbindungen je Instanz (Standard 10, 1–50). Auf Serverless/gepoolten Anbietern (Vercel + Supabase/Neon) klein setzen, z. B. `3` |
@@ -180,7 +181,7 @@ für S3 sind noch offen. Bilder über `/media` (unten) liegen dagegen in Postgre
 | GET `/hall/:id/comments`, POST `/hall/:id/comments` | Lesen öffentlich, Schreiben Auth |
 | GET `/me/activity` | Auth, eigene Aktivität |
 | POST `/media` | Auth; roher Body, JPEG/PNG/WebP (Format per Magic Bytes), ≤ 2 MB, Quote 200 Bilder/100 MB je Nutzer → `{ path: "/media/<id>" }` |
-| GET `/media/:id`, DELETE `/media/:id` | Bild ausliefern (öffentlich über nicht erratbare UUID) / löschen (nur Eigentümer) |
+| GET `/media/:id`, DELETE `/media/:id` | Bild ausliefern (öffentlich über nicht erratbare UUID; bei `MEDIA_STORAGE=s3` Weiterleitung auf einen signierten Link) / löschen (nur Eigentümer, entfernt auch das Objekt) |
 | GET `/notifications`, POST `/notifications/:id/read`, POST `/notifications/read-all` | Auth, nur eigene |
 
 ### Chat und Echtzeit

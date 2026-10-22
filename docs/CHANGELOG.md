@@ -11,6 +11,19 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-76 – Bilder in Supabase Storage (S3) und Titelbild im Profil
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Speicher:** Neue Variable `MEDIA_STORAGE` (`database` Standard / `s3`). Mit `s3` legt `POST /media` die Bytes serverseitig (nach der Magic-Byte-Prüfung) in den **privaten** Bucket `grow-obs` (`media/<nutzer>/<id>`); die Datenbank hält nur Metadaten (Größe, Typ, Besitzer, Schlüssel) und weiter die Quote (200 Bilder/100 MB). Der Verweis `/media/<id>` bleibt unverändert, `GET /media/:id` leitet auf einen **signierten Link (1 h)** um, die Weiterleitung bleibt 30 min im Browser. `DELETE` löscht Zeile und Objekt. Fällt der Speicher aus: 502 mit Klartext, keine Zeile, keine Details im Protokoll. Bewusst kein Automatismus: S3-Zugangsdaten allein ändern nie, wo Bilder landen (Standard bleibt PostgreSQL, damit Docker/Embedded unverändert laufen).
+- **Titelbild:** `users.cover_url`, `PATCH /auth/me { cover }` (eigener Upload oder HTTPS), Auswahl in „Profil bearbeiten“, Banner im eigenen Profil und auf `/u/<name>`. Bei eingeschränkter Sichtbarkeit wird es wie Bio und Co. nicht ausgeliefert.
+- **Migration `0017`** (idempotent, von Hand einspielbar): `media.data` nullable, `media.storage_key`, Prüfregel „Bytes oder Schlüssel“, `users.cover_url`.
+- **Client-Optionen:** Prüfsummen nur noch, wenn das Protokoll sie verlangt (`WHEN_REQUIRED`), damit S3-kompatible Dienste die Anfragen annehmen.
+- **Geprüft gegen den echten Bucket** (Supabase, `eu-west-1`): Bucket-Check, Upload, signierter Link (200, Typ `image/png`), Link ohne Signatur 403, Löschen, danach Link ≥ 400 – mit dem echten `s3.ts`.
+- **Tests:** Neu: API `media-storage.integration.test.ts` (7: Ablage im Bucket, Weiterleitung, Format-Prüfung, 502, Löschen/fremde Bilder, Titelbild, Sichtbarkeit), Umgebung (`MEDIA_STORAGE`), Migration 0017, E2E Titelbild hochladen/ansehen/entfernen. Gemessen: API 245/245 (18 Dateien), Vitest 243/243, Lint/Typecheck sauber, Playwright Profil-Spec 3/3.
+- **Nicht geprüft:** Produktion (Variablen und Migrationen 0016/0017 werden beim Deploy gesetzt); Bilder anderer Quellen als `POST /media` (Grow-Fotos über `/media` laufen automatisch mit). Beim Löschen eines Kontos bleiben Objekte im Bucket – das gehört in B-74 (Konto löschen).
+- **Hinweis Zugangsdaten:** Der Secret Key stand im Chat. Nach Einrichtung in Supabase rotieren (Storage → S3-Zugangsdaten) und `S3_SECRET_KEY` in Vercel erneuern.
+
 ### B-73 – Profil, Runde 1: Profilfelder, Sichtbarkeit, Folgen, Mitgliedsseiten
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert. Erste von drei Profil-Runden (B-74 Konto, B-75 Benachrichtigungen; Bilder erst mit Supabase Storage).

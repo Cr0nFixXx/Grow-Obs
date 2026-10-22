@@ -5,7 +5,7 @@ command actually ran (see `CLAUDE.md`). Per-task history with numbers lives in `
 
 ## 1. Current status
 
-Last full run: **B-73** (frontend, API, E2E; the desktop run had two selector failures that were fixed and re-run, see CHANGELOG), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
+Last full run: **B-76** for API and frontend (E2E: the profile spec ran in B-76, the full suite last in B-73 — two selector failures there were fixed and re-run, see CHANGELOG), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
 
 | Check | Command | Result |
 |---|---|---|
@@ -14,7 +14,7 @@ Last full run: **B-73** (frontend, API, E2E; the desktop run had two selector fa
 | Lint | `npm run lint` | ✅ |
 | Frontend unit/component tests | `npm test` | ✅ 243 / 243 (40 files) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 236 / 236 (17 files) |
+| API integration tests | `npm run test:api` | ✅ 245 / 245 (18 files) |
 | Browser E2E (Playwright) | `npm run test:e2e` | ✅ 47 passed, 1 skipped (desktop 43 incl. the skipped one + mobile 5, ≈ 6.8 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
@@ -77,6 +77,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `rate-limit.test.ts` | shared counter: atomicity, two module instances, window expiry, hashed keys, DB-failure fallback |
 | `realtime.integration.test.ts` | LISTEN/NOTIFY delivery, SSE and WebSocket auth/limits, chat API, typing, presence, notifications |
 | `moderation.integration.test.ts` | community feed scope, hide/unhide, reports and queue, kick/ban matrix, role assignment |
+| `media-storage.integration.test.ts` | images in object storage (B-76, storage faked in memory): upload, signed redirect, format check, 502, delete, cover image and its visibility |
 | `members.integration.test.ts` | profiles and follows (B-73): visibility cut-off, follow/pending/accept/decline, handle cooldown, lists, notifications |
 | `push-core.test.ts` | web push pure logic: categories, quiet hours (overnight window, DST, timezone fallback), neutral/preview payload, endpoint allow-list (SSRF) |
 | `push.integration.test.ts` | web push API and delivery with a fake sender: subscribe validation/limit 5/re-assignment, session cascade, prefs, category/quiet-hours/online/throttle/flag skips, 404/410 cleanup, failure counting, DM and notification triggers, test push |

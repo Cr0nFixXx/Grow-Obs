@@ -282,6 +282,8 @@ export interface ProfileUpdate {
   title?: string;
   avatar?: string;
   weeklyReport?: boolean;
+  /** Titelbild; leer entfernt es. */
+  cover?: string;
   bio?: string;
   location?: string;
   growSince?: number | null;
@@ -300,6 +302,7 @@ export interface MemberProfile extends MemberPerson {
   isMe: boolean;
   /** `true`: nur Name/Bild/Titel sichtbar (Sichtbarkeit des Profils schränkt ein). */
   restricted: boolean;
+  cover?: string;
   visibility?: ProfileVisibility;
   relation: { following: FollowState; followedBy: boolean };
   canFollow: boolean;

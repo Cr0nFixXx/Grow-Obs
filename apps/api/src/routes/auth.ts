@@ -29,6 +29,7 @@ async function toUser(id: string) {
     name: u.name,
     handle: u.handle,
     avatar: u.avatarUrl ?? "",
+    cover: u.coverUrl ?? "",
     level: u.level,
     title: u.title,
     role: u.role,
@@ -107,6 +108,7 @@ const updateMeSchema = z.object({
   name: z.string().trim().min(2).max(60).optional(),
   title: z.string().trim().min(1).max(40).optional(),
   avatar: z.union([imageRef, z.literal("")]).optional(),
+  cover: z.union([imageRef, z.literal("")]).optional(),
   weeklyReport: z.boolean().optional(),
   bio: z.string().trim().max(BIO_MAX, `Bio: höchstens ${BIO_MAX} Zeichen`).optional(),
   location: z.string().trim().max(LOCATION_MAX, `Ort: höchstens ${LOCATION_MAX} Zeichen`).optional(),
@@ -121,12 +123,13 @@ const updateMeSchema = z.object({
 auth.patch("/me", requireAuth, async (c) => {
   const body = updateMeSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  const { name, title, avatar, weeklyReport, bio, location, growSince, medium, interests, profileVisibility, handle } = body.data;
+  const { name, title, avatar, cover, weeklyReport, bio, location, growSince, medium, interests, profileVisibility, handle } = body.data;
   const userId = c.get("userId");
   const set: Partial<typeof users.$inferInsert> = {
     ...(name !== undefined ? { name } : {}),
     ...(title !== undefined ? { title } : {}),
     ...(avatar !== undefined ? { avatarUrl: avatar || null } : {}),
+    ...(cover !== undefined ? { coverUrl: cover || null } : {}),
     ...(weeklyReport !== undefined ? { weeklyReport } : {}),
     ...(bio !== undefined ? { bio } : {}),
     ...(location !== undefined ? { location } : {}),

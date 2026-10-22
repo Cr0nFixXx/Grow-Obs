@@ -1,10 +1,13 @@
-import { HeadBucketCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { HTTPException } from "hono/http-exception";
 import { env } from "../env.ts";
 
 /** Ohne Zugangsdaten (nur Embedded-Modus erlaubt) ist der Object Storage deaktiviert. */
 export const storageConfigured = !!(env.S3_ACCESS_KEY && env.S3_SECRET_KEY);
+
+/** Liegen neue Bilder im Bucket (`MEDIA_STORAGE=s3`) statt in PostgreSQL? */
+export const mediaInStorage = (): boolean => env.MEDIA_STORAGE === "s3" && storageConfigured;
 
 function client(endpoint: string, extra: { maxAttempts?: number } = {}) {
   if (!env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) return null;
@@ -13,6 +16,9 @@ function client(endpoint: string, extra: { maxAttempts?: number } = {}) {
     region: env.S3_REGION,
     credentials: { accessKeyId: env.S3_ACCESS_KEY, secretAccessKey: env.S3_SECRET_KEY },
     forcePathStyle: true,
+    // Prüfsummen nur, wenn das Protokoll sie verlangt (S3-kompatible Dienste wie Supabase/MinIO).
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
     ...extra,
   });
 }
@@ -21,6 +27,8 @@ export const storageClient = client(env.S3_ENDPOINT, { maxAttempts: 1 });
 
 // Sign the browser-reachable origin. Replacing a presigned URL's host breaks its signature.
 const uploadClient = client(env.S3_PUBLIC_ENDPOINT);
+// Serverseitige Objektzugriffe (Upload/Löschen) mit einem Wiederholungsversuch.
+const objectClient = client(env.S3_ENDPOINT, { maxAttempts: 2 });
 
 /** Erzeugt eine Presigned URL für einen direkten Client-Upload (5 Min). */
 export async function presignUpload(key: string, contentType: string, size: number): Promise<string> {
@@ -35,4 +43,24 @@ export async function presignUpload(key: string, contentType: string, size: numb
 export async function checkStorage(signal: AbortSignal): Promise<void> {
   if (!storageClient) throw new Error("storage not configured");
   await storageClient.send(new HeadBucketCommand({ Bucket: env.S3_BUCKET }), { abortSignal: signal });
+}
+
+/** Bild-Bytes in den Bucket legen (serverseitig, nach Magic-Byte-Prüfung). */
+export async function putObject(key: string, bytes: Uint8Array, contentType: string): Promise<void> {
+  if (!objectClient) throw new Error("storage not configured");
+  await objectClient.send(
+    new PutObjectCommand({ Bucket: env.S3_BUCKET, Key: key, Body: bytes, ContentType: contentType, ContentLength: bytes.length, CacheControl: "private, max-age=86400" }),
+    { abortSignal: AbortSignal.timeout(20_000) },
+  );
+}
+
+export async function deleteObject(key: string): Promise<void> {
+  if (!objectClient) throw new Error("storage not configured");
+  await objectClient.send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }), { abortSignal: AbortSignal.timeout(10_000) });
+}
+
+/** Kurzlebiger, signierter Lese-Link (Bucket bleibt privat). Signiert mit dem vom Browser erreichbaren Origin. */
+export async function signedGetUrl(key: string, expiresIn = 3600): Promise<string> {
+  if (!uploadClient) throw new HTTPException(503, { message: "Object Storage nicht konfiguriert" });
+  return getSignedUrl(uploadClient, new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key }), { expiresIn });
 }

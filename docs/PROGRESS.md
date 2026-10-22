@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-76 | Bilder in Supabase Storage (privater Bucket, signierte Links, `MEDIA_STORAGE=s3`) und Titelbild im Profil | Echter Bucket geprüft, API 245, Vitest 243, E2E Profil 3 |
 | B-73 | Profil Runde 1: Profilfelder, Sichtbarkeit (Alle/Follower/Niemand), echtes Follow-System mit Bestätigung, Mitgliedsseite `/u/<name>`, Level/„Master Grower“ entfernt | Vitest 243, API 236, Playwright Desktop 45 + Mobile 5 (2 Fehlschläge behoben, erneut grün) |
 | B-72 | Schalter mit langem Beschreibungstext nicht mehr gequetscht (`Toggle` `shrink-0`) | Breite gemessen: vorher 27/25 px, nachher 44 px |
 | B-71 | Profil/Einstellungen: erfundene Abzeichen und wirkungsloser Telegram-Schalter entfernt; Animationen reduzieren, Sounds und Wochenreport (Opt-in, Cron) wirken | typecheck ✅ lint ✅ vitest 232/232 ✅ API 227/227 ✅ E2E 45 + 1 übersprungen ✅ |

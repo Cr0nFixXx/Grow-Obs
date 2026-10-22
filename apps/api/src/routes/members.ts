@@ -61,6 +61,7 @@ membersApi.get("/:handle", async (c) => {
   ]);
   return c.json({
     ...base,
+    cover: u.coverUrl ?? "",
     bio: u.bio,
     location: u.location,
     growSince: u.growSince ?? null,

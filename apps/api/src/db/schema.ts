@@ -36,6 +36,8 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   handle: text("handle").notNull().unique(),
   avatarUrl: text("avatar_url"),
+  /** Titelbild (B-76): `/media/<id>` oder HTTPS-URL. */
+  coverUrl: text("cover_url"),
   level: integer("level").notNull().default(1),
   title: text("title").notNull().default("Grower"),
   telegram: boolean("telegram").notNull().default(false),
@@ -227,13 +229,15 @@ export const appReleases = pgTable("app_releases", {
 });
 
 /* ----------------------------- Media (0002) ----------------------------- */
-/** Bilder direkt in PostgreSQL (kein S3 nötig). Max. 2 MB je Datei, Quote pro User in der Route. */
+/** Bilder: Bytes in PostgreSQL (`data`, Embedded ohne S3) oder im Object Storage (`storageKey`, B-76). Max. 2 MB je Datei, Quote pro User in der Route. */
 export const media = pgTable("media", {
   id: uuid("id").primaryKey().defaultRandom(),
   ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   contentType: text("content_type").notNull(),
   size: integer("size").notNull(),
-  data: bytea("data").notNull(),
+  data: bytea("data"),
+  /** Schlüssel im Bucket (`media/<owner>/<id>`); gesetzt, wenn die Bytes im Object Storage liegen. */
+  storageKey: text("storage_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -8,6 +8,14 @@ const base = {
   S3_SECRET_KEY: "test-secret",
 };
 describe("deployment environment", () => {
+  it("keeps images in PostgreSQL unless MEDIA_STORAGE=s3 is set, and then requires credentials", () => {
+    const parsed = environmentSchema.safeParse(base);
+    expect(parsed.success && parsed.data.MEDIA_STORAGE).toBe("database");
+    const { S3_ACCESS_KEY: _a, S3_SECRET_KEY: _s, ...noStorage } = base;
+    expect(environmentSchema.safeParse({ ...base, MEDIA_STORAGE: "s3" }).success).toBe(true);
+    expect(environmentSchema.safeParse({ ...noStorage, API_EMBEDDED: "true", MEDIA_STORAGE: "s3" }).success).toBe(false);
+    expect(environmentSchema.safeParse({ ...base, MEDIA_STORAGE: "ftp" }).success).toBe(false);
+  });
   it("rejects weak/example JWT secrets", () => {
     expect(environmentSchema.safeParse({ ...base, JWT_SECRET: "short" }).success).toBe(false);
     expect(environmentSchema.safeParse({ ...base, JWT_SECRET: "please-change-me-to-a-long-random-string" }).success).toBe(false);

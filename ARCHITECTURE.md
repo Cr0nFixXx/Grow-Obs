@@ -216,7 +216,7 @@ createNotification / POST /chat/:id/messages ─► lib/push.ts sendPushToUser(u
 
 ## 8. Media, PWA cache, demo data
 
-- **Media:** images are stored in PostgreSQL (`media`, migration 0002): `POST /media` (raw body, JPEG/PNG/WebP, format by magic bytes, at most 2 MB, quota 200 images/100 MB per user),
+- **Media:** images are stored in PostgreSQL by default (`media`, migration 0002); with `MEDIA_STORAGE=s3` (B-76, needs the `S3_*` credentials) the bytes go to the private bucket (`media/<owner>/<id>`, migration 0017 adds `storage_key`), the row keeps only metadata and the quota, and `GET /media/:id` answers `302` to a signed link (1 h; browser may keep the redirect 30 min), `DELETE` removes row and object. Credentials alone never switch the backend. Upload API: `POST /media` (raw body, JPEG/PNG/WebP, format by magic bytes, at most 2 MB, quota 200 images/100 MB per user),
   `GET /media/:id` public via an unguessable UUID (`<img>` cannot send a bearer; CSP `default-src 'none'; sandbox`, `nosniff`), `DELETE` by the owner only. The stored value is the path
   `/media/<uuid>`; the UI resolves it with `resolveMedia()`. The client shrinks photos to at most 1600 px (which strips EXIF/GPS). S3/MinIO (`/upload/presign`) is optional and signs against
   `S3_PUBLIC_ENDPOINT`.
@@ -250,6 +250,7 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0013 | web push: `push_subscriptions` (per device, unique endpoint, cascades with session/user), `push_prefs` |
 | 0014 | group chats: roles, join time, topics, invitations, message kind |
 | 0015 | weekly report (B-71): `users.weekly_report` (opt-in, default off), `users.weekly_report_week` (ISO week of the last report, prevents double sends) |
+| 0017 | media in object storage (B-76): `media.data` nullable, `media.storage_key`, check "bytes or key", `users.cover_url` |
 | 0016 | profiles and follows (B-73): `users.bio/location/grow_since/medium/interests/profile_visibility/handle_changed_at`, table `follows` (pending/accepted, no self-follow, RLS on) |
 
 ---

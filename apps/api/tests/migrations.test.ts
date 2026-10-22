@@ -14,6 +14,14 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0017 legt Storage-Schlüssel und Titelbild an: idempotent, Bytes optional, aber Inhalt Pflicht", () => {
+    const sql = readFileSync(`${dir}0017_media_storage_cover.sql`, "utf8");
+    expect(sql).toContain('ALTER TABLE "media" ALTER COLUMN "data" DROP NOT NULL');
+    expect(sql).toContain('ADD COLUMN IF NOT EXISTS "storage_key" text');
+    expect(sql).toContain('CHECK ("data" IS NOT NULL OR "storage_key" IS NOT NULL)');
+    expect(sql).toContain('ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "cover_url" text');
+  });
+
   it("0016 ergänzt Profilfelder und Follow-System: idempotent, Sichtbarkeit/Status geprüft, kein Selbst-Folgen, RLS an", () => {
     const sql = readFileSync(`${dir}0016_profile_follow.sql`, "utf8");
     for (const column of ["bio", "location", "grow_since", "medium", "interests", "profile_visibility", "handle_changed_at"]) expect(sql).toContain(`ADD COLUMN IF NOT EXISTS "${column}"`);

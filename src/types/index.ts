@@ -15,6 +15,8 @@ export interface User {
   /** Wochenreport per Meldung (Opt-in, Server-Einstellung; B-71). */
   weeklyReport?: boolean;
   /** Profilfelder und Sichtbarkeit (B-73); im Demo-Modus teils leer. */
+  /** Titelbild (`/media/<id>` oder HTTPS-URL), leer = Farbverlauf. */
+  cover?: string;
   bio?: string;
   location?: string;
   growSince?: number | null;

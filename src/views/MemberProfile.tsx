@@ -3,7 +3,7 @@ import { Avatar, Badge, Button, Card, EmptyState, Skeleton } from "@/components/
 import { Icon } from "@/components/Icon";
 import { PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { atHandle, FollowButton, FollowListModal } from "@/components/members";
+import { atHandle, FollowButton, FollowListModal, ProfileBanner } from "@/components/members";
 import { useNav } from "@/lib/nav";
 import { useServices } from "@/data/DataContext";
 import type { FollowState, MemberProfile as Member } from "@/services/interfaces";
@@ -40,7 +40,7 @@ export default function MemberProfile() {
       <PageHeader title={member.name} subtitle={`${atHandle(member.handle)} · ${member.title}`} icon="User" />
       <Reveal>
         <Card className="overflow-hidden p-0">
-          <div className="h-24 bg-gradient-to-br from-leaf-600/70 to-leaf-950" />
+          <ProfileBanner src={member.restricted ? undefined : member.cover} className="h-24 sm:h-36" />
           <div className="px-5 pb-5">
             <div className="-mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <Avatar src={member.avatar} name={member.name} size={84} className="ring-4 ring-surface" />

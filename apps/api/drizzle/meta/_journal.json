@@ -120,6 +120,13 @@
       "when": 1791500000000,
       "tag": "0016_profile_follow",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791600000000,
+      "tag": "0017_media_storage_cover",
+      "breakpoints": true
     }
   ]
 }

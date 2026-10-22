@@ -83,4 +83,24 @@ test.describe("Profile und Folgen (B-73)", () => {
     await expect(A.page.getByText("Profil nicht verfügbar")).toBeVisible();
     await A.context.close();
   });
+
+  test("Titelbild hochladen, speichern, auf dem Profil sehen und wieder entfernen", async ({ browser }) => {
+    const A = await person(browser, `prof_c_${stamp}`);
+    await openProfile(A.page);
+    await A.page.getByRole("button", { name: "Bearbeiten" }).click();
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+    await A.page.locator('input[type="file"]').first().setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: png });
+    await expect(A.page.locator('img[src*="/media/"]').first()).toBeVisible();
+    await A.page.getByRole("button", { name: "Speichern" }).click();
+    const banner = A.page.locator('main img[src*="/media/"]').first();
+    await expect(banner).toBeVisible();
+    await expect.poll(() => banner.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await A.page.reload();
+    await expect(A.page.locator('main img[src*="/media/"]').first()).toBeVisible();
+    await A.page.getByRole("button", { name: "Bearbeiten" }).click();
+    await A.page.getByRole("button", { name: "Entfernen" }).first().click();
+    await A.page.getByRole("button", { name: "Speichern" }).click();
+    await expect(A.page.locator('main img[src*="/media/"]')).toHaveCount(0);
+    await A.context.close();
+  });
 });

@@ -23,6 +23,11 @@ export const environmentSchema = z.object({
   /** Optional nur im Embedded-Modus (ohne Storage → Uploads liefern 503). */
   S3_ACCESS_KEY: z.string().min(1).optional(),
   S3_SECRET_KEY: z.string().min(8).optional(),
+  /**
+   * Wo hochgeladene Bilder (`POST /media`) liegen: `database` (Standard, PostgreSQL) oder `s3` (privater Bucket, B-76; braucht
+   * S3_*-Zugangsdaten). Bewusst kein Automatismus: Zugangsdaten allein ändern nie, wo Bilder landen.
+   */
+  MEDIA_STORAGE: z.enum(["database", "s3"]).default("database"),
   S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/).default("growobserver"),
   /**
    * SameSite des Sitzungs-Cookies. `lax` (Standard) ist richtig für same-origin/same-site-Betrieb.
@@ -66,6 +71,9 @@ export const environmentSchema = z.object({
   const storageConfigured = !!(env.S3_ACCESS_KEY && env.S3_SECRET_KEY);
   if (!embedded && !storageConfigured) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["S3_ACCESS_KEY"], message: "Standalone API requires object storage credentials" });
+  }
+  if (env.MEDIA_STORAGE === "s3" && !storageConfigured) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["MEDIA_STORAGE"], message: "MEDIA_STORAGE=s3 requires S3_ACCESS_KEY and S3_SECRET_KEY" });
   }
   // Same-origin (embedded) sendet keine Cross-Origin-Requests → Regel nur für Standalone.
   if (!embedded && env.NODE_ENV === "production" && origins.some((origin) => !origin.startsWith("https://"))) {

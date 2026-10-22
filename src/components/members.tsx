@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, Badge, Button, Card, Modal } from "@/components/ui";
+import { resolveMedia } from "@/lib/media";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
 import { useNav } from "@/lib/nav";
@@ -29,6 +30,17 @@ export function FollowButton({ handle, state, needsApproval, onChange }: { handl
   if (state === "accepted") return <Button variant="secondary" onClick={run} loading={busy}><Icon name="UserCheck" size={16} /> Gefolgt</Button>;
   if (state === "pending") return <Button variant="secondary" onClick={run} loading={busy}><Icon name="Clock" size={16} /> Angefragt</Button>;
   return <Button onClick={run} loading={busy}><Icon name="UserPlus" size={16} /> {needsApproval ? "Anfrage senden" : "Folgen"}</Button>;
+}
+
+/** Titelbild-Kopf eines Profils: Bild, sonst der Farbverlauf. Ein fehlerhaftes Bild fällt auf den Verlauf zurück. */
+export function ProfileBanner({ src, className = "h-28" }: { src?: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  return (
+    <div className={`relative overflow-hidden bg-gradient-to-br from-leaf-600/70 to-leaf-950 ${className}`}>
+      {src && !failed && <img src={resolveMedia(src)} alt="" className="absolute inset-0 size-full object-cover" onError={() => setFailed(true)} draggable={false} />}
+    </div>
+  );
 }
 
 function PersonRow({ person, onOpen, action }: { person: MemberPerson; onOpen: () => void; action?: React.ReactNode }) {
