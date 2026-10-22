@@ -6,7 +6,7 @@ import type { NavParams, ViewKey } from "@/lib/nav";
  *   /                      Dashboard            /grows/<growId>        Grow-Detail
  *   /forum/<threadId>      Forum-Thread         /wiki/<articleId>      Wiki-Artikel
  *   /breeders/<breederId>  Breeder              /communities/<id>      Community
- *   /strains/<strainId>    Sorte (Detail)
+ *   /strains/<strainId>    Sorte (Detail)       /u/<handle>            Mitgliedsprofil
  *   /profile/settings      Profil-Tab           /hall-of-fame, …       übrige Hauptansichten
  *
  * Nicht verlinkbar (URL bleibt „/“): Anmeldung, Dev-Admin, Erstellen-Assistent.
@@ -17,11 +17,11 @@ const SEGMENT: Partial<Record<ViewKey, string>> = {
   marketplace: "marketplace", wiki: "wiki", forum: "forum", hallOfFame: "hall-of-fame", social: "social",
   communities: "communities", showcase: "showcase", calculator: "calculator", consumption: "consumption",
   simulation: "simulation", report: "report", chat: "chat", notifications: "notifications", profile: "profile",
-  telegram: "telegram",
+  telegram: "telegram", member: "u",
 };
 /** Welcher Parameter steht als zweites Pfadsegment? */
 const DETAIL_PARAM: Partial<Record<ViewKey, string>> = {
-  grows: "growId", strains: "strainId", breeders: "breederId", wiki: "articleId", forum: "threadId", communities: "id", profile: "tab",
+  grows: "growId", strains: "strainId", breeders: "breederId", wiki: "articleId", forum: "threadId", communities: "id", profile: "tab", member: "handle",
 };
 const VIEW_BY_SEGMENT = new Map<string, ViewKey>(
   (Object.entries(SEGMENT) as [ViewKey, string][]).filter(([, s]) => s).map(([view, s]) => [s, view]),

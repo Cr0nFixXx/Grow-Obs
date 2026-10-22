@@ -21,7 +21,7 @@ chat.route("/", chatGroups);
 
 export interface ConversationDto {
   id: string; name: string; avatar: string; online: boolean; last: string; time: string; unread: number;
-  isGroup: boolean; partnerId: string | null;
+  isGroup: boolean; partnerId: string | null; partnerHandle: string | null;
   /** Gruppen: eigene Rolle und Mitgliederzahl (Direktnachrichten: null/2). */
   role: "admin" | "moderator" | "member" | null; memberCount: number;
 }
@@ -34,7 +34,7 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
   if (!mine.length) return [];
   const ids = mine.map((m) => m.cv.id);
 
-  const members = await db.select({ conversationId: conversationMembers.conversationId, id: users.id, name: users.name, avatar: users.avatarUrl })
+  const members = await db.select({ conversationId: conversationMembers.conversationId, id: users.id, name: users.name, handle: users.handle, avatar: users.avatarUrl })
     .from(conversationMembers).innerJoin(users, eq(users.id, conversationMembers.userId)).where(inArray(conversationMembers.conversationId, ids));
   // Letzte sichtbare Nachricht: in Gruppen nur ab Beitritt (außer Verlauf offen) und nur aus Themen, die der Nutzer sehen darf.
   const lastRows = await db.execute<{ conversation_id: string; text: string; image_url: string | null; created_at: Date; kind: string; sender_id: string | null; sender_name: string | null }>(sql`
@@ -59,7 +59,7 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
   for (const g of await groupUnreadByTopic(userId, ids)) if (!g.muted) unread.set(g.conversationId, (unread.get(g.conversationId) ?? 0) + g.n);
   const memberCounts = new Map<string, number>();
   for (const m of members) memberCounts.set(m.conversationId, (memberCounts.get(m.conversationId) ?? 0) + 1);
-  const partners = new Map<string, { id: string; name: string; avatar: string | null }>();
+  const partners = new Map<string, { id: string; name: string; handle: string; avatar: string | null }>();
   for (const cv of mine.map((m) => m.cv).filter((c) => !c.isGroup)) {
     const others = members.filter((m) => m.conversationId === cv.id && m.id !== userId);
     if (others.length === 1) partners.set(cv.id, others[0]!);
@@ -82,6 +82,7 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
         unread: unread.get(cv.id) ?? 0,
         isGroup: cv.isGroup,
         partnerId: partner?.id ?? null,
+        partnerHandle: partner?.handle ?? null,
         role: cv.isGroup ? role : null,
         memberCount: memberCounts.get(cv.id) ?? 0,
       };

@@ -16,12 +16,14 @@ import { copyText } from "@/lib/clipboard";
 import { useMediaQuery } from "@/lib/hooks";
 import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media";
 import { useToast } from "@/components/Toast";
+import { useNav } from "@/lib/nav";
 import { useChat } from "@/data/hooks";
 
 const memberLabel = (n: number | undefined) => (n === undefined ? "Gruppe" : n === 1 ? "1 Mitglied" : `${n} Mitglieder`);
 
 export default function Chat() {
   const toast = useToast();
+  const { navigate } = useNav();
   const { conversations, activeId, setActiveId, messages, msgLoading, send, loading, error, typing, typingIds, notifyTyping, openDirect, live, group, activeTopic, selectTopic, invites, groupActions } = useChat();
   const [newChat, setNewChat] = useState(false);
   const [newGroup, setNewGroup] = useState(false);
@@ -103,7 +105,7 @@ export default function Chat() {
                 </div>
                 {conv.isGroup
                   ? <button onClick={() => setInfo("general")} disabled={!group} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 disabled:opacity-50" aria-label="Gruppen-Info"><Icon name="Info" size={18} /></button>
-                  : <button onClick={() => toast.push({ title: conv.name, desc: "Geteilter Grow & Status.", tone: "info", icon: "Info" })} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2" aria-label="Info"><Icon name="Info" size={18} /></button>}
+                  : <button onClick={() => (conv.partnerHandle ? navigate("member", { handle: conv.partnerHandle }) : toast.push({ title: conv.name, desc: "Geteilter Grow & Status.", tone: "info", icon: "Info" }))} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2" aria-label={conv.partnerHandle ? "Mitgliedsprofil" : "Info"}><Icon name="Info" size={18} /></button>}
               </div>
               {conv.isGroup && group && <TopicBar topics={group.topics} activeId={activeTopic?.id ?? null} onSelect={selectTopic} onManage={() => setInfo("topics")} />}
 

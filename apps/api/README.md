@@ -151,8 +151,12 @@ Ist ein Feature global deaktiviert, antworten seine Pfade mit `403 { error, feat
 | GET `/health` | nur Liveness; sagt nichts über Datenbank/Speicher (das tut `/admin/health`) |
 | GET `/version` | öffentlich: Backend-Version + Build-Nummer (aus der Root-`version.json` generiert) |
 | POST `/auth/register`, `/auth/login` | Zugangsdaten; Rolle standardmäßig `member`; normalisierte E-Mail; Limit Registrierung 10/h je IP, Login 10/15 min je IP und E-Mail |
-| GET `/auth/me` | aktuelle Sitzung inkl. expliziter `role` und Pflichtwechsel-Flag (auch bei Pflichtwechsel erlaubt); `PATCH /auth/me`: `{ name?, title?, avatar? }`, Rolle nicht änderbar |
+| GET `/auth/me` | aktuelle Sitzung inkl. expliziter `role` und Pflichtwechsel-Flag (auch bei Pflichtwechsel erlaubt); `PATCH /auth/me`: strikt `{ name?, title?, avatar?, weeklyReport?, bio?, location?, growSince?, medium?, interests?, profileVisibility?, handle? }` (Benutzername höchstens alle 30 Tage), Rolle nicht änderbar |
 | POST `/auth/logout`, `/auth/logout-all` | Sitzung beenden / alle Geräte abmelden (`logout-all` auch bei Pflichtwechsel) |
+| GET `/members/:handle` | Auth; Profil eines Mitglieds. Eingeschränkt sichtbare Profile (`restricted: true`) liefern nur Name, Bild, Titel, `relation`, `canFollow`; sonst Profilfelder und echte Zähler |
+| POST / DELETE `/members/:handle/follow` | folgen (sofort bei „Alle“, Anfrage bei „Nur Follower“, 403 bei „Niemand“) / entfolgen bzw. Anfrage zurückziehen; 60 je 10 min |
+| GET `/members/:handle/followers`, `/following` | Listen, nur wenn das Profil sichtbar ist (sonst 403) |
+| GET `/follows/requests`, POST `/follows/requests/:userId/accept` bzw. `/decline`, DELETE `/follows/followers/:userId` | eigene offene Anfragen annehmen/ablehnen; Follower entfernen |
 | GET `/auth/sessions`, DELETE `/auth/sessions/:id` | eigene Geräteliste (höchstens 5) / einzelne Sitzung beenden |
 | POST `/auth/password` | aktuelles Passwort Pflicht (falsch = 403), beendet alle anderen Sitzungen, 5 Versuche/15 min je Nutzer; entsperrt den Pflichtwechsel |
 | GET `/auth/login-history` | eigenes Anmeldeprotokoll (höchstens 50, ohne IP, 90 Tage) |

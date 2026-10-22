@@ -146,7 +146,7 @@ function Sidebar() {
           {!sidebarCollapsed && (
             <span className="min-w-0 text-left">
               <span className="block truncate text-sm font-semibold">{currentUser.name}</span>
-              <span className="block truncate text-xs text-fg-subtle">Lvl {currentUser.level} · {currentUser.title}</span>
+              <span className="block truncate text-xs text-fg-subtle">{currentUser.title}</span>
             </span>
           )}
         </button>

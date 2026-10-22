@@ -85,6 +85,8 @@ export interface ConversationItem {
   isGroup?: boolean;
   /** Gegenstelle einer Direktnachricht (API); dient dem Abgleich mit Online-Status-Ereignissen. */
   partnerId?: string | null;
+  /** Benutzername der Gegenstelle (ohne „@“), für den Sprung zum Profil. */
+  partnerHandle?: string | null;
   /** Gruppen (B-65): eigene Rolle und Mitgliederzahl. */
   role?: "admin" | "moderator" | "member" | null;
   memberCount?: number;
@@ -280,6 +282,46 @@ export interface ProfileUpdate {
   title?: string;
   avatar?: string;
   weeklyReport?: boolean;
+  bio?: string;
+  location?: string;
+  growSince?: number | null;
+  medium?: string | null;
+  interests?: string[];
+  profileVisibility?: ProfileVisibility;
+  /** Benutzername ohne „@“; höchstens 1x je 30 Tage. */
+  handle?: string;
+}
+
+/** Mitgliedsprofile und Folgen (B-73). */
+export type ProfileVisibility = "all" | "followers" | "nobody";
+export type FollowState = "none" | "pending" | "accepted";
+export interface MemberPerson { id: string; name: string; handle: string; avatar: string; title: string }
+export interface MemberProfile extends MemberPerson {
+  isMe: boolean;
+  /** `true`: nur Name/Bild/Titel sichtbar (Sichtbarkeit des Profils schränkt ein). */
+  restricted: boolean;
+  visibility?: ProfileVisibility;
+  relation: { following: FollowState; followedBy: boolean };
+  canFollow: boolean;
+  bio?: string;
+  location?: string;
+  growSince?: number | null;
+  medium?: string | null;
+  interests?: string[];
+  memberSince?: string;
+  stats?: { grows: number; harvests: number; followers: number; following: number };
+}
+export interface FollowRequest extends MemberPerson { requestedAt: string }
+export interface MemberService {
+  get(handle: string): Promise<MemberProfile>;
+  follow(handle: string): Promise<FollowState>;
+  unfollow(handle: string): Promise<void>;
+  followers(handle: string): Promise<MemberPerson[]>;
+  following(handle: string): Promise<MemberPerson[]>;
+  requests(): Promise<FollowRequest[]>;
+  accept(userId: string): Promise<void>;
+  decline(userId: string): Promise<void>;
+  removeFollower(userId: string): Promise<void>;
 }
 
 /** Globale Feature-Overrides (Server = Quelle der Wahrheit; Mock = lokale Vorschau). */
@@ -435,5 +477,6 @@ export interface Services {
   hall: HallService;
   activity: ActivityService;
   communities: CommunityService;
+  members: MemberService;
   admin: AdminService;
 }

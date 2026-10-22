@@ -26,6 +26,12 @@ import type { Grow, SocialPost, Strain, Task } from "@/types";
 import type { BannedMember, CommunityDetail, ReportGroup } from "@/types";
 import type {
   ActivityService,
+  FollowRequest,
+  FollowState,
+  MemberPerson,
+  MemberProfile,
+  MemberService,
+  ProfileVisibility,
   AdminContentItem,
   AdminService,
   AdminUser,
@@ -448,6 +454,45 @@ const mockPeople: ChatPerson[] = seedConversations.map((c) => ({ id: `p-${c.id}`
 const readConversations = new Set<string>();
 const extraConversations: ConversationItem[] = [];
 
+/**
+ * Mock-Mitglieder (nur Demo): die Chat-Kontakte der Beispieldaten als Profile; die ersten drei zeigen die drei Sichtbarkeiten
+ * (offen, nur Follower, privat). Folgen gilt nur für die Session. Keine erfundenen Statistiken: Zähler bleiben 0.
+ */
+const demoVisibility = (index: number): ProfileVisibility => (index % 3 === 1 ? "followers" : index % 3 === 2 ? "nobody" : "all");
+const mockFollowing = new Map<string, FollowState>();
+const demoMemberOf = (handle: string) => {
+  const index = mockPeople.findIndex((p) => p.handle === handle.replace(/^@/, "").toLowerCase());
+  return index < 0 ? null : { person: mockPeople[index]!, visibility: demoVisibility(index) };
+};
+const asMemberPerson = (p: ChatPerson): MemberPerson => ({ id: p.id, name: p.name, handle: p.handle, avatar: p.avatar, title: "Grower" });
+const memberService: MemberService = {
+  async get(handle) {
+    await delay();
+    const found = demoMemberOf(handle);
+    if (!found) throw new Error("Mitglied nicht gefunden");
+    const following = mockFollowing.get(found.person.handle) ?? "none";
+    const full = found.visibility === "all" || (found.visibility === "followers" && following === "accepted");
+    const base: MemberProfile = { ...asMemberPerson(found.person), isMe: false, restricted: !full, visibility: full ? undefined : found.visibility, relation: { following, followedBy: false }, canFollow: found.visibility !== "nobody" || following !== "none" };
+    return full ? { ...base, bio: "Demo-Profil: Im Betrieb stehen hier die Angaben des Mitglieds.", location: "", growSince: null, medium: null, interests: [], stats: { grows: 0, harvests: 0, followers: following === "accepted" ? 1 : 0, following: 0 } } : base;
+  },
+  async follow(handle) {
+    await delay();
+    const found = demoMemberOf(handle);
+    if (!found) throw new Error("Mitglied nicht gefunden");
+    if (found.visibility === "nobody") throw new Error("Dieses Profil ist privat.");
+    const status: FollowState = found.visibility === "all" ? "accepted" : "pending";
+    mockFollowing.set(found.person.handle, status);
+    return status;
+  },
+  async unfollow(handle) { await delay(); mockFollowing.delete(handle.replace(/^@/, "").toLowerCase()); },
+  async followers() { await delay(); return []; },
+  async following() { await delay(); return mockPeople.filter((p) => mockFollowing.get(p.handle) === "accepted").map(asMemberPerson); },
+  async requests(): Promise<FollowRequest[]> { await delay(); return []; },
+  async accept() { await delay(); },
+  async decline() { await delay(); },
+  async removeFollower() { await delay(); },
+};
+
 const noGroups = async (): Promise<never> => { throw new Error("Gruppen brauchen den Server"); };
 
 const chatService: ChatService = {
@@ -786,5 +831,6 @@ export const mockServices: Services = {
   hall: hallService,
   activity: activityService,
   communities: communityService,
+  members: memberService,
   admin: adminService,
 };

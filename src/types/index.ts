@@ -14,6 +14,18 @@ export interface User {
   telegram: boolean;
   /** Wochenreport per Meldung (Opt-in, Server-Einstellung; B-71). */
   weeklyReport?: boolean;
+  /** Profilfelder und Sichtbarkeit (B-73); im Demo-Modus teils leer. */
+  bio?: string;
+  location?: string;
+  growSince?: number | null;
+  medium?: string | null;
+  interests?: string[];
+  profileVisibility?: "all" | "followers" | "nobody";
+  /** Frühestens wieder möglich 30 Tage nach diesem Zeitpunkt. */
+  handleChangedAt?: string | null;
+  following?: number;
+  /** Offene Follower-Anfragen an mich. */
+  followRequests?: number;
   role: "member" | "moderator" | "admin" | "platform_admin";
   /** Gesetzt für Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel ist die App gesperrt. */
   mustChangePassword?: boolean;

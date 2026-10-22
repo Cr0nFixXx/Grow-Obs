@@ -191,6 +191,12 @@ createNotification / POST /chat/:id/messages ─► lib/push.ts sendPushToUser(u
 - Protected by `CRON_SECRET` (Bearer, timing-safe compare); without the variable the route answers 404. `vercel.json` registers a Vercel Cron `0 17 * * 0` (Sundays 17:00 UTC = 18:00 CET / 19:00 CEST; Hobby cron precision is about one hour). Other hosts call the URL from an external cron.
 - Device-only preferences (B-71, `localStorage`, `ThemeProvider`): `go-reduce-motion` (`on`/`off`; absent = follow `prefers-reduced-motion`; sets `html[data-reduce-motion]`, CSS and `MotionConfig`) and `go-sound` (`SoundBridge` plays a Web Audio tone when unread notifications or unread chat messages increase while the app is visible).
 
+### Profiles and follows (B-73)
+
+- Fields and limits live in `apps/api/src/lib/profile-fields.ts` (copied to `src/lib/profile-fields.ts`; a test keeps both equal). `PATCH /auth/me` is strict (unknown keys → 400); the handle changes at most once per 30 days.
+- `GET /members/:handle` (`apps/api/src/routes/members.ts`) cuts the response server-side: a viewer who may not see the profile gets only name, avatar, title, `relation`, `canFollow` and `restricted: true`. "All" means logged-in members. Follow: immediate if the target is `all`, a pending request if `followers`, refused if `nobody`; accepting/declining via `/follows/requests/...`.
+- Frontend: view `member` (`/u/<handle>`, `src/views/MemberProfile.tsx`), shared parts in `src/components/members.tsx`, `MemberService` (mock: session-only demo follows).
+
 ## 7. Versioning, updates, feature flags
 
 - **Versions** live only in `version.json` (`frontend {codename, version}`, `backend {version}`, `build`, `modules`); `scripts/version.mjs` (`version:sync|check|build|show`) aligns
@@ -244,6 +250,7 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0013 | web push: `push_subscriptions` (per device, unique endpoint, cascades with session/user), `push_prefs` |
 | 0014 | group chats: roles, join time, topics, invitations, message kind |
 | 0015 | weekly report (B-71): `users.weekly_report` (opt-in, default off), `users.weekly_report_week` (ISO week of the last report, prevents double sends) |
+| 0016 | profiles and follows (B-73): `users.bio/location/grow_since/medium/interests/profile_visibility/handle_changed_at`, table `follows` (pending/accepted, no self-follow, RLS on) |
 
 ---
 

@@ -2,7 +2,7 @@
 (() => {
   const shellPaths = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/sw-policy.js"];
   // App-Routen (B-57): erste Pfadsegmente der Ansichten, siehe src/lib/routes.ts (ein Test hält beide Listen synchron).
-  const appSegments = new Set(["grows", "strains", "ai", "planner", "breeders", "marketplace", "wiki", "forum", "hall-of-fame", "social", "communities", "showcase", "calculator", "consumption", "simulation", "report", "chat", "notifications", "profile", "telegram"]);
+  const appSegments = new Set(["grows", "strains", "ai", "planner", "breeders", "marketplace", "wiki", "forum", "hall-of-fame", "social", "communities", "showcase", "calculator", "consumption", "simulation", "report", "chat", "notifications", "profile", "telegram", "u"]);
   const isAppRoute = (pathname) => { const parts = pathname.split("/").filter(Boolean); return parts.length > 0 && parts.length <= 2 && appSegments.has(parts[0]); };
   const assetPaths = new Set([...shellPaths, "/images/og.jpg"]);
   const classify = (request, origin) => {

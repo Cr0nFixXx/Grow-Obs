@@ -5,6 +5,7 @@ import { ImagePickButton } from "@/components/media";
 import { PeoplePicker } from "@/components/PeoplePicker";
 import { GroupTopics } from "@/components/GroupTopics";
 import { useToast } from "@/components/Toast";
+import { useNav } from "@/lib/nav";
 import { MAX_GROUP_NAME, expiryLabel, freeSlots, inviteSummary } from "@/lib/chat-groups";
 import { cn } from "@/utils/cn";
 import type { GroupActions } from "@/data/hooks";
@@ -32,7 +33,7 @@ export function GroupInfoModal({ open, onClose, group, actions, initialTab = "ge
           ))}
         </div>
         {tab === "general" && <General group={group} actions={actions} admin={admin} onLeft={onClose} fail={fail} />}
-        {tab === "members" && <Members group={group} actions={actions} admin={admin} fail={fail} />}
+        {tab === "members" && <Members group={group} actions={actions} admin={admin} fail={fail} onOpenMember={onClose} />}
         {tab === "topics" && <GroupTopics group={group} actions={actions} />}
       </div>
     </Modal>
@@ -88,7 +89,8 @@ function General({ group, actions, admin, onLeft, fail }: { group: GroupDetail; 
   );
 }
 
-function Members({ group, actions, admin, fail }: { group: GroupDetail; actions: GroupActions; admin: boolean; fail: (t: string, e: unknown) => void }) {
+function Members({ group, actions, admin, fail, onOpenMember }: { group: GroupDetail; actions: GroupActions; admin: boolean; fail: (t: string, e: unknown) => void; onOpenMember: () => void }) {
+  const { navigate } = useNav();
   const toast = useToast();
   const [picked, setPicked] = useState<ChatPerson[]>([]);
   const [busy, setBusy] = useState(false);
@@ -108,11 +110,13 @@ function Members({ group, actions, admin, fail }: { group: GroupDetail; actions:
       <ul className="space-y-1" aria-label="Mitglieder">
         {group.members.map((m) => (
           <li key={m.id} className="flex items-center gap-3 rounded-xl p-2">
-            <Avatar src={m.avatar} name={m.name} size={36} status={m.online ? "online" : "offline"} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold">{m.name}{m.id === group.meId && <span className="ml-1.5 text-xs font-normal text-fg-subtle">(Du)</span>}</div>
-              <div className="truncate text-xs text-fg-muted">@{m.handle}</div>
-            </div>
+            <button type="button" onClick={() => { onOpenMember(); navigate("member", { handle: m.handle }); }} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Profil von ${m.name} öffnen`}>
+              <Avatar src={m.avatar} name={m.name} size={36} status={m.online ? "online" : "offline"} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">{m.name}{m.id === group.meId && <span className="ml-1.5 text-xs font-normal text-fg-subtle">(Du)</span>}</div>
+                <div className="truncate text-xs text-fg-muted">@{m.handle}</div>
+              </div>
+            </button>
             {m.role === "admin" && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">Admin</span>}
             {admin && m.id !== group.meId && (confirmId === m.id
               ? <span className="flex items-center gap-1"><Button size="sm" variant="danger" disabled={busy} onClick={() => void run("Nicht entfernt", async () => { await actions.removeMember(m.id); setConfirmId(null); })}>Entfernen</Button><button type="button" onClick={() => setConfirmId(null)} aria-label="Abbrechen" className="grid size-8 place-items-center rounded-lg text-fg-muted hover:bg-surface-2"><X className="size-4" /></button></span>

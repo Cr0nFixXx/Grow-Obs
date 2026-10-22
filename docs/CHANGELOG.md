@@ -11,6 +11,19 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-73 – Profil, Runde 1: Profilfelder, Sichtbarkeit, Folgen, Mitgliedsseiten
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert. Erste von drei Profil-Runden (B-74 Konto, B-75 Benachrichtigungen; Bilder erst mit Supabase Storage).
+
+- **Profilfelder:** Über mich (≤ 280), Ort (≤ 60), „Anbau seit“ (Jahr 1990 bis heute), Medium (Erde/Coco/Hydro/Gemischt), bis zu 5 Interessen aus fester Liste; Benutzername änderbar, höchstens 1× je 30 Tage (3–32 Zeichen, Buchstaben/Zahlen/`_`). Migration `0016` (idempotent, von Hand einspielbar). Listen stehen in `profile-fields.ts` (Frontend und Backend, ein Test hält sie gleich).
+- **Sichtbarkeit:** Alle / Nur Follower / Niemand (Karte „Privatsphäre“ in den Einstellungen). Der Server schneidet ein eingeschränktes Profil auf Name, Bild und Titel zu. **„Alle“ meint angemeldete Mitglieder** (Annahme, keine Besucher ohne Konto).
+- **Folgen mit Bestätigung (echt, Tabelle `follows`):** bei „Alle“ sofort, bei „Nur Follower“ als Anfrage (Annehmen/Ablehnen in der Karte „Follower-Anfragen“), bei „Niemand“ nicht möglich. Entfolgen, Follower entfernen, Listen Follower/Folgt. Wechsel auf „Alle“ nimmt offene Anfragen an, auf „Niemand“ löscht sie (bestehende Follower bleiben). Benachrichtigungen als Typ `system` mit Link zum Profil.
+- **Mitgliedsseite `/u/<benutzername>`:** neue Ansicht `member` (Direktlink, Service-Worker-Liste, 404 bei unsicherem Namen). Sprung dorthin aus Gruppen-Mitgliederliste und dem Info-Knopf im Direktchat (neu: `partnerHandle` in der Konversationsliste). Forum-Autoren sind noch nicht verlinkt (die Forum-API liefert keinen Benutzernamen; Forum blieb unangetastet).
+- **Nur Echtes:** Level-Abzeichen und „Master Grower“ entfernt (Seitenleiste, Profil, Demo-Daten), Statistik aus der Datenbank: Grows, Ernten, Follower, Folgt.
+- **Kleinigkeit:** `Chip` akzeptiert alle Button-Attribute (`disabled`).
+- **Tests:** Neu: API `members.integration.test.ts` (8), Migration 0016, Vitest `members.test.tsx` (8), `profile-fields.test.ts`, Routen `/u/<handle>`, E2E `profiles.spec.ts` (2: Profil ausfüllen, Anfrage, Bestätigung, Entfolgen; Benutzername-Sperre, unbekanntes Profil). Gemessen (Build 26102300): Vitest 243/243 (40 Dateien), API 236/236 (17 Dateien), Lint/Typecheck/Build sauber, Playwright: Desktop-Gesamtlauf 45 bestanden (2 Realtime-Tests scheiterten an einem Selektor-Konflikt mit meinem neuen Knopf, behoben und mit Gruppen-Test erneut bestanden), Mobile 5/5.
+- **Nicht geprüft:** Produktion (Migration `0016` muss vor dem Deploy von Hand eingespielt werden, `SKIP_MIGRATIONS=true`); Bild-Upload (Avatar/Titelbild) bleibt bis Supabase Storage offen.
+
 ### B-72 – Schalter mit langem Beschreibungstext nicht mehr gequetscht
 
 - **Fehler:** In Einstellungen waren „Animationen reduzieren“, „Sounds“ (und „Wochenreport“) als schmale, verzerrte Schalter zu sehen, „Partikel-Effekte“ dagegen korrekt. Ursache: `Toggle` war ein Flex-Kind ohne `shrink-0`; bei langem Beschreibungstext schrumpfte der Schalter. Gemessen auf 390 px Breite vorher 27 px / 25 px, nachher 44 px (Soll `w-11`).

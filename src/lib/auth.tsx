@@ -13,6 +13,7 @@ import { ApiError, http, SESSION_EXPIRED_EVENT, setSessionHeaderToken } from "./
 import { clearLegacyPrivateStorage, readHeaderToken, readSessionMarker, sessionKey, writeHeaderToken, writeSessionMarker } from "./session-storage";
 import { currentUser } from "@/mocks/data";
 import type { User } from "@/types";
+import type { ProfileUpdate } from "@/services/interfaces";
 
 interface AuthValue {
   user: User | null;
@@ -28,7 +29,7 @@ interface AuthValue {
   /** Beendet alle Sitzungen dieses Kontos auf allen Geräten, danach lokal abmelden. */
   logoutAll: () => Promise<void>;
   /** Eigenes Profil ändern (Name, Titel, Avatar). Mock: nur Session. */
-  updateProfile: (patch: { name?: string; title?: string; avatar?: string; weeklyReport?: boolean }) => Promise<void>;
+  updateProfile: (patch: ProfileUpdate) => Promise<void>;
   /** Eigenes Profil/Rolle leise neu laden (Pull-to-Refresh). */
   refreshUser: () => Promise<void>;
 }
@@ -173,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, [endLocalSession]);
 
-  const updateProfile = useCallback(async (patch: { name?: string; title?: string; avatar?: string; weeklyReport?: boolean }) => {
+  const updateProfile = useCallback(async (patch: ProfileUpdate) => {
     if (config.useMock) {
       setUser((current) => (current ? { ...current, ...patch } : current));
       return;

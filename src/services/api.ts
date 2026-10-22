@@ -5,7 +5,12 @@ import type {
 } from "@/types";
 import type {
   ActivityService,
+  FollowRequest,
+  FollowState,
   GroupDetail,
+  MemberPerson,
+  MemberProfile,
+  MemberService,
   InviteResult,
   MyGroupInvite,
   AdminContentItem,
@@ -202,6 +207,18 @@ const adminService: AdminService = {
   deletePost: (id) => http.delete<void>(`/admin/posts/${id}`),
 };
 
+const memberService: MemberService = {
+  get: (handle) => http.get<MemberProfile>(`/members/${encodeURIComponent(handle)}`),
+  follow: async (handle) => (await http.post<{ status: FollowState }>(`/members/${encodeURIComponent(handle)}/follow`, {})).status,
+  unfollow: async (handle) => { await http.delete<unknown>(`/members/${encodeURIComponent(handle)}/follow`); },
+  followers: (handle) => http.get<MemberPerson[]>(`/members/${encodeURIComponent(handle)}/followers`),
+  following: (handle) => http.get<MemberPerson[]>(`/members/${encodeURIComponent(handle)}/following`),
+  requests: () => http.get<FollowRequest[]>("/follows/requests"),
+  accept: async (userId) => { await http.post<unknown>(`/follows/requests/${userId}/accept`, {}); },
+  decline: async (userId) => { await http.post<unknown>(`/follows/requests/${userId}/decline`, {}); },
+  removeFollower: async (userId) => { await http.delete<unknown>(`/follows/followers/${userId}`); },
+};
+
 export const apiServices: Services = {
   grows: growService,
   social: socialService,
@@ -220,5 +237,6 @@ export const apiServices: Services = {
   hall: hallService,
   activity: activityService,
   communities: communityService,
+  members: memberService,
   admin: adminService,
 };

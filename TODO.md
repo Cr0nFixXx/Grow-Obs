@@ -11,6 +11,7 @@ The owner decides the order. Last update: B-62.
 
 - [ ] **AI proxy:** server-side, per feature flag; the assistant UI is not connected yet (`PLAN.md` P9).
 - [ ] **Password reset for regular members:** needs an email path or another recovery concept (today only operators can reset, via CLI).
+- [ ] **Profile rounds (B-73 done):** B-74 account (change e-mail with password, delete account + JSON export, last platform admin cannot delete), B-75 notifications (bundle weekly report, push categories, quiet hours + in-app bell mute per category), images (avatar/cover) once Supabase Storage keys exist; link forum authors to `/u/<handle>` (needs the handle in the forum API).
 - [ ] **Hide online status:** per-user option (presence is currently always visible).
 - [ ] **Vercel operation (B-66):** watch the pooler after `DB_POOL_MAX`/polling; optional presence for polling-only mode (a cheap `POST /presence` ping), a documented `docs/` deployment guide if Vercel becomes a supported target.
 - [ ] **Group chats (B-65 done):** follow-ups: group deletion by an admin, explicit admin promotion, per-topic message search, invitation links (deliberately not built), real-device check of the group push.

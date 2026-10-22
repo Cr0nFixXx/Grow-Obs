@@ -38,10 +38,10 @@ export const currentUser = {
   handle: "@max_grows",
   avatar: AVATARS[4],
   level: 14,
-  title: "Master Grower",
+  title: "Grower",
   grows: 6,
   harvests: 23,
-  followers: 1284,
+  followers: 0,
   telegram: true,
 };
 

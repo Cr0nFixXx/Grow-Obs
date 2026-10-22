@@ -14,6 +14,18 @@ describe("Migrationen", () => {
     });
   });
 
+  it("0016 ergänzt Profilfelder und Follow-System: idempotent, Sichtbarkeit/Status geprüft, kein Selbst-Folgen, RLS an", () => {
+    const sql = readFileSync(`${dir}0016_profile_follow.sql`, "utf8");
+    for (const column of ["bio", "location", "grow_since", "medium", "interests", "profile_visibility", "handle_changed_at"]) expect(sql).toContain(`ADD COLUMN IF NOT EXISTS "${column}"`);
+    expect(sql).toContain(`CHECK ("profile_visibility" IN ('all','followers','nobody'))`);
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS "follows"/);
+    expect(sql).toContain('PRIMARY KEY ("follower_id","followee_id")');
+    expect(sql).toContain('CHECK ("follower_id" <> "followee_id")');
+    expect(sql).toContain(`CHECK ("status" IN ('pending','accepted'))`);
+    expect(sql).toMatch(/REFERENCES "users"\("id"\) ON DELETE CASCADE/);
+    expect(sql).toContain('ALTER TABLE "follows" ENABLE ROW LEVEL SECURITY');
+  });
+
   it("0014 ergänzt Gruppenchats: Rollen, Beitrittszeit, Themen, Einladungen (eine offene je Person und Gruppe)", () => {
     const sql = readFileSync(`${dir}0014_chat_groups.sql`, "utf8");
     expect(sql).toContain('ALTER TABLE "conversations" ADD COLUMN "history_visible" boolean DEFAULT false NOT NULL');

@@ -33,6 +33,7 @@ export type ViewKey =
   | "chat"
   | "notifications"
   | "profile"
+  | "member"
   | "telegram"
   | "auth"
   | "devAdmin"
@@ -48,6 +49,8 @@ export interface NavParams {
   articleId?: string;
   agentId?: string;
   tab?: string;
+  /** Benutzername (ohne „@“) für die Mitgliedsseite `/u/<handle>`. */
+  handle?: string;
   [key: string]: string | undefined;
 }
 

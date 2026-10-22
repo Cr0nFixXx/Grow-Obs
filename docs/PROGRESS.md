@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-73 | Profil Runde 1: Profilfelder, Sichtbarkeit (Alle/Follower/Niemand), echtes Follow-System mit Bestätigung, Mitgliedsseite `/u/<name>`, Level/„Master Grower“ entfernt | Vitest 243, API 236, Playwright Desktop 45 + Mobile 5 (2 Fehlschläge behoben, erneut grün) |
 | B-72 | Schalter mit langem Beschreibungstext nicht mehr gequetscht (`Toggle` `shrink-0`) | Breite gemessen: vorher 27/25 px, nachher 44 px |
 | B-71 | Profil/Einstellungen: erfundene Abzeichen und wirkungsloser Telegram-Schalter entfernt; Animationen reduzieren, Sounds und Wochenreport (Opt-in, Cron) wirken | typecheck ✅ lint ✅ vitest 232/232 ✅ API 227/227 ✅ E2E 45 + 1 übersprungen ✅ |
 | B-70 | Chat: Nachricht kopieren, sichtbarer Sendefehler mit „Erneut senden“; einklappbare Einstellungen, Dashboard kompakter, Rechner-Ergebnisleiste, Planer-Karussell; Dialog oben im Querformat | typecheck ✅ lint ✅ vitest 230/230 ✅ E2E 41 + 1 übersprungen, 2 flaky/Schwelle behoben und einzeln grün |

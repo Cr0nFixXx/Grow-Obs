@@ -186,11 +186,11 @@ export function Chip({
   className,
   children,
   ...props
-}: HTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
   return (
     <button
       className={cn(
-        "inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-0",
+        "inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:pointer-events-none disabled:opacity-40 sm:min-h-0",
         active
           ? "border-accent/40 bg-accent/12 text-accent"
           : "border-border bg-surface-2 text-fg-muted hover:text-fg hover:bg-surface-3",

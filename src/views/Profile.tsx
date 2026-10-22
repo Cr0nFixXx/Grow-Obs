@@ -9,11 +9,14 @@ import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, Button, Card, CollapsibleCard, Field, Input, Modal, PageHeader, Segmented, Toggle } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Chip, CollapsibleCard, Field, Input, Modal, PageHeader, Segmented, Textarea, Toggle } from "@/components/ui";
 import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
 import { AccountSecurity } from "@/components/AccountSecurity";
 import { PushCard } from "@/components/PushCard";
+import { atHandle, FollowListModal, FollowRequestsCard } from "@/components/members";
+import { GROW_SINCE_MIN, INTERESTS, INTERESTS_MAX, MEDIA, BIO_MAX, LOCATION_MAX, HANDLE_COOLDOWN_DAYS, HANDLE_PATTERN } from "@/lib/profile-fields";
+import type { ProfileVisibility } from "@/services/interfaces";
 import { Reveal } from "@/components/motion";
 import { useAuth, useCurrentUser } from "@/lib/auth";
 import { useActivity } from "@/data/hooks";
@@ -26,7 +29,7 @@ export default function Profile() {
   const { theme, setTheme, particles, setParticles, reduceMotion, setReduceMotion, sound, setSound } = useTheme();
   const { locale, setLocale, currency, setCurrency, money, t } = useI18n();
   const toast = useToast();
-  const { logout, updateProfile } = useAuth();
+  const { logout, updateProfile, refreshUser } = useAuth();
   const me = currentUser;
   const isGuest = me.id === "guest";
   const { activity } = useActivity();
@@ -34,6 +37,7 @@ export default function Profile() {
   const setTab = (next: "profil" | "settings") => { setTabState(next); replaceParams(next === "settings" ? { tab: next } : null); };
   useEffect(() => { setTabState(params?.tab === "settings" ? "settings" : "profil"); }, [params?.tab]);
   const [editing, setEditing] = useState(false);
+  const [list, setList] = useState<"followers" | "following" | null>(null);
   const swipeRef = useRef<HTMLDivElement>(null);
   useSwipeTabs(swipeRef, profileTabs, tab, setTab);
   const [weeklySaving, setWeeklySaving] = useState(false);
@@ -51,6 +55,7 @@ export default function Profile() {
   return (
     <div ref={swipeRef} className="space-y-6">
       {!isGuest && editing && <EditProfileModal open={editing} onClose={() => setEditing(false)} />}
+      {!isGuest && list && <FollowListModal open onClose={() => setList(null)} handle={me.handle} kind={list} mine />}
       <PageHeader title="Profil & Einstellungen" subtitle="Verwalte Konto, Präferenzen und Darstellung." icon="Settings" />
 
       {/* Identity */}
@@ -62,16 +67,19 @@ export default function Profile() {
               <div className="flex items-end gap-4">
                 <Avatar src={me.avatar} name={me.name} size={84} className="ring-4 ring-surface" />
                 <div className="pb-1">
-                  <div className="flex items-center gap-2 text-xl font-bold">{me.name} <Badge tone="leaf">Lvl {me.level}</Badge></div>
-                  <div className="text-sm text-fg-subtle">{me.handle} · {me.title}</div>
+                  <div className="text-xl font-bold">{me.name}</div>
+                  <div className="text-sm text-fg-subtle">{atHandle(me.handle)} · {me.title}</div>
                 </div>
               </div>
               <Button variant="secondary" onClick={() => setEditing(true)}><Icon name="Pencil" size={16} /> Bearbeiten</Button>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {[{ l: "Grows", v: me.grows }, { l: "Ernten", v: me.harvests }, { l: "Follower", v: me.followers }].map((s) => (
-                <div key={s.l} className="rounded-xl bg-surface-2 p-3 text-center"><div className="text-lg font-bold tnum">{s.v.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">{s.l}</div></div>
-              ))}
+            {me.bio && <p className="mt-4 whitespace-pre-line text-sm">{me.bio}</p>}
+            <ProfileFacts me={me} />
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl bg-surface-2 p-3 text-center"><div className="text-lg font-bold tnum">{me.grows.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Grows</div></div>
+              <div className="rounded-xl bg-surface-2 p-3 text-center"><div className="text-lg font-bold tnum">{me.harvests.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Ernten</div></div>
+              <button type="button" disabled={isGuest} onClick={() => setList("followers")} className="rounded-xl bg-surface-2 p-3 text-center transition hover:bg-surface-3"><div className="text-lg font-bold tnum">{me.followers.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Follower</div></button>
+              <button type="button" disabled={isGuest} onClick={() => setList("following")} className="rounded-xl bg-surface-2 p-3 text-center transition hover:bg-surface-3"><div className="text-lg font-bold tnum">{(me.following ?? 0).toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Folgt</div></button>
             </div>
           </div>
         </Card>
@@ -81,6 +89,7 @@ export default function Profile() {
 
       {tab === "profil" && (
         <>
+          {!isGuest && <Reveal delay={0.03}><FollowRequestsCard onChanged={() => void refreshUser()} /></Reveal>}
           <Reveal delay={0.05}>
             <Card className="p-5">
               <h2 className="mb-3 text-sm font-semibold text-fg-muted">Letzte Aktivität</h2>
@@ -101,6 +110,11 @@ export default function Profile() {
 
       {tab === "settings" && (
         <div className="grid gap-6 lg:grid-cols-2">
+          {!isGuest && (
+            <Reveal className="lg:col-span-2">
+              <PrivacyCard />
+            </Reveal>
+          )}
           <Reveal className="lg:col-span-2">
             <UpdateSettingsCard />
           </Reveal>
@@ -173,20 +187,92 @@ export default function Profile() {
   );
 }
 
+const VISIBILITY_OPTIONS: { value: ProfileVisibility; label: string; desc: string }[] = [
+  { value: "all", label: "Alle", desc: "Jedes angemeldete Mitglied sieht dein Profil und kann dir direkt folgen." },
+  { value: "followers", label: "Nur Follower", desc: "Folgen braucht deine Bestätigung. Andere sehen nur Name, Bild und Titel." },
+  { value: "nobody", label: "Niemand", desc: "Dein Profil ist privat. Neue Follower sind nicht möglich, bestehende bleiben." },
+];
+
+/** Wer das Profil sehen und ihm folgen darf (B-73). Speichert sofort. */
+function PrivacyCard() {
+  const me = useCurrentUser();
+  const { updateProfile } = useAuth();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const value = me.profileVisibility ?? "all";
+  const change = async (next: ProfileVisibility) => {
+    if (next === value) return;
+    setBusy(true);
+    try {
+      await updateProfile({ profileVisibility: next });
+      toast.push({ title: "Sichtbarkeit gespeichert", tone: "leaf", icon: "CheckCircle2" });
+    } catch (error) {
+      toast.push({ title: "Nicht gespeichert", desc: error instanceof Error ? error.message : "Bitte noch einmal versuchen.", tone: "danger", icon: "AlertTriangle" });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <CollapsibleCard icon="Lock" title="Privatsphäre" className="p-5" bodyClassName="space-y-3">
+      <div className="text-sm font-medium">Dein Profil ist sichtbar für</div>
+      <div className={cn(busy && "pointer-events-none opacity-60")}><Segmented value={value} onChange={(v) => void change(v)} options={VISIBILITY_OPTIONS.map(({ value: v, label }) => ({ value: v, label }))} /></div>
+      <p className="text-xs text-fg-subtle">{VISIBILITY_OPTIONS.find((o) => o.value === value)?.desc} „Alle“ meint angemeldete Mitglieder, keine Besucher ohne Konto. Name, Bild und Titel sind immer sichtbar.</p>
+      {value === "all" && <p className="text-xs text-fg-subtle">Wechselst du auf „Alle“, werden offene Anfragen angenommen; bei „Niemand“ werden sie gelöscht.</p>}
+    </CollapsibleCard>
+  );
+}
+
+/** Ort, Anbau-Beginn, Medium und Interessen als kompakte Zeile bzw. Badges. */
+function ProfileFacts({ me }: { me: ReturnType<typeof useCurrentUser> }) {
+  const facts = [
+    me.location ? { icon: "MapPin", text: me.location } : null,
+    me.growSince ? { icon: "CalendarDays", text: `Baut an seit ${me.growSince}` } : null,
+    me.medium ? { icon: "Sprout", text: me.medium } : null,
+  ].filter((f): f is { icon: string; text: string } => !!f);
+  const interests = me.interests ?? [];
+  if (facts.length === 0 && interests.length === 0) return null;
+  return (
+    <>
+      {facts.length > 0 && <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-fg-muted">{facts.map((f) => <li key={f.text} className="flex items-center gap-1.5"><Icon name={f.icon} size={14} />{f.text}</li>)}</ul>}
+      {interests.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{interests.map((i) => <Badge key={i} tone="leaf">{i}</Badge>)}</div>}
+    </>
+  );
+}
+
 function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const me = useCurrentUser();
   const { updateProfile } = useAuth();
   const toast = useToast();
+  const currentHandle = me.handle.replace(/^@/, "");
   const [name, setName] = useState(me.name);
   const [title, setTitle] = useState(me.title);
   const [avatar, setAvatar] = useState(me.avatar);
+  const [bio, setBio] = useState(me.bio ?? "");
+  const [location, setLocation] = useState(me.location ?? "");
+  const [growSince, setGrowSince] = useState(me.growSince ? String(me.growSince) : "");
+  const [medium, setMedium] = useState<string | null>(me.medium ?? null);
+  const [interests, setInterests] = useState<string[]>(me.interests ?? []);
+  const [handle, setHandle] = useState(currentHandle);
   const [busy, setBusy] = useState(false);
+  const year = new Date().getFullYear();
+  const nextHandleChange = me.handleChangedAt ? new Date(new Date(me.handleChangedAt).getTime() + HANDLE_COOLDOWN_DAYS * 86_400_000) : null;
+  const handleLocked = !!nextHandleChange && nextHandleChange.getTime() > Date.now();
+  const handleChanged = handle.trim().toLowerCase() !== currentHandle.toLowerCase();
   const nameError = name.trim().length < 2 ? "Mindestens 2 Zeichen." : "";
+  const yearNumber = growSince.trim() === "" ? null : Number(growSince);
+  const yearError = yearNumber !== null && (!Number.isInteger(yearNumber) || yearNumber < GROW_SINCE_MIN || yearNumber > year) ? `Jahr zwischen ${GROW_SINCE_MIN} und ${year}.` : "";
+  const handleError = handleChanged && !HANDLE_PATTERN.test(handle.trim()) ? "3–32 Zeichen: Buchstaben, Zahlen und _." : "";
+  const invalid = !!nameError || !!yearError || !!handleError;
+  const toggleInterest = (value: string) => setInterests((current) => (current.includes(value) ? current.filter((i) => i !== value) : current.length >= INTERESTS_MAX ? current : [...current, value]));
   const save = async () => {
-    if (nameError) return;
+    if (invalid) return;
     setBusy(true);
     try {
-      await updateProfile({ name: name.trim(), title: title.trim() || "Grower", avatar });
+      await updateProfile({
+        name: name.trim(), title: title.trim() || "Grower", avatar,
+        bio: bio.trim(), location: location.trim(), growSince: yearNumber, medium, interests,
+        ...(handleChanged ? { handle: handle.trim() } : {}),
+      });
       toast.push({ title: "Profil gespeichert", tone: "leaf", icon: "CheckCircle2" });
       onClose();
     } catch (error) {
@@ -197,7 +283,7 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
   };
   return (
     <Modal open={open} onClose={onClose} title="Profil bearbeiten"
-      footer={<><Button variant="ghost" onClick={onClose}>Abbrechen</Button><Button onClick={save} loading={busy} disabled={!!nameError}>Speichern</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Abbrechen</Button><Button onClick={save} loading={busy} disabled={invalid}>Speichern</Button></>}>
       <div className="space-y-4">
         <div className="flex items-center gap-4">
           <Avatar src={avatar} name={me.name} size={72} />
@@ -210,7 +296,29 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
         <Field label="Anzeigename"><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} aria-invalid={!!nameError} /></Field>
         {nameError && <p role="alert" className="text-xs font-medium text-danger">{nameError}</p>}
+        <Field label="Benutzername" hint={handleLocked ? `Wieder änderbar ab ${nextHandleChange!.toLocaleDateString("de-DE")}.` : `Änderbar höchstens alle ${HANDLE_COOLDOWN_DAYS} Tage. Dein Profil liegt unter /u/${handle.trim().toLowerCase() || "…"}.`}>
+          <Input value={handle} onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))} maxLength={32} disabled={handleLocked} autoCapitalize="none" autoCorrect="off" aria-invalid={!!handleError} />
+        </Field>
+        {handleError && <p role="alert" className="text-xs font-medium text-danger">{handleError}</p>}
         <Field label="Titel" hint="z. B. Living-Soil-Fan"><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} /></Field>
+        <Field label="Über mich" hint={`${bio.length}/${BIO_MAX}`}><Textarea rows={3} value={bio} onChange={(e) => setBio(e.target.value)} maxLength={BIO_MAX} placeholder="Was baust du an, was treibt dich an?" /></Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Ort" hint="z. B. Region, kein genauer Wohnort"><Input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={LOCATION_MAX} /></Field>
+          <Field label="Anbau seit (Jahr)"><Input inputMode="numeric" value={growSince} onChange={(e) => setGrowSince(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder={String(year)} aria-invalid={!!yearError} /></Field>
+        </div>
+        {yearError && <p role="alert" className="text-xs font-medium text-danger">{yearError}</p>}
+        <div>
+          <div className="mb-1.5 text-sm font-medium">Medium</div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Medium">
+            {MEDIA.map((m) => <Chip key={m} active={medium === m} aria-pressed={medium === m} onClick={() => setMedium(medium === m ? null : m)}>{m}</Chip>)}
+          </div>
+        </div>
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between text-sm font-medium"><span>Interessen</span><span className="text-xs font-normal text-fg-subtle">{interests.length}/{INTERESTS_MAX}</span></div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Interessen">
+            {INTERESTS.map((i) => <Chip key={i} active={interests.includes(i)} aria-pressed={interests.includes(i)} disabled={!interests.includes(i) && interests.length >= INTERESTS_MAX} onClick={() => toggleInterest(i)}>{i}</Chip>)}
+          </div>
+        </div>
       </div>
     </Modal>
   );

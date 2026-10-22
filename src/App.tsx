@@ -28,6 +28,7 @@ import NotFound from "@/views/NotFound";
 
 /* Views werden einzeln nachgeladen (Code-Splitting). Shell-kritische Views bleiben eager. */
 const Dashboard = lazy(() => import("@/views/Dashboard"));
+const MemberProfile = lazy(() => import("@/views/MemberProfile"));
 const Grows = lazy(() => import("@/views/Grows"));
 const Strains = lazy(() => import("@/views/Strains"));
 const AIAssistant = lazy(() => import("@/views/AIAssistant"));
@@ -82,6 +83,7 @@ const views: Record<ViewKey, ComponentType> = {
   chat: Chat,
   notifications: Notifications,
   profile: Profile,
+  member: MemberProfile,
   telegram: Telegram,
   auth: Auth,
   devAdmin: DevAdmin,
@@ -94,7 +96,7 @@ const TITLES: Record<ViewKey, string> = {
   dashboard: "Dashboard", grows: "Grows", strains: "Sorten", ai: "KI-Assistent", planner: "Planer", breeders: "Breeder", marketplace: "Marktplatz",
   wiki: "Wiki", forum: "Forum", hallOfFame: "Hall of Fame", social: "Community-Feed", communities: "Communities", showcase: "Showcase",
   calculator: "Rechner", consumption: "Verbrauch", simulation: "Simulation", report: "Report", chat: "Chat", notifications: "Benachrichtigungen",
-  profile: "Profil", telegram: "Telegram", auth: "Anmelden", devAdmin: "Betrieb", create: "Erstellen", notFound: "Nicht gefunden",
+  profile: "Profil", member: "Mitglied", telegram: "Telegram", auth: "Anmelden", devAdmin: "Betrieb", create: "Erstellen", notFound: "Nicht gefunden",
 };
 
 function Router() {

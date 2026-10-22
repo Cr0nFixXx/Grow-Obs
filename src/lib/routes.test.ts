@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { ViewKey } from "./nav";
 import { isLinkable, parseLegacyQuery, parsePath, pathFor, shareUrl } from "./routes";
 
-const ALL_VIEWS: Exclude<ViewKey, "notFound">[] = ["dashboard", "grows", "strains", "ai", "planner", "breeders", "marketplace", "wiki", "forum", "hallOfFame", "social", "communities", "showcase", "calculator", "consumption", "simulation", "report", "chat", "notifications", "profile", "telegram", "auth", "devAdmin", "create"];
+const ALL_VIEWS: Exclude<ViewKey, "notFound">[] = ["dashboard", "grows", "strains", "ai", "planner", "breeders", "marketplace", "wiki", "forum", "hallOfFame", "social", "communities", "showcase", "calculator", "consumption", "simulation", "report", "chat", "notifications", "profile", "member", "telegram", "auth", "devAdmin", "create"];
 
 describe("pathFor / parsePath", () => {
   it("bildet jede verlinkbare Ansicht verlustfrei ab (Hin- und Rückweg)", () => {
@@ -24,6 +24,13 @@ describe("pathFor / parsePath", () => {
     expect(parsePath("/profile/settings")).toEqual({ view: "profile", params: { tab: "settings" } });
     expect(pathFor("profile", { tab: "settings" })).toBe("/profile/settings");
     expect(pathFor("hallOfFame")).toBe("/hall-of-fame");
+  });
+  it("Mitgliedsprofil liegt unter /u/<handle>; unsichere Benutzernamen werden abgelehnt", () => {
+    expect(pathFor("member", { handle: "max_grows" })).toBe("/u/max_grows");
+    expect(parsePath("/u/max_grows")).toEqual({ view: "member", params: { handle: "max_grows" } });
+    expect(parsePath("/u/<script>")).toBeNull();
+    expect(parsePath("/u/a/b")).toBeNull();
+    expect(pathFor("member", { handle: "../etc" })).toBe("/u");
   });
   it("Anmeldung, Dev-Admin und Erstellen-Assistent haben keine URL (→ „/“)", () => {
     for (const view of ["auth", "devAdmin", "create"] as ViewKey[]) {

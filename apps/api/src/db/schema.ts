@@ -10,6 +10,8 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -41,6 +43,16 @@ export const users = pgTable("users", {
   weeklyReport: boolean("weekly_report").notNull().default(false),
   /** ISO-Woche (Europe/Berlin) des letzten Reports, z. B. "2026-W43" – verhindert Doppelversand. */
   weeklyReportWeek: text("weekly_report_week"),
+  /** Profilfelder (B-73). */
+  bio: text("bio").notNull().default(""),
+  location: text("location").notNull().default(""),
+  growSince: smallint("grow_since"),
+  medium: text("medium"),
+  interests: text("interests").array().notNull().default(sql`'{}'::text[]`),
+  /** Wer das Profil sehen darf: all | followers | nobody (CHECK in der Migration). */
+  profileVisibility: text("profile_visibility").notNull().default("all"),
+  /** Letzter Wechsel des Benutzernamens (höchstens 1x je 30 Tage). */
+  handleChangedAt: timestamp("handle_changed_at", { withTimezone: true }),
   role: roleEnum("role").notNull().default("member"),
   /** Gesetzt für Betreiber-Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel sind fast alle Endpunkte gesperrt. */
   mustChangePassword: boolean("must_change_password").notNull().default(false),
@@ -48,6 +60,18 @@ export const users = pgTable("users", {
   onlineUntil: timestamp("online_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Folgen (B-73): `pending` = Anfrage an ein nicht öffentliches Profil, `accepted` = aktiv. Löschen = entfolgen/ablehnen. */
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: uuid("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    followeeId: uuid("followee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("accepted"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ name: "follows_pk", columns: [t.followerId, t.followeeId] }), index("follows_followee_idx").on(t.followeeId, t.status)]
+);
 
 /** Serverseitige Sitzungen (B-54): Widerruf = Zeile löschen. Das Cookie-JWT trägt nur die Sitzungs-ID (`sid`). */
 export const sessions = pgTable(
