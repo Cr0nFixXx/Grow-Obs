@@ -28,7 +28,7 @@ interface AuthValue {
   /** Beendet alle Sitzungen dieses Kontos auf allen Geräten, danach lokal abmelden. */
   logoutAll: () => Promise<void>;
   /** Eigenes Profil ändern (Name, Titel, Avatar). Mock: nur Session. */
-  updateProfile: (patch: { name?: string; title?: string; avatar?: string }) => Promise<void>;
+  updateProfile: (patch: { name?: string; title?: string; avatar?: string; weeklyReport?: boolean }) => Promise<void>;
   /** Eigenes Profil/Rolle leise neu laden (Pull-to-Refresh). */
   refreshUser: () => Promise<void>;
 }
@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, [endLocalSession]);
 
-  const updateProfile = useCallback(async (patch: { name?: string; title?: string; avatar?: string }) => {
+  const updateProfile = useCallback(async (patch: { name?: string; title?: string; avatar?: string; weeklyReport?: boolean }) => {
     if (config.useMock) {
       setUser((current) => (current ? { ...current, ...patch } : current));
       return;

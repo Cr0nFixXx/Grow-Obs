@@ -37,6 +37,8 @@ export const environmentSchema = z.object({
    */
   ALLOW_HEADER_SESSION: z.enum(["true", "false"]).default("false"),
   CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:5173"),
+  /** Geheimnis für den Wochenreport-Aufruf (`GET /api/cron/weekly-report`, Header `Authorization: Bearer …`). Ohne Wert ist der Endpunkt aus (404). Vercel Cron sendet den Header automatisch. */
+  CRON_SECRET: z.string().min(16).optional(),
   ALLOW_DEMO_SEED: z.enum(["true", "false"]).default("false"),
   /**
    * "true", wenn die API in Next.js unter /api läuft (same-origin, siehe app/api/[...route]).

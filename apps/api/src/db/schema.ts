@@ -37,6 +37,10 @@ export const users = pgTable("users", {
   level: integer("level").notNull().default(1),
   title: text("title").notNull().default("Grower"),
   telegram: boolean("telegram").notNull().default(false),
+  /** Wochenreport per In-App-Meldung (+ Push, falls aktiv); Opt-in (B-71). */
+  weeklyReport: boolean("weekly_report").notNull().default(false),
+  /** ISO-Woche (Europe/Berlin) des letzten Reports, z. B. "2026-W43" – verhindert Doppelversand. */
+  weeklyReportWeek: text("weekly_report_week"),
   role: roleEnum("role").notNull().default("member"),
   /** Gesetzt für Betreiber-Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel sind fast alle Endpunkte gesperrt. */
   mustChangePassword: boolean("must_change_password").notNull().default(false),

@@ -5,17 +5,17 @@ command actually ran (see `CLAUDE.md`). Per-task history with numbers lives in `
 
 ## 1. Current status
 
-Last full run: **B-70** (E2E full run in B-70, two tests re-run individually; API tests last run in B-66), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
+Last full run: **B-71** (frontend, API and E2E all run in B-71), **Node 20.20** and PostgreSQL 17 in the sandbox (earlier runs: Node 22.23).
 
 | Check | Command | Result |
 |---|---|---|
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 230 / 230 (37 files) |
+| Frontend unit/component tests | `npm test` | ✅ 232 / 232 (38 files) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 221 / 221 (15 files) |
-| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 41 passed, 1 skipped, 2 re-run individually and green (desktop 38 + mobile 5, ≈ 8 min); the full B-70 run had one threshold failure (fixed) and one load-related flake in `moderation.spec`; the skipped test needs a browser that may subscribe to a real push service (see §3) |
+| API integration tests | `npm run test:api` | ✅ 227 / 227 (16 files) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 45 passed, 1 skipped (desktop 41 incl. the skipped one + mobile 5, ≈ 6.8 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
 | Version consistency | `npm run version:check` | ✅ |

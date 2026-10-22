@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
 import { corsOrigins } from "./env.ts";
 import { requireAuth, type AuthEnv } from "./middleware/auth.ts";
+import { cronApi } from "./routes/cron.ts";
 import { csrfGuard } from "./middleware/csrf.ts";
 import { rateLimit, userKey } from "./middleware/rate-limit.ts";
 import { auth } from "./routes/auth.ts";
@@ -71,6 +72,7 @@ app.route("/me/activity", activity);
 app.route("/admin", admin);
 app.route("/communities", communitiesApi);
 app.route("/tasks", tasksApi);
+app.route("/cron", cronApi);
 app.route("/media", mediaApi);
 
 const uploadSchema = z.object({

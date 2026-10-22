@@ -16,6 +16,8 @@ The owner decides the order. Last update: B-62.
 - [ ] **Group chats (B-65 done):** follow-ups: group deletion by an admin, explicit admin promotion, per-topic message search, invitation links (deliberately not built), real-device check of the group push.
 - [ ] **Web push, follow-ups:** real-device acceptance (Android, iOS PWA), push for further triggers (task reminders, community invites), per-conversation mute.
 - [ ] **Moderation beyond communities:** global feed and forum (report, hide); **leave a community**; **paginate** the moderation queue (capped at 100); **live updates** of the community feed.
+- [ ] **Weekly report (B-71 done):** follow-ups: per-user time zone and send time (today fixed Sunday ≈ 18:00 Berlin), a "send test report" button, an external-cron note for self-hosting in a deployment guide, real-device check of the push; **Telegram bot** setting was removed from the settings (it had no effect), re-add it only together with a real bot integration.
+- [ ] **Grow diary (next, owner's choice):** `grows.day`/`phase`/`progress` are stored values that nothing advances (derive from `start_date`); no edit/delete for grows and log entries, no harvest/close-out, no phase change; `grow_env` readings have no input form.
 - [ ] **Detail URLs** for wiki, showcase and marketplace (`src/lib/routes.ts` + `public/sw-policy.js`).
 
 ## 2. Data sources missing (empty states in API mode)

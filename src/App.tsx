@@ -14,6 +14,7 @@ import { UpdateProvider } from "@/lib/update";
 import { UpdateLayer } from "@/components/UpdateUI";
 import { RealtimeProvider } from "@/lib/realtime-context";
 import { PushBridge } from "@/components/PushBridge";
+import { SoundBridge } from "@/components/SoundBridge";
 import { useRealtimeBridge } from "@/data/hooks";
 import { NavProvider, useNav, type ViewKey } from "@/lib/nav";
 import { Background } from "@/components/Particles";
@@ -211,6 +212,7 @@ function Shell() {
         <RealtimeProvider key={user?.id}>
           <RealtimeBridge />
           <PushBridge />
+          <SoundBridge />
           <AppShell>
             <Router />
           </AppShell>

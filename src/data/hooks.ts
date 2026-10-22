@@ -474,10 +474,15 @@ export function useChat() {
 
 /** Ungelesene Chat-Nachrichten insgesamt (Navigation). `enabled=false` → keine Anfrage. */
 export function useChatUnread(enabled = true): number {
+  return useChatUnreadState(enabled).count;
+}
+
+/** Wie `useChatUnread`, zusätzlich mit `loaded` (false, bis der erste Stand da ist – für „neu seit“-Vergleiche). */
+export function useChatUnreadState(enabled = true): { count: number; loaded: boolean } {
   const svc = useServices();
   const { data, silentRefresh } = useAsync(() => (enabled ? svc.chat.unreadTotal().catch(() => 0) : Promise.resolve(0)), [svc, enabled]);
   useInvalidation("chat", silentRefresh);
-  return data ?? 0;
+  return { count: data ?? 0, loaded: data !== undefined };
 }
 
 /** Übersetzt Echtzeit-Ereignisse in Datenaktualisierungen (einmal in der App-Hülle einbinden). */

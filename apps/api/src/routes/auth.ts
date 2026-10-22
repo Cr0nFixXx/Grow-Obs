@@ -31,6 +31,7 @@ async function toUser(id: string) {
     role: u.role,
     mustChangePassword: u.mustChangePassword,
     telegram: u.telegram,
+    weeklyReport: u.weeklyReport,
     grows: g?.n ?? 0,
     harvests: h?.n ?? 0,
     followers: 0,
@@ -94,18 +95,20 @@ const updateMeSchema = z.object({
   name: z.string().trim().min(2).max(60).optional(),
   title: z.string().trim().min(1).max(40).optional(),
   avatar: z.union([imageRef, z.literal("")]).optional(),
+  weeklyReport: z.boolean().optional(),
 }).strict();
 
-/** Eigenes Profil ändern (Name, Titel, Avatar). Rolle/E-Mail sind hier bewusst nicht änderbar. */
+/** Eigenes Profil ändern (Name, Titel, Avatar, Wochenreport). Rolle/E-Mail sind hier bewusst nicht änderbar. */
 auth.patch("/me", requireAuth, async (c) => {
   const body = updateMeSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  const { name, title, avatar } = body.data;
-  if (name !== undefined || title !== undefined || avatar !== undefined) {
+  const { name, title, avatar, weeklyReport } = body.data;
+  if (name !== undefined || title !== undefined || avatar !== undefined || weeklyReport !== undefined) {
     await db.update(users).set({
       ...(name !== undefined ? { name } : {}),
       ...(title !== undefined ? { title } : {}),
       ...(avatar !== undefined ? { avatarUrl: avatar || null } : {}),
+      ...(weeklyReport !== undefined ? { weeklyReport } : {}),
     }).where(eq(users.id, c.get("userId")));
   }
   return c.json(await toUser(c.get("userId")));

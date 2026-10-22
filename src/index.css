@@ -417,14 +417,20 @@ html.theme-anim *::after {
     fill 0.45s ease, stroke 0.45s ease, box-shadow 0.45s ease !important;
 }
 
-/* Respect reduced motion */
+/* Weniger Bewegung: Systemeinstellung, sofern der Nutzer nicht ausdrücklich „aus“ gewählt hat; „an“ gilt immer (B-71) */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
+  html:not([data-reduce-motion="off"]) { scroll-behavior: auto; }
+  html:not([data-reduce-motion="off"]) *, html:not([data-reduce-motion="off"]) *::before, html:not([data-reduce-motion="off"]) *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+html[data-reduce-motion="on"] { scroll-behavior: auto; }
+html[data-reduce-motion="on"] *, html[data-reduce-motion="on"] *::before, html[data-reduce-motion="on"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
 }
 
 /* Telefon: Eingabefelder mit mindestens 16 px, sonst zoomt iOS Safari beim Fokussieren hinein (ignoriert user-scalable=no). */

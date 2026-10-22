@@ -279,6 +279,7 @@ export interface ProfileUpdate {
   name?: string;
   title?: string;
   avatar?: string;
+  weeklyReport?: boolean;
 }
 
 /** Globale Feature-Overrides (Server = Quelle der Wahrheit; Mock = lokale Vorschau). */

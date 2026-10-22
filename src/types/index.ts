@@ -12,6 +12,8 @@ export interface User {
   harvests: number;
   followers: number;
   telegram: boolean;
+  /** Wochenreport per Meldung (Opt-in, Server-Einstellung; B-71). */
+  weeklyReport?: boolean;
   role: "member" | "moderator" | "admin" | "platform_admin";
   /** Gesetzt für Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel ist die App gesperrt. */
   mustChangePassword?: boolean;

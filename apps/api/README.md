@@ -84,6 +84,7 @@ Schema und Regeln: `src/config/environment.ts`. Vorlage: `.env.example`.
 | `TRUST_PROXY`, `RATE_LIMIT_DISABLED` | Rate-Limit: `TRUST_PROXY=false` ignoriert `X-Forwarded-For`; `RATE_LIMIT_DISABLED=true` schaltet ab (nur E2E) |
 | `DB_POOL_MAX` | Obergrenze der Datenbankverbindungen je Instanz (Standard 10, 1–50). Auf Serverless/gepoolten Anbietern (Vercel + Supabase/Neon) klein setzen, z. B. `3` |
 | `SKIP_MIGRATIONS` | `true` überspringt die Migrationen beim Start der eingebetteten API (spart Zeit und Verbindungen bei jedem Kaltstart). Erst setzen, wenn das Schema aktuell ist; nach einem Update mit neuer Migration wieder entfernen und einmal starten |
+| `CRON_SECRET` | optional (≥ 16 Zeichen): schaltet `GET /api/cron/weekly-report` frei (Wochenreport, B-71); Aufruf mit `Authorization: Bearer <Wert>`. Ohne Wert antwortet der Endpunkt mit 404. Vercel Cron sendet den Header selbst, wenn die Variable im Projekt gesetzt ist; andere Umgebungen rufen den Endpunkt per externem Cron auf (z. B. sonntags 17:00 UTC). Mehrfaches Aufrufen sendet je Konto höchstens einen Report je ISO-Woche (Europe/Berlin). |
 | `ALLOW_EPHEMERAL_JWT_SECRET` | nur eingebettet: erlaubt ein Prozess-Secret in Produktion (Demos) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web-Push (B-63), optional: alle drei oder keiner (`mailto:…` oder `https://…`). Schlüsselpaar erzeugen: `npm run push:keys` (gibt nur aus). Ohne Werte ist Push aus |
 | `ALLOW_DEMO_SEED`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Demo-Seed (siehe unten) |

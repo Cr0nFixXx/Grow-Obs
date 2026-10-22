@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-70** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
+**State: B-71** · Frontend "Ruderalis" v0.1.1 · Backend v0.0.2 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 
@@ -99,6 +99,7 @@ Full list with priorities: `TODO.md`. Release gates (audit, uploads, Docker …)
 - Accounts: no password reset for regular members (no email infrastructure); online status cannot be hidden.
 - Vercel (B-66): see `ARCHITECTURE.md` "Serverless deployment". `DB_POOL_MAX`, `SKIP_MIGRATIONS`, `NEXT_PUBLIC_REALTIME` (polling is the default on Vercel builds). 503 `Backend nicht verfügbar` = boot failure, read `embedded_api_boot_failed` (`causeCode`). Not verified under load on Vercel.
 - Selection (B-68): the whole UI is `user-select: none` except inputs/textareas (owner decision, to stop Chrome Android's "Suchergebnisse anzeigen" bar); content cannot be copied by selecting. `api_error` logs `code`/`path`/`cause` — use it to find the cause of 500s on Vercel (open).
+- Weekly report (B-71): opt-in per account; needs `CRON_SECRET` in the host environment (`GET /api/cron/weekly-report`, Vercel Cron in `vercel.json`, Sundays 17:00 UTC); without it the route is 404. Device-only settings (reduce motion, sounds) live in `localStorage`. Never verified end to end on a real host or device.
 - Mobile (B-67): below 1024 px an open chat is a fullscreen portal (`data-testid="chat-fullscreen"`, z-45); zoom is disabled via viewport meta + `touch-action`; `translate="no"`. Verified only in Chromium emulation (Pixel 5), not on real Android/iOS devices or with the on-screen keyboard.
 - Group chats (B-65): invitation-only, max 20 members incl. open invitations, topics (private/admins-only/closed/pinned/muted). No group deletion and no explicit admin promotion yet; the demo mode has no groups. Not tested on real devices (group push, small screens beyond the E2E viewport).
 - Web push (B-63): delivery to real devices (Android, iOS PWA, lock screen) has never been observed; the sandbox cannot reach a push service. Without `VAPID_*` env vars push is off (the settings card says so).

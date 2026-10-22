@@ -185,6 +185,12 @@ createNotification / POST /chat/:id/messages ─► lib/push.ts sendPushToUser(u
 
 ---
 
+### Weekly report (B-71)
+
+- Opt-in per account (`users.weekly_report`, set through `PATCH /auth/me { weeklyReport }`). `GET /api/cron/weekly-report` (`apps/api/src/routes/cron.ts`) runs `runWeeklyReports` (`apps/api/src/lib/weekly-report.ts`): for every opted-in account whose `weekly_report_week` differs from the current ISO week (Europe/Berlin) it claims the week atomically (`UPDATE … RETURNING`), then creates one `grow` notification (+ web push in category `grows`, with the user's push preferences) listing each grow: day since `start_date`, phase, log entries of the last 7 days. Accounts without a grow get nothing.
+- Protected by `CRON_SECRET` (Bearer, timing-safe compare); without the variable the route answers 404. `vercel.json` registers a Vercel Cron `0 17 * * 0` (Sundays 17:00 UTC = 18:00 CET / 19:00 CEST; Hobby cron precision is about one hour). Other hosts call the URL from an external cron.
+- Device-only preferences (B-71, `localStorage`, `ThemeProvider`): `go-reduce-motion` (`on`/`off`; absent = follow `prefers-reduced-motion`; sets `html[data-reduce-motion]`, CSS and `MotionConfig`) and `go-sound` (`SoundBridge` plays a Web Audio tone when unread notifications or unread chat messages increase while the app is visible).
+
 ## 7. Versioning, updates, feature flags
 
 - **Versions** live only in `version.json` (`frontend {codename, version}`, `backend {version}`, `build`, `modules`); `scripts/version.mjs` (`version:sync|check|build|show`) aligns
@@ -236,6 +242,8 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0011 | shared rate-limit table (`rate_limits`, UNLOGGED) |
 | 0012 | community feed, hiding, ban list (`community_bans`), reports (`reports`) |
 | 0013 | web push: `push_subscriptions` (per device, unique endpoint, cascades with session/user), `push_prefs` |
+| 0014 | group chats: roles, join time, topics, invitations, message kind |
+| 0015 | weekly report (B-71): `users.weekly_report` (opt-in, default off), `users.weekly_report_week` (ISO week of the last report, prevents double sends) |
 
 ---
 

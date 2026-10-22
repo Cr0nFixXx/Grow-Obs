@@ -17,23 +17,16 @@ import { PushCard } from "@/components/PushCard";
 import { Reveal } from "@/components/motion";
 import { useAuth, useCurrentUser } from "@/lib/auth";
 import { useActivity } from "@/data/hooks";
-
-const badges = [
-  { icon: "Trophy", label: "Erste Ernte", tone: "warning" },
-  { icon: "Sprout", label: "10 Grows", tone: "leaf" },
-  { icon: "Users", label: "1k Follower", tone: "info" },
-  { icon: "Leaf", label: "Living Soiler", tone: "soil" },
-  { icon: "Flame", label: "100 Tage Streak", tone: "danger" },
-  { icon: "BrainCircuit", label: "KI-Pionier", tone: "leaf" },
-];
+import { config } from "@/lib/config";
+import { playSound } from "@/lib/sound";
 
 export default function Profile() {
   const currentUser = useCurrentUser();
   const { navigate, params, replaceParams } = useNav();
-  const { theme, setTheme, particles, setParticles } = useTheme();
+  const { theme, setTheme, particles, setParticles, reduceMotion, setReduceMotion, sound, setSound } = useTheme();
   const { locale, setLocale, currency, setCurrency, money, t } = useI18n();
   const toast = useToast();
-  const { logout } = useAuth();
+  const { logout, updateProfile } = useAuth();
   const me = currentUser;
   const isGuest = me.id === "guest";
   const { activity } = useActivity();
@@ -43,7 +36,17 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const swipeRef = useRef<HTMLDivElement>(null);
   useSwipeTabs(swipeRef, profileTabs, tab, setTab);
-  const [prefs, setPrefs] = useState({ telegram: me.telegram, weekly: true, sound: false });
+  const [weeklySaving, setWeeklySaving] = useState(false);
+  const setWeekly = async (value: boolean) => {
+    setWeeklySaving(true);
+    try {
+      await updateProfile({ weeklyReport: value });
+    } catch (error) {
+      toast.push({ title: "Nicht gespeichert", desc: error instanceof Error ? error.message : "Bitte noch einmal versuchen.", tone: "danger", icon: "AlertTriangle" });
+    } finally {
+      setWeeklySaving(false);
+    }
+  };
 
   return (
     <div ref={swipeRef} className="space-y-6">
@@ -78,19 +81,6 @@ export default function Profile() {
 
       {tab === "profil" && (
         <>
-          <Reveal>
-            <Card className="p-5">
-              <h2 className="mb-3 text-sm font-semibold text-fg-muted">Abzeichen</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {badges.map((b) => (
-                  <div key={b.label} className="flex items-center gap-3 rounded-xl border border-border p-3">
-                    <span className={cn("grid size-10 shrink-0 place-items-center rounded-lg", b.tone === "leaf" ? "bg-leaf-500/12 text-leaf-500 dark:text-leaf-400" : b.tone === "soil" ? "bg-soil-500/12 text-soil-600 dark:text-soil-300" : b.tone === "info" ? "bg-info-500/12 text-info-500 dark:text-info-400" : b.tone === "danger" ? "bg-danger-500/12 text-danger-500 dark:text-danger-400" : "bg-warning-500/12 text-warning-500 dark:text-warning-400")}><Icon name={b.icon} size={18} /></span>
-                    <span className="text-sm font-medium">{b.label}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </Reveal>
           <Reveal delay={0.05}>
             <Card className="p-5">
               <h2 className="mb-3 text-sm font-semibold text-fg-muted">Letzte Aktivität</h2>
@@ -119,8 +109,9 @@ export default function Profile() {
               <Field label="Design"><div className="flex gap-2">{([["light", "Hell", Sun], ["dark", "Dunkel", Moon]] as const).map(([val, label, Ico]) => (
                 <button key={val} onClick={() => setTheme(val)} className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition", theme === val ? "border-accent bg-accent/10 text-accent" : "border-border text-fg-muted hover:bg-surface-2")}><Ico className="size-4" /> {label}</button>
               ))}</div></Field>
-              <ToggleRow label="Animationen reduzieren" desc="Berücksichtigt prefers-reduced-motion" checked={false} onChange={() => toast.push({ title: "Systemeinstellung", tone: "info", icon: "Info" })} />
+              <ToggleRow label="Animationen reduzieren" desc="Weniger Bewegung, nur dieses Gerät. Ohne eigene Wahl gilt die Systemeinstellung." checked={reduceMotion} onChange={setReduceMotion} />
               <ToggleRow label="Partikel-Effekte" desc="Schwebende Sporen im Hintergrund" checked={particles} onChange={setParticles} />
+              <ToggleRow label="Sounds" desc="Kurzer Ton bei neuer Nachricht oder Meldung, solange die App offen ist (nur dieses Gerät)" checked={sound} onChange={(v) => { setSound(v); if (v) playSound("preview"); }} />
             </CollapsibleCard>
           </Reveal>
           <Reveal delay={0.04}>
@@ -144,9 +135,13 @@ export default function Profile() {
           </Reveal>
           <Reveal delay={0.05}>
             <CollapsibleCard icon="Bell" title={t("settings.notifications")} className="p-5" bodyClassName="space-y-4">
-              <ToggleRow label="Telegram-Bot" desc="Status via Telegram" checked={prefs.telegram} onChange={(v) => setPrefs((p) => ({ ...p, telegram: v }))} />
-              <ToggleRow label="Wöchentlicher Report" desc="Jeden Sonntag um 18 Uhr" checked={prefs.weekly} onChange={(v) => setPrefs((p) => ({ ...p, weekly: v }))} />
-              <ToggleRow label="Sounds" desc="Akustische Signale" checked={prefs.sound} onChange={(v) => setPrefs((p) => ({ ...p, sound: v }))} />
+              <ToggleRow
+                label="Wochenreport"
+                desc={config.useMock ? "Im Demo-Modus nicht verfügbar (braucht einen Server)." : "Sonntagabend: Stand deiner Grows als Meldung in der App, per Push, wenn aktiv."}
+                checked={!!me.weeklyReport}
+                disabled={isGuest || config.useMock || weeklySaving}
+                onChange={(v) => void setWeekly(v)}
+              />
             </CollapsibleCard>
           </Reveal>
           <Reveal delay={0.07}><PushCard /></Reveal>
@@ -221,11 +216,11 @@ function EditProfileModal({ open, onClose }: { open: boolean; onClose: () => voi
   );
 }
 
-function ToggleRow({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({ label, desc, checked, onChange, disabled }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div><div className="text-sm font-medium">{label}</div><div className="text-xs text-fg-subtle">{desc}</div></div>
-      <Toggle checked={checked} onChange={onChange} label={label} />
+      <Toggle checked={checked} onChange={onChange} label={label} disabled={disabled} />
     </div>
   );
 }
