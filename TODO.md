@@ -31,7 +31,7 @@ The owner decides the order. Last update: B-62.
 
 - [ ] **Docker/MinIO stack:** run `docker compose up`, the `admin` tools profile and a presigned upload end to end (never run).
 - [ ] **Dependency audit:** root 3 high via `vite-plugin-singlefile` (upgrade to 2.3.4 or drop the legacy build), `apps/api` 4 moderate via `drizzle-kit`/`esbuild` (dev/CLI only); production dependencies are clean (`docs/TESTING.md` §6).
-- [ ] **Upload hardening:** malware scan, server-side re-encoding, download authorization for private images, cleanup of orphaned uploads, S3 finalization (B-76 done: images in the private bucket; still open: re-encoding, orphan cleanup, objects of deleted accounts → B-74).
+- [ ] **Upload hardening:** malware scan, server-side re-encoding, download authorization for private images, cleanup of orphaned uploads, S3 finalization; account deletion (B-74) must also delete the user's notifications first (`notifications.user_id` FK does not cascade, found in the B-76 production test) and the S3 objects (B-76 done: images in the private bucket; still open: re-encoding, orphan cleanup, objects of deleted accounts → B-74).
 - [ ] **Durable audit records** (feature flags keep only `updated_by`/`updated_at`), real account suspension, rollout by user group/percentage.
 - [ ] **Migration of a populated installation** (beyond the automated upgrade test) and **pinned container images** (`MINIO_IMAGE` is `latest`).
 - [ ] **Real-device acceptance:** iOS Safari / Android Chrome touch, keyboard, landscape; mobile layout of the community tabs.
