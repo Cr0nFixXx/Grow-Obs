@@ -103,6 +103,7 @@ app.onError((error, c) => {
   const code = typeof cause?.code === "string" ? cause.code : typeof own === "string" ? own : undefined;
   const causeMessage = typeof cause?.message === "string" ? cause.message.slice(0, 120) : undefined;
   console.error(JSON.stringify({ event: "api_error", requestId, type: error.name, method: c.req.method, path: c.req.path.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, ":id"), ...(code ? { code } : {}), ...(causeMessage ? { cause: causeMessage } : {}) }));
-  return c.json({ error: "Interner Fehler", requestId }, 500);
+  // `code` = nur der Treiber-/SQLSTATE-Code (z. B. XX000, CONNECTION_CLOSED): hilft bei der Fehlersuche, enthält weder SQL noch Daten.
+  return c.json({ error: "Interner Fehler", requestId, ...(code && /^[A-Za-z0-9_]{2,40}$/.test(code) ? { code } : {}) }, 500);
 });
 app.notFound((c) => c.json({ error: "Nicht gefunden" }, 404));

@@ -7,7 +7,7 @@
   "backend": {
     "version": "0.0.2"
   },
-  "build": "26102300",
+  "build": "26102301",
   "modules": {
     "_comment": "Vorbereitung für spätere Modul-Versionen: Schlüssel \"frontend.<modul>\" oder \"backend.<modul>\" → { \"version\": \"x.y.z\" }. Ohne Eintrag erbt ein Modul die Version seiner Hauptkomponente (siehe moduleVersion())."
   }

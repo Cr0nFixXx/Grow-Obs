@@ -11,6 +11,13 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-77 – „Interner Fehler“ im Profil: Pooler-Sitzungen blockiert
+
+- **Ursache (belegt):** Der Supabase-Session-Pooler hat ca. 16 Hintergrundverbindungen. Vercel-Instanzen (je `DB_POOL_MAX=3`) halten Sitzungen auch eingefroren weiter fest; waren alle belegt, scheiterten Anfragen, die mehrere Verbindungen brauchen (`GET/PATCH /auth/me`, `/members/…`, Anmeldung), sofort mit 500, einfache Abfragen liefen weiter. Nachweis in Produktion: `/auth/me` 500 bei jedem Aufruf (auch nach 45 s Wartezeit); nach dem Beenden der 16 Pooler-Sitzungen (`pg_terminate_backend`) sofort 6× 200.
+- **Änderungen:** `DB_POOL_MAX=1` in Produktion (eine Verbindung je Instanz), Leerlauf 10 s statt 20 s, `max_lifetime` 5 min. Der 500-Antwort wird zusätzlich nur der Treiber-Code (`code`, z. B. `XX000`) beigefügt, damit die Ursache ohne Laufzeitprotokoll sichtbar ist (kein SQL, keine Daten).
+- **Nicht gelöst:** Das ist eine Abmilderung, keine Garantie; viele gleichzeitige Instanzen können den Pooler weiter füllen. Dauerhaft hilft nur der Transaction-Pooler (Port 6543, `prepare: false`, kein `LISTEN`, vorher zu testen) oder ein größerer Pooler-Pool in Supabase.
+- **Weiterer Befund:** Beim Ersetzen von Avatar/Titelbild bleibt das alte Bild im Bucket liegen (Waisen); Aufräumen steht in `TODO.md`.
+
 ### B-76 – Bilder in Supabase Storage (S3) und Titelbild im Profil
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.

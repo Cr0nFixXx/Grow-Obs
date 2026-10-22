@@ -13,6 +13,7 @@ The owner decides the order. Last update: B-62.
 - [ ] **Password reset for regular members:** needs an email path or another recovery concept (today only operators can reset, via CLI).
 - [ ] **Profile rounds (B-73 done):** B-74 account (change e-mail with password, delete account + JSON export, last platform admin cannot delete), B-75 notifications (bundle weekly report, push categories, quiet hours + in-app bell mute per category), images (avatar/cover) once Supabase Storage keys exist; link forum authors to `/u/<handle>` (needs the handle in the forum API).
 - [ ] **Hide online status:** per-user option (presence is currently always visible).
+- [ ] **Orphaned images (B-77):** replacing avatar/cover/other images leaves the old object in the bucket; delete the previous one on change (or sweep orphans). Pooler: consider the transaction pooler (6543, `prepare: false`, test first) or a larger Supavisor pool.
 - [ ] **Vercel operation (B-66):** watch the pooler after `DB_POOL_MAX`/polling; optional presence for polling-only mode (a cheap `POST /presence` ping), a documented `docs/` deployment guide if Vercel becomes a supported target.
 - [ ] **Group chats (B-65 done):** follow-ups: group deletion by an admin, explicit admin promotion, per-topic message search, invitation links (deliberately not built), real-device check of the group push.
 - [ ] **Web push, follow-ups:** real-device acceptance (Android, iOS PWA), push for further triggers (task reminders, community invites), per-conversation mute.
