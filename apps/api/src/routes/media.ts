@@ -6,6 +6,7 @@ import { db } from "../db/client.ts";
 import { media } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
+import { markPhase, phaseMark } from "../lib/phase.ts";
 import { uuid } from "../lib/validation.ts";
 import { sniffImage } from "../lib/media-ref.ts";
 import { deleteObject, mediaInStorage, putObject, signedGetUrl } from "../lib/s3.ts";
@@ -24,8 +25,11 @@ export const mediaApi = new Hono<AuthEnv>();
 
 mediaApi.post(
   "/",
+  phaseMark("auth"),
   requireAuth,
+  phaseMark("ratelimit"),
   rateLimit({ name: "media-upload", limit: 30, windowMs: 10 * 60 * 1000, keys: userKey }),
+  phaseMark("body"),
   bodyLimit({ maxSize: MEDIA_MAX_BYTES, onError: (c) => c.json({ error: "Bild zu groß (max. 2 MB)" }, 413) }),
   async (c) => {
     const bytes = new Uint8Array(await c.req.arrayBuffer());
@@ -33,6 +37,7 @@ mediaApi.post(
     const type = sniffImage(bytes);
     if (!type) return c.json({ error: "Nur JPEG, PNG oder WebP" }, 415);
     const ownerId = c.get("userId");
+    markPhase(c, "quota");
     const [usage] = await db
       .select({ files: count(), bytes: sql<number>`coalesce(sum(${media.size}), 0)::int` })
       .from(media)
@@ -43,6 +48,7 @@ mediaApi.post(
     const id = randomUUID();
     if (mediaInStorage()) {
       const key = `media/${ownerId}/${id}`;
+      markPhase(c, "storage-put");
       try {
         await putObject(key, bytes, type);
       } catch (error) {
@@ -50,6 +56,7 @@ mediaApi.post(
         console.error(JSON.stringify({ event: "storage_error", op: "put", type: (error as Error).name }));
         return c.json({ error: "Bildspeicher nicht erreichbar – bitte später erneut versuchen" }, 502);
       }
+      markPhase(c, "insert");
       try {
         await db.insert(media).values({ id, ownerId, contentType: type, size: bytes.length, storageKey: key });
       } catch (error) {

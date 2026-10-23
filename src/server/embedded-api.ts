@@ -85,6 +85,7 @@ let inflight = 0;
 
 async function runWithDbGuard(app: FetchApp, request: Request): Promise<Response> {
   const { resetDbConnection } = await import("../../apps/api/src/db/client.ts");
+  const { phaseOf } = await import("../../apps/api/src/lib/phase.ts");
   inflight += 1;
   let counted = true;
   const leave = () => {
@@ -99,11 +100,12 @@ async function runWithDbGuard(app: FetchApp, request: Request): Promise<Response
   try {
     const result = await Promise.race([work, deadline]);
     if (result === "timeout") {
-      console.error(JSON.stringify({ event: "api_request_deadline", path: new URL(request.url).pathname, ms: REQUEST_DEADLINE_MS }));
+      console.error(JSON.stringify({ event: "api_request_deadline", path: new URL(request.url).pathname, ms: REQUEST_DEADLINE_MS, phase: phaseOf(request) ?? null }));
+      const phase = phaseOf(request);
       void work.catch(() => undefined);
       leave();
       await resetDbConnection({ force: true }); // hängende Verbindung verwerfen
-      return Response.json({ error: "Der Server ist gerade ausgelastet. Bitte gleich erneut versuchen.", code: "DB_TIMEOUT" }, { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "2" } });
+      return Response.json({ error: "Der Server ist gerade ausgelastet. Bitte gleich erneut versuchen.", code: "DB_TIMEOUT", ...(phase ? { phase } : {}) }, { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "2" } });
     }
     return result;
   } finally {
