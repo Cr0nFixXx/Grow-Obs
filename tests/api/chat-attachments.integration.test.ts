@@ -133,7 +133,7 @@ describe("Upload von Dateien (B-81)", () => {
   it("Datei wird beim Abruf immer als Download ausgeliefert (Datenbank-Speicher)", async () => {
     const me = await makeUser("anna");
     const { id } = (await (await file(me, "Übersicht.pdf", PDF)).json()) as { id: string };
-    const res = await app.request(`/media/${id}`);
+    const res = await app.request(`/media/${id}`, { headers: { Cookie: me.cookie } });
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Disposition")).toContain(`filename*=UTF-8''%C3%9Cbersicht.pdf`);
     expect(res.headers.get("Content-Disposition")).toMatch(/^attachment/);
@@ -141,20 +141,20 @@ describe("Upload von Dateien (B-81)", () => {
     expect(res.headers.get("Content-Type")).toBe("application/pdf");
     // Bild: inline, mit ?download=1 als Download
     const img = (await (await up(me, PNG, "", "image/png")).json()) as { id: string };
-    expect((await app.request(`/media/${img.id}`)).headers.get("Content-Disposition")).toBe("inline");
-    expect((await app.request(`/media/${img.id}?download=1`)).headers.get("Content-Disposition")).toMatch(/^attachment; filename="bild-[0-9a-f]{8}\.png"/);
+    expect((await app.request(`/media/${img.id}`, { headers: { Cookie: me.cookie } })).headers.get("Content-Disposition")).toBe("inline");
+    expect((await app.request(`/media/${img.id}?download=1`, { headers: { Cookie: me.cookie } })).headers.get("Content-Disposition")).toMatch(/^attachment; filename="bild-[0-9a-f]{8}\.png"/);
   });
 
   it("Bucket: signierter Link trägt Download-Kopfzeile und Typ", async () => {
     store.storage = true;
     const me = await makeUser("anna");
     const { id } = (await (await file(me, "Plan.pdf", PDF)).json()) as { id: string };
-    const res = await app.request(`/media/${id}`);
+    const res = await app.request(`/media/${id}`, { headers: { Cookie: me.cookie } });
     expect(res.status).toBe(302);
     expect(store.lastSigned?.response.disposition).toMatch(/^attachment; filename="Plan.pdf"/);
     expect(store.lastSigned?.response.contentType).toBe("application/pdf");
     const img = (await (await up(me, PNG, "", "image/png")).json()) as { id: string };
-    await app.request(`/media/${img.id}`);
+    await app.request(`/media/${img.id}`, { headers: { Cookie: me.cookie } });
     expect(store.lastSigned?.response).toEqual({});
   });
 });

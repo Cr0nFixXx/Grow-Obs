@@ -1,8 +1,8 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { register, uniqueEmail } from "./helpers";
+import { makeTestFiles, register, uniqueEmail } from "./helpers";
 
 const stamp = Date.now().toString(36).slice(-5);
-const FILES = "/tmp/e2e-files";
+const FILES = makeTestFiles();
 const chatNav = (page: Page) => page.getByRole("button", { name: /^Chat/ }).first();
 
 async function person(browser: Browser, name: string) {
@@ -55,7 +55,7 @@ test.describe("Chat-Anhänge (B-81)", () => {
     await expect(dialog.getByRole("link", { name: "Bild speichern" })).toHaveAttribute("href", /\/media\/[0-9a-f-]+\?download=1/);
     await A.page.keyboard.press("ArrowRight");
     await expect(A.page.getByRole("dialog", { name: "Bild 2 von 2" })).toBeVisible();
-    await A.page.screenshot({ path: "/tmp/e2e-files/lightbox-desktop.png" });
+    await A.page.screenshot({ path: `${FILES}/lightbox-desktop.png` });
     await A.page.keyboard.press("Escape");
     await expect(A.page.getByRole("dialog")).toHaveCount(0);
 
@@ -93,14 +93,68 @@ test.describe("Chat-Anhänge (B-81)", () => {
     await page.getByRole("button", { name: new RegExp(b) }).click();
     await page.getByTestId("pick-photos").setInputFiles(`${FILES}/gruen.png`);
     await expect(page.getByTestId("pending-tray").locator('[data-status="done"]')).toHaveCount(1);
-    await page.screenshot({ path: "/tmp/e2e-files/composer-mobile.png" });
+    await page.screenshot({ path: `${FILES}/composer-mobile.png` });
     await page.getByRole("button", { name: "Senden" }).click();
     await page.getByLabel("Bild vergrößern").click();
     const dialog = page.getByRole("dialog", { name: "Bild 1 von 1" });
     await expect(dialog).toBeVisible();
-    await page.screenshot({ path: "/tmp/e2e-files/lightbox-mobile.png" });
+    await page.screenshot({ path: `${FILES}/lightbox-mobile.png` });
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await context.close();
+  });
+
+  test("PDF-Vorschau mit allen Seiten, Zugriff nur mit Login, Löschen für alle – live beim Empfänger (B-82)", async ({ browser, playwright }) => {
+    const [a, b] = [`pdf_a_${stamp}`, `pdf_b_${stamp}`];
+    const A = await person(browser, a);
+    const B = await person(browser, b);
+    await chatNav(A.page).click();
+    await A.page.getByRole("button", { name: "Neue Nachricht" }).click();
+    await A.page.getByLabel("Person suchen").fill(b);
+    await A.page.getByRole("button", { name: new RegExp(b) }).click();
+    await A.page.getByTestId("pick-files").setInputFiles(`${FILES}/Anbauplan Woche 3.pdf`);
+    await expect(A.page.getByTestId("pending-tray").locator('[data-status="done"]')).toHaveCount(1);
+    await A.page.getByPlaceholder("Beschriftung hinzufügen …").fill("Plan zum Lesen");
+    await A.page.getByRole("button", { name: "Senden" }).click();
+
+    // Empfänger öffnet die Vorschau: drei Seiten, wirklich gezeichnet (nicht leer/weiß)
+    await chatNav(B.page).click();
+    await B.page.getByRole("button", { name: new RegExp(a) }).first().click();
+    await B.page.getByRole("button", { name: "Anbauplan Woche 3.pdf ansehen" }).click();
+    const viewer = B.page.getByRole("dialog", { name: "PDF-Vorschau: Anbauplan Woche 3.pdf" });
+    await expect(viewer).toBeVisible();
+    await expect(viewer.getByTestId("pdf-page")).toHaveCount(3);
+    await expect(viewer.getByTestId("pdf-pages")).toHaveText("Seite 1 von 3");
+    await expect.poll(async () => viewer.getByRole("img", { name: "Seite 1" }).evaluate((canvas: HTMLCanvasElement) => {
+      const px = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let i = 0; i < px.length; i += 4) if (px[i] < 128) return true; // dunkle Pixel = Text
+      return false;
+    }), { timeout: 15_000 }).toBe(true);
+    await viewer.getByRole("button", { name: "Vergrößern" }).click();
+    await B.page.screenshot({ path: `${FILES}/pdf-desktop.png` });
+    await B.page.keyboard.press("Escape");
+    await expect(B.page.getByRole("dialog")).toHaveCount(0);
+
+    // Medien nur mit Login: ohne Cookie 401, mit Cookie 200
+    const href = (await B.page.getByRole("link", { name: "Anbauplan Woche 3.pdf herunterladen" }).getAttribute("href"))!;
+    const anonymous = await playwright.request.newContext();
+    expect((await anonymous.get(new URL(href, B.page.url()).toString())).status()).toBe(401);
+    await anonymous.dispose();
+    expect((await B.page.request.get(href)).status()).toBe(200);
+
+    // Absender löscht: Bestätigung, Platzhalter bei beiden, Datei weg
+    const mine = A.page.getByRole("log").locator("div.group").last();
+    await mine.hover();
+    await mine.getByRole("button", { name: "Nachricht löschen" }).click();
+    await expect(A.page.getByRole("dialog", { name: "Nachricht löschen?" })).toBeVisible();
+    await A.page.getByRole("button", { name: "Abbrechen" }).click();
+    await expect(A.page.getByRole("dialog")).toHaveCount(0);
+    await mine.hover();
+    await mine.getByRole("button", { name: "Nachricht löschen" }).click();
+    await A.page.getByRole("button", { name: "Für alle löschen" }).click();
+    await expect(A.page.getByTestId("message-deleted")).toContainText("Du hast diese Nachricht gelöscht");
+    await expect(B.page.getByTestId("message-deleted")).toContainText("Diese Nachricht wurde gelöscht", { timeout: 20_000 });
+    await expect(B.page.getByRole("link", { name: /Anbauplan Woche 3.pdf/ })).toHaveCount(0);
+    expect((await B.page.request.get(href)).status()).toBe(404);
   });
 });

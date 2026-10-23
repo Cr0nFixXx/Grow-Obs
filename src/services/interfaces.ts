@@ -82,6 +82,8 @@ export interface ChatMessage {
   senderName?: string;
   kind?: "user" | "system";
   topicId?: string | null;
+  /** Gelöscht (B-82): Text und Anhänge sind weg, die Oberfläche zeigt „Nachricht gelöscht“. */
+  deleted?: boolean;
 }
 
 export interface ConversationItem {
@@ -207,6 +209,8 @@ export interface ChatService {
   /** Gruppen: `topicId` wählt das Thema (ohne Angabe: „Allgemein“). */
   getMessages(conversationId: string, topicId?: string): Promise<ChatMessage[]>;
   sendMessage(conversationId: string, text: string, attachments?: ChatAttachment[], topicId?: string): Promise<ChatMessage>;
+  /** Eigene Nachricht (in Gruppen als Admin jede) für alle löschen; Anhänge werden entfernt (B-82). */
+  deleteMessage(conversationId: string, messageId: string): Promise<void>;
   /** Direktnachricht mit einer Person starten bzw. die bestehende öffnen. */
   startDirect(userId: string): Promise<ConversationItem>;
   /** Alles bis jetzt als gelesen markieren (Gruppen: ein Thema, ohne Angabe alle sichtbaren). */

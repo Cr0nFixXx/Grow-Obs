@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { MEDIA_PATH, imageRef } from "../lib/media-ref.ts";
+import { releaseMedia } from "../lib/media-cleanup.ts";
 import { db } from "../db/client.ts";
-import { conversationMembers, conversations, media, messages, topicUserState, users, type MessageAttachment } from "../db/schema.ts";
+import { conversationMembers, conversationTopics, conversations, media, messages, topicUserState, users, type MessageAttachment } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { ago } from "../lib/time.ts";
@@ -37,8 +38,8 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
   const members = await db.select({ conversationId: conversationMembers.conversationId, id: users.id, name: users.name, handle: users.handle, avatar: users.avatarUrl })
     .from(conversationMembers).innerJoin(users, eq(users.id, conversationMembers.userId)).where(inArray(conversationMembers.conversationId, ids));
   // Letzte sichtbare Nachricht: in Gruppen nur ab Beitritt (außer Verlauf offen) und nur aus Themen, die der Nutzer sehen darf.
-  const lastRows = await db.execute<{ conversation_id: string; text: string; image_url: string | null; attachments: MessageAttachment[] | null; created_at: Date; kind: string; sender_id: string | null; sender_name: string | null }>(sql`
-    SELECT DISTINCT ON (m.conversation_id) m.conversation_id, m.text, m.image_url, m.attachments, m.created_at, m.kind, m.sender_id, u.name AS sender_name
+  const lastRows = await db.execute<{ conversation_id: string; text: string; image_url: string | null; attachments: MessageAttachment[] | null; created_at: Date; kind: string; sender_id: string | null; sender_name: string | null; deleted_at: Date | null }>(sql`
+    SELECT DISTINCT ON (m.conversation_id) m.conversation_id, m.text, m.image_url, m.attachments, m.deleted_at, m.created_at, m.kind, m.sender_id, u.name AS sender_name
     FROM messages m
     JOIN conversations c ON c.id = m.conversation_id
     JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ${userId}
@@ -104,8 +105,8 @@ export function attachmentLabel(attachments: MessageAttachment[], imageUrl: stri
 }
 
 /** Vorschauzeile der Konversationsliste; in Gruppen mit Absender („Anna: Hallo“), Hinweiszeilen ohne Präfix. */
-function lastPreview(m: { text: string; image_url: string | null; attachments: MessageAttachment[] | null; kind: string; sender_id: string | null; sender_name: string | null }, isGroup: boolean, userId: string): string {
-  const text = m.text || attachmentLabel(m.attachments ?? [], m.image_url);
+function lastPreview(m: { text: string; image_url: string | null; attachments: MessageAttachment[] | null; kind: string; sender_id: string | null; sender_name: string | null; deleted_at?: Date | null }, isGroup: boolean, userId: string): string {
+  const text = m.deleted_at ? "🚫 Nachricht gelöscht" : m.text || attachmentLabel(m.attachments ?? [], m.image_url);
   if (!isGroup || m.kind === "system") return text;
   const who = m.sender_id === userId ? "Du" : (m.sender_name ?? "").split(" ")[0] || "Jemand";
   return `${who}: ${text}`;
@@ -157,10 +158,18 @@ chat.post("/", rateLimit({ name: "chat-start", limit: 30, windowMs: 10 * 60_000,
 
 /** Nachricht für die Oberfläche; `senderName` zeigt die Gruppenansicht, `kind: "system"` sind Hinweiszeilen. */
 function messageDto(m: typeof messages.$inferSelect, userId: string, senderName: string | null, now = false) {
+  // Gelöschte Nachricht (B-82): nur noch Platzhalter, nie Inhalt ausliefern.
+  if (m.deletedAt) {
+    return {
+      id: m.id, from: m.senderId === userId ? "me" : "them", text: "", image: undefined, attachments: [] as MessageAttachment[], deleted: true,
+      time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
+      senderId: m.senderId, senderName: senderName ?? "", kind: "user" as const, topicId: m.topicId,
+    };
+  }
   // Ältere Nachrichten haben nur `image_url`: als einzelnes Bild-Anhang ausgeben.
   const attachments: MessageAttachment[] = m.attachments.length ? m.attachments : m.imageUrl ? [{ path: m.imageUrl, kind: "image", name: "", size: 0, mime: "" }] : [];
   return {
-    id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined, attachments,
+    id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined, attachments, deleted: false,
     time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
     senderId: m.senderId, senderName: senderName ?? "", kind: m.kind === "system" ? "system" : "user", topicId: m.topicId,
   };
@@ -219,6 +228,9 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
     .insert(messages)
     .values({ conversationId: id, senderId: userId, text: body.data.text, imageUrl: body.data.image ?? attachments.find((a) => a.kind === "image")?.path ?? null, attachments, topicId: topic?.id ?? null })
     .returning();
+  // Anhänge gehören ab jetzt zu dieser Unterhaltung: Abruf nur noch für Mitglieder (B-82).
+  const mediaIds = [...new Set([...attachments.map((a) => a.path), ...(m!.imageUrl && MEDIA_PATH.test(m!.imageUrl) ? [m!.imageUrl] : [])])].map((p) => p.slice("/media/".length));
+  if (mediaIds.length) await db.update(media).set({ conversationId: id }).where(and(inArray(media.id, mediaIds), eq(media.ownerId, userId)));
   // Wer schreibt, hat den Chat bzw. das Thema gelesen (eigene Nachricht erhöht nie den eigenen Zähler).
   if (topic) {
     await db.insert(topicUserState).values({ topicId: topic.id, userId, lastReadAt: m!.createdAt }).onConflictDoUpdate({ target: [topicUserState.topicId, topicUserState.userId], set: { lastReadAt: m!.createdAt } });
@@ -230,6 +242,29 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
   const group = topic ? { name: access.cv.name, topicId: topic.id, muted: await mutedUsers(topic.id) } : undefined;
   void pushChatMessage({ members: audience, senderId: userId, conversationId: id, text: m!.text, hasImage: !!m!.imageUrl, hasFile: attachments.some((a) => a.kind === "file"), group }).catch(() => undefined);
   return c.json(messageDto(m!, userId, null, true), 201);
+});
+
+/**
+ * Nachricht löschen (B-82), für alle: Absender jederzeit; in Gruppen auch Admins. Text und Anhänge werden geleert (die Zeile bleibt als
+ * Platzhalter „Nachricht gelöscht“), die Dateien aus dem Speicher entfernt. Hinweiszeilen lassen sich nicht löschen. Idempotent.
+ */
+chat.delete("/:id/messages/:messageId", rateLimit({ name: "chat-delete", limit: 60, windowMs: 60_000, keys: userKey }), async (c) => {
+  const id = uuid(c.req.param("id"));
+  const userId = c.get("userId");
+  const access = await requireAccess(id, userId);
+  const [m] = await db.select().from(messages).where(and(eq(messages.id, uuid(c.req.param("messageId"))), eq(messages.conversationId, id))).limit(1);
+  if (!m) return c.json({ error: "Nachricht nicht gefunden" }, 404);
+  if (m.kind === "system") return c.json({ error: "Hinweise lassen sich nicht löschen" }, 400);
+  if (m.senderId !== userId && !(access.cv.isGroup && access.isAdmin)) return c.json({ error: "Du darfst nur eigene Nachrichten löschen" }, 403);
+  if (m.deletedAt) return c.body(null, 204);
+  const paths = [...new Set([...m.attachments.map((a) => a.path), ...(m.imageUrl ? [m.imageUrl] : [])])];
+  await db.update(messages).set({ text: "", imageUrl: null, attachments: [], deletedAt: new Date() }).where(eq(messages.id, m.id));
+  // Dateien freigeben: erst nach dem Leeren der Nachricht, damit die Verwendungsprüfung sie nicht mehr findet.
+  for (const path of paths) await releaseMedia(m.senderId, path);
+  const topic = m.topicId ? (await db.select().from(conversationTopics).where(eq(conversationTopics.id, m.topicId)).limit(1))[0] : undefined;
+  const audience = topic ? await topicAudience(access, topic) : access.memberIds;
+  await publish({ users: audience }, { type: "chat.message", conversationId: id, ...(m.topicId ? { topicId: m.topicId } : {}), messageId: m.id, senderId: m.senderId, deleted: true });
+  return c.body(null, 204);
 });
 
 /** Leseposition setzen: alles bis jetzt gilt als gelesen (Gruppen: je Thema, ohne `topicId` alle sichtbaren Themen). Andere Geräte des Nutzers aktualisieren ihr Badge. */

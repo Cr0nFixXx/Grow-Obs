@@ -66,7 +66,7 @@ describe("Bilder im Object Storage (B-76)", () => {
   it("GET leitet auf einen kurzlebigen signierten Link um und hält die Weiterleitung kürzer als der Link gültig ist", async () => {
     const me = await makeUser("anna");
     const { id } = await (await upload(me)).json() as { id: string };
-    const res = await app.request(`/media/${id}`, { redirect: "manual" });
+    const res = await app.request(`/media/${id}`, { redirect: "manual", headers: { Cookie: me.cookie } });
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe(`https://storage.example.test/signed/media/${me.id}/${id}?X-Amz-Signature=abc`);
     expect(res.headers.get("cache-control")).toBe("private, max-age=1800");
@@ -99,7 +99,7 @@ describe("Bilder im Object Storage (B-76)", () => {
     expect(ok.status).toBe(200);
     expect(store.deleted).toEqual([`media/${me.id}/${id}`]);
     expect(store.objects.size).toBe(0);
-    expect((await app.request(`/media/${id}`)).status).toBe(404);
+    expect((await app.request(`/media/${id}`, { headers: { Cookie: me.cookie } })).status).toBe(404);
   });
 });
 

@@ -48,7 +48,7 @@ The owner decides the order. Last update: B-62.
 - [ ] Optional: file-based routing per view and `apps/web` monorepo (`PLAN.md`); afterwards remove the legacy Vite build.
 - [ ] Hosting without WebSocket (serverless) works through SSE only; revisit if such hosting becomes a target.
 - [ ] `scripts/server.mjs` relies on the Next internal `didWebSocketSetup`; re-check on every Next upgrade. The 400 guard for malformed URLs exists only in this server.
-- [ ] Chat attachments follow-ups (B-81): inline PDF preview, login-protected file/image delivery (today: unguessable UUID link), delete single messages with their attachments, voice messages, virus scan for ZIP.
+- [ ] Chat attachments follow-ups (B-81/B-82): voice messages; virus scan with ClamAV once self-hosted (not on Vercel); media access ignores history visibility and private topics (members see every attachment of the conversation); the signed bucket link (1 h) acts as a bearer link; with `COOKIE_SAMESITE=none` a partitioned cookie is needed for `<img>`; a delivered push cannot be recalled.
 - [ ] Re-run the full E2E suite with a longer timeout for `moderation.spec.ts` (first test hit 45 s once in a full run, passes alone in ≈ 29 s).
 
 ## 5. Later (north star, `docs/MILESTONES.md`)
@@ -59,7 +59,7 @@ The owner decides the order. Last update: B-62.
 
 ## Recently finished (details in `docs/CHANGELOG.md`)
 
-- B-81 chat image gallery, files and multiple attachments · B-80 pull-to-refresh, update only in automatic mode, upload stall retry
+- B-82 media login-only, PDF preview, delete messages · B-81 chat image gallery, files and multiple attachments · B-80 pull-to-refresh, update only in automatic mode, upload stall retry
 - B-62 real 404 page and strain detail URL · B-61 community moderation · B-60 shared rate limit · B-59 chat and realtime · B-58 forced password change
 - B-57 URL routing · B-56 operator bootstrap CLI · B-55 password change, login history, device limit · B-54 session hardening (HttpOnly cookie, server-side revocation)
 - B-53 no demo data in API mode · B-52 central versioning · B-51 rate limits, JWT requirement, Playwright E2E

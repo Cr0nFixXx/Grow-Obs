@@ -242,6 +242,8 @@ export const media = pgTable("media", {
   storageKey: text("storage_key"),
   /** Ursprünglicher Dateiname (Chat-Dateianhänge, B-81); bei Bildern leer. */
   fileName: text("file_name"),
+  /** Chat-Anhang (B-82): gesetzt, sobald das Medium in einer Nachricht gesendet wurde – danach nur für Mitglieder dieser Unterhaltung (und den Absender) abrufbar. */
+  conversationId: uuid("conversation_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -519,6 +521,8 @@ export const messages = pgTable("messages", {
   topicId: uuid("topic_id"),
   /** `user` = normale Nachricht, `system` = Hinweiszeile („Anna hat Bernd eingeladen“): zählt nicht als ungelesen, löst keinen Push aus. */
   kind: text("kind").notNull().default("user"),
+  /** Gelöschte Nachricht (B-82): Text und Anhänge sind geleert, die Zeile bleibt als Platzhalter („Nachricht gelöscht“). */
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt), index("messages_topic_created_idx").on(t.topicId, t.createdAt)]);
 
 /* ----------------------------- Gruppen: Themen, Einladungen (B-65) ----------------------------- */

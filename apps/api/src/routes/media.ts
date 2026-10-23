@@ -2,21 +2,22 @@ import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { and, count, eq, sql } from "drizzle-orm";
+import { HTTPException } from "hono/http-exception";
 import { db, resetDbConnection } from "../db/client.ts";
-import { media } from "../db/schema.ts";
+import { conversationMembers, media } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { markPhase, phaseMark } from "../lib/phase.ts";
 import { uuid } from "../lib/validation.ts";
 import { sniffImage } from "../lib/media-ref.ts";
 import { FILE_EXTENSIONS, contentDisposition, fileExtension, mediaQuotaBytes, sanitizeFileName, sniffFile, uploadConfig, uploadMaxBytes } from "../lib/media-files.ts";
-import { deleteObject, mediaInStorage, putObject, signedGetUrl } from "../lib/s3.ts";
+import { deleteObject, getObjectStream, mediaInStorage, putObject, signedGetUrl } from "../lib/s3.ts";
 
 /**
  * Bilder (B-47, B-76): mit `MEDIA_STORAGE=s3` (und S3_*-Zugangsdaten) liegen die Bytes im privaten Bucket, `GET` leitet auf einen
  * kurzlebigen signierten Link um; ohne Zugangsdaten (Embedded/Entwicklung) in PostgreSQL. Upload: roher Body (JPEG/PNG/WebP bzw. mit `?kind=file&name=…` Dokumente der Positivliste, max. `UPLOAD_MAX_MB`, Format per Magic Bytes
- * geprüft, nicht per Header). Abruf: öffentlich über nicht erratbare UUID (für <img>, das keinen
- * Bearer-Header senden kann), mit restriktiver CSP/nosniff. Quote: 200 Objekte bzw. `MEDIA_QUOTA_MB` je User.
+ * geprüft, nicht per Header). Abruf (B-82): nur mit Login (HttpOnly-Cookie, wird auch für <img> mitgesendet); Chat-Anhänge
+ * zusätzlich nur für Mitglieder der Unterhaltung und den Absender. Restriktive CSP/nosniff. Quote: 200 Objekte bzw. `MEDIA_QUOTA_MB` je User.
  */
 const QUOTA_FILES = 200;
 const MAX_BYTES = uploadMaxBytes();
@@ -107,14 +108,39 @@ mediaApi.post(
   },
 );
 
-mediaApi.get("/:id", async (c) => {
+mediaApi.get("/:id", requireAuth, async (c) => {
   const [row] = await db.select().from(media).where(eq(media.id, uuid(c.req.param("id")))).limit(1);
   if (!row) return c.json({ error: "Nicht gefunden" }, 404);
+  // Chat-Anhänge: nur Mitglieder der Unterhaltung (und der Absender). Antwort wie „nicht vorhanden“, damit nichts verraten wird.
+  if (row.conversationId && row.ownerId !== c.get("userId")) {
+    const [member] = await db.select({ userId: conversationMembers.userId }).from(conversationMembers)
+      .where(and(eq(conversationMembers.conversationId, row.conversationId), eq(conversationMembers.userId, c.get("userId")))).limit(1);
+    if (!member) return c.json({ error: "Nicht gefunden" }, 404);
+  }
   // Dateien (und Bilder mit `?download=1`) werden immer heruntergeladen, nie im Browser gerendert.
   const isFile = !row.contentType.startsWith("image/");
   const download = isFile || c.req.query("download") === "1";
   const fileName = row.fileName || `${isFile ? "datei" : "bild"}-${row.id.slice(0, 8)}${isFile ? "" : `.${row.contentType.split("/")[1] === "jpeg" ? "jpg" : row.contentType.split("/")[1]}`}`;
   const disposition = download ? contentDisposition("attachment", fileName) : "inline";
+  // `?raw=1`: PDF-Bytes über die API selbst liefern (für die Vorschau in der App; `fetch` folgt keiner Weiterleitung auf den Bucket ohne CORS). Nie im Browser angezeigt (attachment + CSP sandbox).
+  if (c.req.query("raw") === "1") {
+    if (row.contentType !== "application/pdf") return c.json({ error: "Nur für PDF" }, 400);
+    c.header("Cache-Control", "private, no-store");
+    c.header("Content-Security-Policy", "default-src 'none'; sandbox");
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("Content-Disposition", disposition);
+    if (row.storageKey) {
+      try {
+        return c.body(await getObjectStream(row.storageKey), 200, { "Content-Type": row.contentType, "Content-Length": String(row.size) });
+      } catch (error) {
+        if (error instanceof HTTPException) throw error;
+        console.error(JSON.stringify({ event: "storage_error", op: "get", type: (error as Error).name }));
+        return c.json({ error: "Datei gerade nicht abrufbar" }, 502);
+      }
+    }
+    if (!row.data) return c.json({ error: "Nicht gefunden" }, 404);
+    return c.body(new Uint8Array(row.data), 200, { "Content-Type": row.contentType, "Content-Length": String(row.size) });
+  }
   if (row.storageKey) {
     // Link ist 1 h gültig, die Weiterleitung darf 30 min im Browser bleiben (läuft also nie mit abgelaufenem Link).
     c.header("Cache-Control", "private, max-age=1800");

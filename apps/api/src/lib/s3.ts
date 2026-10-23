@@ -71,6 +71,14 @@ export async function deleteObject(key: string): Promise<void> {
   await objectClient.send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }), { abortSignal: AbortSignal.timeout(10_000) });
 }
 
+/** Objekt serverseitig lesen (PDF-Vorschau im Browser: `fetch` folgt keiner Weiterleitung auf einen fremden Origin ohne CORS). */
+export async function getObjectStream(key: string): Promise<ReadableStream<Uint8Array>> {
+  if (!objectClient) throw new Error("storage not configured");
+  const out = await objectClient.send(new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key }), { abortSignal: AbortSignal.timeout(process.env.VERCEL ? 9_000 : 60_000) });
+  if (!out.Body) throw new Error("empty object");
+  return out.Body.transformToWebStream() as ReadableStream<Uint8Array>;
+}
+
 /** Kurzlebiger, signierter Lese-Link (Bucket bleibt privat). Signiert mit dem vom Browser erreichbaren Origin. */
 export async function signedGetUrl(key: string, expiresIn = 3600, response: { disposition?: string; contentType?: string } = {}): Promise<string> {
   if (!uploadClient) throw new HTTPException(503, { message: "Object Storage nicht konfiguriert" });

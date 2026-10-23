@@ -796,6 +796,7 @@ export function Modal({
   size?: "sm" | "md" | "lg" | "xl";
 }) {
   useBodyScrollLock(open);
+  const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
   const isMobile = useMediaQuery("(max-width: 639px)");
@@ -821,6 +822,7 @@ export function Modal({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
             style={{ y }}
             initial={isMobile ? { opacity: 0.6, y: "100%" } : { opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -850,7 +852,7 @@ export function Modal({
               }}
             >
               {isMobile && <div className="flex justify-center py-2.5" aria-hidden><div className="h-1.5 w-10 rounded-full bg-surface-3" /></div>}
-              {title && <div className="flex min-h-11 items-center justify-between px-5 pb-3 sm:py-4"><h3 className="pr-4 text-lg font-semibold leading-snug">{title}</h3><IconButton label="Schließen" onClick={onClose} className="shrink-0"><X className="size-5" /></IconButton></div>}
+              {title && <div className="flex min-h-11 items-center justify-between px-5 pb-3 sm:py-4"><h3 id={titleId} className="pr-4 text-lg font-semibold leading-snug">{title}</h3><IconButton label="Schließen" onClick={onClose} className="shrink-0"><X className="size-5" /></IconButton></div>}
             </div>
             <div className="min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-auto p-5">{children}</div>
             {footer && (

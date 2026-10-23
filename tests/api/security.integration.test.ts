@@ -208,7 +208,8 @@ describe("API authorization and contracts against PostgreSQL", () => {
     expect(ok.status).toBe(201);
     const { path } = await ok.json() as { path: string };
     expect(path).toMatch(/^\/media\/[0-9a-f-]{36}$/);
-    const served = await call(path);
+    expect((await call(path)).status).toBe(401); // B-82: Medien nur mit Login
+    const served = await call(path, tokens.bob);
     expect(served.status).toBe(200);
     expect(served.headers.get("content-type")).toBe("image/png");
     expect(served.headers.get("x-content-type-options")).toBe("nosniff");

@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { ArrowLeft, Send, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Avatar, Button, Card, EmptyState, PageHeader, SearchInput, SkeletonCard, SwipeLightbox } from "@/components/ui";
+import { Avatar, Button, Card, EmptyState, Modal, PageHeader, SearchInput, SkeletonCard, SwipeLightbox } from "@/components/ui";
+import { PdfViewer } from "@/components/PdfViewer";
 import { NewChatModal } from "@/components/NewChat";
 import { NewGroupModal } from "@/components/NewGroup";
 import { GroupInfoModal, type GroupTab } from "@/components/GroupInfo";
@@ -15,8 +16,8 @@ import { sendErrorText } from "@/lib/chat-errors";
 import { copyText } from "@/lib/clipboard";
 import { useMediaQuery } from "@/lib/hooks";
 import { EmojiPicker, insertAtCursor } from "@/components/media";
-import { AttachMenu, MessageAttachments, PendingTray, chatGallery, messageAttachments, useAttachmentTray } from "@/components/chat-attachments";
-import type { ChatAttachment } from "@/services/interfaces";
+import { AttachMenu, MessageAttachments, PendingTray, chatGallery, downloadHref, messageAttachments, useAttachmentTray } from "@/components/chat-attachments";
+import type { ChatAttachment, ChatMessage } from "@/services/interfaces";
 import { useToast } from "@/components/Toast";
 import { useNav } from "@/lib/nav";
 import { useChat } from "@/data/hooks";
@@ -26,7 +27,7 @@ const memberLabel = (n: number | undefined) => (n === undefined ? "Gruppe" : n =
 export default function Chat() {
   const toast = useToast();
   const { navigate } = useNav();
-  const { conversations, activeId, setActiveId, messages, msgLoading, send, loading, error, typing, typingIds, notifyTyping, openDirect, live, group, activeTopic, selectTopic, invites, groupActions } = useChat();
+  const { conversations, activeId, setActiveId, messages, msgLoading, send, deleteMessage, loading, error, typing, typingIds, notifyTyping, openDirect, live, group, activeTopic, selectTopic, invites, groupActions } = useChat();
   const [newChat, setNewChat] = useState(false);
   const [newGroup, setNewGroup] = useState(false);
   const [info, setInfo] = useState<GroupTab | null>(null);
@@ -36,6 +37,9 @@ export default function Chat() {
   const [failed, setFailed] = useState<{ body: string; attachments: ChatAttachment[]; reason: string } | null>(null);
   const tray = useAttachmentTray();
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [pdf, setPdf] = useState<ChatAttachment | null>(null);
+  const [toDelete, setToDelete] = useState<ChatMessage | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   // Telefon/Tablet: geöffnete Unterhaltung füllt den Bildschirm (wie ein Messenger), die Seite scrollt nicht mit.
@@ -62,10 +66,22 @@ export default function Chat() {
       setSending(false);
     }
   };
-  useEffect(() => { setFailed(null); tray.reset(); setLightbox(null); }, [activeId, activeTopic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setFailed(null); tray.reset(); setLightbox(null); setPdf(null); setToDelete(null); }, [activeId, activeTopic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const copyMessage = async (value: string) => {
     const ok = await copyText(value);
     toast.push(ok ? { title: "Nachricht kopiert", tone: "leaf", icon: "Check" } : { title: "Kopieren nicht möglich", tone: "danger", icon: "AlertTriangle" });
+  };
+  const confirmDelete = async () => {
+    if (!toDelete || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteMessage(toDelete.id);
+      setToDelete(null);
+    } catch (error) {
+      toast.push({ title: "Nachricht nicht gelöscht", desc: sendErrorText(error), tone: "danger", icon: "AlertTriangle" });
+    } finally {
+      setDeleting(false);
+    }
   };
   const handleSend = () => {
     if (sending || tray.busy || (!text.trim() && !tray.ready.length)) return;
@@ -96,6 +112,15 @@ export default function Chat() {
 
   const modals = (
     <>
+      <Modal open={toDelete !== null} onClose={() => setToDelete(null)} title="Nachricht löschen?" size="sm" footer={(
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setToDelete(null)}>Abbrechen</Button>
+          <Button variant="danger" loading={deleting} onClick={() => void confirmDelete()}>Für alle löschen</Button>
+        </div>
+      )}>
+        <p className="text-sm text-fg-muted">Die Nachricht wird für alle Teilnehmer gelöscht. Angehängte Bilder und Dateien werden vom Server entfernt. Das lässt sich nicht rückgängig machen.</p>
+      </Modal>
+      <PdfViewer open={pdf !== null} path={pdf?.path ?? ""} name={pdf?.name || "Dokument.pdf"} downloadUrl={pdf ? downloadHref(pdf.path) : ""} onClose={() => setPdf(null)} />
       <SwipeLightbox open={lightbox !== null} images={gallery.images} index={lightbox ?? 0} onIndexChange={setLightbox} onClose={() => setLightbox(null)} />
       <NewGroupModal open={newGroup} onClose={() => setNewGroup(false)} onCreate={async (input) => {
         const created = await groupActions.create(input);
@@ -129,14 +154,34 @@ export default function Chat() {
                 {conv.isGroup && !msgLoading && messages.length === 0 && <p className="py-6 text-center text-sm text-fg-subtle">In diesem Thema ist noch nichts geschrieben.</p>}
                 {messages.map((m, index) => m.kind === "system" ? (
                   <div key={m.id} data-testid="system-line" className="py-1 text-center text-xs text-fg-subtle">{m.text}</div>
+                ) : m.deleted ? (
+                  <div key={m.id} data-testid="message-deleted" className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
+                    <div className="max-w-[78%] rounded-2xl border border-dashed border-border px-3.5 py-2 text-sm italic text-fg-subtle">
+                      {conv.isGroup && showSenderName(messages, index) && <div className="mb-0.5 text-xs font-semibold not-italic">{m.senderName || "Unbekannt"}</div>}
+                      🚫 {m.from === "me" ? "Du hast diese Nachricht gelöscht" : "Diese Nachricht wurde gelöscht"}
+                      <div className="mt-0.5 text-[10px] not-italic">{m.time}</div>
+                    </div>
+                  </div>
                 ) : (
                   <div key={m.id} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
                     <div className={cn("group max-w-[78%] rounded-2xl px-3.5 py-2 text-sm [overflow-wrap:anywhere]", m.from === "me" ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-2 text-fg")}>
                       {conv.isGroup && showSenderName(messages, index) && <div data-testid="sender-name" className="mb-0.5 text-xs font-semibold text-accent">{m.senderName || "Unbekannt"}</div>}
-                      <MessageAttachments attachments={messageAttachments(m)} mine={m.from === "me"} hasText={!!m.text} onOpenImage={(i) => setLightbox((gallery.firstIndex.get(m.id) ?? 0) + i)} />
+                      <MessageAttachments attachments={messageAttachments(m)} mine={m.from === "me"} hasText={!!m.text} onOpenImage={(i) => setLightbox((gallery.firstIndex.get(m.id) ?? 0) + i)} onOpenPdf={setPdf} />
                       {m.text}
                       <div className={cn("mt-0.5 flex items-center justify-between gap-3 text-[10px]", m.from === "me" ? "text-accent-fg/70" : "text-fg-subtle")}>
                         <span>{m.time}</span>
+                        <span className="flex items-center gap-1">
+                        {(m.from === "me" || (conv.isGroup && conv.role === "admin")) && (
+                          <button
+                            type="button"
+                            onClick={() => setToDelete(m)}
+                            aria-label="Nachricht löschen"
+                            title="Nachricht löschen"
+                            className="relative -my-1 grid size-6 place-items-center rounded-md opacity-0 transition-opacity before:absolute before:-inset-2 before:content-[''] hover:bg-black/10 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-70"
+                          >
+                            <Icon name="Trash2" size={13} />
+                          </button>
+                        )}
                         {m.text && (
                           <button
                             type="button"
@@ -148,6 +193,7 @@ export default function Chat() {
                             <Icon name="Copy" size={13} />
                           </button>
                         )}
+                        </span>
                       </div>
                     </div>
                   </div>

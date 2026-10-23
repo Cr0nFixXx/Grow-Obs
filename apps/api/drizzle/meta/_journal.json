@@ -134,6 +134,13 @@
       "when": 1791700000000,
       "tag": "0018_chat_attachments",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791800000000,
+      "tag": "0019_media_access_message_delete",
+      "breakpoints": true
     }
   ]
 }

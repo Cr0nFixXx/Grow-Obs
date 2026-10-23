@@ -184,7 +184,7 @@ für S3 sind noch offen. Bilder über `/media` (unten) liegen dagegen in Postgre
 | GET `/me/activity` | Auth, eigene Aktivität |
 | POST `/media` | Auth; roher Body, JPEG/PNG/WebP (Format per Magic Bytes), ≤ 2 MB, Quote 200 Bilder/100 MB je Nutzer → `{ path: "/media/<id>" }` |
 | POST `/media` (`?kind=file&name=…` für Dokumente), GET `/media/config` | Roher Upload: Bild (JPEG/PNG/WebP) oder – nur mit `kind=file` – Datei der Positivliste (PDF, Office, TXT, CSV, ZIP; Prüfung nach Endung und Inhalt) / Upload-Grenzen |
-| GET `/media/:id`, DELETE `/media/:id` | Bild ausliefern (Dateien und `?download=1` immer als Download) (öffentlich über nicht erratbare UUID; bei `MEDIA_STORAGE=s3` Weiterleitung auf einen signierten Link) / löschen (nur Eigentümer, entfernt auch das Objekt) |
+| GET `/media/:id`, DELETE `/media/:id` | Bild ausliefern (Dateien und `?download=1` immer als Download) – **nur mit Login** (401), Chat-Anhänge nur für Mitglieder der Unterhaltung und den Eigentümer (sonst 404); `?raw=1` liefert ein PDF gestreamt für die Vorschau (sonst 400; `private, no-store`); bei `MEDIA_STORAGE=s3` Weiterleitung auf einen signierten Link (1 h gültig) / löschen (nur Eigentümer, entfernt auch das Objekt) |
 | GET `/notifications`, POST `/notifications/:id/read`, POST `/notifications/read-all` | Auth, nur eigene |
 
 ### Chat und Echtzeit
@@ -196,6 +196,7 @@ für S3 sind noch offen. Bilder über `/media` (unten) liegen dagegen in Postgre
 | GET `/chat/users?q=` | Personensuche (≥ 2 Zeichen), 60/min |
 | GET `/chat/unread`, POST `/chat/:id/read`, POST `/chat/:id/typing` | Summe ungelesen, Leseposition, Tippen (REST-Variante für SSE) |
 | GET/POST `/chat/:id/messages` | nur Mitglieder (Außenstehende erhalten 404); Text oder Bild; Senden 90/min. Gruppen: `?topicId=` bzw. Body `topicId` (ohne Angabe „Allgemein“); Nachrichten tragen `senderId`, `senderName`, `kind` (`user`/`system`), `topicId` |
+| DELETE `/chat/:id/messages/:messageId` | Nachricht für alle löschen (B-82): Absender oder Gruppen-Admin; 204 (auch wiederholt), 400 Systemzeile, 403 fremd ohne Admin, 404 Außenstehende. Text und Anhänge werden geleert, nicht mehr verwendete Medien samt Bucket-Objekt gelöscht; Liste zeigt „🚫 Nachricht gelöscht“; Ereignis `chat.message` mit `deleted: true` |
 | POST `/chat/groups` `{name, avatar?, userIds}` | Gruppe anlegen (Name 1–60 Zeichen, mindestens 1 und höchstens 19 Einladungen; Ersteller = Admin, Thema „Allgemein“); 10 pro 10 min. Antwort = Gruppen-Detail plus `skipped` |
 | GET `/chat/groups/:id` | Mitglieder (Rolle, online), Themen (`unread`, `muted`, `canWrite`, bei Admins `memberIds` privater Themen), `historyVisible`, `role`; offene Einladungen nur für Admins; Nicht-Mitglieder 404 |
 | PATCH `/chat/groups/:id` `{name?, avatar?\|null, historyVisible?}` | nur Admins; Umbenennen schreibt eine Hinweiszeile |

@@ -61,7 +61,7 @@ against PostgreSQL) and E2E (Playwright).
 (executes `public/sw-policy.js`: APIs, signed URLs, external media and private/error responses never enter the cache; route list in sync with `routes.ts`),
 auth provider (fail-closed restore, late responses cannot undo logout, marker instead of token, 401 event), `useResource` (last request wins, refresh keeps data),
 feature flags (key parity with the API, malformed overrides), routing (`routes.ts`, `nav.tsx`), realtime transport and context, version/build number,
-update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, chat attachments (grid, file cards, gallery, tray, limits, SD/HD), file helpers, community moderation UI, mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
+update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, chat attachments (grid, file cards, PDF cards, gallery, tray, limits, SD/HD), PDF viewer (pdf.js mocked: pages, zoom limits, errors, cleanup), file helpers, community moderation UI, mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
 
 **API integration (`tests/api`, real PostgreSQL via `app.request()`)**
 
@@ -70,6 +70,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `environment.test.ts` | environment validation, production HTTPS rules |
 | `migrations.test.ts` | migration journal consistency (gapless, ascending timestamps, file present) and the SQL content of migrations 0006–0013 |
 | `chat-attachments.integration.test.ts` | chat attachments (B-81): file allow-list by extension and content, size limit, download headers (database and bucket), several attachments per message, foreign/unknown/too many attachments, cleanup keeps attached media, upload limits per host |
+| `media-access.integration.test.ts` | media access and message deletion (B-82): 401 without login, non-members get 404 for chat attachments, `?raw=1` for PDFs from database and bucket (400 for other types), backfill of migration 0019, delete as sender/admin/stranger/system line, idempotency, media removed and reused media kept |
 | `security.integration.test.ts` | upload authorization, chat membership, private discovery, invite expiry/hash/parallel redemption, last-admin protection, DB role beats JWT role, admin contracts, registration normalization |
 | `sessions.integration.test.ts` | cookie flags, revocation, expiry, foreign `sid`, device list, CSRF, CORS credentials |
 | `password.integration.test.ts` | password change (other sessions ended, wrong password 403), login history without IP (90 days), device limit 5 |

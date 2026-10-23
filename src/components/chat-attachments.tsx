@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { File as FileIcon, FileArchive, FileSpreadsheet, FileText, Paperclip, Presentation, RotateCcw, X } from "lucide-react";
+import { Download, Eye, File as FileIcon, FileArchive, FileSpreadsheet, FileText, Paperclip, Presentation, RotateCcw, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useServices } from "@/data/DataContext";
 import { useToast } from "@/components/Toast";
@@ -54,35 +54,50 @@ function ImageGrid({ images, onOpen }: { images: ChatAttachment[]; onOpen: (inde
   );
 }
 
-function FileRow({ file, mine }: { file: ChatAttachment; mine: boolean }) {
+const isPdf = (file: ChatAttachment) => file.mime === "application/pdf" || /\.pdf$/i.test(file.name);
+
+function FileRow({ file, mine, onOpenPdf }: { file: ChatAttachment; mine: boolean; onOpenPdf?: (file: ChatAttachment) => void }) {
   const name = file.name || "Datei";
+  const rowClass = cn("flex w-64 max-w-full items-center gap-2.5 rounded-xl px-2 py-2 transition", mine ? "bg-black/10" : "bg-surface");
+  const hover = mine ? "hover:bg-black/15" : "hover:bg-surface-3";
+  const meta = (
+    <span className="min-w-0 flex-1 text-left">
+      <span className="block truncate text-sm font-medium">{name}</span>
+      <span className={cn("block text-xs", mine ? "text-accent-fg/70" : "text-fg-subtle")}>{[formatBytes(file.size), fileGlyph(name) === "text" ? "" : name.split(".").pop()?.toUpperCase()].filter(Boolean).join(" · ") || "Datei"}</span>
+    </span>
+  );
+  // PDF: Tippen öffnet die Vorschau, der Pfeil daneben lädt herunter. Alle anderen Dateien: Tippen lädt herunter.
+  if (onOpenPdf && isPdf(file)) {
+    return (
+      <div className={rowClass}>
+        <button type="button" onClick={() => onOpenPdf(file)} aria-label={`${name} ansehen`} title="PDF ansehen" className={cn("-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1", hover)}>
+          <FileGlyphBadge name={name} />
+          {meta}
+          <Eye className="size-4 shrink-0 opacity-70" aria-hidden />
+        </button>
+        <a href={downloadHref(file.path)} download={name} target="_blank" rel="noopener noreferrer" aria-label={`${name} herunterladen`} title="Herunterladen" className={cn("relative grid size-8 shrink-0 place-items-center rounded-lg before:absolute before:-inset-1.5 before:content-['']", hover)}>
+          <Download className="size-4" aria-hidden />
+        </a>
+      </div>
+    );
+  }
   return (
-    <a
-      href={downloadHref(file.path)}
-      download={name}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${name} herunterladen`}
-      className={cn("flex w-64 max-w-full items-center gap-2.5 rounded-xl px-2 py-2 transition", mine ? "bg-black/10 hover:bg-black/15" : "bg-surface hover:bg-surface-3")}
-    >
+    <a href={downloadHref(file.path)} download={name} target="_blank" rel="noopener noreferrer" aria-label={`${name} herunterladen`} className={cn(rowClass, hover)}>
       <FileGlyphBadge name={name} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{name}</span>
-        <span className={cn("block text-xs", mine ? "text-accent-fg/70" : "text-fg-subtle")}>{[formatBytes(file.size), fileGlyph(name) === "text" ? "" : name.split(".").pop()?.toUpperCase()].filter(Boolean).join(" · ") || "Datei"}</span>
-      </span>
+      {meta}
     </a>
   );
 }
 
 /** Bilder (Raster, Tippen öffnet die Vorschau) und Dateien (Tippen lädt herunter) einer Nachricht. */
-export function MessageAttachments({ attachments, mine, onOpenImage, hasText }: { attachments: ChatAttachment[]; mine: boolean; onOpenImage: (indexInMessage: number) => void; hasText: boolean }) {
+export function MessageAttachments({ attachments, mine, onOpenImage, onOpenPdf, hasText }: { attachments: ChatAttachment[]; mine: boolean; onOpenImage: (indexInMessage: number) => void; onOpenPdf?: (file: ChatAttachment) => void; hasText: boolean }) {
   if (!attachments.length) return null;
   const images = attachments.filter((a) => a.kind === "image");
   const files = attachments.filter((a) => a.kind === "file");
   return (
     <div className={cn("-mx-1.5 space-y-1", hasText ? "mb-1.5" : "-mt-0.5")}>
       {images.length > 0 && <ImageGrid images={images} onOpen={onOpenImage} />}
-      {files.map((file, i) => <FileRow key={`${file.path}-${i}`} file={file} mine={mine} />)}
+      {files.map((file, i) => <FileRow key={`${file.path}-${i}`} file={file} mine={mine} onOpenPdf={onOpenPdf} />)}
     </div>
   );
 }

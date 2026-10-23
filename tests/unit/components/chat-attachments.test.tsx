@@ -61,6 +61,28 @@ describe("Anhänge in der Nachricht (B-81)", () => {
   });
 });
 
+describe("PDF im Chat (B-82)", () => {
+  it("PDF: Tippen auf die Karte öffnet die Vorschau, der Pfeil lädt herunter", () => {
+    const open = vi.fn();
+    render(<MessageAttachments attachments={[doc("Plan.pdf")]} mine={false} hasText={false} onOpenImage={vi.fn()} onOpenPdf={open} />);
+    fireEvent.click(screen.getByRole("button", { name: "Plan.pdf ansehen" }));
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ name: "Plan.pdf" }));
+    expect(screen.getByRole("link", { name: "Plan.pdf herunterladen" }).getAttribute("download")).toBe("Plan.pdf");
+  });
+  it("andere Dateien bleiben reiner Download; ohne Vorschau-Handler auch PDFs", () => {
+    render(<MessageAttachments attachments={[{ ...doc("Tabelle.xlsx"), mime: "application/vnd.ms-excel" }, doc("Alt.pdf")]} mine hasText={false} onOpenImage={vi.fn()} onOpenPdf={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Tabelle.xlsx ansehen" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Tabelle.xlsx herunterladen" })).toBeTruthy();
+    cleanup();
+    render(<MessageAttachments attachments={[doc("Alt.pdf")]} mine hasText={false} onOpenImage={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Alt.pdf ansehen" })).toBeNull();
+  });
+  it("gelöschte Nachrichten tragen keine Bilder in die Galerie", () => {
+    const gone: ChatMessage = { id: "g", from: "me", text: "", time: "x", deleted: true, attachments: [] };
+    expect(chatGallery([gone], () => "Du").images).toEqual([]);
+  });
+});
+
 describe("Galerie über den Chat (B-81)", () => {
   it("sammelt alle Bilder in Reihenfolge und merkt die erste Position je Nachricht", () => {
     const msgs: ChatMessage[] = [

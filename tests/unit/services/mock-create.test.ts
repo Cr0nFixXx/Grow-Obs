@@ -71,4 +71,12 @@ describe("mock create flows", () => {
     await svc.releases.remove(r.id);
     expect((await svc.releases.list()).some((x) => x.id === r.id)).toBe(false);
   });
+
+  it("deletes own chat messages for everyone and keeps a placeholder", async () => {
+    const sent = await svc.chat.sendMessage("cv-del", "Zum Löschen", [{ path: "blob:x", kind: "file", name: "a.pdf", size: 1, mime: "application/pdf" }]);
+    await svc.chat.deleteMessage("cv-del", sent.id);
+    const [m] = await svc.chat.getMessages("cv-del");
+    expect(m).toMatchObject({ id: sent.id, text: "", deleted: true, attachments: [] });
+    await expect(svc.chat.deleteMessage("cv-del", "gibt-es-nicht")).rejects.toThrow();
+  });
 });

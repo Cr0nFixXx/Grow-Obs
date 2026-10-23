@@ -356,6 +356,14 @@ export function useChat() {
     },
     [svc, activeId, refreshMessages, refreshList, refreshGroup]
   );
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!activeId) return;
+      await svc.chat.deleteMessage(activeId, messageId);
+      await Promise.all([refreshMessages(), refreshList()]);
+    },
+    [svc, activeId, refreshMessages, refreshList]
+  );
   const conversations = useMemo(
     () => (conv.data ?? []).map((c) => (c.partnerId && c.partnerId in presence ? { ...c, online: presence[c.partnerId] } : c)),
     [conv.data, presence]
@@ -459,6 +467,7 @@ export function useChat() {
     msgLoading: msgs.loading,
     reloadMessages: msgs.refresh,
     send,
+    deleteMessage,
     typing: activeId ? typingIds.has(activeTopic ? `${activeId}:${activeTopic.id}` : activeId) : false,
     typingIds,
     notifyTyping,

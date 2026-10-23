@@ -515,6 +515,12 @@ const chatService: ChatService = {
     (chatStore[conversationId] ??= []).push(msg);
     return msg;
   },
+  async deleteMessage(conversationId, messageId) {
+    await delay(100);
+    const mine = chatStore[conversationId]?.find((m) => m.id === messageId);
+    if (!mine) throw new Error("Nur eigene Nachrichten lassen sich löschen");
+    Object.assign(mine, { text: "", image: undefined, attachments: [], deleted: true });
+  },
   async startDirect(userId) {
     await delay();
     const person = mockPeople.find((p) => p.id === userId);
