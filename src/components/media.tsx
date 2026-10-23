@@ -21,7 +21,7 @@ export function useImageUpload() {
         return (await svc.media.upload(prepared)).path;
       } catch (error) {
         // Kurzer Serverfehler (z. B. Datenbank kurz ausgelastet): einmal erneut versuchen, bevor eine Meldung erscheint.
-        if (!(error instanceof ApiError) || ![500, 502].includes(error.status)) throw error;
+        if (!(error instanceof ApiError) || ![500, 502, 503].includes(error.status)) throw error;
         await new Promise((resolve) => setTimeout(resolve, 800));
         return (await svc.media.upload(prepared)).path;
       }

@@ -109,12 +109,12 @@ async function request<T>(options: RequestOptions): Promise<T> {
   }
 }
 
-/** Lesende Anfrage: bei einem kurzen Serverfehler (500/502) einmal wiederholen. */
+/** Lesende Anfrage: bei einem kurzen Serverfehler (500/502/503) einmal wiederholen. */
 async function getWithRetry<T>(path: string, signal?: AbortSignal): Promise<T> {
   try {
     return await request<T>({ method: "GET", path, signal });
   } catch (error) {
-    if (!(error instanceof ApiError) || ![500, 502].includes(error.status) || signal?.aborted) throw error;
+    if (!(error instanceof ApiError) || ![500, 502, 503].includes(error.status) || signal?.aborted) throw error;
     await new Promise((resolve) => globalThis.setTimeout(resolve, 700));
     return request<T>({ method: "GET", path, signal });
   }

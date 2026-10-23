@@ -84,6 +84,13 @@ describe("Anfragen: Parallelität und Wiederholung (B-80)", () => {
     await expect(http.get("/grows")).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
+    const timeout = vi.fn()
+      .mockResolvedValueOnce(Response.json({ error: "ausgelastet", code: "DB_TIMEOUT" }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ ok: 2 }));
+    vi.stubGlobal("fetch", timeout);
+    await expect(http.get("/grows")).resolves.toEqual({ ok: 2 });
+    expect(timeout).toHaveBeenCalledTimes(2);
+
     const denied = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ error: "Feature aus", feature: "marketplace" }, { status: 403 })));
     vi.stubGlobal("fetch", denied);
     await expect(http.get("/offers")).rejects.toMatchObject({ status: 403 });
