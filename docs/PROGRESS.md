@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-79 | Laden hing (Pooler-Sitzungen eingefrorener Instanzen): Verbindung wird nach jeder Anfrage freigegeben, 12-s-Zeitlimit mit 503 `DB_TIMEOUT` | API 255, lokal mit `VERCEL=1` geprüft |
 | B-78 | Ersetzte/verwaiste Bilder werden automatisch gelöscht (Profil beim Ersetzen, Cron-Aufräumlauf nach 24 h) | API 7 neue Tests |
 | B-77 | „Interner Fehler“: Pooler-Sitzungen blockiert (`DB_POOL_MAX=1`, kürzere Leerlaufzeit, Fehlercode in der 500-Antwort) | Ursache in Produktion belegt, API 245 |
 | B-76 | Bilder in Supabase Storage (privater Bucket, signierte Links, `MEDIA_STORAGE=s3`) und Titelbild im Profil | Echter Bucket geprüft, API 245, Vitest 243, E2E Profil 3 |

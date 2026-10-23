@@ -19,6 +19,16 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 - **Tests:** `media-cleanup.integration.test.ts` (7): Avatar ersetzen, Titelbild entfernen und gleiche Werte, Bild an anderer Stelle weiter verwendet, fremde Bilder/externe URLs unberührt, Aufräumlauf (alt/frisch/verwendet), Cron 404/401/200, Schema-Abdeckung.
 - **Grenzen:** Selbst gehostet ohne Scheduler läuft das Aufräumen nur, wenn `/cron/media-cleanup` von außen aufgerufen wird; das Ersetzen funktioniert immer. Beim Löschen eines Beitrags/Chat-Bilds wird das Bild erst vom nächsten Lauf (nach 24 h) entfernt. Konto löschen (B-74) soll alle Bilder sofort entfernen.
 
+### B-79 – Laden hängt / „Zeitlimit der Anfrage erreicht“: Datenbankverbindung nach jeder Anfrage freigeben
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **Befund (Produktion, gemessen):** Anfragen mit Datenbankzugriff (`/api/features`, `/api/forum/threads`) hingen ≥ 20–30 s, `/api/version` (ohne Datenbank) antwortete in 0,2 s. In Supabase standen genau 5 Pooler-Sitzungen, alle „idle“ (Abfragen fertig), und blieben Minuten stehen. Eingefrorene Vercel-Instanzen führen keine Timer aus, `idle_timeout` greift dort nie: Jede Instanz hielt ihre Sitzung fest, bis der Session-Pooler voll war; neue Instanzen warteten auf eine freie Sitzung. Die eigene Abfrage-Schleife des Browsers (Benachrichtigungen, ungelesene Chats) belegt dabei laufend Instanzen.
+- **Änderung:** `apps/api/src/db/client.ts` baut die Verbindung austauschbar auf (`resetDbConnection()`; `db` und `client` bleiben stabile Verweise). `src/server/embedded-api.ts` gibt die Verbindung auf Vercel frei, sobald die letzte laufende Anfrage der Instanz fertig ist, und setzt ein Zeitlimit von 12 s je Anfrage: danach wird die Verbindung hart verworfen und die Antwort ist 503 `{ code: "DB_TIMEOUT" }` (klare Meldung statt Hängen). Self-Host/Docker (keine `VERCEL`-Variable) behalten Pool und `LISTEN`-Verbindung unverändert.
+- **Preis:** Jede Anfrage baut die Verbindung neu auf (Pooler-Anmeldung), geschätzt +50–150 ms; gemessen gegen die echte Produktion nach dem Deploy: siehe Stand.
+- **Tests:** API `db-reset.integration.test.ts` (3: Abfragen nach Zurücksetzen, hartes Zurücksetzen bricht hängende Abfrage ab, Transaktion); gesamt API 255/255. Lokal mit `VERCEL=1` gestartetem Server: 13 Anfragen (davon 10 parallel) → alle 200, danach 0 offene Datenbankverbindungen.
+- **Nicht geprüft:** Das 12-s-Zeitlimit selbst nur per Code-Lesung (kein künstlich hängender Pooler im Test).
+
 ### B-77 – „Interner Fehler“ im Profil: Pooler-Sitzungen blockiert
 
 - **Ursache (belegt):** Der Supabase-Session-Pooler hat ca. 16 Hintergrundverbindungen. Vercel-Instanzen (je `DB_POOL_MAX=3`) halten Sitzungen auch eingefroren weiter fest; waren alle belegt, scheiterten Anfragen, die mehrere Verbindungen brauchen (`GET/PATCH /auth/me`, `/members/…`, Anmeldung), sofort mit 500, einfache Abfragen liefen weiter. Nachweis in Produktion: `/auth/me` 500 bei jedem Aufruf (auch nach 45 s Wartezeit); nach dem Beenden der 16 Pooler-Sitzungen (`pg_terminate_backend`) sofort 6× 200.
