@@ -192,9 +192,12 @@ const growService: GrowService = {
 
 /** Mock-Uploads: blob:-URLs, gültig bis zum Neuladen (kein Server). */
 const mediaService: MediaService = {
-  async upload(image) {
+  async upload(blob, options) {
     await delay(200);
-    return { path: URL.createObjectURL(image) };
+    return { path: URL.createObjectURL(blob), kind: options ? "file" : "image", name: options?.name ?? "", size: blob.size, contentType: blob.type };
+  },
+  async config() {
+    return { maxBytes: 4 * 1024 * 1024, hdAllowed: false };
   },
 };
 
@@ -506,9 +509,9 @@ const chatService: ChatService = {
     const c = seedConversations.find((x) => x.id === conversationId);
     return c ? [...c.messages, ...(chatStore[conversationId] ?? [])] : [...(chatStore[conversationId] ?? [])];
   },
-  async sendMessage(conversationId, text, image) {
+  async sendMessage(conversationId, text, attachments) {
     await delay(140);
-    const msg: ChatMessage = { id: String(Date.now()), from: "me", text, image, time: "jetzt" };
+    const msg: ChatMessage = { id: String(Date.now()), from: "me", text, image: attachments?.find((a) => a.kind === "image")?.path, attachments: attachments ?? [], time: "jetzt" };
     (chatStore[conversationId] ??= []).push(msg);
     return msg;
   },

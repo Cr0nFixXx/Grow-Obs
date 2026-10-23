@@ -35,8 +35,11 @@ describe("mock create flows", () => {
     expect(updated.gallery.at(-1)).toBe("blob:test/photo");
 
     const [conversation] = await svc.chat.listConversations();
-    await svc.chat.sendMessage(conversation.id, "", "blob:test/chat");
-    expect((await svc.chat.getMessages(conversation.id)).at(-1)).toMatchObject({ image: "blob:test/chat", from: "me" });
+    await svc.chat.sendMessage(conversation.id, "", [
+      { path: "blob:test/chat", kind: "image", name: "", size: 1, mime: "image/png" },
+      { path: "blob:test/doc", kind: "file", name: "Plan.pdf", size: 2, mime: "application/pdf" },
+    ]);
+    expect((await svc.chat.getMessages(conversation.id)).at(-1)).toMatchObject({ image: "blob:test/chat", from: "me", attachments: [{ kind: "image" }, { kind: "file", name: "Plan.pdf" }] });
 
     const [strain] = await svc.strains.catalog();
     const before = (await svc.strains.collection()).some((s) => s.id === strain.id);

@@ -203,7 +203,7 @@ describe("API authorization and contracts against PostgreSQL", () => {
     });
     expect((await upload(png)).status).toBe(401);
     expect((await upload(svg, tokens.alice, "image/png")).status).toBe(415); // Header lügt → Magic Bytes entscheiden
-    expect((await upload(new Uint8Array(2 * 1024 * 1024 + 1).fill(0xff), tokens.alice)).status).toBe(413);
+    expect((await upload(new Uint8Array(50 * 1024 * 1024 + 1).fill(0xff), tokens.alice)).status).toBe(413);
     const ok = await upload(png, tokens.alice);
     expect(ok.status).toBe(201);
     const { path } = await ok.json() as { path: string };

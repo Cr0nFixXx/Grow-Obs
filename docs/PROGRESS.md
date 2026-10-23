@@ -11,7 +11,8 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
-| B-80 | Pull-to-Refresh ohne Fehlalarm (deaktivierte Bereiche), Update nur im Modus „Automatisch“, Chat: Emoji öffnet nach oben, Bild-Upload hing nach Pause (Bucket ohne Keep-Alive), max. 4 parallele Anfragen | Vitest 249, API 255 |
+| B-81 | Chat: Bildvorschau wie in Messengern (Vollbild, durch den Chat wischen, Zoom, Speichern), Dateien senden (PDF, Office, TXT, CSV, ZIP), bis zu 10 Anhänge je Nachricht, Bildraster, SD/HD auf eigenem Host, Limit konfigurierbar (4 MB Vercel / 50 MB eigener Host) | Vitest 265, API 268, E2E +2 |
+| B-80 | Pull-to-Refresh ohne Fehlalarm (deaktivierte Bereiche), Update nur im Modus „Automatisch“, Chat: Emoji öffnet nach oben, Bild-Upload hing nach Pause (tote Datenbankverbindung, Wiederholung nach 4 s), max. 4 parallele Anfragen | Vitest 249, API 255 |
 | B-79 | Laden hing (Pooler-Sitzungen eingefrorener Instanzen): Verbindung wird nach jeder Anfrage freigegeben, 12-s-Zeitlimit mit 503 `DB_TIMEOUT` | API 255, lokal mit `VERCEL=1` geprüft |
 | B-78 | Ersetzte/verwaiste Bilder werden automatisch gelöscht (Profil beim Ersetzen, Cron-Aufräumlauf nach 24 h) | API 7 neue Tests |
 | B-77 | „Interner Fehler“: Pooler-Sitzungen blockiert (`DB_POOL_MAX=1`, kürzere Leerlaufzeit, Fehlercode in der 500-Antwort) | Ursache in Produktion belegt, API 245 |

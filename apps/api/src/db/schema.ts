@@ -230,6 +230,8 @@ export const appReleases = pgTable("app_releases", {
 
 /* ----------------------------- Media (0002) ----------------------------- */
 /** Bilder: Bytes in PostgreSQL (`data`, Embedded ohne S3) oder im Object Storage (`storageKey`, B-76). Max. 2 MB je Datei, Quote pro User in der Route. */
+export type MessageAttachment = { path: string; kind: "image" | "file"; name: string; size: number; mime: string };
+
 export const media = pgTable("media", {
   id: uuid("id").primaryKey().defaultRandom(),
   ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -238,6 +240,8 @@ export const media = pgTable("media", {
   data: bytea("data"),
   /** Schlüssel im Bucket (`media/<owner>/<id>`); gesetzt, wenn die Bytes im Object Storage liegen. */
   storageKey: text("storage_key"),
+  /** Ursprünglicher Dateiname (Chat-Dateianhänge, B-81); bei Bildern leer. */
+  fileName: text("file_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -509,6 +513,8 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   /** Bild-Anhang (0002): /media/<id> */
   imageUrl: text("image_url"),
+  /** Anhänge (B-81, 0018): Bilder und Dateien, je `{ path: "/media/<id>", kind, name, size, mime }`; `image_url` hält zusätzlich das erste Bild (Vorschau). */
+  attachments: jsonb("attachments").$type<MessageAttachment[]>().notNull().default([]),
   /** Gruppen (B-65): Thema der Nachricht (Direktnachrichten: leer). */
   topicId: uuid("topic_id"),
   /** `user` = normale Nachricht, `system` = Hinweiszeile („Anna hat Bernd eingeladen“): zählt nicht als ungelesen, löst keinen Push aus. */

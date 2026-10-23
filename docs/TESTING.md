@@ -12,10 +12,10 @@ Last full run: **B-76** for API and frontend (E2E: the profile spec ran in B-76,
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 243 / 243 (40 files) |
+| Frontend unit/component tests | `npm test` | ✅ 265 / 265 (43 files) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 245 / 245 (18 files) |
-| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 47 passed, 1 skipped (desktop 43 incl. the skipped one + mobile 5, ≈ 6.8 min); the skipped test needs a browser that may subscribe to a real push service (see §3) |
+| API integration tests | `npm run test:api` | ✅ 268 / 268 (21 files) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 49 passed, 1 skipped, 1 timing flake (full run B-81, ≈ 8 min; `moderation.spec.ts` first test hit the 45 s limit at 46.8 s in the full run and passed alone in 28.8 s; desktop 45 incl. the skipped one + mobile 5); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
 | Version consistency | `npm run version:check` | ✅ |
@@ -61,7 +61,7 @@ against PostgreSQL) and E2E (Playwright).
 (executes `public/sw-policy.js`: APIs, signed URLs, external media and private/error responses never enter the cache; route list in sync with `routes.ts`),
 auth provider (fail-closed restore, late responses cannot undo logout, marker instead of token, 401 event), `useResource` (last request wins, refresh keeps data),
 feature flags (key parity with the API, malformed overrides), routing (`routes.ts`, `nav.tsx`), realtime transport and context, version/build number,
-update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, community moderation UI, mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
+update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, chat attachments (grid, file cards, gallery, tray, limits, SD/HD), file helpers, community moderation UI, mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
 
 **API integration (`apps/api/tests`, real PostgreSQL via `app.request()`)**
 
@@ -69,6 +69,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 |---|---|
 | `environment.test.ts` | environment validation, production HTTPS rules |
 | `migrations.test.ts` | migration journal consistency (gapless, ascending timestamps, file present) and the SQL content of migrations 0006–0013 |
+| `chat-attachments.integration.test.ts` | chat attachments (B-81): file allow-list by extension and content, size limit, download headers (database and bucket), several attachments per message, foreign/unknown/too many attachments, cleanup keeps attached media, upload limits per host |
 | `security.integration.test.ts` | upload authorization, chat membership, private discovery, invite expiry/hash/parallel redemption, last-admin protection, DB role beats JWT role, admin contracts, registration normalization |
 | `sessions.integration.test.ts` | cookie flags, revocation, expiry, foreign `sid`, device list, CSRF, CORS credentials |
 | `password.integration.test.ts` | password change (other sessions ended, wrong password 403), login history without IP (90 days), device limit 5 |
@@ -95,6 +96,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `realtime.spec.ts` | chat live (WebSocket), SSE fallback, forum comments and bell live |
 | `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
 | `push.spec.ts` | push settings card: categories, preview, quiet hours persist across reload; enabling a device only runs where the browser may subscribe (otherwise skipped) |
+| `chat-attachments.spec.ts` | chat attachments with two users: several images + PDF, preview with paging and save link, file download headers, rejected `.exe`, receiver live; phone view |
 | `groups.spec.ts` | group chat with two users: create, invite, accept, topic, message with sender and unread counter, admins-only lock – live |
 | `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow; viewport/translate meta; list and open chat fit 360×600, 393×727, 740×360 (no page scroll, composer visible); `user-select`; no overflow at 360 px on settings/simulation/telegram, page titles, inputs ≥ 16 px |
 

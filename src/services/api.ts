@@ -37,6 +37,7 @@ import type {
   ItemComment,
   VoteResult,
   MediaUpload,
+  UploadConfig,
   GrowService,
   HallService,
   NotificationItem,
@@ -81,7 +82,8 @@ const strainService: StrainService = {
 
 /** Bilder in PostgreSQL (apps/api/src/routes/media.ts). */
 const mediaService: MediaService = {
-  upload: (image) => http.upload<MediaUpload>("/media", image),
+  upload: (blob, options) => http.upload<MediaUpload>(options ? `/media?kind=file&name=${encodeURIComponent(options.name)}` : "/media", blob),
+  config: () => http.get<UploadConfig>("/media/config"),
 };
 
 const commentPath = (kind: CommentKind, id: string) => (kind === "post" ? `/social/posts/${id}/comments` : `/hall/${id}/comments`);
@@ -131,7 +133,7 @@ const forumService: ForumService = {
 const chatService: ChatService = {
   listConversations: () => http.get<ConversationItem[]>("/chat"),
   getMessages: (id, topicId) => http.get<ChatMessage[]>(`/chat/${id}/messages${topicId ? `?topicId=${topicId}` : ""}`),
-  sendMessage: (id, text, image, topicId) => http.post<ChatMessage>(`/chat/${id}/messages`, { text, ...(image ? { image } : {}), ...(topicId ? { topicId } : {}) }),
+  sendMessage: (id, text, attachments, topicId) => http.post<ChatMessage>(`/chat/${id}/messages`, { text, ...(attachments?.length ? { attachments: attachments.map((a) => a.path) } : {}), ...(topicId ? { topicId } : {}) }),
   startDirect: (userId) => http.post<ConversationItem>("/chat", { userId }),
   markRead: async (id, topicId) => { await http.post<void>(`/chat/${id}/read`, topicId ? { topicId } : {}); },
   unreadTotal: async () => (await http.get<{ total: number }>("/chat/unread")).total,

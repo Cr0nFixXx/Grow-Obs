@@ -17,7 +17,7 @@ const requestHandler = {
   httpAgent: new HttpAgent({ keepAlive: false }),
   httpsAgent: new HttpsAgent({ keepAlive: false }),
   connectionTimeout: 3000,
-  requestTimeout: 6000,
+  requestTimeout: process.env.VERCEL ? 6000 : 30_000,
 };
 
 function client(endpoint: string, extra: { maxAttempts?: number } = {}) {
@@ -62,7 +62,7 @@ export async function putObject(key: string, bytes: Uint8Array, contentType: str
   if (!objectClient) throw new Error("storage not configured");
   await objectClient.send(
     new PutObjectCommand({ Bucket: env.S3_BUCKET, Key: key, Body: bytes, ContentType: contentType, ContentLength: bytes.length, CacheControl: "private, max-age=86400" }),
-    { abortSignal: AbortSignal.timeout(9_000) }, // beide Versuche zusammen; die Anfrage insgesamt endet nach 12 s
+    { abortSignal: AbortSignal.timeout(process.env.VERCEL ? 9_000 : 120_000) }, // Vercel: beide Versuche zusammen, die Anfrage insgesamt endet nach 12 s; eigener Host: große Dateien (bis 50 MB)
   );
 }
 
@@ -72,7 +72,11 @@ export async function deleteObject(key: string): Promise<void> {
 }
 
 /** Kurzlebiger, signierter Lese-Link (Bucket bleibt privat). Signiert mit dem vom Browser erreichbaren Origin. */
-export async function signedGetUrl(key: string, expiresIn = 3600): Promise<string> {
+export async function signedGetUrl(key: string, expiresIn = 3600, response: { disposition?: string; contentType?: string } = {}): Promise<string> {
   if (!uploadClient) throw new HTTPException(503, { message: "Object Storage nicht konfiguriert" });
-  return getSignedUrl(uploadClient, new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key }), { expiresIn });
+  return getSignedUrl(uploadClient, new GetObjectCommand({
+    Bucket: env.S3_BUCKET, Key: key,
+    ...(response.disposition ? { ResponseContentDisposition: response.disposition } : {}),
+    ...(response.contentType ? { ResponseContentType: response.contentType } : {}),
+  }), { expiresIn });
 }

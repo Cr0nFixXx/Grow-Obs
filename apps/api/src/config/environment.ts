@@ -28,6 +28,10 @@ export const environmentSchema = z.object({
    * S3_*-Zugangsdaten). Bewusst kein Automatismus: Zugangsdaten allein ändern nie, wo Bilder landen.
    */
   MEDIA_STORAGE: z.enum(["database", "s3"]).default("database"),
+  /** Größtes Upload-Objekt in MB (Bild oder Datei). Standard: 4 auf Vercel (Plattformgrenze ca. 4,5 MB je Anfrage), sonst 50. */
+  UPLOAD_MAX_MB: z.coerce.number().min(0.1).max(500).optional(),
+  /** Speicherkontingent je Nutzer in MB. Standard: 100 auf Vercel/Supabase (kleiner Speicher), sonst 1000. */
+  MEDIA_QUOTA_MB: z.coerce.number().min(1).max(100000).optional(),
   S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/).default("growobserver"),
   /**
    * SameSite des Sitzungs-Cookies. `lax` (Standard) ist richtig für same-origin/same-site-Betrieb.

@@ -80,6 +80,7 @@ Schema und Regeln: `src/config/environment.ts`. Vorlage: `.env.example`.
 | `COOKIE_SAMESITE` | `lax` (Standard) oder `none` (nur iframe-Einbettung; erzwingt `Secure` + `Partitioned`) |
 | `ALLOW_HEADER_SESSION` | `true` nur für Proxys, die Cookie/Authorization verschlucken (Sandbox-Vorschau); **nie in Produktion** |
 | `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` | Objektspeicher (Standalone Pflicht, eingebettet optional) |
+| `UPLOAD_MAX_MB`, `MEDIA_QUOTA_MB` | Größtes Upload-Objekt (Bild oder Datei) und Speicherkontingent je Nutzer in MB. Standard: auf Vercel 4 (hart max. 4,4, Plattformgrenze) bzw. 100, sonst 50 bzw. 1000. `GET /media/config` meldet die Grenzen der Oberfläche |
 | `MEDIA_STORAGE` | `database` (Standard) oder `s3`: wo `POST /media` die Bilder ablegt. `s3` braucht `S3_*`; `GET /media/:id` leitet dann auf einen signierten Link (1 h) um, der Bucket bleibt privat. Zugangsdaten allein schalten nie um |
 | `API_EMBEDDED` | `true` im eingebetteten Betrieb: S3 optional, CORS-HTTPS-Regel entfällt |
 | `TRUST_PROXY`, `RATE_LIMIT_DISABLED` | Rate-Limit: `TRUST_PROXY=false` ignoriert `X-Forwarded-For`; `RATE_LIMIT_DISABLED=true` schaltet ab (nur E2E) |
@@ -182,7 +183,8 @@ für S3 sind noch offen. Bilder über `/media` (unten) liegen dagegen in Postgre
 | GET `/hall/:id/comments`, POST `/hall/:id/comments` | Lesen öffentlich, Schreiben Auth |
 | GET `/me/activity` | Auth, eigene Aktivität |
 | POST `/media` | Auth; roher Body, JPEG/PNG/WebP (Format per Magic Bytes), ≤ 2 MB, Quote 200 Bilder/100 MB je Nutzer → `{ path: "/media/<id>" }` |
-| GET `/media/:id`, DELETE `/media/:id` | Bild ausliefern (öffentlich über nicht erratbare UUID; bei `MEDIA_STORAGE=s3` Weiterleitung auf einen signierten Link) / löschen (nur Eigentümer, entfernt auch das Objekt) |
+| POST `/media` (`?kind=file&name=…` für Dokumente), GET `/media/config` | Roher Upload: Bild (JPEG/PNG/WebP) oder – nur mit `kind=file` – Datei der Positivliste (PDF, Office, TXT, CSV, ZIP; Prüfung nach Endung und Inhalt) / Upload-Grenzen |
+| GET `/media/:id`, DELETE `/media/:id` | Bild ausliefern (Dateien und `?download=1` immer als Download) (öffentlich über nicht erratbare UUID; bei `MEDIA_STORAGE=s3` Weiterleitung auf einen signierten Link) / löschen (nur Eigentümer, entfernt auch das Objekt) |
 | GET `/notifications`, POST `/notifications/:id/read`, POST `/notifications/read-all` | Auth, nur eigene |
 
 ### Chat und Echtzeit

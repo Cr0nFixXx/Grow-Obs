@@ -3,7 +3,7 @@ import { useServices } from "./DataContext";
 import { useResource } from "./useResource";
 import { useRealtime, useRealtimeEvent, useRealtimeTopic } from "@/lib/realtime-context";
 import { resolveTopic } from "@/lib/chat-groups";
-import type { CreateGroupInput, TopicInput, TopicPatch } from "@/services/interfaces";
+import type { ChatAttachment, CreateGroupInput, TopicInput, TopicPatch } from "@/services/interfaces";
 
 /**
  * Invalidierung über Hook-Instanzen hinweg (z. B. Glocke, Drawer-Badge und Benachrichtigungsseite
@@ -348,10 +348,10 @@ export function useChat() {
   useEffect(() => { const timers = typingTimers.current; return () => { for (const t of timers.values()) clearTimeout(t); timers.clear(); }; }, []);
 
   const send = useCallback(
-    async (text: string, image?: string) => {
+    async (text: string, attachments?: ChatAttachment[]) => {
       if (!activeId) return;
       const topicId = activeTopicRef.current;
-      await (topicId ? svc.chat.sendMessage(activeId, text, image, topicId) : svc.chat.sendMessage(activeId, text, image));
+      await (topicId ? svc.chat.sendMessage(activeId, text, attachments, topicId) : svc.chat.sendMessage(activeId, text, attachments));
       await Promise.all([refreshMessages(), refreshList(), refreshGroup()]);
     },
     [svc, activeId, refreshMessages, refreshList, refreshGroup]

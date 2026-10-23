@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Paperclip, Send, Users } from "lucide-react";
+import { ArrowLeft, Send, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Avatar, Button, Card, EmptyState, PageHeader, SearchInput, SkeletonCard, SmartImage } from "@/components/ui";
+import { Avatar, Button, Card, EmptyState, PageHeader, SearchInput, SkeletonCard, SwipeLightbox } from "@/components/ui";
 import { NewChatModal } from "@/components/NewChat";
 import { NewGroupModal } from "@/components/NewGroup";
 import { GroupInfoModal, type GroupTab } from "@/components/GroupInfo";
@@ -14,7 +14,9 @@ import { config } from "@/lib/config";
 import { sendErrorText } from "@/lib/chat-errors";
 import { copyText } from "@/lib/clipboard";
 import { useMediaQuery } from "@/lib/hooks";
-import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media";
+import { EmojiPicker, insertAtCursor } from "@/components/media";
+import { AttachMenu, MessageAttachments, PendingTray, chatGallery, messageAttachments, useAttachmentTray } from "@/components/chat-attachments";
+import type { ChatAttachment } from "@/services/interfaces";
 import { useToast } from "@/components/Toast";
 import { useNav } from "@/lib/nav";
 import { useChat } from "@/data/hooks";
@@ -31,7 +33,9 @@ export default function Chat() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   // Letzter fehlgeschlagener Sendeversuch: bleibt sichtbar, bis erneut gesendet, verworfen oder die Unterhaltung gewechselt wird.
-  const [failed, setFailed] = useState<{ body: string; image?: string; reason: string } | null>(null);
+  const [failed, setFailed] = useState<{ body: string; attachments: ChatAttachment[]; reason: string } | null>(null);
+  const tray = useAttachmentTray();
+  const [lightbox, setLightbox] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   // Telefon/Tablet: geöffnete Unterhaltung füllt den Bildschirm (wie ein Messenger), die Seite scrollt nicht mit.
@@ -45,27 +49,37 @@ export default function Chat() {
     else el.scrollTop = el.scrollHeight;
   }, [messages, typing, activeId]);
 
-  const deliver = async (body: string, image?: string) => {
+  const deliver = async (body: string, attachments: ChatAttachment[] = []) => {
     setSending(true);
     try {
-      await send(body, image);
+      await send(body, attachments);
       setFailed(null);
-      if (!image) setText((cur) => (cur.trim() === body ? "" : cur));
+      setText((cur) => (cur.trim() === body ? "" : cur));
+      tray.clearSent();
     } catch (error) {
-      setFailed({ body, image, reason: sendErrorText(error) });
+      setFailed({ body, attachments, reason: sendErrorText(error) });
     } finally {
       setSending(false);
     }
   };
-  useEffect(() => { setFailed(null); }, [activeId, activeTopic?.id]);
+  useEffect(() => { setFailed(null); tray.reset(); setLightbox(null); }, [activeId, activeTopic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const copyMessage = async (value: string) => {
     const ok = await copyText(value);
     toast.push(ok ? { title: "Nachricht kopiert", tone: "leaf", icon: "Check" } : { title: "Kopieren nicht möglich", tone: "danger", icon: "AlertTriangle" });
   };
   const handleSend = () => {
-    if (!text.trim() || sending) return;
-    void deliver(text.trim());
+    if (sending || tray.busy || (!text.trim() && !tray.ready.length)) return;
+    void deliver(text.trim(), tray.ready);
   };
+  // Einfügen (Strg+V) und Ziehen von Dateien in den Chat: Bilder als Foto, alles andere als Datei.
+  const addDropped = (list: FileList | File[] | null | undefined) => {
+    const all = Array.from(list ?? []);
+    const images = all.filter((f) => f.type.startsWith("image/"));
+    const others = all.filter((f) => !f.type.startsWith("image/"));
+    if (images.length) tray.add(images, "image");
+    if (others.length) tray.add(others, "file");
+  };
+  const gallery = useMemo(() => chatGallery(messages, (m) => (m.from === "me" ? "Du" : m.senderName || conversations.find((c) => c.id === activeId)?.name || "Unbekannt")), [messages, conversations, activeId]);
   const liveLabel = live === "ws" || live === "sse" ? "Live" : live === "polling" ? "Aktualisiert regelmäßig" : live === "connecting" ? "Verbindet …" : "Offline";
   const addEmoji = (emoji: string) => {
     const { next, caret } = insertAtCursor(inputRef.current, text, emoji);
@@ -82,6 +96,7 @@ export default function Chat() {
 
   const modals = (
     <>
+      <SwipeLightbox open={lightbox !== null} images={gallery.images} index={lightbox ?? 0} onIndexChange={setLightbox} onClose={() => setLightbox(null)} />
       <NewGroupModal open={newGroup} onClose={() => setNewGroup(false)} onCreate={async (input) => {
         const created = await groupActions.create(input);
         toast.push({ title: `Gruppe „${created.name}“ erstellt`, desc: inviteSummary({ invited: created.invites.map((i) => i.userId), skipped: created.skipped }), tone: "leaf", icon: "CheckCircle2" });
@@ -109,7 +124,7 @@ export default function Chat() {
               </div>
               {conv.isGroup && group && <TopicBar topics={group.topics} activeId={activeTopic?.id ?? null} onSelect={selectTopic} onManage={() => setInfo("topics")} />}
 
-              <div ref={logRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:p-4" role="log" aria-live="polite" aria-label="Chat-Verlauf">
+              <div ref={logRef} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files") && !blockReason) e.preventDefault(); }} onDrop={(e) => { if (blockReason || !e.dataTransfer.files.length) return; e.preventDefault(); addDropped(e.dataTransfer.files); }} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:p-4" role="log" aria-live="polite" aria-label="Chat-Verlauf">
                 {msgLoading && <SkeletonCard />}
                 {conv.isGroup && !msgLoading && messages.length === 0 && <p className="py-6 text-center text-sm text-fg-subtle">In diesem Thema ist noch nichts geschrieben.</p>}
                 {messages.map((m, index) => m.kind === "system" ? (
@@ -118,7 +133,7 @@ export default function Chat() {
                   <div key={m.id} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
                     <div className={cn("group max-w-[78%] rounded-2xl px-3.5 py-2 text-sm [overflow-wrap:anywhere]", m.from === "me" ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-2 text-fg")}>
                       {conv.isGroup && showSenderName(messages, index) && <div data-testid="sender-name" className="mb-0.5 text-xs font-semibold text-accent">{m.senderName || "Unbekannt"}</div>}
-                      {m.image && <SmartImage src={m.image} alt="Bild-Anhang" className={cn("-mx-1.5 mb-1 aspect-[4/3] w-56 max-w-full rounded-xl", m.text ? "" : "-mt-0.5")} />}
+                      <MessageAttachments attachments={messageAttachments(m)} mine={m.from === "me"} hasText={!!m.text} onOpenImage={(i) => setLightbox((gallery.firstIndex.get(m.id) ?? 0) + i)} />
                       {m.text}
                       <div className={cn("mt-0.5 flex items-center justify-between gap-3 text-[10px]", m.from === "me" ? "text-accent-fg/70" : "text-fg-subtle")}>
                         <span>{m.time}</span>
@@ -152,24 +167,26 @@ export default function Chat() {
                     <div className="font-medium">Nicht gesendet</div>
                     <div className="text-xs [overflow-wrap:anywhere]">{failed.reason}</div>
                     <div className="mt-1.5 flex gap-2">
-                      <Button size="sm" variant="secondary" disabled={sending} onClick={() => void deliver(failed.body, failed.image)}>Erneut senden</Button>
+                      <Button size="sm" variant="secondary" disabled={sending} onClick={() => void deliver(failed.body, failed.attachments)}>Erneut senden</Button>
                       <Button size="sm" variant="ghost" onClick={() => setFailed(null)}>Verwerfen</Button>
                     </div>
                   </div>
                 </div>
               )}
-              <div className="flex shrink-0 items-center gap-2 border-t border-border p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:pb-3">
-                <ImagePickButton onUploaded={(path) => deliver(text.trim(), path)} disabled={sending} label="Bild senden" className="grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted hover:bg-surface-2"><Paperclip className="size-5" /></ImagePickButton>
+              <PendingTray tray={tray} />
+              <div className={cn("flex shrink-0 items-center gap-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:pb-3", !tray.items.length && "border-t border-border")}>
+                <AttachMenu tray={tray} disabled={sending} />
                 <input
                   ref={inputRef}
                   value={text}
                   onChange={(e) => { setText(e.target.value); if (e.target.value.trim()) notifyTyping(); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Nachricht schreiben…"
+                  onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); addDropped(e.clipboardData.files); } }}
+                  placeholder={tray.items.length ? "Beschriftung hinzufügen …" : "Nachricht schreiben…"}
                   className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-surface-2 px-4 text-base outline-none focus:border-accent sm:text-sm"
                 />
                 <EmojiPicker onPick={addEmoji} side="top" align="end" />
-                <button onClick={handleSend} disabled={sending || !text.trim()} className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-50" aria-label="Senden"><Send className="size-5" /></button>
+                <button onClick={handleSend} disabled={sending || tray.busy || (!text.trim() && !tray.ready.length)} className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-50" aria-label="Senden"><Send className="size-5" /></button>
               </div>
               </>
               )}

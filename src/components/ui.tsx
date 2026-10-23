@@ -1009,6 +1009,8 @@ export interface LightboxImage {
   src: string;
   alt: string;
   caption?: ReactNode;
+  /** Optional: Schaltfläche „Speichern“ (Link zum Herunterladen). */
+  download?: { href: string; name?: string };
 }
 
 /**
@@ -1087,6 +1089,11 @@ export function SwipeLightbox({
           <div className="relative z-10 flex items-center justify-between gap-3 px-3 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:px-5">
             <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-medium tnum backdrop-blur">{safeIndex + 1} / {images.length}</span>
             <div className="flex items-center gap-1">
+              {current.download && (
+                <a href={current.download.href} download={current.download.name || true} className="grid size-11 place-items-center rounded-full text-white/85 transition hover:bg-white/10" aria-label="Bild speichern" title="Bild speichern">
+                  <Icon name="Download" size={20} />
+                </a>
+              )}
               <button onClick={() => setZoomed((z) => !z)} className="grid size-11 place-items-center rounded-full text-white/85 transition hover:bg-white/10" aria-label={zoomed ? "Zoom zurücksetzen" : "Vergrößern"}>
                 <Icon name={zoomed ? "ZoomOut" : "ZoomIn"} size={20} />
               </button>

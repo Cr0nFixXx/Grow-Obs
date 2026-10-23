@@ -8,6 +8,17 @@ import { ACCEPTED_IMAGE_TYPES, prepareImage } from "@/lib/media";
 import { ApiError } from "@/lib/api";
 import { sendErrorText } from "@/lib/chat-errors";
 
+/** Hochladen mit einem zweiten Versuch bei kurzen Serverfehlern (z. B. Datenbank kurz ausgelastet), bevor eine Meldung erscheint. */
+export async function uploadWithRetry(svc: ReturnType<typeof useServices>, blob: Blob, options?: { kind: "file"; name: string }) {
+  try {
+    return await svc.media.upload(blob, options);
+  } catch (error) {
+    if (!(error instanceof ApiError) || ![500, 502, 503].includes(error.status)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    return svc.media.upload(blob, options);
+  }
+}
+
 /** Verkleinern + hochladen; liefert die speicherbare Referenz (`/media/<id>` bzw. blob:-URL). */
 export function useImageUpload() {
   const svc = useServices();
@@ -17,14 +28,7 @@ export function useImageUpload() {
     setBusy(true);
     try {
       const prepared = await prepareImage(file);
-      try {
-        return (await svc.media.upload(prepared)).path;
-      } catch (error) {
-        // Kurzer Serverfehler (z. B. Datenbank kurz ausgelastet): einmal erneut versuchen, bevor eine Meldung erscheint.
-        if (!(error instanceof ApiError) || ![500, 502, 503].includes(error.status)) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        return (await svc.media.upload(prepared)).path;
-      }
+      return (await uploadWithRetry(svc, prepared)).path;
     } catch (error) {
       toast.push({ title: "Upload fehlgeschlagen", desc: sendErrorText(error), tone: "danger", icon: "AlertTriangle" });
       return null;

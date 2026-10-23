@@ -127,6 +127,13 @@
       "when": 1791600000000,
       "tag": "0017_media_storage_cover",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791700000000,
+      "tag": "0018_chat_attachments",
+      "breakpoints": true
     }
   ]
 }

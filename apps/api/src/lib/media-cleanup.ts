@@ -10,7 +10,7 @@ import { deleteObject } from "./s3.ts";
 export const MEDIA_REFERENCES = [
   ["users", "avatar_url"], ["users", "cover_url"], ["breeders", "avatar_url"],
   ["hall_entries", "avatar_url"], ["hall_entries", "image_url"], ["grows", "cover_url"], ["grow_photos", "url"],
-  ["posts", "image_url"], ["conversations", "avatar_url"], ["messages", "image_url"],
+  ["posts", "image_url"], ["conversations", "avatar_url"], ["messages", "image_url"], ["messages", "attachments"],
 ] as const;
 
 /** Karenzzeit: frisch hochgeladene Bilder (noch nicht gespeichert, z. B. offener Dialog) werden nie als Waisen entfernt. */
@@ -18,7 +18,7 @@ export const ORPHAN_GRACE_HOURS = 24;
 
 const usedBy = (idExpr: ReturnType<typeof sql>) =>
   sql.join(MEDIA_REFERENCES.map(([table, column]) =>
-    sql`exists (select 1 from ${sql.identifier(table)} where position('/media/' || ${idExpr} in ${sql.identifier(column)}) > 0)`), sql` or `);
+    sql`exists (select 1 from ${sql.identifier(table)} where position('/media/' || ${idExpr} in ${sql.identifier(column)}::text) > 0)`), sql` or `);
 
 async function removeObjects(keys: (string | null)[]): Promise<void> {
   for (const key of keys) {

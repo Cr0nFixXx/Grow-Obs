@@ -138,7 +138,7 @@ describe("Verwaiste Bilder (B-78)", () => {
     for (const value of Object.values(schema)) {
       if (!is(value, PgTable)) continue;
       const cfg = getTableConfig(value);
-      for (const col of cfg.columns) if (/(avatar_url|cover_url|image_url)$/.test(col.name) || (cfg.name === "grow_photos" && col.name === "url")) found.add(`${cfg.name}.${col.name}`);
+      for (const col of cfg.columns) if (/(avatar_url|cover_url|image_url)$/.test(col.name) || (cfg.name === "grow_photos" && col.name === "url") || (cfg.name === "messages" && col.name === "attachments")) found.add(`${cfg.name}.${col.name}`);
     }
     expect([...found].sort()).toEqual(MEDIA_REFERENCES.map(([t, c]) => `${t}.${c}`).sort());
   });

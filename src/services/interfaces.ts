@@ -57,12 +57,23 @@ export interface CommentService {
   add(kind: CommentKind, itemId: string, text: string): Promise<ItemComment>;
 }
 
+/** Anhang einer Chat-Nachricht (B-81): Bild oder Datei; `path` ist `/media/<id>` (API) bzw. blob:-URL (Mock). */
+export interface ChatAttachment {
+  path: string;
+  kind: "image" | "file";
+  name: string;
+  size: number;
+  mime: string;
+}
+
 export interface ChatMessage {
   id: string;
   from: "me" | "them";
   text: string;
-  /** Bild-Anhang: `/media/<id>` (API) bzw. blob:-URL (Mock). */
+  /** Erstes Bild (ältere Nachrichten, Vorschau); neue Oberfläche liest `attachments`. */
   image?: string;
+  /** Bilder und Dateien (B-81). Ältere Nachrichten mit nur `image` liefert die API als einzelnes Bild. */
+  attachments?: ChatAttachment[];
   time: string;
   /** ISO-Zeitpunkt (API); der Mock liefert ihn nicht. */
   createdAt?: string;
@@ -195,7 +206,7 @@ export interface ChatService {
   listConversations(): Promise<ConversationItem[]>;
   /** Gruppen: `topicId` wählt das Thema (ohne Angabe: „Allgemein“). */
   getMessages(conversationId: string, topicId?: string): Promise<ChatMessage[]>;
-  sendMessage(conversationId: string, text: string, image?: string, topicId?: string): Promise<ChatMessage>;
+  sendMessage(conversationId: string, text: string, attachments?: ChatAttachment[], topicId?: string): Promise<ChatMessage>;
   /** Direktnachricht mit einer Person starten bzw. die bestehende öffnen. */
   startDirect(userId: string): Promise<ConversationItem>;
   /** Alles bis jetzt als gelesen markieren (Gruppen: ein Thema, ohne Angabe alle sichtbaren). */
@@ -271,10 +282,22 @@ export interface StrainService {
 export interface MediaUpload {
   /** Referenz zum Speichern (`/media/<id>` bzw. blob:-URL im Mock). */
   path: string;
+  kind?: "image" | "file";
+  name?: string;
+  size?: number;
+  contentType?: string;
+}
+
+/** Grenzen des Servers: größtes Objekt in Bytes (Vercel ca. 4 MB, eigener Host bis 50 MB) und ob „HD“-Bilder angeboten werden. */
+export interface UploadConfig {
+  maxBytes: number;
+  hdAllowed: boolean;
 }
 
 export interface MediaService {
-  upload(image: Blob): Promise<MediaUpload>;
+  /** Bild (ohne `options`) oder Datei (`kind: "file"` mit Dateiname, nur Chat-Anhänge). */
+  upload(blob: Blob, options?: { kind: "file"; name: string }): Promise<MediaUpload>;
+  config(): Promise<UploadConfig>;
 }
 
 export interface ProfileUpdate {

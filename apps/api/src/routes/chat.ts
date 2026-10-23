@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { imageRef } from "../lib/media-ref.ts";
+import { MEDIA_PATH, imageRef } from "../lib/media-ref.ts";
 import { db } from "../db/client.ts";
-import { conversationMembers, conversations, messages, topicUserState, users } from "../db/schema.ts";
+import { conversationMembers, conversations, media, messages, topicUserState, users, type MessageAttachment } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { ago } from "../lib/time.ts";
@@ -37,8 +37,8 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
   const members = await db.select({ conversationId: conversationMembers.conversationId, id: users.id, name: users.name, handle: users.handle, avatar: users.avatarUrl })
     .from(conversationMembers).innerJoin(users, eq(users.id, conversationMembers.userId)).where(inArray(conversationMembers.conversationId, ids));
   // Letzte sichtbare Nachricht: in Gruppen nur ab Beitritt (außer Verlauf offen) und nur aus Themen, die der Nutzer sehen darf.
-  const lastRows = await db.execute<{ conversation_id: string; text: string; image_url: string | null; created_at: Date; kind: string; sender_id: string | null; sender_name: string | null }>(sql`
-    SELECT DISTINCT ON (m.conversation_id) m.conversation_id, m.text, m.image_url, m.created_at, m.kind, m.sender_id, u.name AS sender_name
+  const lastRows = await db.execute<{ conversation_id: string; text: string; image_url: string | null; attachments: MessageAttachment[] | null; created_at: Date; kind: string; sender_id: string | null; sender_name: string | null }>(sql`
+    SELECT DISTINCT ON (m.conversation_id) m.conversation_id, m.text, m.image_url, m.attachments, m.created_at, m.kind, m.sender_id, u.name AS sender_name
     FROM messages m
     JOIN conversations c ON c.id = m.conversation_id
     JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ${userId}
@@ -92,9 +92,20 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
   return rows.slice(0, opts.limit ?? 200).map((r) => r.dto);
 }
 
+/** Kurztext für Nachrichten ohne Text: „📷 Bild“, „📷 3 Bilder“, „📎 Datei.pdf“, „📎 2 Dateien“. */
+export function attachmentLabel(attachments: MessageAttachment[], imageUrl: string | null): string {
+  const list = attachments.length ? attachments : imageUrl ? [{ kind: "image" as const, name: "" }] : [];
+  const images = list.filter((a) => a.kind === "image").length;
+  const files = list.filter((a) => a.kind === "file");
+  if (!list.length) return "";
+  if (!files.length) return images === 1 ? "📷 Bild" : `📷 ${images} Bilder`;
+  if (!images) return files.length === 1 ? `📎 ${files[0]!.name || "Datei"}` : `📎 ${files.length} Dateien`;
+  return `📎 ${list.length} Anhänge`;
+}
+
 /** Vorschauzeile der Konversationsliste; in Gruppen mit Absender („Anna: Hallo“), Hinweiszeilen ohne Präfix. */
-function lastPreview(m: { text: string; image_url: string | null; kind: string; sender_id: string | null; sender_name: string | null }, isGroup: boolean, userId: string): string {
-  const text = m.text || (m.image_url ? "📷 Bild" : "");
+function lastPreview(m: { text: string; image_url: string | null; attachments: MessageAttachment[] | null; kind: string; sender_id: string | null; sender_name: string | null }, isGroup: boolean, userId: string): string {
+  const text = m.text || attachmentLabel(m.attachments ?? [], m.image_url);
   if (!isGroup || m.kind === "system") return text;
   const who = m.sender_id === userId ? "Du" : (m.sender_name ?? "").split(" ")[0] || "Jemand";
   return `${who}: ${text}`;
@@ -146,8 +157,10 @@ chat.post("/", rateLimit({ name: "chat-start", limit: 30, windowMs: 10 * 60_000,
 
 /** Nachricht für die Oberfläche; `senderName` zeigt die Gruppenansicht, `kind: "system"` sind Hinweiszeilen. */
 function messageDto(m: typeof messages.$inferSelect, userId: string, senderName: string | null, now = false) {
+  // Ältere Nachrichten haben nur `image_url`: als einzelnes Bild-Anhang ausgeben.
+  const attachments: MessageAttachment[] = m.attachments.length ? m.attachments : m.imageUrl ? [{ path: m.imageUrl, kind: "image", name: "", size: 0, mime: "" }] : [];
   return {
-    id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined,
+    id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined, attachments,
     time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
     senderId: m.senderId, senderName: senderName ?? "", kind: m.kind === "system" ? "system" : "user", topicId: m.topicId,
   };
@@ -175,10 +188,28 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
   const id = uuid(c.req.param("id"));
   const userId = c.get("userId");
   const access = await requireAccess(id, userId);
-  const body = z.object({ text: z.string().trim().max(10000).default(""), image: imageRef.optional(), topicId: z.string().uuid().optional() })
-    .refine((v) => v.text.length > 0 || !!v.image, "Text oder Bild erforderlich")
+  const body = z.object({
+    text: z.string().trim().max(10000).default(""),
+    image: imageRef.optional(),
+    /** Eigene Uploads (`/media/<id>`), höchstens 10; Art, Name und Größe stammen aus der Datenbank, nicht vom Client. */
+    attachments: z.array(z.string().regex(MEDIA_PATH)).max(10).optional(),
+    topicId: z.string().uuid().optional(),
+  })
+    .refine((v) => v.text.length > 0 || !!v.image || !!v.attachments?.length, "Text oder Anhang erforderlich")
     .safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
+  const paths = [...new Set(body.data.attachments ?? [])];
+  let attachments: MessageAttachment[] = [];
+  if (paths.length) {
+    const rows = await db.select({ id: media.id, contentType: media.contentType, size: media.size, fileName: media.fileName })
+      .from(media).where(and(inArray(media.id, paths.map((p) => p.slice("/media/".length))), eq(media.ownerId, userId)));
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    attachments = paths.flatMap((path) => {
+      const row = byId.get(path.slice("/media/".length));
+      return row ? [{ path, kind: row.contentType.startsWith("image/") ? "image" as const : "file" as const, name: row.fileName ?? "", size: row.size, mime: row.contentType }] : [];
+    });
+    if (attachments.length !== paths.length) return c.json({ error: "Ein Anhang wurde nicht gefunden – bitte erneut hochladen" }, 400);
+  }
   let topic = null;
   if (access.cv.isGroup) {
     topic = body.data.topicId ? await requireTopic(id, body.data.topicId, access) : await defaultTopic(id);
@@ -186,7 +217,7 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
   }
   const [m] = await db
     .insert(messages)
-    .values({ conversationId: id, senderId: userId, text: body.data.text, imageUrl: body.data.image ?? null, topicId: topic?.id ?? null })
+    .values({ conversationId: id, senderId: userId, text: body.data.text, imageUrl: body.data.image ?? attachments.find((a) => a.kind === "image")?.path ?? null, attachments, topicId: topic?.id ?? null })
     .returning();
   // Wer schreibt, hat den Chat bzw. das Thema gelesen (eigene Nachricht erhöht nie den eigenen Zähler).
   if (topic) {
@@ -197,7 +228,7 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
   const audience = topic ? await topicAudience(access, topic) : access.memberIds;
   await publish({ users: audience }, { type: "chat.message", conversationId: id, ...(topic ? { topicId: topic.id } : {}), messageId: m!.id, senderId: userId });
   const group = topic ? { name: access.cv.name, topicId: topic.id, muted: await mutedUsers(topic.id) } : undefined;
-  void pushChatMessage({ members: audience, senderId: userId, conversationId: id, text: m!.text, hasImage: !!m!.imageUrl, group }).catch(() => undefined);
+  void pushChatMessage({ members: audience, senderId: userId, conversationId: id, text: m!.text, hasImage: !!m!.imageUrl, hasFile: attachments.some((a) => a.kind === "file"), group }).catch(() => undefined);
   return c.json(messageDto(m!, userId, null, true), 201);
 });
 
