@@ -40,3 +40,14 @@ describe("what's new + preferences", () => {
     expect(updateAction("manual", { visible: false, justStarted: true })).toBe("badge");
   });
 });
+
+describe("Pull-to-Refresh und Updates (B-80)", () => {
+  it("installiert nur im Modus „Automatisch“ ohne Rückfrage", async () => {
+    const { pullRefreshUpdate } = await import("./update-logic");
+    expect(pullRefreshUpdate("auto", true)).toBe("apply");
+    expect(pullRefreshUpdate("prompt", true)).toBe("notice");
+    expect(pullRefreshUpdate("manual", true)).toBe("notice");
+    expect(pullRefreshUpdate("auto", false)).toBe("none");
+    expect(pullRefreshUpdate("prompt", false)).toBe("none");
+  });
+});

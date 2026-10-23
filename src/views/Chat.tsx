@@ -168,7 +168,7 @@ export default function Chat() {
                   placeholder="Nachricht schreiben…"
                   className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-surface-2 px-4 text-base outline-none focus:border-accent sm:text-sm"
                 />
-                <EmojiPicker onPick={addEmoji} />
+                <EmojiPicker onPick={addEmoji} side="top" align="end" />
                 <button onClick={handleSend} disabled={sending || !text.trim()} className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-50" aria-label="Senden"><Send className="size-5" /></button>
               </div>
               </>

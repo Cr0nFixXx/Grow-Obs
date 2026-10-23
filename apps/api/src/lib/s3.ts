@@ -1,5 +1,7 @@
 import { DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Agent as HttpAgent } from "node:http";
+import { Agent as HttpsAgent } from "node:https";
 import { HTTPException } from "hono/http-exception";
 import { env } from "../env.ts";
 
@@ -9,9 +11,19 @@ export const storageConfigured = !!(env.S3_ACCESS_KEY && env.S3_SECRET_KEY);
 /** Liegen neue Bilder im Bucket (`MEDIA_STORAGE=s3`) statt in PostgreSQL? */
 export const mediaInStorage = (): boolean => env.MEDIA_STORAGE === "s3" && storageConfigured;
 
+// Keine wiederverwendeten Verbindungen (B-80): Auf Serverless liegen Sockets zwischen zwei Anfragen eingefroren herum; der Bucket hat sie
+// längst geschlossen, und die erste Anfrage danach hing, bis das Zeitlimit abließ (gemessen: Upload nach ~95 s Pause 3 von 3 Mal > 12 s).
+const requestHandler = {
+  httpAgent: new HttpAgent({ keepAlive: false }),
+  httpsAgent: new HttpsAgent({ keepAlive: false }),
+  connectionTimeout: 3000,
+  requestTimeout: 6000,
+};
+
 function client(endpoint: string, extra: { maxAttempts?: number } = {}) {
   if (!env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) return null;
   return new S3Client({
+    requestHandler,
     endpoint,
     region: env.S3_REGION,
     credentials: { accessKeyId: env.S3_ACCESS_KEY, secretAccessKey: env.S3_SECRET_KEY },
@@ -50,7 +62,7 @@ export async function putObject(key: string, bytes: Uint8Array, contentType: str
   if (!objectClient) throw new Error("storage not configured");
   await objectClient.send(
     new PutObjectCommand({ Bucket: env.S3_BUCKET, Key: key, Body: bytes, ContentType: contentType, ContentLength: bytes.length, CacheControl: "private, max-age=86400" }),
-    { abortSignal: AbortSignal.timeout(20_000) },
+    { abortSignal: AbortSignal.timeout(9_000) }, // beide Versuche zusammen; die Anfrage insgesamt endet nach 12 s
   );
 }
 

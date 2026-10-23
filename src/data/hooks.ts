@@ -149,9 +149,9 @@ export function useProductCategories() {
   return { categories: data ?? [], loading, error };
 }
 
-export function useSeedOffers() {
+export function useSeedOffers(enabled = true) {
   const svc = useServices();
-  const { data, loading, error } = useAsync(() => svc.products.offers(), [svc]);
+  const { data, loading, error } = useAsync(() => (enabled ? svc.products.offers() : Promise.resolve([])), [svc, enabled]);
   return { offers: data ?? [], loading, error };
 }
 

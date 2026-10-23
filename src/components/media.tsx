@@ -5,6 +5,8 @@ import { useServices } from "@/data/DataContext";
 import { useToast } from "@/components/Toast";
 import { Popover, Spinner } from "@/components/ui";
 import { ACCEPTED_IMAGE_TYPES, prepareImage } from "@/lib/media";
+import { ApiError } from "@/lib/api";
+import { sendErrorText } from "@/lib/chat-errors";
 
 /** Verkleinern + hochladen; liefert die speicherbare Referenz (`/media/<id>` bzw. blob:-URL). */
 export function useImageUpload() {
@@ -15,9 +17,16 @@ export function useImageUpload() {
     setBusy(true);
     try {
       const prepared = await prepareImage(file);
-      return (await svc.media.upload(prepared)).path;
+      try {
+        return (await svc.media.upload(prepared)).path;
+      } catch (error) {
+        // Kurzer Serverfehler (z. B. Datenbank kurz ausgelastet): einmal erneut versuchen, bevor eine Meldung erscheint.
+        if (!(error instanceof ApiError) || ![500, 502].includes(error.status)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return (await svc.media.upload(prepared)).path;
+      }
     } catch (error) {
-      toast.push({ title: "Upload fehlgeschlagen", desc: error instanceof Error ? error.message : "Unbekannter Fehler", tone: "danger", icon: "AlertTriangle" });
+      toast.push({ title: "Upload fehlgeschlagen", desc: sendErrorText(error), tone: "danger", icon: "AlertTriangle" });
       return null;
     } finally {
       setBusy(false);
@@ -67,10 +76,11 @@ export function ImagePickButton({
 const EMOJIS = ["🌱", "🌿", "🍃", "🌳", "🌸", "🌼", "💚", "🔥", "💧", "☀️", "🌙", "⚡", "🧪", "🔬", "🪴", "🫙", "✂️", "📈", "📉", "🎉", "💪", "🙌", "👍", "👀", "🤔", "😅", "😂", "😍", "😎", "🤩", "🙏", "❤️", "✅", "⚠️", "🐛", "🍋", "🍇", "🍓", "🫐", "🍯"];
 
 /** Kompakte Emoji-Auswahl (Grow-Kontext). Popover → auf Mobil passt es in den Composer. */
-export function EmojiPicker({ onPick, className }: { onPick: (emoji: string) => void; className?: string }) {
+export function EmojiPicker({ onPick, className, side = "bottom", align = "start" }: { onPick: (emoji: string) => void; className?: string; side?: "bottom" | "top"; align?: "start" | "end" }) {
   return (
     <Popover
-      align="start"
+      align={align}
+      side={side}
       label="Emoji einfügen"
       trigger={<Smile className="size-5" />}
       triggerClassName={cn("grid size-10 shrink-0 place-items-center rounded-xl text-fg-muted transition hover:bg-surface-2", className)}

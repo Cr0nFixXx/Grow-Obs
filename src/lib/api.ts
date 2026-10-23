@@ -33,7 +33,7 @@ interface RequestOptions {
   timeoutMs?: number;
 }
 
-async function request<T>({ method, path, body, raw, signal, timeoutMs = 15000 }: RequestOptions): Promise<T> {
+async function send<T>({ method, path, body, raw, signal, timeoutMs = 15000 }: RequestOptions): Promise<T> {
   // Das Sitzungs-Cookie (HttpOnly) geht nur an den konfigurierten API-Origin, nie an eine vom Aufrufer gelieferte URL.
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) throw new ApiError(0, "Ungueltiger API-Pfad");
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -86,11 +86,46 @@ async function request<T>({ method, path, body, raw, signal, timeoutMs = 15000 }
 }
 
 /**
+ * Höchstens 4 gleichzeitige Anfragen je Browser (B-80). Eine Seite mit vielen Bereichen (Pull-to-Refresh) würde sonst
+ * ein Dutzend Anfragen auf einmal schicken; der Datenbank-Pooler des Hosters ist klein und weist die Überzähligen ab.
+ * Wartezeit in der Schlange zählt nicht zum Zeitlimit der einzelnen Anfrage.
+ */
+const MAX_PARALLEL = 4;
+let active = 0;
+const waiting: Array<() => void> = [];
+function release() {
+  const next = waiting.shift();
+  if (next) next(); // Platz wird direkt weitergereicht
+  else active -= 1;
+}
+async function request<T>(options: RequestOptions): Promise<T> {
+  if (active >= MAX_PARALLEL) await new Promise<void>((resolve) => waiting.push(resolve));
+  else active += 1;
+  try {
+    if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    return await send<T>(options);
+  } finally {
+    release();
+  }
+}
+
+/** Lesende Anfrage: bei einem kurzen Serverfehler (500/502) einmal wiederholen. */
+async function getWithRetry<T>(path: string, signal?: AbortSignal): Promise<T> {
+  try {
+    return await request<T>({ method: "GET", path, signal });
+  } catch (error) {
+    if (!(error instanceof ApiError) || ![500, 502].includes(error.status) || signal?.aborted) throw error;
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 700));
+    return request<T>({ method: "GET", path, signal });
+  }
+}
+
+/**
  * Schlanker HTTP-Client für die API-Service-Implementierungen.
  * Setzt Content-Type und sendet das HttpOnly-Sitzungs-Cookie mit (`credentials: "include"`).
  */
 export const http = {
-  get: <T>(path: string, signal?: AbortSignal) => request<T>({ method: "GET", path, signal }),
+  get: <T>(path: string, signal?: AbortSignal) => getWithRetry<T>(path, signal),
   post: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>({ method: "POST", path, body, signal }),
   put: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>({ method: "PUT", path, body, signal }),
   patch: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>({ method: "PATCH", path, body, signal }),

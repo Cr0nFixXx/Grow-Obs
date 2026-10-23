@@ -19,6 +19,18 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 - **Tests:** `media-cleanup.integration.test.ts` (7): Avatar ersetzen, Titelbild entfernen und gleiche Werte, Bild an anderer Stelle weiter verwendet, fremde Bilder/externe URLs unberührt, Aufräumlauf (alt/frisch/verwendet), Cron 404/401/200, Schema-Abdeckung.
 - **Grenzen:** Selbst gehostet ohne Scheduler läuft das Aufräumen nur, wenn `/cron/media-cleanup` von außen aufgerufen wird; das Ersetzen funktioniert immer. Beim Löschen eines Beitrags/Chat-Bilds wird das Bild erst vom nächsten Lauf (nach 24 h) entfernt. Konto löschen (B-74) soll alle Bilder sofort entfernen.
 
+### B-80 – Pull-to-Refresh, Update-Zwang, Chat: Emoji und Bild senden
+
+Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.
+
+- **„X Bereiche konnten nicht geladen werden“:** Das Dashboard lud den Seed-Ticker (`/offers`) auch bei ausgeschaltetem Marktplatz; der Server antwortet dann mit 403, und jeder Pull-to-Refresh meldete einen Bereich als gescheitert (in Produktion gemessen: `/offers`, `/products`, `/hall`, `/strains`, `/communities`, `/social/posts` → 403). Jetzt: Ticker und Abruf nur bei aktivem Marktplatz (`useSeedOffers(enabled)`), und ein 403 gilt beim Aktualisieren nicht mehr als Ausfall (`useResource`).
+- **Weniger Spitzen:** Der Browser sendet höchstens 4 Anfragen gleichzeitig (`src/lib/api.ts`, Warteschlange), lesende Anfragen werden bei 500/502 einmal wiederholt (nicht bei 403/503, nicht beim Schreiben). Hintergrund: Der Datenbank-Pooler ist klein (B-77/B-79).
+- **Update ohne Rückfrage:** Pull-to-Refresh installierte ein gefundenes Update in jedem Modus außer „Nur Hinweis“, also auch im Standardmodus „Nachfragen“. Jetzt nur noch im Modus „Automatisch“ (`pullRefreshUpdate`), sonst erscheint ein Hinweis (Banner, Menü, Einstellungen).
+- **Emoji-Schaltfläche im Chat:** Die Auswahl öffnete nach unten, also unter dem Bildschirmrand (Eingabezeile sitzt unten). `Popover` hat jetzt `side="top"`; im Chat öffnet sie nach oben und rechtsbündig.
+- **Bild senden – „Interner Fehler“:** Reproduziert in Produktion: Der **erste Upload nach einer Pause von ~95 s hing > 12 s** (3 von 3 Versuchen), Uploads direkt danach liefen in 0,3–1,7 s; Lesen und Profil-Speichern waren nicht betroffen. Ursache (nach Ausschluss der Datenbank über Parallel-Tests): wiederverwendete Verbindungen zum Bucket liegen auf Serverless zwischen den Anfragen eingefroren und sind serverseitig längst geschlossen. Jetzt: `s3.ts` ohne Keep-Alive, Verbindungs-Zeitlimit 3 s, Anfrage-Zeitlimit 6 s, beide Versuche zusammen höchstens 9 s (dann 502 „Bildspeicher nicht erreichbar“ statt Hängen). Zusätzlich wiederholt der Upload im Browser einmal bei 500/502 und zeigt verständliche statt roher Meldungen.
+- **Tests:** Vitest 249 (neu: Parallelität/Wiederholung in `api.test.ts`, 403 in `refresh-all.test.tsx`, `pullRefreshUpdate`, `emoji-picker.test.tsx`); API 255/255; typecheck und lint ohne Fehler.
+- **Nicht geprüft:** Emoji-Auswahl und Pull-to-Refresh wurden nicht im Browser angesehen (nur Komponententests). Der Bucket-Fix wird nach dem Deploy mit einem Pausen-Test gegen Produktion gemessen (siehe Stand).
+
 ### B-79 – Laden hängt / „Zeitlimit der Anfrage erreicht“: Datenbankverbindung nach jeder Anfrage freigeben
 
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert.

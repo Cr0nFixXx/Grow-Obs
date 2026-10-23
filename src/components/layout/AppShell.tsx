@@ -29,6 +29,7 @@ import { useAuth } from "@/lib/auth";
 import { useInstallApp } from "@/components/InstallApp";
 import { refreshAllResources } from "@/data/useResource";
 import { useAppUpdate } from "@/lib/update";
+import { pullRefreshUpdate } from "@/lib/update-logic";
 import { UpdateMenuHint } from "@/components/UpdateUI";
 import { useCurrentUser } from "@/lib/auth";
 import { toneSoft } from "@/lib/tokens";
@@ -649,7 +650,7 @@ function MobileScrollbar() {
 /* ----------------------------- Pull-to-refresh ----------------------------- */
 /**
  * Pull-to-Refresh (B-49): lädt alle sichtbaren Daten leise neu (ohne Skeleton), dazu Feature-Flags,
- * eigenes Profil und prüft auf eine neue App-Version. Bei Offline/Fehler: ehrliche Meldung.
+ * eigenes Profil und prüft auf eine neue App-Version (installiert wird sie nur im Modus „Automatisch"). Bei Offline/Fehler: ehrliche Meldung.
  */
 function PullToRefresh() {
   const toast = useToast();
@@ -662,12 +663,14 @@ function PullToRefresh() {
       return;
     }
     const [result, , , updated] = await Promise.all([refreshAllResources(), refreshFeatures(), refreshUser(), update.check()]);
-    if (updated && update.prefs.mode !== "manual") {
+    // Nur wer „Automatisch“ gewählt hat, bekommt das Update ohne Rückfrage (B-80); sonst nur ein Hinweis (Banner/Menü).
+    const updateStep = pullRefreshUpdate(update.prefs.mode, updated);
+    if (updateStep === "apply") {
       toast.push({ title: "Neue Version verfügbar", desc: "Die App wird aktualisiert …", tone: "info", icon: "Download" });
       window.setTimeout(update.apply, 900);
       return;
     }
-    if (updated) toast.push({ title: "Update verfügbar", desc: "Im Menü oder unter Einstellungen → App-Updates installieren.", tone: "info", icon: "Download" });
+    if (updateStep === "notice") toast.push({ title: "Update verfügbar", desc: "Installieren: Banner oben, im Menü oder unter Einstellungen → App-Updates.", tone: "info", icon: "Download" });
     if (result.failed > 0 && result.ok === 0) toast.push({ title: "Aktualisierung fehlgeschlagen", desc: "Server nicht erreichbar – bitte später erneut versuchen.", tone: "danger", icon: "AlertTriangle" });
     else if (result.failed > 0) toast.push({ title: "Teilweise aktualisiert", desc: `${result.failed} Bereich(e) konnten nicht geladen werden.`, tone: "warning", icon: "AlertTriangle" });
     else toast.push({ title: "Aktualisiert", desc: "Alles auf dem neuesten Stand.", tone: "leaf", icon: "CheckCircle2" });

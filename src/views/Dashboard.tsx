@@ -13,6 +13,7 @@ import { useActivity, useGrows, useSeedOffers, useTasks } from "@/data/hooks";
 import { useServices } from "@/data/DataContext";
 import { eur, n, pct } from "@/lib/format";
 import { config } from "@/lib/config";
+import { useFeatures } from "@/config/FeatureContext";
 
 const prioTone = { hoch: "danger", mittel: "warning", niedrig: "info" } as const;
 
@@ -33,7 +34,10 @@ export default function Dashboard() {
   const toast = useToast();
   const { grows } = useGrows();
   const { activity } = useActivity();
-  const { offers } = useSeedOffers();
+  const { isEnabled } = useFeatures();
+  const marketplaceOn = isEnabled("marketplace");
+  // Ticker nur bei aktivem Marktplatz: sonst 403 bei jedem Laden und bei „Teilweise aktualisiert“ (B-80).
+  const { offers } = useSeedOffers(marketplaceOn);
   const svc = useServices();
   const { tasks: loadedTasks } = useTasks();
   const [taskOverrides, setTaskOverrides] = useState<Record<string, boolean>>({});
@@ -126,6 +130,7 @@ export default function Dashboard() {
       </StaggerGroup>
 
       {/* Live seed ticker */}
+      {marketplaceOn && (
       <Reveal>
         <Card className="overflow-hidden p-4">
           <SectionHead
@@ -174,6 +179,7 @@ export default function Dashboard() {
           )}
         </Card>
       </Reveal>
+      )}
 
       {/* Main grid */}
       <div className="grid gap-6 lg:grid-cols-3">

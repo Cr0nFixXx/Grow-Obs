@@ -64,3 +64,34 @@ describe("HTTP privacy and error handling", () => {
     await result;
   });
 });
+describe("Anfragen: Parallelität und Wiederholung (B-80)", () => {
+  it("führt höchstens 4 Anfragen gleichzeitig aus und arbeitet den Rest nacheinander ab", async () => {
+    let running = 0; let peak = 0;
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => {
+      running += 1; peak = Math.max(peak, running);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      running -= 1;
+      return Response.json({ ok: true });
+    }));
+    await Promise.all(Array.from({ length: 12 }, (_, i) => http.get(`/x/${i}`)));
+    expect(peak).toBe(4);
+  });
+  it("wiederholt eine lesende Anfrage nach 500 einmal, nicht nach 403 und nicht beim Schreiben", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ error: "Interner Fehler" }, { status: 500 }))
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(http.get("/grows")).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const denied = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ error: "Feature aus", feature: "marketplace" }, { status: 403 })));
+    vi.stubGlobal("fetch", denied);
+    await expect(http.get("/offers")).rejects.toMatchObject({ status: 403 });
+    expect(denied).toHaveBeenCalledTimes(1);
+
+    const failing = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ error: "Interner Fehler" }, { status: 500 })));
+    vi.stubGlobal("fetch", failing);
+    await expect(http.post("/chat/1/messages", {})).rejects.toMatchObject({ status: 500 });
+    expect(failing).toHaveBeenCalledTimes(1);
+  });
+});

@@ -55,3 +55,9 @@ export function updateAction(mode: UpdateMode, context: { visible: boolean; just
   if (mode === "prompt") return "banner";
   return "badge";
 }
+
+/** Pull-to-Refresh hat ein Update gefunden: Nur im Modus „Automatisch“ sofort installieren, sonst nur Hinweis (B-80). */
+export function pullRefreshUpdate(mode: UpdateMode, updated: boolean): "apply" | "notice" | "none" {
+  if (!updated) return "none";
+  return mode === "auto" ? "apply" : "notice";
+}

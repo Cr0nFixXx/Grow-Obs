@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { ApiError } from "@/lib/api";
 import { refreshAllResources, useResource } from "./useResource";
 
 afterEach(cleanup);
@@ -42,5 +43,13 @@ describe("pull-to-refresh: refreshAllResources (B-49)", () => {
     await waitFor(() => expect(result.current.data).toBe(1));
     unmount();
     expect(await refreshAllResources()).toEqual({ ok: 0, failed: 0 });
+  });
+
+  it("zählt einen deaktivierten Bereich (403) nicht als Ausfall (B-80)", async () => {
+    const load = async () => { throw new ApiError(403, "Feature deaktiviert"); };
+    renderHook(() => useResource(load));
+    let summary = { ok: 0, failed: 0 };
+    await act(async () => { summary = await refreshAllResources(); });
+    expect(summary).toEqual({ ok: 1, failed: 0 });
   });
 });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError } from "@/lib/api";
 
 /**
  * Globale Registry aller aktiven Ressourcen (B-49) → Pull-to-Refresh lädt alles Sichtbare neu.
@@ -50,7 +51,8 @@ export function useResource<T>(load: () => Promise<T>) {
         if (!hasData.current) setError(reason instanceof Error ? reason.message : "Anfrage fehlgeschlagen");
         setLoading(false);
       }
-      return false;
+      // 403 = Bereich deaktiviert bzw. nicht erlaubt: kein Ausfall, deshalb nicht als „konnte nicht geladen werden“ melden.
+      return reason instanceof ApiError && reason.status === 403;
     }
   }, [load]);
 

@@ -1257,6 +1257,7 @@ export function Popover({
   trigger,
   children,
   align = "start",
+  side = "bottom",
   triggerClassName,
   className,
   label,
@@ -1264,6 +1265,8 @@ export function Popover({
   trigger: ReactNode;
   children: (close: () => void) => ReactNode;
   align?: "start" | "end";
+  /** Öffnet nach unten (Standard) oder nach oben (z. B. am unteren Bildschirmrand). */
+  side?: "bottom" | "top";
   triggerClassName?: string;
   className?: string;
   /** Zugänglicher Name des Auslösers (Pflicht, wenn er nur ein Symbol zeigt). */
@@ -1291,11 +1294,11 @@ export function Popover({
         {open && (
           <motion.div
             role="menu"
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            initial={{ opacity: 0, y: side === "top" ? 6 : -6, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            exit={{ opacity: 0, y: side === "top" ? 6 : -6, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className={cn("absolute z-50 mt-2 min-w-[210px] overflow-hidden rounded-xl border border-border bg-surface p-1 elev-3", align === "end" ? "right-0" : "left-0", className)}
+            className={cn("absolute z-50 min-w-[210px] overflow-hidden rounded-xl border border-border bg-surface p-1 elev-3", side === "top" ? "bottom-full mb-2" : "mt-2", align === "end" ? "right-0" : "left-0", className)}
           >
             {children(() => setOpen(false))}
           </motion.div>
