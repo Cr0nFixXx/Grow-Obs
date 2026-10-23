@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
+import { sweepOrphanMedia } from "../lib/media-cleanup.ts";
 import { runWeeklyReports } from "../lib/weekly-report.ts";
 
 export const cronApi = new Hono();
@@ -19,4 +20,12 @@ cronApi.get("/weekly-report", async (c) => {
   if (!secret) return c.json({ error: "Nicht gefunden" }, 404);
   if (!authorized(c.req.header("authorization"), secret)) return c.json({ error: "Nicht erlaubt" }, 401);
   return c.json(await runWeeklyReports());
+});
+
+/** Verwaiste Bilder (älter als 24 h, nirgends mehr verwendet) aus Datenbank und Bucket entfernen (B-78). Gleiche Absicherung wie der Wochenreport. */
+cronApi.get("/media-cleanup", async (c) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return c.json({ error: "Nicht gefunden" }, 404);
+  if (!authorized(c.req.header("authorization"), secret)) return c.json({ error: "Nicht erlaubt" }, 401);
+  return c.json(await sweepOrphanMedia());
 });

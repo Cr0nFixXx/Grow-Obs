@@ -9,6 +9,7 @@ import { clearSessionCookie, deviceLabel, LOGIN_LOG_RETENTION_DAYS, recordLoginE
 import { requireAuth, requireAuthAllowPending, type AuthEnv } from "../middleware/auth.ts";
 import { emailKey, rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { imageRef } from "../lib/media-ref.ts";
+import { releaseMedia } from "../lib/media-cleanup.ts";
 import { BIO_MAX, GROW_SINCE_MIN, HANDLE_COOLDOWN_DAYS, HANDLE_PATTERN, INTERESTS, INTERESTS_MAX, LOCATION_MAX, MEDIA, VISIBILITIES } from "../lib/profile-fields.ts";
 
 export const auth = new Hono<AuthEnv>();
@@ -149,6 +150,10 @@ auth.patch("/me", requireAuth, async (c) => {
       set.handleChangedAt = new Date();
     }
   }
+  // Bisherige Bilder merken: werden nach dem Speichern gelöscht, wenn sie ersetzt/entfernt wurden und nirgends mehr verwendet werden.
+  const previous = avatar !== undefined || cover !== undefined
+    ? await db.query.users.findFirst({ where: eq(users.id, userId), columns: { avatarUrl: true, coverUrl: true } })
+    : undefined;
   if (Object.keys(set).length > 0) {
     try {
       await db.update(users).set(set).where(eq(users.id, userId));
@@ -158,6 +163,8 @@ auth.patch("/me", requireAuth, async (c) => {
       throw error;
     }
   }
+  if (avatar !== undefined && previous?.avatarUrl && previous.avatarUrl !== (avatar || null)) await releaseMedia(userId, previous.avatarUrl);
+  if (cover !== undefined && previous?.coverUrl && previous.coverUrl !== (cover || null)) await releaseMedia(userId, previous.coverUrl);
   // Sichtbarkeit anpassen: „alle“ nimmt offene Anfragen an, „niemand“ verwirft sie.
   if (profileVisibility === "all") await db.update(follows).set({ status: "accepted" }).where(and(eq(follows.followeeId, userId), eq(follows.status, "pending")));
   if (profileVisibility === "nobody") await db.delete(follows).where(and(eq(follows.followeeId, userId), eq(follows.status, "pending")));

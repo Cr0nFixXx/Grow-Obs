@@ -11,6 +11,14 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
 
+### B-78 – Ersetzte und verwaiste Bilder werden automatisch gelöscht
+
+- **Ersetzen:** `PATCH /auth/me` löscht das bisherige Avatar-/Titelbild (Datenbankzeile **und** Bucket-Objekt), sobald ein anderes gesetzt oder das Bild entfernt wird – aber nur, wenn es dem Nutzer gehört, ein eigener Upload ist (`/media/<id>`, keine externe URL) und **nirgends mehr verwendet** wird (geprüft über alle Bildspalten: Profil, Anbieter, Hall of Fame, Grows, Foto-Galerie, Beiträge, Chat-Gruppen, Nachrichten). Fehler beim Löschen machen das Speichern nie rückgängig.
+- **Verwaiste Bilder:** Neuer Cron `GET /api/cron/media-cleanup` (täglich 03:30 UTC, gleiche `CRON_SECRET`-Absicherung wie der Wochenreport, ohne Secret 404) entfernt Bilder, die **älter als 24 h** und nirgends verwendet sind (abgebrochene Uploads, gelöschte Beiträge/Nachrichten). Frische Uploads bleiben, damit ein offener Dialog nie sein Bild verliert. Pro Lauf höchstens 200.
+- **Absicherung:** Die Liste `MEDIA_REFERENCES` (`lib/media-cleanup.ts`) muss jede neue Bildspalte enthalten; ein Test vergleicht sie mit dem Schema und schlägt bei einer vergessenen Spalte fehl.
+- **Tests:** `media-cleanup.integration.test.ts` (7): Avatar ersetzen, Titelbild entfernen und gleiche Werte, Bild an anderer Stelle weiter verwendet, fremde Bilder/externe URLs unberührt, Aufräumlauf (alt/frisch/verwendet), Cron 404/401/200, Schema-Abdeckung.
+- **Grenzen:** Selbst gehostet ohne Scheduler läuft das Aufräumen nur, wenn `/cron/media-cleanup` von außen aufgerufen wird; das Ersetzen funktioniert immer. Beim Löschen eines Beitrags/Chat-Bilds wird das Bild erst vom nächsten Lauf (nach 24 h) entfernt. Konto löschen (B-74) soll alle Bilder sofort entfernen.
+
 ### B-77 – „Interner Fehler“ im Profil: Pooler-Sitzungen blockiert
 
 - **Ursache (belegt):** Der Supabase-Session-Pooler hat ca. 16 Hintergrundverbindungen. Vercel-Instanzen (je `DB_POOL_MAX=3`) halten Sitzungen auch eingefroren weiter fest; waren alle belegt, scheiterten Anfragen, die mehrere Verbindungen brauchen (`GET/PATCH /auth/me`, `/members/…`, Anmeldung), sofort mit 500, einfache Abfragen liefen weiter. Nachweis in Produktion: `/auth/me` 500 bei jedem Aufruf (auch nach 45 s Wartezeit); nach dem Beenden der 16 Pooler-Sitzungen (`pg_terminate_backend`) sofort 6× 200.
