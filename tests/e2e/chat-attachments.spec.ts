@@ -132,6 +132,27 @@ test.describe("Chat-Anhänge (B-81)", () => {
     }), { timeout: 15_000 }).toBe(true);
     await viewer.getByRole("button", { name: "Vergrößern" }).click();
     await B.page.screenshot({ path: `${FILES}/pdf-desktop.png` });
+    await viewer.getByRole("button", { name: "Verkleinern" }).click();
+
+    // Zwei-Finger-Zoom (Berührungsereignisse): Seite wird breiter, der Fixpunkt unter den Fingern bleibt stehen
+    const firstPage = viewer.getByTestId("pdf-page").first();
+    const before = (await firstPage.boundingBox())!.width;
+    const scroller = await viewer.getByTestId("pdf-page").first().evaluateHandle((el) => el.parentElement!.parentElement!);
+    await scroller.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      const fire = (type: string, points: Array<[number, number]>) => {
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        Object.assign(event, { touches: points.map(([clientX, clientY]) => ({ clientX, clientY })) });
+        el.dispatchEvent(event);
+      };
+      const y = rect.top + rect.height / 2;
+      fire("touchstart", [[rect.right - 120, y], [rect.right - 80, y]]);
+      fire("touchmove", [[rect.right - 160, y], [rect.right - 40, y]]); // Abstand × 3
+      fire("touchend", []);
+    });
+    await expect.poll(async () => (await firstPage.boundingBox())!.width).toBeGreaterThan(before * 2.5);
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeGreaterThan(100);
+    await scroller.dispose();
     await B.page.keyboard.press("Escape");
     await expect(B.page.getByRole("dialog")).toHaveCount(0);
 

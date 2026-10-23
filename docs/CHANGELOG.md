@@ -4,12 +4,20 @@ Alle nennenswerten Änderungen an **Grow|Observer**, je Aufgabe (B-Nummer) mit d
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/). Die Ein-Zeilen-Übersicht je Aufgabe steht in [`PROGRESS.md`](PROGRESS.md)
 (das vollständige alte Protokoll mit Bundle-Größen: `archive/PROGRESS-bis-B62.md`).
 
-**Versionen:** Seit B-52 steuert `version.json` die Versionen (Frontend „Ruderalis“ 0.1.1, Backend 0.0.2; vom Eigner vergeben). Die frühere Zählung (`v0.x`, zuletzt 0.50.0)
+**Versionen:** Seit B-52 steuert `version.json` die Versionen (Frontend „Ruderalis“ 0.1.2, Backend 0.0.3; vom Eigner vergeben). Die frühere Zählung (`v0.x`, zuletzt 0.50.0)
 und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Einträge tragen keine Agenten-Signatur und nennen ihre Prüfergebnisse selbst; Teststand und offene Gates: `docs/TESTING.md`.
 
 ---
 
-## [Unreleased] – Frontend „Ruderalis“ 0.1.1 · Backend 0.0.2 (seit B-52)
+## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
+
+### B-83 – PDF-Vorschau: Zoom per Geste · neue Versionen
+
+**Versionen (Vorgabe des Eigners):** Frontend „Ruderalis“ 0.1.1 → **0.1.2**, Backend 0.0.2 → **0.0.3** (`version.json`, abgeleitete Dateien per `npm run version:sync`). Sie fassen B-81 und B-82 zusammen.
+
+- **Zoom per Geste:** In der PDF-Vorschau zoomt jetzt der **Zwei-Finger-Pinch** (auch beim Scrollen mit einem Finger bleibt alles wie bisher), der **Doppeltipp** (2,5× bzw. zurück auf Seitenbreite) und auf dem Computer **Strg + Mausrad** bzw. der Pinch am Touchpad. Während der Geste wird nur skaliert (flüssig), beim Loslassen werden die Seiten scharf neu gezeichnet; der Punkt unter den Fingern bleibt dabei an seiner Stelle. Die Symbole und die Tasten +/− bleiben. Der Zoom reicht jetzt von 1× bis **4×** (vorher 3×).
+- **Tests:** Vitest +3 (Pinch mit Begrenzung nach oben und unten, Doppeltipp und Wischen, Strg+Rad), E2E-Schritt im PDF-Test (Berührungsereignisse im echten Browser: Seite wird breiter, Scrollstand verschiebt sich zum Fixpunkt).
+- **Grenze:** Die Gesten sind mit synthetischen Berührungsereignissen geprüft, nicht mit einem echten Handy; die Rückmeldung des Eigners steht aus.
 
 ### B-78 – Ersetzte und verwaiste Bilder werden automatisch gelöscht
 
@@ -24,7 +32,7 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert. **Migration `0019_media_access_message_delete.sql`** (`media.conversation_id`, `messages.deleted_at`, Rückfüllung der Chat-Zuordnung) muss vor dem Deploy eingespielt sein (`SKIP_MIGRATIONS=true` auf Vercel; idempotent). Außerdem behoben: `no-control-regex` in `media-files.ts` (CI-Lint von B-81 war rot).
 
 - **Medien nur mit Login:** `GET /api/media/:id` antwortet ohne Sitzung mit 401 – für alle Bilder (Avatare, Titelbilder, Forum, Marktplatz, Chat). Bilder im Browser laden weiter, weil das Sitzungs-Cookie bei `<img>` mitgeschickt wird. Chat-Anhänge sieht nur, wer Mitglied der Unterhaltung ist (sowie der Eigentümer); alle anderen bekommen 404. `GET /api/media/config` bleibt öffentlich.
-- **PDF-Vorschau:** PDF-Karten haben „ansehen“ (Vollbild-Dialog mit allen Seiten als Bildern, Zoom 1–3×, Seitenanzeige, Download, Esc) und daneben einen Download-Pfeil. Gerendert wird mit pdf.js 4.10 (Legacy-Build, wird erst beim Öffnen geladen; der Worker wird vom Bundler als eigene Datei ausgeliefert), Seiten werden erst beim Heranscrollen gezeichnet, Bildgröße ≤ ca. 3000 px. Die Bytes kommen über `GET /media/:id?raw=1` (nur PDF, sonst 400; gestreamt, `private, no-store`, CSP-Sandbox) – ein Abruf über den signierten Bucket-Link scheitert am fehlenden CORS. Beschädigte oder geschützte PDFs zeigen einen Hinweis mit Download.
+- **PDF-Vorschau:** PDF-Karten haben „ansehen“ (Vollbild-Dialog mit allen Seiten als Bildern, Zoom 1–4×, Seitenanzeige, Download, Esc) und daneben einen Download-Pfeil. Gerendert wird mit pdf.js 4.10 (Legacy-Build, wird erst beim Öffnen geladen; der Worker wird vom Bundler als eigene Datei ausgeliefert), Seiten werden erst beim Heranscrollen gezeichnet, Bildgröße ≤ ca. 3000 px. Die Bytes kommen über `GET /media/:id?raw=1` (nur PDF, sonst 400; gestreamt, `private, no-store`, CSP-Sandbox) – ein Abruf über den signierten Bucket-Link scheitert am fehlenden CORS. Beschädigte oder geschützte PDFs zeigen einen Hinweis mit Download.
 - **Nachrichten löschen:** Papierkorb in der Nachrichtenzeile (Mauszeiger/auf Touch dezent sichtbar) → Bestätigung „Für alle löschen“. Absender dürfen jederzeit, **Gruppen-Admins** auch fremde Nachrichten. Es bleibt ein Platzhalter („🚫 Du hast diese Nachricht gelöscht“ / „Diese Nachricht wurde gelöscht“), Text und Anhänge sind weg; Medien werden vom Server und aus dem Bucket entfernt, sofern sie nirgends sonst verwendet werden; die Chatliste zeigt „🚫 Nachricht gelöscht“. Beim Empfänger erscheint der Platzhalter live (Ereignis `chat.message` mit `deleted`). Systemzeilen sind nicht löschbar (400), Wiederholen ist harmlos (204).
 - **Tests:** Vitest 274 (neu: `PdfViewer.test.tsx`, PDF-Karten, Mock-Löschen), API 276 (neu: `media-access.integration.test.ts` 8 Tests – 401 ohne Login, Nicht-Mitglied 404, `?raw=1` aus Datenbank und Bucket, Nicht-PDF 400, Rückfüllung 0019, Löschen als Absender/Admin/Fremder/System, Wiederholen, Medien weg; angepasst: `chat-attachments`, `media-storage`, `security`), E2E `chat-attachments.spec.ts` (Mehrseiten-PDF wirklich gezeichnet, 401 ohne Cookie, Löschen mit Abbrechen/Bestätigen, Platzhalter live beim Empfänger, Datei danach 404). Die E2E-Testdateien (PNG, 3-seitiges PDF) werden jetzt zur Laufzeit erzeugt statt aus `/tmp` erwartet.
 - **Tests unter `tests/`:** Alle Tests liegen jetzt in `tests/{unit,api,e2e}` (Unit spiegelt `src/`, Importe über `@/…`); Konfigurationen, CI und Doku sind angepasst, Befehle (`npm test`, `npm run test:api`, `npm run test:e2e`) unverändert.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // pdf.js selbst läuft hier nicht (Worker/Canvas): ein Ersatz liefert Seiten und merkt sich, was gezeichnet wird.
@@ -65,7 +65,7 @@ describe("PDF-Vorschau (B-82)", () => {
     expect(zoomOut.disabled).toBe(true);
     for (let i = 0; i < 6; i++) fireEvent.click(zoomIn);
     expect(zoomIn.disabled).toBe(true);
-    expect((screen.getAllByTestId("pdf-page")[0] as HTMLElement).style.width).toBe("2328px"); // (800 − 24 Rand) × 3
+    expect((screen.getAllByTestId("pdf-page")[0] as HTMLElement).style.width).toBe("3104px"); // (800 − 24 Rand) × 4
     expect(screen.getByRole("link", { name: "PDF herunterladen" }).getAttribute("href")).toBe("/api/media/abc");
     fireEvent.click(screen.getByRole("button", { name: "Vorschau schließen" }));
     expect(onClose).toHaveBeenCalled();
@@ -96,5 +96,67 @@ describe("PDF-Vorschau (B-82)", () => {
   it("pdfSource: eigene Medien über ?raw=1, fremde Adressen (Demo) unverändert", () => {
     expect(pdfSource("/media/abc")).toMatch(/\/media\/abc\?raw=1$/);
     expect(pdfSource("blob:http://x/1")).toBe("blob:http://x/1");
+  });
+
+  describe("Gesten", () => {
+    const touch = (target: Element, type: string, points: Array<[number, number]>) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.assign(event, { touches: points.map(([clientX, clientY]) => ({ clientX, clientY })) });
+      act(() => { target.dispatchEvent(event); });
+      return event;
+    };
+    const pageWidth = () => (screen.getAllByTestId("pdf-page")[0] as HTMLElement).style.width;
+    const area = () => screen.getAllByTestId("pdf-page")[0].parentElement!.parentElement!;
+
+    it("Zwei-Finger-Zoom: Vorschau per Skalierung, beim Loslassen scharf neu gezeichnet; begrenzt", async () => {
+      view();
+      await waitFor(() => screen.getAllByTestId("pdf-page"));
+      const content = screen.getAllByTestId("pdf-page")[0].parentElement as HTMLElement;
+      expect(pageWidth()).toBe("776px");
+      touch(area(), "touchstart", [[300, 400], [400, 400]]);
+      const move = touch(area(), "touchmove", [[250, 400], [450, 400]]); // Abstand verdoppelt
+      expect(move.defaultPrevented).toBe(true); // kein Browser-Zoom, kein Scrollen
+      expect(content.style.transform).toBe("scale(2)");
+      touch(area(), "touchend", []);
+      await waitFor(() => expect(pageWidth()).toBe("1552px"));
+      expect(content.style.transform).toBe("");
+      // weit über die Grenze spreizen → bei 4× Schluss, zusammenführen → 1×
+      touch(area(), "touchstart", [[300, 400], [310, 400]]);
+      touch(area(), "touchmove", [[0, 400], [800, 400]]);
+      touch(area(), "touchend", []);
+      await waitFor(() => expect(pageWidth()).toBe("3104px"));
+      touch(area(), "touchstart", [[100, 400], [700, 400]]);
+      touch(area(), "touchmove", [[395, 400], [405, 400]]);
+      touch(area(), "touchend", []);
+      await waitFor(() => expect(pageWidth()).toBe("776px"));
+    });
+
+    it("Doppeltipp zoomt heran und wieder zurück; Wischen ist kein Tipp", async () => {
+      view();
+      await waitFor(() => screen.getAllByTestId("pdf-page"));
+      const tap = () => { touch(area(), "touchstart", [[200, 300]]); touch(area(), "touchend", []); };
+      tap(); tap();
+      await waitFor(() => expect(pageWidth()).toBe("1940px")); // 776 × 2,5
+      tap(); tap();
+      await waitFor(() => expect(pageWidth()).toBe("776px"));
+      touch(area(), "touchstart", [[200, 300]]);
+      touch(area(), "touchmove", [[200, 380]]);
+      touch(area(), "touchend", []);
+      tap();
+      expect(pageWidth()).toBe("776px");
+    });
+
+    it("Strg+Mausrad (Touchpad-Pinch) zoomt, normales Rad scrollt weiter", async () => {
+      view();
+      await waitFor(() => screen.getAllByTestId("pdf-page"));
+      const normal = new WheelEvent("wheel", { deltaY: -100, bubbles: true, cancelable: true });
+      act(() => { area().dispatchEvent(normal); });
+      expect(normal.defaultPrevented).toBe(false);
+      const pinch = new WheelEvent("wheel", { deltaY: -69.3, ctrlKey: true, bubbles: true, cancelable: true });
+      act(() => { area().dispatchEvent(pinch); });
+      expect(pinch.defaultPrevented).toBe(true);
+      await waitFor(() => expect(parseInt(pageWidth())).toBeGreaterThan(1500));
+      expect(parseInt(pageWidth())).toBeLessThan(1600); // e^0,693 ≈ 2
+    });
   });
 });

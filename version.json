@@ -2,12 +2,12 @@
   "_comment": "Einzige Quelle der Wahrheit für Versionen. VERSIONEN vergibt ausschließlich der Projekteigner – Agents ändern frontend.version, backend.version und codename nur auf ausdrückliche Anweisung. Die Build-Nummer wird nach JEDER abgeschlossenen Aufgabe mit `npm run version:build` gesetzt (YYMMDDHH, Europe/Berlin). Nach manuellen Änderungen: `npm run version:sync`.",
   "frontend": {
     "codename": "Ruderalis",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "backend": {
-    "version": "0.0.2"
+    "version": "0.0.3"
   },
-  "build": "26102400",
+  "build": "26102401",
   "modules": {
     "_comment": "Vorbereitung für spätere Modul-Versionen: Schlüssel \"frontend.<modul>\" oder \"backend.<modul>\" → { \"version\": \"x.y.z\" }. Ohne Eintrag erbt ein Modul die Version seiner Hauptkomponente (siehe moduleVersion())."
   }

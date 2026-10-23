@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/Icon";
 import { useBodyScrollLock, useFocusTrap } from "@/lib/hooks";
@@ -14,9 +14,11 @@ import { resolveMedia } from "@/lib/media";
 type PdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 type PdfDoc = Awaited<ReturnType<PdfJs["getDocument"]>["promise"]>;
 
-const MAX_ZOOM = 3;
+const MAX_ZOOM = 4;
 const MIN_ZOOM = 1;
 const ZOOM_STEP = 0.5;
+const DOUBLE_TAP_ZOOM = 2.5;
+const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(z * 100) / 100));
 
 let pdfjsPromise: Promise<PdfJs> | null = null;
 function loadPdfJs(): Promise<PdfJs> {
@@ -88,8 +90,119 @@ export function PdfViewer({ open, path, name, downloadUrl, onClose }: { open: bo
   const [zoom, setZoom] = useState(1);
   const [width, setWidth] = useState(0);
   const [current, setCurrent] = useState(1);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  // Lauf einer Zoom-Geste: `k` = Faktor seit Start (nur als CSS-Skalierung, gezeichnet wird erst am Ende neu),
+  // (fx, fy) = Fixpunkt im Inhalt, (px, py) = derselbe Punkt im Fenster; `settle` = Scrollstand nach dem Neuzeichnen.
+  const gesture = useRef({ k: 1, fx: 0, fy: 0, px: 0, py: 0, settle: null as { left: number; top: number } | null, timer: 0 as unknown as ReturnType<typeof setTimeout> });
   useBodyScrollLock(open);
   useFocusTrap(open, panelRef);
+
+  // Nach dem Zoomen den Bildausschnitt unter den Fingern halten.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const target = gesture.current.settle;
+    if (!el || !target) return;
+    el.scrollLeft = target.left;
+    el.scrollTop = target.top;
+    gesture.current.settle = null;
+  }, [zoom]);
+
+  // Gesten: Zwei-Finger-Zoom, Doppeltipp, Strg+Mausrad (Touchpad-Pinch). Die Tasten +/− und die Symbole bleiben.
+  useEffect(() => {
+    const el = scrollRef.current;
+    const content = contentRef.current;
+    if (!open || !el || !content) return;
+    const g = gesture.current;
+    const begin = (clientX: number, clientY: number) => {
+      const rect = el.getBoundingClientRect();
+      g.px = clientX - rect.left;
+      g.py = clientY - rect.top;
+      g.fx = el.scrollLeft + g.px;
+      g.fy = el.scrollTop + g.py;
+      content.style.transformOrigin = `${g.fx}px ${g.fy}px`;
+    };
+    const preview = (k: number) => {
+      g.k = Math.min(MAX_ZOOM / zoomRef.current, Math.max(MIN_ZOOM / zoomRef.current, k));
+      content.style.transform = g.k === 1 ? "" : `scale(${g.k})`;
+    };
+    const commit = () => {
+      const next = clampZoom(zoomRef.current * g.k);
+      const applied = next / zoomRef.current;
+      content.style.transform = "";
+      g.k = 1;
+      if (applied === 1) return;
+      g.settle = { left: g.fx * applied - g.px, top: g.fy * applied - g.py };
+      setZoom(next);
+    };
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    let startDist = 0;
+    let tap: { x: number; y: number; at: number } | null = null; // letzter Tipp (für Doppeltipp)
+    let down: { x: number; y: number } | null = null;
+    const onStart = (event: TouchEvent) => {
+      if (event.touches.length === 2) {
+        event.preventDefault();
+        down = null;
+        startDist = dist(event.touches);
+        begin((event.touches[0].clientX + event.touches[1].clientX) / 2, (event.touches[0].clientY + event.touches[1].clientY) / 2);
+      } else if (event.touches.length === 1) {
+        down = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      }
+    };
+    const onMove = (event: TouchEvent) => {
+      if (event.touches.length === 2 && startDist > 0) {
+        event.preventDefault();
+        preview(dist(event.touches) / startDist);
+      } else if (down && event.touches.length === 1 && Math.hypot(event.touches[0].clientX - down.x, event.touches[0].clientY - down.y) > 10) {
+        down = null; // Wischen, kein Tipp
+      }
+    };
+    const onEnd = (event: TouchEvent) => {
+      if (startDist > 0 && event.touches.length < 2) {
+        startDist = 0;
+        commit();
+        tap = null;
+        return;
+      }
+      if (event.touches.length === 0 && down) {
+        const now = Date.now();
+        if (tap && now - tap.at < 300 && Math.hypot(down.x - tap.x, down.y - tap.y) < 30) {
+          // Doppeltipp: heranzoomen oder zurück auf Seitenbreite
+          begin(down.x, down.y);
+          preview(zoomRef.current > 1.05 ? MIN_ZOOM / zoomRef.current : DOUBLE_TAP_ZOOM / zoomRef.current);
+          commit();
+          tap = null;
+        } else {
+          tap = { x: down.x, y: down.y, at: now };
+        }
+        down = null;
+      }
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return; // Touchpad-Pinch kommt als Strg+Rad
+      event.preventDefault();
+      if (g.k === 1) begin(event.clientX, event.clientY);
+      preview(g.k * Math.exp(-event.deltaY * 0.01));
+      clearTimeout(g.timer);
+      g.timer = setTimeout(commit, 160);
+    };
+    el.addEventListener("touchstart", onStart, { passive: false });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      clearTimeout(g.timer);
+      content.style.transform = "";
+      g.k = 1;
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -148,7 +261,8 @@ export function PdfViewer({ open, path, name, downloadUrl, onClose }: { open: bo
         <a href={downloadUrl} download={name} target="_blank" rel="noopener noreferrer" aria-label="PDF herunterladen" className="grid size-10 place-items-center rounded-lg hover:bg-white/10"><Icon name="Download" size={20} /></a>
         <button type="button" onClick={onClose} aria-label="Vorschau schließen" className="grid size-10 place-items-center rounded-lg hover:bg-white/10"><Icon name="X" size={20} /></button>
       </div>
-      <div ref={scrollRef} className={cn("min-h-0 flex-1 space-y-3 overflow-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))]", state !== "ready" && "grid place-items-center")}>
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        <div ref={contentRef} className={cn("min-w-full px-3 pb-[max(1rem,env(safe-area-inset-bottom))]", state === "ready" ? "w-max space-y-3" : "grid min-h-full place-items-center")}>
         {state === "loading" && <p role="status" className="text-sm text-white/80">PDF wird geladen …</p>}
         {state === "error" && (
           <div role="alert" className="max-w-xs text-center text-sm">
@@ -157,6 +271,7 @@ export function PdfViewer({ open, path, name, downloadUrl, onClose }: { open: bo
           </div>
         )}
         {state === "ready" && doc && Array.from({ length: pages }, (_, i) => <PdfPage key={i + 1} doc={doc} number={i + 1} width={width} zoom={zoom} onVisible={setCurrent} />)}
+        </div>
       </div>
     </div>,
     document.body
