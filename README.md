@@ -69,8 +69,8 @@ Frontend dafür bauen mit `NEXT_PUBLIC_API_URL=http://localhost:8787`. Details, 
 ```
 app/            Next.js-Hülle: Layout, 404-Seite, Catch-All-Route, eingebettete API (/api)
 src/            Frontend: views/, components/, services/ (Mock | API), data/ (Hooks), lib/, config/
-apps/api/       Backend: Hono-API, Drizzle-Schema + Migrationen, Tests, Docker-Compose
-e2e/            Playwright-Browsertests
+apps/api/       Backend: Hono-API, Drizzle-Schema + Migrationen, Docker-Compose
+tests/          alle Tests: unit/ (Vitest, spiegelt src/), api/ (Integration gegen PostgreSQL), e2e/ (Playwright)
 scripts/        Server (WebSocket), Preview, Versionierung, Doku-Linkprüfung
 promo/          Promo-Demo-Video (Szene als HTML, Render-Pipeline, Musik)
 promo-kit/      Motion-Graphics-Promo-Kit (Engine, Szenen, Screenshots, Mockups, Brand, Briefing; nur Quellen)

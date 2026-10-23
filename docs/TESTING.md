@@ -41,12 +41,12 @@ npx next typegen && npm run typecheck && npm run lint && npm test
 npm run typecheck --prefix apps/api
 (cd apps/api && npx tsc -p tsconfig.tools.json)      # seed, drizzle config, tests
 TEST_DATABASE_URL=postgres://grow_test:grow_test@127.0.0.1:5432/growobserver_test npm run test:api
-npx vitest run -c vitest.backend.config.ts apps/api/tests/<file>   # single file
+npx vitest run -c vitest.backend.config.ts tests/api/<file>   # single file
 npm run test:api:local        # creates and drops a throwaway DB (needs a local PostgreSQL superuser)
 
 # Browser E2E (production build + scripts/server.mjs on port 3100)
 npm run build && npm run test:e2e
-npx playwright test e2e/<file> --project=desktop     # single spec
+npx playwright test tests/e2e/<file> --project=desktop     # single spec
 
 # Builds and consistency
 npm run build && npm run build:vite && npm run version:check
@@ -57,13 +57,13 @@ against PostgreSQL) and E2E (Playwright).
 
 ## 3. What is covered
 
-**Frontend (Vitest, `src/**/*.test.ts[x]`)** – API client (no-store, cookie credentials, redirects, timeout, 204), service-worker cache policy
+**Frontend (Vitest, `tests/unit/**/*.test.ts[x]`, mirrors `src/`)** – API client (no-store, cookie credentials, redirects, timeout, 204), service-worker cache policy
 (executes `public/sw-policy.js`: APIs, signed URLs, external media and private/error responses never enter the cache; route list in sync with `routes.ts`),
 auth provider (fail-closed restore, late responses cannot undo logout, marker instead of token, 401 event), `useResource` (last request wins, refresh keeps data),
 feature flags (key parity with the API, malformed overrides), routing (`routes.ts`, `nav.tsx`), realtime transport and context, version/build number,
 update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, chat attachments (grid, file cards, gallery, tray, limits, SD/HD), file helpers, community moderation UI, mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
 
-**API integration (`apps/api/tests`, real PostgreSQL via `app.request()`)**
+**API integration (`tests/api`, real PostgreSQL via `app.request()`)**
 
 | Suite | Covers |
 |---|---|
@@ -85,7 +85,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `push-vapid.test.ts` | the real `web-push` library accepts the configured VAPID keys and builds an encrypted request (no network) |
 | `version.test.ts` | `/version`, module inheritance |
 
-**Browser E2E (`e2e/*.spec.ts`, Playwright, production build)**
+**Browser E2E (`tests/e2e/*.spec.ts`, Playwright, production build)**
 
 | Spec | Covers |
 |---|---|
@@ -105,6 +105,8 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 **Vitest (frontend)** – default environment is `node`: DOM tests need `// @vitest-environment jsdom`. There is no automatic RTL cleanup (call `cleanup()`).
 `useServices` mocks must return a **stable** object. RTL `waitFor` hangs under fake timers. Modals need a `window.matchMedia` stub.
 jsdom `history.back()` is asynchronous – use `vi.waitFor`.
+
+**Layout** – all tests live in `tests/`: `tests/unit` mirrors `src/` (import app code as `@/…`), `tests/api` imports `../../apps/api/src/…`, `tests/e2e` holds the Playwright specs. Add new tests there, not next to the code.
 
 **API tests** – files run sequentially (`fileParallelism: false`); a file that runs alone must migrate the DB in `beforeAll`
 (`migrate(db, { migrationsFolder })`). Tests that `vi.resetModules()` and re-import create a second DB client – close it.

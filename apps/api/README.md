@@ -267,7 +267,7 @@ Im eingebetteten Betrieb kommt `GET /api/version` (`{ version, build, … }` fü
 ## Tests und offene Punkte
 
 Teststand, Befehle und Release-Gates: [`../../docs/TESTING.md`](../../docs/TESTING.md). Tests laufen gegen eine Wegwerf-Datenbank mit Namen auf `_test` und löschen dort Daten.
-`npm run typecheck` deckt `src/` ab, `npx tsc -p tsconfig.tools.json` zusätzlich `seed.ts`, `drizzle.config.ts` und `tests/` – beide ausführen.
+`npm run typecheck` deckt `src/` ab, `npx tsc -p tsconfig.tools.json` zusätzlich `seed.ts`, `drizzle.config.ts` und die API-Tests in `../../tests/api` – beide ausführen (braucht `npm ci --prefix apps/api`; die Konfiguration bildet `drizzle-orm`, `hono` und `postgres` auf die Kopie in `apps/api/node_modules` ab, damit es nur eine Typ-Version gibt).
 
 Vor einem Deployment offen: Docker-/MinIO-Lauf, Upload-Prüfung für S3 (Finalisierung, Leserechte, Quoten, Löschung), revisionssichere Audit-Aufzeichnung, gepinnte Images, Abhängigkeits-Audit und ein Restore-Test.
 Rate-Limits gelten über alle Instanzen (Tabelle `rate_limits`); Limits auf Proxy-Ebene bleiben empfehlenswert. KI-Anbindung, Moderation für den globalen Feed und das Forum sowie „Community verlassen“ sind Zukunftsarbeit.

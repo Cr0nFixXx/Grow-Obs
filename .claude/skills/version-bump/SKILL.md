@@ -22,7 +22,7 @@ Generic, project-independent version: `docs/skills/version-bump/SKILL.md`.
 | Derived, never edit by hand | `package.json`, `package-lock.json`, `apps/api/package.json`, `apps/api/package-lock.json`, `apps/api/src/version.generated.ts` |
 | Tool | `scripts/version.mjs` (`npm run version:show`, `version:sync`, `version:check`, `version:build`) |
 | Shown to users | login footer, settings/update area, Developer-Admin, `GET /api/version`, standalone API `GET /version` |
-| Guard | CI runs `version:check`; `src/lib/version.test.ts` checks consistency |
+| Guard | CI runs `version:check`; `tests/unit/lib/version.test.ts` checks consistency |
 
 Module versions: key `frontend.<module>` or `backend.<module>` with `{ "version": "x.y.z" }`; a module without an entry inherits the version of its component.
 

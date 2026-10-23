@@ -16,7 +16,7 @@ const SKIP_FILES = new Set(["docs/CHANGELOG.md", "docs/PROGRESS.md"]);
 /** Paths that are real but not committed (generated, secrets, runtime). */
 /** Also ignored: paths mentioned on purpose although they do not exist (planned targets such as apps/web, the old src/pages). */
 const IGNORED_PATHS = [/node_modules/, /^apps\/(web|mobile|desktop)(\/|$)/, /^src\/pages(\/|$)/, /^promo\/\.(render|frames)/, /^\.env/, /\.env$/, /^promo\/(music\.wav|shots|test|syslibs|\.frames)/, /^apps\/api\/(dist|\.env)/, /^(\.next|node_modules|dist|out)\//, /^test-results\//];
-const ROOTS = ["app/", "apps/", "src/", "scripts/", "docs/", "e2e/", "public/", "promo/", ".github/", ".claude/"];
+const ROOTS = ["app/", "apps/", "src/", "scripts/", "docs/", "tests/", "public/", "promo/", ".github/", ".claude/"];
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {

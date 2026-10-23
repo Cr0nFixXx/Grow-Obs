@@ -42,13 +42,13 @@ src/
   mocks/data.ts, types/domain.ts, index.css (Tailwind v4 tokens)
 apps/api/
   src/{app.ts,index.ts,env.ts,config/,db/,lib/,middleware/,realtime/,routes/,cli/}   drizzle/ (0000–0012 handwritten SQL + journal)
-  tests/                  integration suites   seed.ts   Dockerfile   docker-compose.yml (db, minio, migrate, storage-init, api, admin, seed)
+  seed.ts   Dockerfile   docker-compose.yml (db, minio, migrate, storage-init, api, admin, seed)
 public/                   manifest, icons, sw.js, sw-policy.js (cache allowlist, executed by tests)
 scripts/                  server.mjs (Next + WebSocket), preview.sh, version.mjs, check-peers.mjs, check-doc-links.mjs (npm run docs:check), test-api.sh, smoke-live.sh
 promo/                    promo demo video (scene.html, build.sh, PROMODEMO.md); generated: music.wav, syslibs/, .frames/ (ignored)
 promo-kit/                motion-graphics promo kit (BRIEF.md, engine/, scenes/, screenshots/, mockups/, stills/, brand/, tools/); sources only, frames live outside the repo
 .claude/skills/           project skills doc-create, doc-maintain, version-bump (generic copies: docs/skills/)
-e2e/                      Playwright specs        docs/  TESTING, CHANGELOG, PROGRESS, MILESTONES, archive/
+tests/                    unit/ (Vitest, mirrors src/), api/ (integration), e2e/ (Playwright)        docs/  TESTING, CHANGELOG, PROGRESS, MILESTONES, archive/
 version.json              single source for versions        .github/workflows/ci.yml  frontend, API, E2E jobs
 ```
 

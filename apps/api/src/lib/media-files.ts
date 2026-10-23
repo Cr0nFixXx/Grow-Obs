@@ -46,6 +46,7 @@ function contentMatches(check: Check, bytes: Uint8Array): boolean {
 
 /** Dateiname säubern: keine Pfade/Steuerzeichen, höchstens 120 Zeichen (Endung bleibt erhalten). */
 export function sanitizeFileName(raw: string | undefined): string {
+  // eslint-disable-next-line no-control-regex -- Steuerzeichen sollen hier gerade entfernt werden
   const cleaned = (raw ?? "").normalize("NFC").replace(/[\u0000-\u001f\u007f\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").replace(/^[.\s]+/, "").trim();
   if (cleaned.length <= 120) return cleaned;
   const dot = cleaned.lastIndexOf(".");

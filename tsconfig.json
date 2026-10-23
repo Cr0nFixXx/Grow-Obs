@@ -34,6 +34,7 @@
   "include": [
     "next-env.d.ts",
     "src",
+    "tests/unit",
     "app",
     "vite.config.ts",
     "next.config.ts",

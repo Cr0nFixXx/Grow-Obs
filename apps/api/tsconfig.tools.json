@@ -1,6 +1,37 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": ".", "noEmit": true },
-  "include": ["src", "seed.ts", "drizzle.config.ts", "tests"],
-  "exclude": ["dist", "node_modules"]
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "drizzle-orm": [
+        "./node_modules/drizzle-orm/index.d.ts"
+      ],
+      "drizzle-orm/*": [
+        "./node_modules/drizzle-orm/*.d.ts",
+        "./node_modules/drizzle-orm/*/index.d.ts"
+      ],
+      "hono": [
+        "./node_modules/hono/dist/types/index.d.ts"
+      ],
+      "hono/*": [
+        "./node_modules/hono/*.d.ts",
+        "./node_modules/hono/*/index.d.ts"
+      ],
+      "postgres": [
+        "./node_modules/postgres/types/index.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "seed.ts",
+    "drizzle.config.ts",
+    "../../tests/api"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
 }
