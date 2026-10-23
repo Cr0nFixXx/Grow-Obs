@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { and, count, eq, sql } from "drizzle-orm";
-import { db } from "../db/client.ts";
+import { db, resetDbConnection } from "../db/client.ts";
 import { media } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
@@ -21,6 +21,27 @@ export const MEDIA_MAX_BYTES = 2 * 1024 * 1024;
 const QUOTA_FILES = 200;
 const QUOTA_BYTES = 100 * 1024 * 1024;
 
+/**
+ * B-80: Die erste Abfrage nach einer Pause hing in Produktion bis zur 12-s-Klammer (Upload → 503), obwohl die Tabelle winzig ist und
+ * Folgeanfragen sofort liefen. Hängt die Abfrage länger als 4 s, wird die Verbindung verworfen und einmal neu versucht
+ * (Antwort trägt dann `X-Db-Retry: 1`).
+ */
+async function withStallRetry<T>(c: { header(name: string, value: string): void }, run: () => PromiseLike<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stalled = new Promise<"stalled">((resolve) => { timer = setTimeout(() => resolve("stalled"), 4000); });
+  const first = Promise.resolve(run());
+  try {
+    const result = await Promise.race([first, stalled]);
+    if (result !== "stalled") return result;
+  } finally {
+    clearTimeout(timer);
+  }
+  void first.catch(() => undefined);
+  c.header("X-Db-Retry", "1");
+  await resetDbConnection({ force: true });
+  return run();
+}
+
 export const mediaApi = new Hono<AuthEnv>();
 
 mediaApi.post(
@@ -38,10 +59,12 @@ mediaApi.post(
     if (!type) return c.json({ error: "Nur JPEG, PNG oder WebP" }, 415);
     const ownerId = c.get("userId");
     markPhase(c, "quota");
-    const [usage] = await db
-      .select({ files: count(), bytes: sql<number>`coalesce(sum(${media.size}), 0)::int` })
-      .from(media)
-      .where(eq(media.ownerId, ownerId));
+    const readUsage = () =>
+      db
+        .select({ files: count(), bytes: sql<number>`coalesce(sum(${media.size}), 0)::int` })
+        .from(media)
+        .where(eq(media.ownerId, ownerId));
+    const [usage] = await withStallRetry(c, readUsage);
     if ((usage?.files ?? 0) >= QUOTA_FILES || (usage?.bytes ?? 0) + bytes.length > QUOTA_BYTES) {
       return c.json({ error: "Speicherkontingent erschöpft" }, 413);
     }
