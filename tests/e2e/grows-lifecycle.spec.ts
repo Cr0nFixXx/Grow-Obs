@@ -92,7 +92,7 @@ test("Grow-Tagebuch: Log mit Datum bearbeiten, Messwerte, Diagramme, Fotos", asy
   await page.getByPlaceholder(/Komposttee/).fill("Erste Düngung");
   await page.getByRole("button", { name: "Eintrag speichern" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
-  await expect(page.getByText("Erste Düngung")).toBeVisible();
+  await expect(page.locator("#app-main").getByText("Erste Düngung")).toBeVisible();
   await expect(page.getByText(/Tag 6 ·/)).toBeVisible();
 
   // Log bearbeiten (Titel + Datum)
@@ -101,7 +101,8 @@ test("Grow-Tagebuch: Log mit Datum bearbeiten, Messwerte, Diagramme, Fotos", asy
   await logForm.getByLabel("Titel").fill("Zweite Düngung");
   await logForm.getByLabel("Datum").fill(isoDaysAgo(2));
   await logForm.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByText("Zweite Düngung")).toBeVisible();
+  // Im Hauptbereich suchen: Die Erfolgsmeldung (Toast) nennt den Titel ebenfalls.
+  await expect(page.locator("#app-main").getByText("Zweite Düngung")).toBeVisible();
   await expect(page.getByText(/Tag 8 ·/)).toBeVisible();
 
   // Messwerte: Live-VPD, speichern, zweiter Tag, Diagramme
@@ -148,7 +149,7 @@ test("Grow-Tagebuch: Log mit Datum bearbeiten, Messwerte, Diagramme, Fotos", asy
   const dialog = page.getByTestId("photo-dialog");
   await dialog.getByLabel(/Bildunterschrift/).fill("Tag 10");
   await dialog.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByText("Tag 10", { exact: true })).toBeVisible();
+  await expect(page.locator("#app-main").getByText("Tag 10", { exact: true })).toBeVisible();
   await page.getByTestId("edit-photo").nth(1).click();
   await page.getByTestId("photo-cover").click();
   await expect(page.getByText("Titelbild", { exact: true })).toHaveCount(1);
