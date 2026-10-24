@@ -1,13 +1,19 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DeleteGrowModal, EditGrowModal, FinishGrowModal } from "@/components/GrowDialogs";
+import { DeleteGrowModal, EditGrowModal, EditLogModal, EnvModal, FinishGrowModal, PhotoModal, parseDecimal } from "@/components/GrowDialogs";
 import type { Grow } from "@/types";
 
 const grows = {
   update: vi.fn(async (_id: string, patch: object) => ({ ...grow(), ...patch }) as Grow),
   finish: vi.fn(async () => grow()),
   remove: vi.fn(async () => undefined),
+  updateLog: vi.fn(async () => ({}) as never),
+  deleteLog: vi.fn(async () => undefined),
+  updatePhoto: vi.fn(async () => grow()),
+  deletePhoto: vi.fn(async () => grow()),
+  saveEnv: vi.fn(async () => ({}) as never),
+  deleteEnv: vi.fn(async () => undefined),
 };
 vi.mock("@/data/DataContext", () => ({ useServices: () => ({ grows }) }));
 vi.mock("@/components/Toast", () => ({ useToast: () => ({ push: () => undefined }) }));
@@ -16,7 +22,7 @@ function grow(over: Partial<Grow> = {}): Grow {
   return {
     id: "g1", name: "Run 1", strain: "Haze", breeder: "X", type: "Hybrid", medium: "Erde (Bio)", startDate: "2026-09-01", day: 30, totalDays: 84,
     phase: "Vegetativ", phaseIndex: 1, progress: 35, status: "active", condition: "gesund", archived: false, endedOn: null, harvest: null,
-    cover: "", gallery: ["/media/a"], expectedYield: "—", phases: [], env: [], logs: [],
+    cover: "/media/a", photos: [{ id: "p1", url: "/media/a", caption: "", cover: true }, { id: "p2", url: "/media/b", caption: "Tag 3", cover: false }], leafOffset: 2, expectedYield: "—", phases: [], env: [], logs: [],
     ...over,
   } as Grow;
 }
@@ -87,7 +93,7 @@ describe("Grow-Dialoge (B-84)", () => {
     const onDeleted = vi.fn();
     const onArchive = vi.fn();
     render(<DeleteGrowModal grow={grow({ logs: [{ id: "l1" } as Grow["logs"][number]] })} open onClose={() => undefined} onDeleted={onDeleted} onArchive={onArchive} />);
-    expect(screen.getByTestId("delete-grow-dialog").textContent).toMatch(/1 Eintrag, 0 Messwerten und 1 Foto/);
+    expect(screen.getByTestId("delete-grow-dialog").textContent).toMatch(/1 Eintrag, 0 Messwerten und 2 Fotos/);
     expect(grows.remove).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("Lieber archivieren"));
     expect(onArchive).toHaveBeenCalled();
@@ -101,5 +107,117 @@ describe("Grow-Dialoge (B-84)", () => {
     render(<FinishGrowModal grow={grow()} open initialOutcome="harvested" onClose={() => undefined} onSaved={() => undefined} />);
     fireEvent.submit(screen.getByTestId("finish-grow-form"));
     expect((await screen.findByRole("alert")).textContent).toContain("Der Grow ist abgeschlossen");
+  });
+
+  it("Bearbeiten: Blatt-Abzug wird mitgesendet und auf 0–6 °C geprüft", async () => {
+    render(<EditGrowModal grow={grow()} open onClose={() => undefined} onSaved={() => undefined} />);
+    fireEvent.change(screen.getByLabelText(/Blatt-Abzug/), { target: { value: "9" } });
+    fireEvent.submit(screen.getByTestId("edit-grow-form"));
+    expect(await screen.findByText(/zwischen 0 und 6/)).toBeTruthy();
+    expect(grows.update).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText(/Blatt-Abzug/), { target: { value: "3,5" } });
+    fireEvent.submit(screen.getByTestId("edit-grow-form"));
+    await waitFor(() => expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ leafOffset: 3.5 })));
+  });
+});
+
+const log = { id: "l1", day: 5, date: "2026-09-06", title: "Gegossen", text: "1 L", tag: "Gießen" as const };
+
+describe("Log-, Foto- und Messwert-Dialoge (B-85)", () => {
+  beforeEach(() => {
+    window.matchMedia ??= ((query: string) => ({ matches: false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined, addListener: () => undefined, removeListener: () => undefined, onchange: null, dispatchEvent: () => false })) as unknown as typeof window.matchMedia;
+    Object.values(grows).forEach((fn) => fn.mockClear());
+  });
+  afterEach(cleanup);
+
+  it("Eintrag bearbeiten: Titel, Text, Kategorie, Datum; Datum vor Start und leerer Titel werden abgelehnt", async () => {
+    const onSaved = vi.fn();
+    render(<EditLogModal grow={grow()} log={log} open onClose={() => undefined} onSaved={onSaved} />);
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-08-01" } });
+    fireEvent.submit(screen.getByTestId("edit-log-form"));
+    expect(await screen.findByText("Das Datum liegt vor dem Start des Grows.")).toBeTruthy();
+    expect(grows.updateLog).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("Titel"), { target: { value: " Gedüngt " } });
+    fireEvent.click(screen.getByRole("button", { name: "Dünger" }));
+    fireEvent.submit(screen.getByTestId("edit-log-form"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(grows.updateLog).toHaveBeenCalledWith("g1", "l1", { title: "Gedüngt", text: "1 L", tag: "Dünger", date: "2026-09-10" });
+  });
+
+  it("Eintrag löschen braucht eine Bestätigung", async () => {
+    const onSaved = vi.fn();
+    render(<EditLogModal grow={grow()} log={log} open onClose={() => undefined} onSaved={onSaved} />);
+    fireEvent.click(screen.getByTestId("delete-log"));
+    expect(grows.deleteLog).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("confirm-delete-log"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(grows.deleteLog).toHaveBeenCalledWith("g1", "l1");
+  });
+
+  it("Foto: Bildunterschrift speichern, als Titelbild setzen (nur wenn es keins ist), Löschen mit Bestätigung", async () => {
+    const g = grow();
+    const onSaved = vi.fn();
+    const { unmount } = render(<PhotoModal grow={g} photo={g.photos[1]!} open onClose={() => undefined} onSaved={onSaved} />);
+    fireEvent.change(screen.getByLabelText(/Bildunterschrift/), { target: { value: " Tag 4 " } });
+    fireEvent.click(screen.getByRole("button", { name: /Speichern/ }));
+    await waitFor(() => expect(grows.updatePhoto).toHaveBeenCalledWith("g1", "p2", { caption: "Tag 4" }));
+    fireEvent.click(screen.getByTestId("photo-cover"));
+    await waitFor(() => expect(grows.updatePhoto).toHaveBeenCalledWith("g1", "p2", { cover: true }));
+    fireEvent.click(screen.getByTestId("delete-photo"));
+    expect(grows.deletePhoto).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("confirm-delete-photo"));
+    await waitFor(() => expect(grows.deletePhoto).toHaveBeenCalledWith("g1", "p2"));
+    unmount();
+    render(<PhotoModal grow={g} photo={g.photos[0]!} open onClose={() => undefined} onSaved={() => undefined} />);
+    expect(screen.queryByTestId("photo-cover")).toBeNull();
+    expect(screen.getByText(/ist das Titelbild/)).toBeTruthy();
+  });
+
+  it("Messwerte: Live-VPD, optionale Felder, Komma, Bereichsprüfung, mindestens ein Wert", async () => {
+    const onSaved = vi.fn();
+    render(<EnvModal grow={grow()} open onClose={() => undefined} onSaved={onSaved} />);
+    fireEvent.submit(screen.getByTestId("env-form"));
+    expect(await screen.findByText("Bitte mindestens einen Wert eintragen.")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("pH"), { target: { value: "15" } });
+    fireEvent.submit(screen.getByTestId("env-form"));
+    expect(await screen.findByText(/Ungültiger Wert: pH/)).toBeTruthy();
+    expect(grows.saveEnv).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("pH"), { target: { value: "6,3" } });
+    expect(screen.getByTestId("env-vpd").textContent).toContain("wird berechnet");
+    fireEvent.change(screen.getByLabelText("Temperatur"), { target: { value: "25" } });
+    fireEvent.change(screen.getByLabelText("Luftfeuchte"), { target: { value: "60" } });
+    expect(screen.getByTestId("env-vpd").textContent).toContain("0,91 kPa");
+    fireEvent.submit(screen.getByTestId("env-form"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(grows.saveEnv).toHaveBeenCalledWith("g1", expect.objectContaining({ temp: 25, rh: 60, ec: null, ph: 6.3 }));
+  });
+
+  it("Messwerte: vorhandener Tag wird vorbelegt und lässt sich löschen; Datumswechsel lädt die Werte dieses Tages", async () => {
+    const env = [
+      { day: 5, date: "2026-09-06", temp: 24, rh: 55, vpd: 1.1, ec: 1.2, ph: 6.1 },
+      { day: 6, date: "2026-09-07", temp: null, rh: null, vpd: null, ec: null, ph: 6.4 },
+    ];
+    const onSaved = vi.fn();
+    render(<EnvModal grow={grow({ env })} initialDate="2026-09-06" open onClose={() => undefined} onSaved={onSaved} />);
+    expect((screen.getByLabelText("Temperatur") as HTMLInputElement).value).toBe("24");
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-09-07" } });
+    expect((screen.getByLabelText("Temperatur") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("pH") as HTMLInputElement).value).toBe("6,4");
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-09-08" } });
+    expect((screen.getByLabelText("pH") as HTMLInputElement).value).toBe("");
+    expect(screen.queryByTestId("delete-env")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-09-06" } });
+    fireEvent.click(screen.getByTestId("delete-env"));
+    fireEvent.click(screen.getByTestId("confirm-delete-env"));
+    await waitFor(() => expect(grows.deleteEnv).toHaveBeenCalledWith("g1", "2026-09-06"));
+  });
+
+  it("liest Dezimalzahlen: Komma, leer = null, außerhalb = NaN", () => {
+    expect(parseDecimal("6,5", 0, 14)).toBe(6.5);
+    expect(parseDecimal(" ", 0, 14)).toBeNull();
+    expect(parseDecimal("15", 0, 14)).toBeNaN();
+    expect(parseDecimal("x", 0, 14)).toBeNaN();
+    expect(parseDecimal("-3", -10, 60)).toBe(-3);
   });
 });

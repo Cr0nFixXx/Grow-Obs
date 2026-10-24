@@ -26,6 +26,37 @@ export const formatDay = (iso: string | null | undefined) => {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : "–";
 };
 
+/** Kalendertage zwischen zwei JJJJ-MM-TT (nie negativ). */
+export const dayDiff = (from: string, to: string) => {
+  const a = /^(\d{4})-(\d{2})-(\d{2})/.exec(from);
+  const b = /^(\d{4})-(\d{2})-(\d{2})/.exec(to);
+  if (!a || !b) return 0;
+  return Math.max(0, Math.round((Date.UTC(+b[1], +b[2] - 1, +b[3]) - Date.UTC(+a[1], +a[2] - 1, +a[3])) / 86_400_000));
+};
+
+/** JJJJ-MM-TT plus/minus Tage. */
+export const shiftDay = (iso: string, days: number) => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Sättigungsdampfdruck in kPa (Magnus). */
+const svp = (c: number) => 0.6108 * Math.exp((17.27 * c) / (c + 237.3));
+
+/** VPD in kPa; Blatttemperatur = Lufttemperatur minus Abzug (wie in der API, `lib/grow-state.ts`). */
+export const vpdKpa = (tempC: number, rhPercent: number, leafOffsetC = 2) =>
+  Math.max(0, Math.round((svp(tempC - leafOffsetC) - svp(tempC) * (rhPercent / 100)) * 100) / 100);
+
+/** Zielband fürs VPD (kPa). */
+export const VPD_BAND = { min: 0.8, max: 1.2 } as const;
+
+/** Mittelwert der vorhandenen Werte (leere ignoriert) oder `null`. */
+export const average = (values: (number | null | undefined)[]) => {
+  const list = values.filter((v): v is number => typeof v === "number");
+  return list.length ? list.reduce((sum, v) => sum + v, 0) / list.length : null;
+};
+
 /** Heutiges Datum lokal als JJJJ-MM-TT (für `max` in Datumsfeldern). */
 export const todayLocal = () => {
   const d = new Date();

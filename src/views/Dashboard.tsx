@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { conditionLabel, conditionTone, isActiveGrow, statusLabel } from "@/lib/grows";
+import type { EnvPoint } from "@/types";
+import { conditionLabel, conditionTone, formatDay, isActiveGrow, statusLabel } from "@/lib/grows";
 import { useCurrentUser } from "@/lib/auth";
 import { ArrowRight, Plus, Sparkles, X } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -68,8 +69,9 @@ export default function Dashboard() {
         { id: "q4", label: "Brauchen Aufmerksamkeit", value: <CountUp value={needAttention} />, icon: "HeartPulse", color: needAttention ? "warning" : "leaf" },
       ];
   // Klima: im API-Modus der letzte erfasste Messpunkt des ersten aktiven Grows mit Klimadaten.
-  const climateGrow = activeGrows.find((g) => g.env.length > 0);
-  const lastEnv = climateGrow ? climateGrow.env[climateGrow.env.length - 1] : undefined;
+  const lastClimate = (g: { env: EnvPoint[] }) => [...g.env].reverse().find((e) => e.temp !== null || e.rh !== null);
+  const climateGrow = activeGrows.find((g) => lastClimate(g));
+  const lastEnv = climateGrow ? lastClimate(climateGrow) : undefined;
 
   const costBreakdown = [
     { label: "Strom", value: 62, color: "var(--accent)" },
@@ -339,20 +341,20 @@ export default function Dashboard() {
               <SectionHead title="Klima · Grow-Raum" icon="Thermometer" action={climateGrow ? <Badge>Tag {lastEnv?.day}</Badge> : undefined} />
               {lastEnv && climateGrow ? (
                 <>
-                  <p className="mb-1 truncate text-xs text-fg-subtle">{climateGrow.name} · letzter erfasster Messpunkt</p>
+                  <p className="mb-1 truncate text-xs text-fg-subtle">{climateGrow.name} · letzter Messwert vom {formatDay(lastEnv.date)}</p>
                   <div className="flex items-center justify-around py-2">
                     <div className="text-center">
-                      <Gauge value={lastEnv.temp} max={35} size={92} stroke={8} color="var(--accent)">
+                      <Gauge value={lastEnv.temp ?? 0} max={35} size={92} stroke={8} color="var(--accent)">
                         <div>
-                          <div className="text-lg font-bold tnum">{lastEnv.temp}°</div>
+                          <div className="text-lg font-bold tnum">{lastEnv.temp ?? "–"}°</div>
                           <div className="text-[10px] text-fg-subtle">Temp</div>
                         </div>
                       </Gauge>
                     </div>
                     <div className="text-center">
-                      <Gauge value={lastEnv.rh} max={100} size={92} stroke={8} color="var(--info)">
+                      <Gauge value={lastEnv.rh ?? 0} max={100} size={92} stroke={8} color="var(--info)">
                         <div>
-                          <div className="text-lg font-bold tnum">{lastEnv.rh}%</div>
+                          <div className="text-lg font-bold tnum">{lastEnv.rh ?? "–"}%</div>
                           <div className="text-[10px] text-fg-subtle">Feuchte</div>
                         </div>
                       </Gauge>
@@ -360,8 +362,8 @@ export default function Dashboard() {
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-center">
                     {[
-                      { label: "VPD", value: lastEnv.vpd.toFixed(2), icon: "Droplets", unit: "kPa" },
-                      { label: "EC", value: String(lastEnv.ec), icon: "Zap", unit: "mS" },
+                      { label: "VPD", value: lastEnv.vpd != null ? lastEnv.vpd.toFixed(2) : "–", icon: "Droplets", unit: "kPa" },
+                      { label: "EC", value: lastEnv.ec != null ? String(lastEnv.ec) : "–", icon: "Zap", unit: "mS" },
                     ].map((m) => (
                       <div key={m.label} className="rounded-xl bg-surface-2 p-2">
                         <Icon name={m.icon} size={14} className="mx-auto text-fg-subtle" />

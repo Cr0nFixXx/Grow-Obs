@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { register, uniqueEmail } from "./helpers";
+import { makeTestFiles, register, uniqueEmail } from "./helpers";
 
 /** B-84: Grow bearbeiten, Phase wechseln, ernten, wieder aufnehmen, archivieren, löschen. */
 test("Grow-Lebenszyklus: Tag aus Startdatum, Phase, Zustand, Ernte, Archiv, Löschen", async ({ page }) => {
@@ -68,4 +68,92 @@ test("Grow-Lebenszyklus: Tag aus Startdatum, Phase, Zustand, Ernte, Archiv, Lös
   await expect(page.getByRole("heading", { name: "Meine Grows" })).toBeVisible();
   await page.getByRole("button", { name: /Archiv \(0\)/ }).click();
   await expect(page.getByText("Das Archiv ist leer")).toBeVisible();
+});
+
+const isoDaysAgo = (n: number) => {
+  const d = new Date(Date.now() - n * 86_400_000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** B-85: Tagebuch mit Datum, Messwerte je Tag mit berechnetem VPD, Diagramme, Fotos verwalten. */
+test("Grow-Tagebuch: Log mit Datum bearbeiten, Messwerte, Diagramme, Fotos", async ({ page }) => {
+  await register(page, "Grow Tagebuch", uniqueEmail("diary"));
+  const name = `Tagebuch ${Date.now()}`;
+  await page.getByRole("button", { name: "Neuer Grow" }).first().click();
+  await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
+  await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("Tagebuch Kush");
+  await page.getByLabel(/Startdatum/).fill(isoDaysAgo(10));
+  await page.getByRole("button", { name: "Grow anlegen" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+
+  // Log mit rückwirkendem Datum: Tag wird berechnet
+  await page.getByRole("button", { name: /^\+ Eintrag$/ }).click();
+  await page.getByLabel("Datum").fill(isoDaysAgo(4));
+  await page.getByPlaceholder(/Komposttee/).fill("Erste Düngung");
+  await page.getByRole("button", { name: "Eintrag speichern" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.getByText("Erste Düngung")).toBeVisible();
+  await expect(page.getByText(/Tag 6 ·/)).toBeVisible();
+
+  // Log bearbeiten (Titel + Datum)
+  await page.getByTestId("edit-log").first().click();
+  const logForm = page.getByTestId("edit-log-form");
+  await logForm.getByLabel("Titel").fill("Zweite Düngung");
+  await logForm.getByLabel("Datum").fill(isoDaysAgo(2));
+  await logForm.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Zweite Düngung")).toBeVisible();
+  await expect(page.getByText(/Tag 8 ·/)).toBeVisible();
+
+  // Messwerte: Live-VPD, speichern, zweiter Tag, Diagramme
+  await page.getByTestId("add-env").click();
+  const env = page.getByTestId("env-form");
+  await env.getByLabel("Temperatur").fill("25");
+  await env.getByLabel("Luftfeuchte").fill("60");
+  await env.getByLabel("pH").fill("6,3");
+  await expect(page.getByTestId("env-vpd")).toContainText("0,91 kPa");
+  await env.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByTestId("env-row")).toHaveCount(1);
+
+  await page.getByTestId("add-env").click();
+  await env.getByLabel("Datum").fill(isoDaysAgo(1));
+  await env.getByLabel("EC").fill("1,4");
+  await env.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByTestId("env-row")).toHaveCount(2);
+  await expect(page.getByTestId("chart-climate").locator('[data-series="temp"] circle')).toHaveCount(1);
+  await expect(page.getByTestId("chart-feed").locator('[data-series="ph"] circle')).toHaveCount(1);
+  await expect(page.getByTestId("chart-feed").locator('[data-series="ec"] circle')).toHaveCount(1);
+  await expect(page.getByTestId("chart-vpd").locator('[data-series="vpd"] circle')).toHaveCount(1);
+
+  // Tag erneut speichern überschreibt (kein Duplikat); löschen
+  await page.getByTestId("add-env").click();
+  await env.getByLabel("Temperatur").fill("22");
+  await env.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByTestId("env-row")).toHaveCount(2);
+  await page.getByRole("button", { name: /Messwerte vom .* bearbeiten/ }).last().click();
+  await page.getByTestId("delete-env").click();
+  await page.getByTestId("confirm-delete-env").click();
+  await expect(page.getByTestId("env-row")).toHaveCount(1);
+
+  // Zeitraum 7 Tage umschalten ohne Fehler
+  await page.getByRole("button", { name: "7 Tage" }).click();
+  await expect(page.getByTestId("chart-climate")).toBeVisible();
+
+  // Fotos: hochladen, Bildunterschrift, Titelbild, löschen
+  const files = makeTestFiles();
+  await page.locator('input[type="file"]').first().setInputFiles(`${files}/gruen.png`);
+  await expect(page.getByTestId("grow-photo")).toHaveCount(1);
+  await page.locator('input[type="file"]').first().setInputFiles(`${files}/braun.png`);
+  await expect(page.getByTestId("grow-photo")).toHaveCount(2);
+  await page.getByTestId("edit-photo").nth(1).click();
+  const dialog = page.getByTestId("photo-dialog");
+  await dialog.getByLabel(/Bildunterschrift/).fill("Tag 10");
+  await dialog.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Tag 10", { exact: true })).toBeVisible();
+  await page.getByTestId("edit-photo").nth(1).click();
+  await page.getByTestId("photo-cover").click();
+  await expect(page.getByText("Titelbild", { exact: true })).toHaveCount(1);
+  await page.getByTestId("edit-photo").nth(1).click();
+  await page.getByTestId("delete-photo").click();
+  await page.getByTestId("confirm-delete-photo").click();
+  await expect(page.getByTestId("grow-photo")).toHaveCount(1);
 });

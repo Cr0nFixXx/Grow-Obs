@@ -139,12 +139,24 @@ export interface GrowHarvest {
   note: string;
 }
 
+/** Messwerte eines Tages (B-85); jeder Wert ist optional, das VPD wird aus Temperatur und Luftfeuchte berechnet. */
 export interface EnvPoint {
   day: number;
-  temp: number;
-  rh: number;
-  vpd: number;
-  ec: number;
+  /** JJJJ-MM-TT */
+  date: string;
+  temp: number | null;
+  rh: number | null;
+  vpd: number | null;
+  ec: number | null;
+  ph: number | null;
+}
+
+export interface GrowPhoto {
+  id: string;
+  url: string;
+  caption: string;
+  /** Aktuelles Titelbild des Grows. */
+  cover: boolean;
 }
 
 export interface GrowLog {
@@ -176,7 +188,9 @@ export interface Grow {
   endedOn: string | null;
   harvest: GrowHarvest | null;
   cover: string;
-  gallery: string[];
+  photos: GrowPhoto[];
+  /** Abzug von der Lufttemperatur für die Blatttemperatur (°C) beim VPD, Standard 2. */
+  leafOffset: number;
   phases: GrowPhase[];
   env: EnvPoint[];
   logs: GrowLog[];

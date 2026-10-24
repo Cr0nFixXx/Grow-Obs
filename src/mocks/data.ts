@@ -210,7 +210,12 @@ function growPhases(index: number, status: "active" | "harvested"): Grow["phases
 }
 
 /* ----------------------------- Grows ----------------------------- */
-export const grows: Grow[] = [
+type SeedGrow = Omit<Grow, "photos" | "leafOffset" | "env"> & {
+  gallery: string[];
+  env: { day: number; temp: number; rh: number; vpd: number; ec: number }[];
+};
+
+const seedGrowList: SeedGrow[] = [
   {
     id: "g1", name: "HazyDream · Run 03", strain: "Northern Haze", breeder: "Hazy Genetics", type: "Sativa", medium: "Living Soil (No-Till)", startDate: "2025-01-08", day: 64, totalDays: 98, phase: "Blüte", phaseIndex: 2, progress: 65, condition: "gesund", archived: false, status: "active", endedOn: null, harvest: null, cover: PLANTS[0], gallery: [PLANTS[0], PLANTS[5], PLANTS[2], PLANTS[6], PLANTS[1]], expectedYield: "320–380 g",
     phases: growPhases(2, "active"),
@@ -236,6 +241,21 @@ export const grows: Grow[] = [
     logs: [{ id: "l1", day: 84, date: "abgeschlossen", title: "Geerntet & am Trocknen", text: "410 g trocken geschätzt. 14 Tage Slow-Cure in Gläsern.", tag: "Ernte" }],
   },
 ];
+
+/** Datum JJJJ-MM-TT = Startdatum + Tag (die Demo-Grows haben feste Tageswerte). */
+function addDays(start: string, days: number): string {
+  const d = new Date(`${start.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export const grows: Grow[] = seedGrowList.map(({ gallery, env, logs, ...g }) => ({
+  ...g,
+  leafOffset: 2,
+  photos: gallery.map((url, i) => ({ id: `${g.id}-p${i}`, url, caption: "", cover: url === g.cover })),
+  env: env.map((e, i) => ({ ...e, date: addDays(g.startDate, e.day), ph: +(6.1 + Math.sin(i) * 0.2).toFixed(1) })),
+  logs: logs.map((l) => ({ id: l.id, day: l.day, date: addDays(g.startDate, l.day), title: l.title, text: l.text, tag: l.tag })),
+}));
 
 /* ----------------------------- Hall of Fame ----------------------------- */
 export const hallOfFame: HallEntry[] = [

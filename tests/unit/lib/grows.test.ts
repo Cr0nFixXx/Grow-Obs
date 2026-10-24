@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dryRatio, formatDay, formatGrams, isActiveGrow, conditionLabel, GROW_PHASE_NAMES } from "@/lib/grows";
+import { VPD_BAND, average, dayDiff, dryRatio, formatDay, formatGrams, isActiveGrow, conditionLabel, GROW_PHASE_NAMES, shiftDay, vpdKpa } from "@/lib/grows";
 import { parseGrams } from "@/components/GrowDialogs";
 
 describe("Grow-Hilfen (B-84)", () => {
@@ -37,5 +37,22 @@ describe("Grow-Hilfen (B-84)", () => {
     expect(parseGrams("12,6")).toBe(13);
     expect(parseGrams("abc")).toBeNaN();
     expect(parseGrams("-5")).toBeNaN();
+  });
+
+  it("VPD (B-85): Blatt = Luft minus Abzug, wie in der API", () => {
+    expect(vpdKpa(25, 60)).toBe(0.91);
+    expect(vpdKpa(25, 60, 0)).toBe(1.27);
+    expect(vpdKpa(20, 100, 2)).toBe(0);
+    expect(VPD_BAND).toEqual({ min: 0.8, max: 1.2 });
+  });
+
+  it("Datumshilfen und Mittelwert ignorieren leere Werte", () => {
+    expect(dayDiff("2026-09-01", "2026-10-01")).toBe(30);
+    expect(dayDiff("2026-10-01", "2026-09-01")).toBe(0);
+    expect(dayDiff("kaputt", "2026-09-01")).toBe(0);
+    expect(shiftDay("2026-03-01", -1)).toBe("2026-02-28");
+    expect(shiftDay("2026-12-31", 1)).toBe("2027-01-01");
+    expect(average([1, null, 2, undefined, 3])).toBe(2);
+    expect(average([null])).toBeNull();
   });
 });

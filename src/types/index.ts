@@ -44,6 +44,27 @@ export interface CreateGrowInput {
   startDate?: string;
 }
 
+/** Neuer Log-Eintrag (B-85); ohne `date` gilt heute, der Tag wird aus dem Datum berechnet. */
+export interface AddLogInput {
+  title: string;
+  text: string;
+  tag: import("./domain").GrowLog["tag"];
+  /** JJJJ-MM-TT */
+  date?: string;
+}
+
+export type UpdateLogInput = Partial<AddLogInput>;
+
+/** Messwerte eines Tages (B-85): erneutes Speichern ersetzt den Tag; mindestens ein Wert. */
+export interface EnvInput {
+  /** JJJJ-MM-TT; ohne Angabe heute. */
+  date?: string;
+  temp?: number | null;
+  rh?: number | null;
+  ec?: number | null;
+  ph?: number | null;
+}
+
 /** Änderbare Felder eines Grows (B-84). */
 export interface UpdateGrowInput {
   name?: string;
@@ -55,6 +76,8 @@ export interface UpdateGrowInput {
   totalDays?: number;
   expectedYield?: string;
   condition?: import("./domain").GrowCondition;
+  /** Blatt-Abzug fürs VPD, 0–6 °C (B-85). */
+  leafOffset?: number;
 }
 
 export interface FinishGrowInput {

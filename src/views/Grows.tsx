@@ -4,11 +4,11 @@ import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { Icon } from "@/components/Icon";
 import { Badge, Button, Card, EmptyState, PageHeader, Popover, PopoverItem, ProgressBar, Segmented, SkeletonCard, SmartImage, SwipeLightbox } from "@/components/ui";
-import { SeriesChart } from "@/components/charts";
-import { DeleteGrowModal, EditGrowModal, FinishGrowModal } from "@/components/GrowDialogs";
+import { GrowMeasurements } from "@/components/GrowMeasurements";
+import { DeleteGrowModal, EditGrowModal, EditLogModal, FinishGrowModal, PhotoModal } from "@/components/GrowDialogs";
 import { GROW_PHASE_NAMES, conditionIcon, conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow, statusLabel } from "@/lib/grows";
 import { Reveal } from "@/components/motion";
-import { type Grow, type GrowCondition } from "@/types";
+import { type Grow, type GrowCondition, type GrowLog } from "@/types";
 import { invalidate, useGrows } from "@/data/hooks";
 import { useToast } from "@/components/Toast";
 import { useServices } from "@/data/DataContext";
@@ -177,6 +177,8 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
   const { back, navigate } = useNav();
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [dialog, setDialog] = useState<null | "edit" | "harvest" | "abort" | "delete">(null);
+  const [editLog, setEditLog] = useState<GrowLog | null>(null);
+  const [editPhotoId, setEditPhotoId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const active = grow.status === "active";
 
@@ -313,22 +315,7 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Reveal>
-            <Card className="p-5">
-              <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Thermometer" size={16} /> Umwelt-Verlauf</h2>
-              <p className="mb-4 text-xs text-fg-subtle">Temperatur & relative Luftfeuchte der letzten Messungen</p>
-              <SeriesChart
-                height={200}
-                labels={grow.env.map((e) => `T${e.day}`)}
-                series={[
-                  { name: "Temp (°C)", color: "var(--accent)", data: grow.env.map((e) => e.temp) },
-                  { name: "Feuchte (%)", color: "var(--info)", data: grow.env.map((e) => e.rh) },
-                ]}
-              />
-              <div className="mt-3 flex gap-4 text-xs">
-                <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[var(--accent)]" /> Temperatur</span>
-                <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[var(--info)]" /> Luftfeuchte</span>
-              </div>
-            </Card>
+            <GrowMeasurements grow={grow} onChanged={saved} />
           </Reveal>
 
           <Reveal>
@@ -337,6 +324,7 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="NotebookPen" size={16} /> Log-Einträge</h2>
                 <Button size="sm" variant="ghost" onClick={() => navigate("create", { kind: "log", growId: grow.id })}>+ Eintrag</Button>
               </div>
+              {grow.logs.length === 0 && <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Einträge. Halte Gießen, Düngen, Training und Beobachtungen fest.</p>}
               <div className="space-y-1">
                 {grow.logs.map((l, i) => (
                   <div key={l.id} className="flex gap-3">
@@ -347,9 +335,12 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
                     <div className="flex-1 pb-4">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-semibold">{l.title}</span>
-                        <span className="shrink-0 text-xs text-fg-subtle">Tag {l.day} · {l.date}</span>
+                        <span className="flex shrink-0 items-center gap-1 text-xs text-fg-subtle">
+                          Tag {l.day} · {formatDay(l.date)}
+                          <button type="button" aria-label={`Eintrag „${l.title}“ bearbeiten`} onClick={() => setEditLog(l)} className="grid size-8 place-items-center rounded-lg text-fg-muted transition hover:bg-surface-2 hover:text-fg" data-testid="edit-log"><Icon name="Pencil" size={14} /></button>
+                        </span>
                       </div>
-                      <p className="mt-0.5 text-sm text-fg-muted">{l.text}</p>
+                      {l.text && <p className="mt-0.5 whitespace-pre-line text-sm text-fg-muted">{l.text}</p>}
                       <Badge tone={logTone[l.tag]} className="mt-1.5">{l.tag}</Badge>
                     </div>
                   </div>
@@ -361,19 +352,24 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
           <Reveal>
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Image" size={16} /> Galerie <span className="text-fg-subtle">({grow.gallery.length})</span></h2>
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Image" size={16} /> Galerie <span className="text-fg-subtle">({grow.photos.length})</span></h2>
                 <ImagePickButton onUploaded={addPhoto} className="flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-accent transition hover:bg-accent/10">
                   <Icon name="Camera" size={16} /> Foto hinzufügen
                 </ImagePickButton>
               </div>
-              {grow.gallery.length === 0 ? (
+              {grow.photos.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Fotos. Dokumentiere deinen Grow – das erste Foto wird zum Titelbild.</p>
               ) : (
               <div className="columns-2 gap-3 sm:columns-3 [&>*]:mb-3">
-                {grow.gallery.map((src, i) => (
-                  <button key={`${src}-${i}`} onClick={() => setLightbox(i)} className="block w-full overflow-hidden rounded-xl">
-                    <img src={resolveMedia(src)} alt={`Galerie ${i + 1}`} loading="lazy" className="w-full object-cover transition duration-500 hover:scale-105" style={{ aspectRatio: i % 2 ? "3/4" : "4/3" }} />
-                  </button>
+                {grow.photos.map((photo, i) => (
+                  <figure key={photo.id} className="relative overflow-hidden rounded-xl" data-testid="grow-photo">
+                    <button type="button" onClick={() => setLightbox(i)} className="block w-full" aria-label={photo.caption || `Foto ${i + 1} vergrößern`}>
+                      <img src={resolveMedia(photo.url)} alt={photo.caption || `Galerie ${i + 1}`} loading="lazy" className="w-full object-cover transition duration-500 hover:scale-105" style={{ aspectRatio: i % 2 ? "3/4" : "4/3" }} />
+                    </button>
+                    {photo.cover && <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"><Icon name="Star" size={11} /> Titelbild</span>}
+                    <button type="button" aria-label={`Foto ${i + 1} bearbeiten`} onClick={() => setEditPhotoId(photo.id)} className="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-black/55 text-white transition hover:bg-black/75" data-testid="edit-photo"><Icon name="Pencil" size={14} /></button>
+                    {photo.caption && <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-2 pt-6 text-xs text-white">{photo.caption}</figcaption>}
+                  </figure>
                 ))}
               </div>
               )}
@@ -416,12 +412,16 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
 
       <SwipeLightbox
         open={lightbox !== null}
-        images={grow.gallery.map((src, i) => ({ src, alt: `${grow.name}, Foto ${i + 1}`, caption: "Wische seitlich zum Blättern, nach unten zum Schließen" }))}
+        images={grow.photos.map((photo, i) => ({ src: photo.url, alt: `${grow.name}, Foto ${i + 1}`, caption: photo.caption || "Wische seitlich zum Blättern, nach unten zum Schließen" }))}
         index={lightbox ?? 0}
         onIndexChange={setLightbox}
         onClose={() => setLightbox(null)}
       />
 
+      {editLog && <EditLogModal key={editLog.id} grow={grow} log={editLog} open onClose={() => setEditLog(null)} onSaved={() => { setEditLog(null); void saved(); }} />}
+      {editPhotoId && grow.photos.find((p) => p.id === editPhotoId) && (
+        <PhotoModal key={editPhotoId} grow={grow} photo={grow.photos.find((p) => p.id === editPhotoId)!} open onClose={() => setEditPhotoId(null)} onSaved={() => { setEditPhotoId(null); void saved(); }} />
+      )}
       {dialog === "edit" && <EditGrowModal grow={grow} open onClose={() => setDialog(null)} onSaved={() => void saved()} />}
       {(dialog === "harvest" || dialog === "abort") && (
         <FinishGrowModal grow={grow} open initialOutcome={dialog === "harvest" ? "harvested" : "aborted"} onClose={() => setDialog(null)} onSaved={() => void saved()} />

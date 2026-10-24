@@ -62,3 +62,17 @@ export function growState(row: GrowStateInput, today = todayIso()) {
   });
   return { day, progress, phase: GROW_PHASES[index], phaseIndex: index, phases };
 }
+
+/** Sättigungsdampfdruck in kPa (Magnus/Tetens) bei `tempC` °C. */
+function saturationPressure(tempC: number): number {
+  return 0.6108 * Math.exp((17.27 * tempC) / (tempC + 237.3));
+}
+
+/**
+ * Dampfdruckdefizit (VPD) in kPa: Sättigung an der Blattoberfläche (Lufttemperatur minus `leafOffsetC`)
+ * abzüglich des tatsächlichen Dampfdrucks der Luft; auf zwei Stellen gerundet, nie negativ.
+ */
+export function vpdKpa(tempC: number, rhPercent: number, leafOffsetC = 2): number {
+  const vpd = saturationPressure(tempC - leafOffsetC) - (rhPercent / 100) * saturationPressure(tempC);
+  return Math.max(0, Math.round(vpd * 100) / 100);
+}

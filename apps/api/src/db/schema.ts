@@ -301,6 +301,8 @@ export const grows = pgTable("grows", {
   wetWeightG: integer("wet_weight_g"),
   dryWeightG: integer("dry_weight_g"),
   harvestNote: text("harvest_note").notNull().default(""),
+  /** B-85: Blatttemperatur = Lufttemperatur minus dieser Wert (für den VPD). */
+  leafOffset: doublePrecision("leaf_offset").notNull().default(2),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -313,6 +315,8 @@ export const growLogs = pgTable("grow_logs", {
   title: text("title").notNull(),
   body: text("body").notNull().default(""),
   tag: text("tag").notNull().default("Beobachtung"),
+  /** B-85: echtes Datum des Eintrags (`day`/`date` oben sind Altlasten; der Tag wird aus diesem Datum berechnet). */
+  loggedOn: date("logged_on").notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -320,6 +324,7 @@ export const growPhotos = pgTable("grow_photos", {
   id: uuid("id").primaryKey().defaultRandom(),
   growId: uuid("grow_id").notNull().references(() => grows.id),
   url: text("url").notNull(),
+  caption: text("caption").notNull().default(""),
   takenAt: timestamp("taken_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -327,11 +332,14 @@ export const growEnv = pgTable("grow_env", {
   id: uuid("id").primaryKey().defaultRandom(),
   growId: uuid("grow_id").notNull().references(() => grows.id),
   day: integer("day").notNull(),
-  temp: doublePrecision("temp").notNull().default(0),
-  rh: doublePrecision("rh").notNull().default(0),
-  vpd: doublePrecision("vpd").notNull().default(0),
-  ec: doublePrecision("ec").notNull().default(0),
-});
+  /** B-85: ein Eintrag je Grow und Tag; jeder Wert optional. `vpd` wird nicht mehr gespeichert (wird beim Lesen berechnet). */
+  loggedOn: date("logged_on").notNull(),
+  temp: doublePrecision("temp"),
+  rh: doublePrecision("rh"),
+  vpd: doublePrecision("vpd"),
+  ec: doublePrecision("ec"),
+  ph: doublePrecision("ph"),
+}, (t) => [uniqueIndex("grow_env_grow_day_uq").on(t.growId, t.loggedOn)]);
 
 /* ----------------------------- Social ----------------------------- */
 export const posts = pgTable("posts", {

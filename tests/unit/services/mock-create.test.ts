@@ -6,9 +6,9 @@ describe("mock create flows", () => {
   it("persists a new grow and its log entry", async () => {
     const grow = await svc.grows.create({ name: "Test Run", strain: "Test Kush", breeder: "QA", medium: "Erde (Bio)" });
     expect((await svc.grows.list())[0].id).toBe(grow.id);
-    await svc.grows.addLog(grow.id, { day: 0, date: "2026-01-01", title: "Gegossen", text: "", tag: "Gießen" });
+    await svc.grows.addLog(grow.id, { title: "Gegossen", text: "", tag: "Gießen" });
     expect((await svc.grows.get(grow.id))?.logs[0].title).toBe("Gegossen");
-    await expect(svc.grows.addLog("missing", { day: 0, date: "", title: "x", text: "", tag: "Gießen" })).rejects.toThrow();
+    await expect(svc.grows.addLog("missing", { title: "x", text: "", tag: "Gießen" })).rejects.toThrow();
   });
 
   it("grow lifecycle: Phase, Ernte, Wiederaufnahme, Archiv, Löschen (B-84)", async () => {
@@ -52,7 +52,7 @@ describe("mock create flows", () => {
   it("adds grow photos, chat images and toggles the strain collection", async () => {
     const [grow] = await svc.grows.list();
     const updated = await svc.grows.addPhoto(grow.id, "blob:test/photo");
-    expect(updated.gallery.at(-1)).toBe("blob:test/photo");
+    expect(updated.photos.at(-1)?.url).toBe("blob:test/photo");
 
     const [conversation] = await svc.chat.listConversations();
     await svc.chat.sendMessage(conversation.id, "", [
@@ -98,5 +98,42 @@ describe("mock create flows", () => {
     const [m] = await svc.chat.getMessages("cv-del");
     expect(m).toMatchObject({ id: sent.id, text: "", deleted: true, attachments: [] });
     await expect(svc.chat.deleteMessage("cv-del", "gibt-es-nicht")).rejects.toThrow();
+  });
+
+  it("Tagebuch (B-85): Logs mit Datum, bearbeiten, löschen; Messwerte je Tag; VPD aus Blatt-Abzug; Fotos verwalten", async () => {
+    const grow = await svc.grows.create({ name: "Tagebuch", strain: "QA", breeder: "", medium: "Erde (Bio)", startDate: "2026-01-01" });
+    const log = await svc.grows.addLog(grow.id, { title: " Früh ", text: "", tag: "Gießen", date: "2026-01-11" });
+    expect(log).toMatchObject({ title: "Früh", date: "2026-01-11", day: 10 });
+    await expect(svc.grows.addLog(grow.id, { title: "x", text: "", tag: "Gießen", date: "2025-12-31" })).rejects.toThrow();
+    await expect(svc.grows.addLog(grow.id, { title: "x", text: "", tag: "Gießen", date: "2999-01-01" })).rejects.toThrow();
+    const newer = await svc.grows.addLog(grow.id, { title: "Neuer", text: "", tag: "Dünger", date: "2026-01-20" });
+    expect((await svc.grows.get(grow.id))?.logs.map((l) => l.id)).toEqual([newer.id, log.id]);
+    expect(await svc.grows.updateLog(grow.id, log.id, { date: "2026-01-30", title: "Spät" })).toMatchObject({ date: "2026-01-30", day: 29, title: "Spät" });
+    expect((await svc.grows.get(grow.id))?.logs[0]?.id).toBe(log.id);
+    await svc.grows.deleteLog(grow.id, log.id);
+    expect((await svc.grows.get(grow.id))?.logs).toHaveLength(1);
+
+    expect(await svc.grows.saveEnv(grow.id, { date: "2026-01-05", temp: 25, rh: 60, ph: 6.2 })).toMatchObject({ day: 4, vpd: 0.91, ec: null, ph: 6.2 });
+    expect(await svc.grows.saveEnv(grow.id, { date: "2026-01-05", ph: 6.5 })).toMatchObject({ temp: null, vpd: null, ph: 6.5 }); // ersetzt den Tag
+    await svc.grows.saveEnv(grow.id, { date: "2026-01-04", temp: 25, rh: 60 });
+    await expect(svc.grows.saveEnv(grow.id, { date: "2026-01-06" })).rejects.toThrow();
+    const env = (await svc.grows.get(grow.id))!.env;
+    expect(env.map((e) => e.date)).toEqual(["2026-01-04", "2026-01-05"]);
+    const after = await svc.grows.update(grow.id, { leafOffset: 0 });
+    expect(after.env[0]?.vpd).toBe(1.27);
+    await svc.grows.deleteEnv(grow.id, "2026-01-04");
+    expect((await svc.grows.get(grow.id))!.env).toHaveLength(1);
+
+    await svc.grows.addPhoto(grow.id, "blob:a");
+    const two = await svc.grows.addPhoto(grow.id, "blob:b");
+    expect(two.cover).toBe("blob:a");
+    const [a, b] = two.photos as [(typeof two.photos)[number], (typeof two.photos)[number]];
+    const moved = await svc.grows.updatePhoto(grow.id, b.id, { cover: true, caption: "  Blüte " });
+    expect(moved.cover).toBe("blob:b");
+    expect(moved.photos.find((p) => p.id === b.id)).toMatchObject({ caption: "Blüte", cover: true });
+    const rest = await svc.grows.deletePhoto(grow.id, b.id);
+    expect(rest.photos.map((p) => p.id)).toEqual([a.id]);
+    expect(rest.cover).toBe("blob:a");
+    expect((await svc.grows.deletePhoto(grow.id, a.id)).cover).toBe("");
   });
 });

@@ -1,7 +1,7 @@
 import type {
   ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
-  CreateGrowInput, FinishGrowInput, UpdateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
-  Grow, GrowLog, HallEntry, Product, ReportAction, ReportGroup, ReportInput, ReportKind, SeedOffer, SocialPost, Strain,
+  AddLogInput, CreateGrowInput, EnvInput, FinishGrowInput, UpdateLogInput, UpdateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
+  EnvPoint, Grow, GrowLog, HallEntry, Product, ReportAction, ReportGroup, ReportInput, ReportKind, SeedOffer, SocialPost, Strain,
 } from "@/types";
 
 export interface WikiArticleBrief {
@@ -259,7 +259,17 @@ export interface GrowService {
   list(): Promise<Grow[]>;
   get(id: string): Promise<Grow | undefined>;
   create(input: CreateGrowInput): Promise<Grow>;
-  addLog(growId: string, log: Omit<GrowLog, "id">): Promise<void>;
+  addLog(growId: string, log: AddLogInput): Promise<GrowLog>;
+  /** Eintrag ändern (Titel, Text, Kategorie, Datum – der Tag folgt dem Datum). */
+  updateLog(growId: string, logId: string, patch: UpdateLogInput): Promise<GrowLog>;
+  deleteLog(growId: string, logId: string): Promise<void>;
+  /** Titelbild setzen und/oder Bildunterschrift ändern. Liefert den aktualisierten Grow. */
+  updatePhoto(growId: string, photoId: string, patch: { caption?: string; cover?: true }): Promise<Grow>;
+  /** Foto samt Datei löschen; das Titelbild rückt nach. Liefert den aktualisierten Grow. */
+  deletePhoto(growId: string, photoId: string): Promise<Grow>;
+  /** Messwerte eines Tages speichern (ersetzt den Tag). */
+  saveEnv(growId: string, input: EnvInput): Promise<EnvPoint>;
+  deleteEnv(growId: string, date: string): Promise<void>;
   /** Foto zur Galerie (erstes Foto wird Cover). Liefert den aktualisierten Grow. */
   addPhoto(growId: string, url: string): Promise<Grow>;
   /** Felder ändern (B-84). Tag und Fortschritt ergeben sich aus dem Startdatum. */

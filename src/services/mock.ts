@@ -22,8 +22,8 @@ import {
 } from "@/mocks/data";
 import { dbGet, dbSet } from "@/lib/db";
 import { APP_VERSION } from "@/lib/app-version";
-import { GROW_PHASE_NAMES, todayLocal } from "@/lib/grows";
-import type { Grow, SocialPost, Strain, Task } from "@/types";
+import { GROW_PHASE_NAMES, dayDiff, todayLocal, vpdKpa } from "@/lib/grows";
+import type { EnvPoint, Grow, GrowLog, SocialPost, Strain, Task } from "@/types";
 import type { BannedMember, CommunityDetail, ReportGroup } from "@/types";
 import type {
   ActivityService,
@@ -139,7 +139,7 @@ const socialService: SocialService = {
 };
 
 /** Session-Store: neue Grows/Logs bleiben bis zum Reload sichtbar. */
-const growStore: Grow[] = seedGrows.map((g) => ({ ...g, logs: [...g.logs] }));
+const growStore: Grow[] = seedGrows.map((g) => ({ ...g, logs: [...g.logs], env: [...g.env], photos: [...g.photos] }));
 
 function mockGrow(id: string): Grow {
   const grow = growStore.find((g) => g.id === id);
@@ -160,6 +160,25 @@ function mockPhases(index: number, status: Grow["status"], previous: Grow["phase
       startedOn: before?.startedOn ?? (i === index && status === "active" ? today : null),
     };
   });
+}
+
+const sortLogs = (logs: GrowLog[]) => [...logs].sort((a, b) => b.date.localeCompare(a.date));
+
+/** Datum eines Tagebuch-Eintrags: Standard heute, nie vor dem Start und nie in der Zukunft (wie die API). */
+function mockDiaryDate(grow: Grow, date?: string): string {
+  const value = date ?? todayLocal();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Ungültiges Datum");
+  if (value < grow.startDate.slice(0, 10)) throw new Error("Das Datum liegt vor dem Start des Grows");
+  if (value > todayLocal()) throw new Error("Das Datum liegt in der Zukunft");
+  return value;
+}
+
+/** VPD wie die API: aus Temperatur und Luftfeuchte, nie gespeichert. */
+const withVpd = (e: EnvPoint, leafOffset: number): EnvPoint => ({ ...e, vpd: e.temp != null && e.rh != null ? vpdKpa(e.temp, e.rh, leafOffset) : null });
+
+/** Titelbild aus der Galerie ableiten. */
+function mockCover(grow: Grow) {
+  grow.cover = grow.photos.find((p) => p.cover)?.url ?? "";
 }
 
 /** Tag und Fortschritt aus dem Startdatum (wie in der API). */
@@ -201,7 +220,8 @@ const growService: GrowService = {
       endedOn: null,
       harvest: null,
       cover: seedGrows[0].cover,
-      gallery: [],
+      photos: [],
+      leafOffset: 2,
       expectedYield: "—",
       phases: mockPhases(0, "active"),
       env: [],
@@ -216,6 +236,7 @@ const growService: GrowService = {
     const grow = mockGrow(growId);
     Object.assign(grow, patch);
     mockRecount(grow);
+    if (patch.leafOffset !== undefined) grow.env = grow.env.map((e) => withVpd(e, grow.leafOffset));
     return { ...grow };
   },
   async setPhase(growId, phase) {
@@ -263,16 +284,70 @@ const growService: GrowService = {
   },
   async addPhoto(growId, url) {
     await delay(150);
-    const grow = growStore.find((g) => g.id === growId);
-    if (!grow) throw new Error("Grow nicht gefunden");
-    grow.gallery = [...grow.gallery, url];
+    const grow = mockGrow(growId);
+    grow.photos = [...grow.photos, { id: `p-${Date.now()}-${grow.photos.length}`, url, caption: "", cover: grow.photos.length === 0 }];
+    mockCover(grow);
     return { ...grow };
   },
-  async addLog(growId, log) {
+  async updatePhoto(growId, photoId, patch) {
+    await delay(120);
+    const grow = mockGrow(growId);
+    if (!grow.photos.some((p) => p.id === photoId)) throw new Error("Foto nicht gefunden");
+    grow.photos = grow.photos.map((p) => ({
+      ...p,
+      ...(p.id === photoId && patch.caption !== undefined ? { caption: patch.caption.trim().slice(0, 200) } : {}),
+      ...(patch.cover ? { cover: p.id === photoId } : {}),
+    }));
+    mockCover(grow);
+    return { ...grow };
+  },
+  async deletePhoto(growId, photoId) {
+    await delay(120);
+    const grow = mockGrow(growId);
+    const removed = grow.photos.find((p) => p.id === photoId);
+    if (!removed) throw new Error("Foto nicht gefunden");
+    grow.photos = grow.photos.filter((p) => p.id !== photoId);
+    if (removed.cover && grow.photos[0]) grow.photos[0] = { ...grow.photos[0], cover: true };
+    mockCover(grow);
+    return { ...grow };
+  },
+  async addLog(growId, input) {
     await delay(150);
-    const grow = growStore.find((g) => g.id === growId);
-    if (!grow) throw new Error("Grow nicht gefunden");
-    grow.logs = [{ ...log, id: `l-${Date.now()}` }, ...grow.logs];
+    const grow = mockGrow(growId);
+    const date = mockDiaryDate(grow, input.date);
+    const log: GrowLog = { id: `l-${Date.now()}`, day: dayDiff(grow.startDate, date), date, title: input.title.trim(), text: input.text.trim(), tag: input.tag };
+    grow.logs = sortLogs([log, ...grow.logs]);
+    return log;
+  },
+  async updateLog(growId, logId, patch) {
+    await delay(120);
+    const grow = mockGrow(growId);
+    const old = grow.logs.find((l) => l.id === logId);
+    if (!old) throw new Error("Eintrag nicht gefunden");
+    const date = patch.date !== undefined ? mockDiaryDate(grow, patch.date) : old.date;
+    const log: GrowLog = { ...old, ...(patch.title !== undefined ? { title: patch.title.trim() } : {}), ...(patch.text !== undefined ? { text: patch.text.trim() } : {}), ...(patch.tag ? { tag: patch.tag } : {}), date, day: dayDiff(grow.startDate, date) };
+    grow.logs = sortLogs(grow.logs.map((l) => (l.id === logId ? log : l)));
+    return log;
+  },
+  async deleteLog(growId, logId) {
+    await delay(100);
+    const grow = mockGrow(growId);
+    grow.logs = grow.logs.filter((l) => l.id !== logId);
+  },
+  async saveEnv(growId, input) {
+    await delay(120);
+    const grow = mockGrow(growId);
+    const date = mockDiaryDate(grow, input.date);
+    const values = { temp: input.temp ?? null, rh: input.rh ?? null, ec: input.ec ?? null, ph: input.ph ?? null };
+    if (Object.values(values).every((v) => v === null)) throw new Error("Mindestens ein Wert ist nötig");
+    const point = withVpd({ day: dayDiff(grow.startDate, date), date, vpd: null, ...values }, grow.leafOffset);
+    grow.env = [...grow.env.filter((e) => e.date !== date), point].sort((a, b) => a.date.localeCompare(b.date));
+    return point;
+  },
+  async deleteEnv(growId, date) {
+    await delay(100);
+    const grow = mockGrow(growId);
+    grow.env = grow.env.filter((e) => e.date !== date);
   },
 };
 

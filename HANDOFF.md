@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-84 (live; migration 0020 applied in production)** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
+**State: B-85 (grow diary round 2; committed locally, migration 0021 NOT yet applied in production; B-84 is live)** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 

@@ -148,6 +148,13 @@
       "when": 1791900000000,
       "tag": "0020_grows_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791986400000,
+      "tag": "0021_grows_diary",
+      "breakpoints": true
     }
   ]
 }

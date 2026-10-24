@@ -180,9 +180,12 @@ function LogForm({ presetGrowId }: { presetGrowId?: string }) {
   const [tag, setTag] = useState<GrowLog["tag"]>("Beobachtung");
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
+  const [date, setDate] = useState(todayLocal());
   const [touched, setTouched] = useState(false);
   const selectedGrow = grows.find((g) => g.id === (growId || grows[0]?.id));
-  const errors = { grow: !selectedGrow ? "Bitte zuerst einen Grow anlegen." : "", title: !title.trim() ? "Bitte einen Titel angeben." : "" };
+  const errors = { grow: !selectedGrow ? "Bitte zuerst einen Grow anlegen." : "", title: !title.trim() ? "Bitte einen Titel angeben." : "",
+    date: !date ? "Bitte ein Datum angeben." : date > todayLocal() ? "Das Datum liegt in der Zukunft." : selectedGrow && date < selectedGrow.startDate.slice(0, 10) ? "Das Datum liegt vor dem Start des Grows." : "",
+  };
 
   if (!loading && grows.length === 0) {
     return <EmptyState icon="Sprout" title="Noch kein Grow" desc="Ein Log-Eintrag gehört immer zu einem Grow." action={<Button onClick={() => navigate("create", { kind: "grow" })}>Grow anlegen</Button>} />;
@@ -191,10 +194,10 @@ function LogForm({ presetGrowId }: { presetGrowId?: string }) {
   return (
     <Form onSubmit={() => {
       setTouched(true);
-      if (errors.grow || errors.title || !selectedGrow) return;
+      if (errors.grow || errors.title || errors.date || !selectedGrow) return;
       void run(async () => {
-        await svc.grows.addLog(selectedGrow.id, { day: selectedGrow.day, date: new Date().toISOString().slice(0, 10), title: title.trim(), text: text.trim(), tag });
-        done(toast, navigate, "Log gespeichert", `${selectedGrow.name} · Tag ${selectedGrow.day}`, "NotebookPen", "grows", { growId: selectedGrow.id });
+        const saved = await svc.grows.addLog(selectedGrow.id, { date, title: title.trim(), text: text.trim(), tag });
+        done(toast, navigate, "Log gespeichert", `${selectedGrow.name} · Tag ${saved?.day ?? selectedGrow.day}`, "NotebookPen", "grows", { growId: selectedGrow.id });
       });
     }}>
       <Field label="Grow">
@@ -210,8 +213,11 @@ function LogForm({ presetGrowId }: { presetGrowId?: string }) {
           ))}
         </div>
       </div>
+      <Field label="Datum" hint="heute vorbelegt, rückwirkend wählbar – der Tag wird daraus berechnet">
+        <Input type="date" value={date} min={selectedGrow?.startDate.slice(0, 10)} max={todayLocal()} onChange={(e) => setDate(e.target.value)} aria-invalid={touched && !!errors.date} aria-label="Datum" />
+      </Field>
       <Field label="Titel"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="z. B. 2 L Komposttee, pH 6.4" autoFocus aria-invalid={touched && !!errors.title} /></Field>
-      {touched && <ErrorText>{errors.title || errors.grow}</ErrorText>}
+      {touched && <ErrorText>{errors.title || errors.date || errors.grow}</ErrorText>}
       <Field label="Notiz" hint="optional"><Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="Beobachtungen, Werte, nächste Schritte …" /></Field>
       <FormActions busy={busy} label="Eintrag speichern" />
     </Form>

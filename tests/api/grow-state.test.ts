@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GROW_PHASES, dayDiff, growState, isIsoDate, todayIso } from "../../apps/api/src/lib/grow-state.ts";
+import { GROW_PHASES, dayDiff, growState, isIsoDate, todayIso, vpdKpa } from "../../apps/api/src/lib/grow-state.ts";
 
 const base = { startDate: "2026-09-01", totalDays: 100, phaseIndex: 0, status: "active", endedOn: null as string | null, phaseDates: {} as Record<string, string> };
 
@@ -47,5 +47,21 @@ describe("Grow-Berechnung (B-84)", () => {
   it("ungültiger Phasenindex wird begrenzt", () => {
     expect(growState({ ...base, phaseIndex: 99 }, "2026-09-02").phase).toBe("Curing");
     expect(growState({ ...base, phaseIndex: -3 }, "2026-09-02").phase).toBe("Keimung");
+  });
+});
+
+describe("VPD (B-85)", () => {
+  it("rechnet mit Blatttemperatur = Luft minus Abzug (Standard 2 °C), auf zwei Stellen", () => {
+    expect(vpdKpa(25, 60)).toBe(0.91);
+    expect(vpdKpa(25, 60, 0)).toBe(1.27);
+    expect(vpdKpa(25, 60, 4)).toBe(0.59);
+    expect(vpdKpa(22, 50)).toBeCloseTo(0.9, 0);
+  });
+
+  it("sinkt mit der Luftfeuchte, ist nie negativ und bei 100 % mit Abzug 0 gleich 0", () => {
+    expect(vpdKpa(25, 40)).toBeGreaterThan(vpdKpa(25, 70));
+    expect(vpdKpa(25, 100, 0)).toBe(0);
+    expect(vpdKpa(10, 100, 0)).toBe(0);
+    expect(vpdKpa(20, 100, 2)).toBe(0);
   });
 });

@@ -1,6 +1,6 @@
 import { http } from "@/lib/api";
 import type {
-  ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, Grow, HallEntry, Product, SeedOffer,
+  ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, EnvPoint, Grow, GrowLog, HallEntry, Product, SeedOffer,
   ReportGroup, SocialPost, Strain, Task,
 } from "@/types";
 import type {
@@ -61,7 +61,13 @@ const growService: GrowService = {
   list: () => http.get<Grow[]>("/grows"),
   get: (id) => http.get<Grow>(`/grows/${id}`),
   create: (input) => http.post<Grow>("/grows", input),
-  addLog: (growId, log) => http.post<void>(`/grows/${growId}/logs`, log),
+  addLog: (growId, log) => http.post<GrowLog>(`/grows/${growId}/logs`, log),
+  updateLog: (growId, logId, patch) => http.patch<GrowLog>(`/grows/${growId}/logs/${logId}`, patch),
+  deleteLog: async (growId, logId) => { await http.delete<void>(`/grows/${growId}/logs/${logId}`); },
+  updatePhoto: (growId, photoId, patch) => http.patch<Grow>(`/grows/${growId}/photos/${photoId}`, patch),
+  deletePhoto: (growId, photoId) => http.delete<Grow>(`/grows/${growId}/photos/${photoId}`),
+  saveEnv: (growId, input) => http.put<EnvPoint>(`/grows/${growId}/env`, input),
+  deleteEnv: async (growId, date) => { await http.delete<void>(`/grows/${growId}/env/${date}`); },
   addPhoto: (growId, url) => http.post<Grow>(`/grows/${growId}/photos`, { url }),
   update: (growId, patch) => http.patch<Grow>(`/grows/${growId}`, patch),
   setPhase: (growId, phase) => http.post<Grow>(`/grows/${growId}/phase`, { phase }),

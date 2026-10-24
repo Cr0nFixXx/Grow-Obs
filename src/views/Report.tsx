@@ -1,11 +1,17 @@
 import { cn } from "@/utils/cn";
-import { conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow } from "@/lib/grows";
+import { average, conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow } from "@/lib/grows";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonCard } from "@/components/ui";
 import { SeriesChart } from "@/components/charts";
 import { Reveal } from "@/components/motion";
 import { useGrows } from "@/data/hooks";
+
+/** „24,6 °C“ bzw. „–“, wenn nichts gemessen wurde. */
+const avgText = (values: (number | null)[], unit: string, digits: number) => {
+  const avg = average(values);
+  return avg === null ? "–" : `${avg.toLocaleString("de-DE", { maximumFractionDigits: digits })}${unit ? ` ${unit}` : ""}`;
+};
 
 export default function Report() {
   const toast = useToast();
@@ -16,6 +22,7 @@ export default function Report() {
   if (error) return <EmptyState icon="AlertTriangle" title="Report nicht geladen" desc={error} />;
   if (!g) return <EmptyState icon="Sprout" title="Noch kein Grow" desc="Lege zuerst einen Grow an, um einen Report zu sehen." />;
 
+  const climateEnv = g.env.filter((e) => e.temp !== null && e.rh !== null);
   const metrics = [
     { label: "Dauer", value: `${g.day} Tage`, icon: "CalendarDays" },
     { label: "Zustand", value: conditionLabel[g.condition], icon: "HeartPulse" },
@@ -97,16 +104,18 @@ export default function Report() {
       <Reveal>
         <Card className="p-5">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Thermometer" size={16} /> Umwelt-Auswertung</h2>
-          <SeriesChart height={200} labels={g.env.map((e) => `T${e.day}`)} series={[
-            { name: "Temp", color: "var(--accent)", data: g.env.map((e) => e.temp) },
-            { name: "Feuchte", color: "var(--info)", data: g.env.map((e) => e.rh) },
-          ]} />
+          {climateEnv.length > 0 ? (
+            <SeriesChart height={200} labels={climateEnv.map((e) => `T${e.day}`)} series={[
+              { name: "Temp", color: "var(--accent)", data: climateEnv.map((e) => e.temp as number) },
+              { name: "Feuchte", color: "var(--info)", data: climateEnv.map((e) => e.rh as number) },
+            ]} />
+          ) : <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Messwerte erfasst.</p>}
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { l: "VPD Ø", v: "1.21 kPa", icon: "Droplets" },
-              { l: "EC Ø", v: "1.42 mS", icon: "Zap" },
-              { l: "pH Ø", v: "6.3", icon: "Activity" },
-              { l: "Temperatur Ø", v: "24.6 °C", icon: "Thermometer" },
+              { l: "VPD Ø", v: avgText(g.env.map((e) => e.vpd), "kPa", 2), icon: "Droplets" },
+              { l: "EC Ø", v: avgText(g.env.map((e) => e.ec), "mS", 2), icon: "Zap" },
+              { l: "pH Ø", v: avgText(g.env.map((e) => e.ph), "", 1), icon: "Activity" },
+              { l: "Temperatur Ø", v: avgText(g.env.map((e) => e.temp), "°C", 1), icon: "Thermometer" },
             ].map((x) => (
               <div key={x.l} className="rounded-xl bg-surface-2 p-3 text-center">
                 <Icon name={x.icon} size={16} className="mx-auto text-accent" />
