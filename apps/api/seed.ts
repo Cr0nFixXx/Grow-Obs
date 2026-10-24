@@ -125,24 +125,26 @@ async function main() {
     { title: "VPD: Dampdruckdefizit richtig lesen", category: "Licht", excerpt: "Temperatur und Luftfeuchtigkeit im Zusammenspiel.", body: ["Das VPD beschreibt, wie stark die Luft Feuchtigkeit aus den Blättern zieht."], author: "Tom K.", version: "v2.0", readMin: 6, tags: ["Klima", "VPD"] },
   ]);
 
-  // Demo-Content für Admin
+  // Demo-Content für Admin (Datumswerte relativ zu heute, Tag und Fortschritt berechnet die API aus dem Startdatum)
+  const isoDaysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
   const [grow] = await db
     .insert(grows)
     .values({
       userId: admin.id, name: "HazyDream · Run 03", breeder: "Hazy Genetics", type: "Sativa",
-      medium: "Living Soil (No-Till)", startDate: new Date().toISOString().slice(0, 10),
+      medium: "Living Soil (No-Till)", startDate: isoDaysAgo(64),
       day: 64, totalDays: 98, phase: "Blüte", phaseIndex: 2, progress: 65, health: 94,
       expectedYield: "320–380 g",
     })
     .returning();
   await db.insert(growLogs).values([
-    { growId: grow.id, day: 64, date: "heute", title: "Trichome milchig", body: "Erste Trichome werden trüb.", tag: "Beobachtung" },
-    { growId: grow.id, day: 60, date: "vor 4 Tagen", title: "Komposttee gegossen", body: "2 ml/L Komplex.", tag: "Dünger" },
+    { growId: grow.id, day: 64, date: isoDaysAgo(0), loggedOn: isoDaysAgo(0), title: "Trichome milchig", body: "Erste Trichome werden trüb.", tag: "Beobachtung" },
+    { growId: grow.id, day: 60, date: isoDaysAgo(4), loggedOn: isoDaysAgo(4), title: "Komposttee gegossen", body: "2 ml/L Komplex.", tag: "Dünger" },
   ]);
+  // VPD wird nicht gespeichert, sondern aus Temperatur und Luftfeuchte berechnet.
   await db.insert(growEnv).values([
-    { growId: grow.id, day: 50, temp: 24.2, rh: 54, vpd: 1.2, ec: 1.4 },
-    { growId: grow.id, day: 58, temp: 24.8, rh: 52, vpd: 1.24, ec: 1.44 },
-    { growId: grow.id, day: 64, temp: 24.6, rh: 54, vpd: 1.21, ec: 1.42 },
+    { growId: grow.id, day: 50, loggedOn: isoDaysAgo(14), temp: 24.2, rh: 54, ec: 1.4, ph: 6.3 },
+    { growId: grow.id, day: 58, loggedOn: isoDaysAgo(6), temp: 24.8, rh: 52, ec: 1.44, ph: 6.2 },
+    { growId: grow.id, day: 64, loggedOn: isoDaysAgo(0), temp: 24.6, rh: 54, ec: 1.42, ph: 6.3 },
   ]);
 
   await db.insert(notifications).values([
