@@ -23,7 +23,8 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 - **Anlegen** mit Sortenname, Typ und Startdatum (auch rückwirkend); die Anlege-Route ist jetzt strikt.
 - **API:** `PATCH /grows/:id`, `POST /grows/:id/phase|finish|reopen|archive|unarchive`, `DELETE /grows/:id`; das DTO liefert `strain`, `status`, `condition`, `archived`, `endedOn`, `harvest`, `phases[{key,label,done,active,startedOn,startDay}]`. Statistik (`auth`, `members`), Admin-Zähler und Wochenreport zählen nur laufende, nicht archivierte Grows bzw. `status='harvested'`.
 - **Tests:** API 292 (neu: `grow-state` 5, `grows.integration` 11 inkl. Medien-Löschung und Migrations-Backfill), Vitest 290 (neu: `grows.test.ts` 5, `GrowDialogs.test.tsx` 7, Mock-Lebenszyklus 1), E2E `grows-lifecycle.spec.ts` (Anlegen mit Startdatum → Phase → Zustand → Bearbeiten → Ernte → Wiederaufnehmen → Archiv → Löschen), zusätzlich `routing`, `app`, `mobile` grün; tsc und eslint sauber.
-- **Nicht geprüft:** Produktion (Migration 0020 und Prüfung folgen nach dem Deploy); Bedienung auf einem echten Handy. Runde 2 (Log-Einträge bearbeiten/löschen, Fotos löschen, Messwerte inkl. pH) steht aus.
+- **Produktion geprüft (Build 26102402):** Migration 0020 von Hand per SQL eingespielt (der vorhandene Grow bekam Phasendatum und Status; sein Sortenname bleibt leer, da früher nie gespeichert). Mit zwei Testkonten per HTTP: Anlegen mit Startdatum (Tag 10), Phase mit Datum, PATCH (unbekanntes Feld 400, fremder Grow 404), Ernte (100 %, Gewichte), Phase nach Ernte 409, Profil-Statistik „Ernten“ = 1, Wiederaufnehmen, Archivieren/Zurückholen, Abbruch verwirft Gewichte, fremdes Löschen 204 ohne Wirkung, eigenes Löschen 204, danach 404, wiederholt 204; Testkonten gelöscht.
+- **Nicht geprüft:** Bedienung auf einem echten Handy. Runde 2 (Log-Einträge bearbeiten/löschen, Fotos löschen, Messwerte inkl. pH) steht aus.
 
 ### B-83 – PDF-Vorschau: Zoom per Geste · neue Versionen
 
