@@ -39,6 +39,30 @@ export interface CreateGrowInput {
   strain: string;
   breeder: string;
   medium: string;
+  type?: "Sativa" | "Indica" | "Hybrid";
+  /** JJJJ-MM-TT; ohne Angabe: heute. */
+  startDate?: string;
+}
+
+/** Änderbare Felder eines Grows (B-84). */
+export interface UpdateGrowInput {
+  name?: string;
+  strain?: string;
+  breeder?: string;
+  type?: "Sativa" | "Indica" | "Hybrid";
+  medium?: string;
+  startDate?: string;
+  totalDays?: number;
+  expectedYield?: string;
+  condition?: import("./domain").GrowCondition;
+}
+
+export interface FinishGrowInput {
+  outcome: "harvested" | "aborted";
+  date?: string;
+  wetG?: number | null;
+  dryG?: number | null;
+  note?: string;
 }
 
 export interface CreateStrainInput {

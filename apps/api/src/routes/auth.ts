@@ -20,7 +20,7 @@ async function toUser(id: string) {
   if (!u) return null;
   const [[g], [h], [followers], [following], [requests]] = await Promise.all([
     db.select({ n: count() }).from(grows).where(eq(grows.userId, id)),
-    db.select({ n: count() }).from(grows).where(and(eq(grows.userId, id), eq(grows.phase, "Ernte"))),
+    db.select({ n: count() }).from(grows).where(and(eq(grows.userId, id), eq(grows.status, "harvested"))),
     db.select({ n: count() }).from(follows).where(and(eq(follows.followeeId, id), eq(follows.status, "accepted"))),
     db.select({ n: count() }).from(follows).where(and(eq(follows.followerId, id), eq(follows.status, "accepted"))),
     db.select({ n: count() }).from(follows).where(and(eq(follows.followeeId, id), eq(follows.status, "pending"))),

@@ -59,7 +59,7 @@ export async function runWeeklyReports(now = new Date()): Promise<{ week: string
       .where(and(eq(users.id, id), eq(users.weeklyReport, true), or(isNull(users.weeklyReportWeek), ne(users.weeklyReportWeek, week))))
       .returning({ id: users.id });
     if (claimed.length === 0) continue;
-    const rows = await db.select().from(grows).where(eq(grows.userId, id)).orderBy(grows.createdAt);
+    const rows = await db.select().from(grows).where(and(eq(grows.userId, id), eq(grows.status, "active"), isNull(grows.archivedAt))).orderBy(grows.createdAt);
     if (rows.length === 0) continue;
     const counts = await db.select({ growId: growLogs.growId, n: sql<number>`count(*)::int` }).from(growLogs)
       .where(and(inArray(growLogs.growId, rows.map((r) => r.id)), gte(growLogs.createdAt, since))).groupBy(growLogs.growId);

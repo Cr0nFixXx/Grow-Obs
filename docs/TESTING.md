@@ -12,9 +12,9 @@ Last full run: **B-76** for API and frontend (E2E: the profile spec ran in B-76,
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 265 / 265 (43 files) |
+| Frontend unit/component tests | `npm test` | ✅ 290 / 290 (46 files, B-84) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 268 / 268 (21 files) |
+| API integration tests | `npm run test:api` | ✅ 292 / 292 (24 files, B-84) |
 | Browser E2E (Playwright) | `npm run test:e2e` | ✅ 49 passed, 1 skipped, 1 timing flake (full run B-81, ≈ 8 min; `moderation.spec.ts` first test hit the 45 s limit at 46.8 s in the full run and passed alone in 28.8 s; desktop 45 incl. the skipped one + mobile 5); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
@@ -70,6 +70,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `environment.test.ts` | environment validation, production HTTPS rules |
 | `migrations.test.ts` | migration journal consistency (gapless, ascending timestamps, file present) and the SQL content of migrations 0006–0013 |
 | `chat-attachments.integration.test.ts` | chat attachments (B-81): file allow-list by extension and content, size limit, download headers (database and bucket), several attachments per message, foreign/unknown/too many attachments, cleanup keeps attached media, upload limits per host |
+| `grows.integration.test.ts` / `grow-state.test.ts` | grow lifecycle (B-84): day/progress/phase derived from the start date, strict create/PATCH validation, phase change with remembered date (409 when finished), harvest/abort/reopen (profile harvest count, weights discarded on abort), archive, delete incl. photos and media files (shared images kept), weekly report only for active grows, migration 0020 backfill |
 | `media-access.integration.test.ts` | media access and message deletion (B-82): 401 without login, non-members get 404 for chat attachments, `?raw=1` for PDFs from database and bucket (400 for other types), backfill of migration 0019, delete as sender/admin/stranger/system line, idempotency, media removed and reused media kept |
 | `security.integration.test.ts` | upload authorization, chat membership, private discovery, invite expiry/hash/parallel redemption, last-admin protection, DB role beats JWT role, admin contracts, registration normalization |
 | `sessions.integration.test.ts` | cookie flags, revocation, expiry, foreign `sid`, device list, CSRF, CORS credentials |
@@ -97,6 +98,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `realtime.spec.ts` | chat live (WebSocket), SSE fallback, forum comments and bell live |
 | `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
 | `push.spec.ts` | push settings card: categories, preview, quiet hours persist across reload; enabling a device only runs where the browser may subscribe (otherwise skipped) |
+| `grows-lifecycle.spec.ts` | grow lifecycle (B-84): create with past start date (day derived), phase, condition, edit, harvest with weights, reopen, archive filter, delete after confirmation |
 | `chat-attachments.spec.ts` | chat attachments with two users: several images + PDF, preview with paging and save link, file download headers, rejected `.exe`, receiver live; phone view |
 | `groups.spec.ts` | group chat with two users: create, invite, accept, topic, message with sender and unread counter, admins-only lock – live |
 | `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow; viewport/translate meta; list and open chat fit 360×600, 393×727, 740×360 (no page scroll, composer visible); `user-select`; no overflow at 360 px on settings/simulation/telegram, page titles, inputs ≥ 16 px |

@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-84 | Grows Runde 1: Tag/Fortschritt aus Startdatum, Phase per Knopf mit Datum, Zustand statt Gesundheit %, Ernte abschließen (Datum, Nass/Trocken, Notiz) oder abbrechen, wieder aufnehmen, archivieren, endgültig löschen samt Bildern, Filter Aktiv/Abgeschlossen/Archiv; Migration 0020 | API 292, Vitest 290, E2E +1 |
 | B-83 | PDF-Vorschau: Zoom per Zwei-Finger-Pinch, Doppeltipp und Strg+Rad (bis 4×); Versionen Frontend 0.1.2, Backend 0.0.3 | Vitest +3, E2E-Schritt |
 | B-82 | Chat: alle Medien nur noch mit Login (Chat-Anhänge nur für Mitglieder), PDF-Vorschau im Chat (alle Seiten, Zoom, Download), Nachrichten löschen (Absender; Gruppen-Admins auch fremde) mit Platzhalter, live beim Empfänger, Medien werden mitgelöscht | Vitest 274, API 276, E2E +1 |
 | B-81 | Chat: Bildvorschau wie in Messengern (Vollbild, durch den Chat wischen, Zoom, Speichern), Dateien senden (PDF, Office, TXT, CSV, ZIP), bis zu 10 Anhänge je Nachricht, Bildraster, SD/HD auf eigenem Host, Limit konfigurierbar (4 MB Vercel / 50 MB eigener Host) | Vitest 265, API 268, E2E +2 |

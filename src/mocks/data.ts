@@ -199,16 +199,21 @@ export const conversations: Conversation[] = [
   { id: "cv4", name: "Sam P.", avatar: AVATARS[3], online: false, last: "CalMag hat geholfen 👍", time: "Mo", unread: 0, messages: [] },
 ];
 
+/** Phasenliste für die Demo-Grows (gleiche Form wie die API: Keimung … Curing). */
+function growPhases(index: number, status: "active" | "harvested"): Grow["phases"] {
+  return ["Keimung", "Vegetativ", "Blüte", "Trocknen", "Curing"].map((label, i) => ({
+    key: label.toLowerCase().replace("ü", "ue"),
+    label,
+    done: status === "harvested" || i < index,
+    active: status === "active" && i === index,
+  }));
+}
+
 /* ----------------------------- Grows ----------------------------- */
 export const grows: Grow[] = [
   {
-    id: "g1", name: "HazyDream · Run 03", strain: "Northern Haze", breeder: "Hazy Genetics", type: "Sativa", medium: "Living Soil (No-Till)", startDate: "2025-01-08", day: 64, totalDays: 98, phase: "Blüte", phaseIndex: 2, progress: 65, health: 94, cover: PLANTS[0], gallery: [PLANTS[0], PLANTS[5], PLANTS[2], PLANTS[6], PLANTS[1]], expectedYield: "320–380 g",
-    phases: [
-      { key: "germ", label: "Keimung", start: 0, end: 5, done: true },
-      { key: "veg", label: "Vegetativ", start: 5, end: 35, done: true },
-      { key: "flower", label: "Blüte", start: 35, end: 91, done: false },
-      { key: "harvest", label: "Ernte", start: 91, end: 98, done: false },
-    ],
+    id: "g1", name: "HazyDream · Run 03", strain: "Northern Haze", breeder: "Hazy Genetics", type: "Sativa", medium: "Living Soil (No-Till)", startDate: "2025-01-08", day: 64, totalDays: 98, phase: "Blüte", phaseIndex: 2, progress: 65, condition: "gesund", archived: false, status: "active", endedOn: null, harvest: null, cover: PLANTS[0], gallery: [PLANTS[0], PLANTS[5], PLANTS[2], PLANTS[6], PLANTS[1]], expectedYield: "320–380 g",
+    phases: growPhases(2, "active"),
     env: Array.from({ length: 12 }, (_, i) => ({
       day: 35 + i * 3, temp: +(24 + Math.sin(i / 2) * 1.6).toFixed(1), rh: +(52 + Math.cos(i / 2) * 4).toFixed(1), vpd: +(1.2 + Math.sin(i / 3) * 0.12).toFixed(2), ec: +(1.4 + i * 0.04).toFixed(2),
     })),
@@ -219,24 +224,14 @@ export const grows: Grow[] = [
     ],
   },
   {
-    id: "g2", name: "GG4 · Basement", strain: "Gorilla Glue #4", breeder: "Dutch Passionista", type: "Hybrid", medium: "Kokos/Perlit 70/30", startDate: "2025-02-01", day: 28, totalDays: 84, phase: "Vegetativ", phaseIndex: 1, progress: 33, health: 88, cover: PLANTS[3], gallery: [PLANTS[3], PLANTS[7]], expectedYield: "260–320 g",
-    phases: [
-      { key: "germ", label: "Keimung", start: 0, end: 5, done: true },
-      { key: "veg", label: "Vegetativ", start: 5, end: 35, done: false },
-      { key: "flower", label: "Blüte", start: 35, end: 77, done: false },
-      { key: "harvest", label: "Ernte", start: 77, end: 84, done: false },
-    ],
+    id: "g2", name: "GG4 · Basement", strain: "Gorilla Glue #4", breeder: "Dutch Passionista", type: "Hybrid", medium: "Kokos/Perlit 70/30", startDate: "2025-02-01", day: 28, totalDays: 84, phase: "Vegetativ", phaseIndex: 1, progress: 33, condition: "gesund", archived: false, status: "active", endedOn: null, harvest: null, cover: PLANTS[3], gallery: [PLANTS[3], PLANTS[7]], expectedYield: "260–320 g",
+    phases: growPhases(1, "active"),
     env: Array.from({ length: 8 }, (_, i) => ({ day: 14 + i * 2, temp: +(25 + Math.sin(i) * 1).toFixed(1), rh: +(64 + Math.cos(i) * 3).toFixed(1), vpd: +(0.9 + Math.sin(i / 2) * 0.1).toFixed(2), ec: +(1.1 + i * 0.03).toFixed(2) })),
     logs: [{ id: "l1", day: 28, date: "Heute", title: "LST fortgeführt", text: "Baldachin gleichmäßig, 8 Hauptäste angebunden.", tag: "Training" }],
   },
   {
-    id: "g3", name: "Critical · Quick", strain: "Critical Mass", breeder: "Northern Lights Breeding", type: "Indica", medium: "Erde (BioBizz)", startDate: "2024-11-20", day: 84, totalDays: 84, phase: "Ernte", phaseIndex: 3, progress: 100, health: 97, cover: PLANTS[4], gallery: [PLANTS[4], PLANTS[1]], expectedYield: "410 g",
-    phases: [
-      { key: "germ", label: "Keimung", start: 0, end: 5, done: true },
-      { key: "veg", label: "Vegetativ", start: 5, end: 28, done: true },
-      { key: "flower", label: "Blüte", start: 28, end: 77, done: true },
-      { key: "harvest", label: "Ernte", start: 77, end: 84, done: true },
-    ],
+    id: "g3", name: "Critical · Quick", strain: "Critical Mass", breeder: "Northern Lights Breeding", type: "Indica", medium: "Erde (BioBizz)", startDate: "2024-11-20", day: 84, totalDays: 84, phase: "Curing", phaseIndex: 4, progress: 100, condition: "gesund", archived: false, status: "harvested", endedOn: "2025-02-12", harvest: { wetG: 310, dryG: 72, note: "Kompakte, harzige Dolden." }, cover: PLANTS[4], gallery: [PLANTS[4], PLANTS[1]], expectedYield: "410 g",
+    phases: growPhases(4, "harvested"),
     env: Array.from({ length: 10 }, (_, i) => ({ day: 20 + i * 6, temp: 24, rh: 55, vpd: 1.2, ec: 1.5 })),
     logs: [{ id: "l1", day: 84, date: "abgeschlossen", title: "Geerntet & am Trocknen", text: "410 g trocken geschätzt. 14 Tage Slow-Cure in Gläsern.", tag: "Ernte" }],
   },

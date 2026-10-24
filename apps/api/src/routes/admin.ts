@@ -44,7 +44,7 @@ admin.get("/stats", async (c) => {
     db.select({ n: count() }).from(wikiArticles),
     db.select({ n: count() }).from(hallEntries),
     db.select({ n: count() }).from(notifications),
-    db.select({ n: count() }).from(grows).where(sql`${grows.phase} <> 'Ernte'`),
+    db.select({ n: count() }).from(grows).where(sql`${grows.status} = 'active' and ${grows.archivedAt} is null`),
   ]);
   return c.json({
     users: u.n, grows: g.n, activeGrows: active.n, posts: p.n, threads: t.n,

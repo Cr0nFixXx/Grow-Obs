@@ -11,6 +11,20 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-84 – Grows Runde 1: bearbeiten, Phase, Zustand, Ernte, Archiv, Löschen
+
+**Ausgangslage:** `day`, `phase`, `progress` und `health` wurden beim Anlegen gesetzt und nie fortgeschrieben; die Profil-Statistik „Ernten“ zählte `phase='Ernte'`, was nie eintrat; der Sortenname ging beim Anlegen verloren. Versionen unverändert (Eigner vergibt), nur die Build-Nummer. **Migration `0020_grows_lifecycle.sql`** (idempotent, `ADD COLUMN IF NOT EXISTS`; Bestand wird übernommen: Phase „Ernte“ → geerntet, Phasenindex, Sortenname, Phasendatum). In Produktion nicht automatisch (`SKIP_MIGRATIONS=true`), siehe Hinweis unten.
+
+- **Tag und Fortschritt** werden aus dem Startdatum berechnet (Europe/Berlin), bei beendeten Grows bis zum Enddatum; das Startdatum ist änderbar (2000-01-01 bis heute), die geplante Dauer 14–400 Tage.
+- **Phase** wechselt der Nutzer per Knopf (Keimung, Vegetativ, Blüte, Trocknen, Curing; auch zurück). Das Datum des ersten Wechsels in eine Phase wird gemerkt und im Verlauf angezeigt. Bei beendeten Grows 409.
+- **Zustand statt Gesundheit %:** Gesund / Beobachten / Problem, vom Nutzer gesetzt, mit Farbe; Dashboard zeigt „Brauchen Aufmerksamkeit“, der Grow-Report den Zustand. Der erfundene Fazit-Text im Report (stabiler Verlauf, VPD optimal, Düngeempfehlung) ist durch eine Zusammenfassung aus echten Werten ersetzt.
+- **Ernte abschließen** ist der Endschritt (jederzeit, auch nach Trocknen/Curing): Datum, Nassgewicht, Trockengewicht (ganze Gramm), Notiz. Der Grow bleibt sichtbar, zählt im Profil als Ernte, Tag und Fortschritt (100 %) frieren ein. Erneutes Speichern trägt Werte nach; leeres Feld löscht den Wert. **Abbruch** zählt nicht als Ernte und verwirft Gewichte. **Wieder aufnehmen** macht den Grow wieder aktiv. Prüfungen: Datum nicht vor Start/Zukunft, Trocken ≤ Nass.
+- **Archivieren** blendet den Grow aus „Aktiv“ aus (Liste mit Filter Aktiv / Abgeschlossen / Archiv); **Löschen** nur nach Bestätigung (Dialog nennt Einträge, Messwerte, Fotos und bietet Archivieren an), entfernt Einträge, Messwerte, Fotos und die Bilddateien (per `releaseMedia`, außer bei anderweitiger Verwendung); wiederholtes Löschen und fremde Grows → 204 ohne Wirkung.
+- **Anlegen** mit Sortenname, Typ und Startdatum (auch rückwirkend); die Anlege-Route ist jetzt strikt.
+- **API:** `PATCH /grows/:id`, `POST /grows/:id/phase|finish|reopen|archive|unarchive`, `DELETE /grows/:id`; das DTO liefert `strain`, `status`, `condition`, `archived`, `endedOn`, `harvest`, `phases[{key,label,done,active,startedOn,startDay}]`. Statistik (`auth`, `members`), Admin-Zähler und Wochenreport zählen nur laufende, nicht archivierte Grows bzw. `status='harvested'`.
+- **Tests:** API 292 (neu: `grow-state` 5, `grows.integration` 11 inkl. Medien-Löschung und Migrations-Backfill), Vitest 290 (neu: `grows.test.ts` 5, `GrowDialogs.test.tsx` 7, Mock-Lebenszyklus 1), E2E `grows-lifecycle.spec.ts` (Anlegen mit Startdatum → Phase → Zustand → Bearbeiten → Ernte → Wiederaufnehmen → Archiv → Löschen), zusätzlich `routing`, `app`, `mobile` grün; tsc und eslint sauber.
+- **Nicht geprüft:** Produktion (Migration 0020 und Prüfung folgen nach dem Deploy); Bedienung auf einem echten Handy. Runde 2 (Log-Einträge bearbeiten/löschen, Fotos löschen, Messwerte inkl. pH) steht aus.
+
 ### B-83 – PDF-Vorschau: Zoom per Geste · neue Versionen
 
 **Versionen (Vorgabe des Eigners):** Frontend „Ruderalis“ 0.1.1 → **0.1.2**, Backend 0.0.2 → **0.0.3** (`version.json`, abgeleitete Dateien per `npm run version:sync`). Sie fassen B-81 und B-82 zusammen.

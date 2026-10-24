@@ -288,6 +288,19 @@ export const grows = pgTable("grows", {
   health: integer("health").notNull().default(100),
   coverUrl: text("cover_url"),
   expectedYield: text("expected_yield").notNull().default("—"),
+  /** B-84: freier Sortenname (auch ohne Eintrag im Sortenkatalog). */
+  strainName: text("strain_name").notNull().default(""),
+  /** `active` | `harvested` | `aborted`. */
+  status: text("status").notNull().default("active"),
+  /** Selbst gesetzter Zustand: `gesund` | `beobachten` | `problem` (ersetzt den früheren Gesundheitsprozent). */
+  condition: text("condition").notNull().default("gesund"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  endedOn: date("ended_on"),
+  /** Phasenname → Datum (JJJJ-MM-TT), an dem die Phase begonnen wurde. */
+  phaseDates: jsonb("phase_dates").$type<Record<string, string>>().notNull().default({}),
+  wetWeightG: integer("wet_weight_g"),
+  dryWeightG: integer("dry_weight_g"),
+  harvestNote: text("harvest_note").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

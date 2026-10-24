@@ -55,7 +55,7 @@ membersApi.get("/:handle", async (c) => {
   if (!full) return c.json(base);
   const [[g], [h], [fr], [fg]] = await Promise.all([
     db.select({ n: count() }).from(grows).where(eq(grows.userId, u.id)),
-    db.select({ n: count() }).from(grows).where(and(eq(grows.userId, u.id), eq(grows.phase, "Ernte"))),
+    db.select({ n: count() }).from(grows).where(and(eq(grows.userId, u.id), eq(grows.status, "harvested"))),
     db.select({ n: count() }).from(follows).where(and(eq(follows.followeeId, u.id), eq(follows.status, "accepted"))),
     db.select({ n: count() }).from(follows).where(and(eq(follows.followerId, u.id), eq(follows.status, "accepted"))),
   ]);

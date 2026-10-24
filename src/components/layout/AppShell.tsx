@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { isActiveGrow } from "@/lib/grows";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -99,7 +100,7 @@ function NavList({ lid, collapsed }: { lid: string; collapsed?: boolean }) {
   // Echte Zähler statt statischer Mock-Badges (vorher fest „2“ bei Meine Grows).
   const { grows } = useGrows();
   const { items: notes } = useNotifications();
-  const activeGrows = grows.filter((g) => g.phase !== "Ernte").length;
+  const activeGrows = grows.filter(isActiveGrow).length;
   const unread = notes.filter((n) => !n.read).length;
   const chatUnread = useChatUnread(isEnabled("chat"));
   const badgeFor = (key: ViewKey) => (key === "grows" && activeGrows ? String(activeGrows) : key === "notifications" && unread ? String(unread) : key === "chat" && chatUnread ? String(chatUnread) : undefined);

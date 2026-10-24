@@ -90,7 +90,7 @@ describe("Mitgliedsprofil und Folgen", () => {
     const owner = await makeUser("eva");
     const fan = await makeUser("finn");
     await patch(owner, { bio: "Hallo", location: "Köln", medium: "Erde", interests: ["Outdoor"] });
-    await db.insert(grows).values([{ userId: owner.id, name: "A", startDate: "2026-01-01", phase: "Ernte" }, { userId: owner.id, name: "B", startDate: "2026-02-01", phase: "Blüte" }]);
+    await db.insert(grows).values([{ userId: owner.id, name: "A", startDate: "2026-01-01", status: "harvested" }, { userId: owner.id, name: "B", startDate: "2026-02-01", phase: "Blüte" }]);
     const before = (await profile(fan, "eva")).body;
     expect(before).toMatchObject({ handle: "eva", isMe: false, restricted: false, bio: "Hallo", location: "Köln", interests: ["Outdoor"], relation: { following: "none", followedBy: false }, canFollow: true, stats: { grows: 2, harvests: 1, followers: 0, following: 0 } });
     expect(before).not.toHaveProperty("email");

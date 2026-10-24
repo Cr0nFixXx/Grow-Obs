@@ -172,7 +172,12 @@ für S3 sind noch offen. Bilder über `/media` (unten) liegen dagegen in Postgre
 
 | Methode / Pfad | Zugriff / Verhalten |
 | --- | --- |
-| GET/POST `/grows`, GET `/grows/:id`, POST `/grows/:id/photos`, POST `/grows/:id/logs` | Auth, nur eigene; erstes Foto = Cover |
+| GET/POST `/grows`, GET `/grows/:id`, POST `/grows/:id/photos`, POST `/grows/:id/logs` | Auth, nur eigene; erstes Foto = Cover. `POST /grows` (strikt): `name`, `strain`, `breeder`, `type`, `medium`, `startDate`, `totalDays` |
+| PATCH `/grows/:id` | Felder ändern (strikt): `name`, `strain`, `breeder`, `type`, `medium`, `startDate`, `totalDays`, `expectedYield`, `condition` (`gesund`/`beobachten`/`problem`); Tag und Fortschritt ergeben sich aus dem Startdatum |
+| POST `/grows/:id/phase` | `{phase}` (Keimung, Vegetativ, Blüte, Trocknen, Curing); merkt das Datum des ersten Wechsels; 409 bei beendetem Grow |
+| POST `/grows/:id/finish` | `{outcome: "harvested"\|"aborted", date?, wetG?, dryG?, note?}`; erneuter Aufruf trägt Werte nach; Abbruch verwirft Gewichte; Datum nicht vor Start/Zukunft, Trocken ≤ Nass (400) |
+| POST `/grows/:id/reopen`, `/archive`, `/unarchive` | Grow wieder aufnehmen bzw. archivieren; idempotent |
+| DELETE `/grows/:id` | endgültig samt Einträgen, Messwerten, Fotos und Bilddateien; 204 auch bei wiederholtem Aufruf und fremden Grows (ohne Wirkung) |
 | GET/POST `/tasks`, POST `/tasks/:id/toggle` | Auth, strikt je Nutzer (fremde IDs → 404) |
 | GET/POST `/social/posts`, POST `/social/posts/:id/like`, GET/POST `/social/posts/:id/comments` | Auth. Globaler Feed = Beiträge ohne Community; `?communityId=` bzw. Body-`communityId`: Community-Feed nur für Mitglieder |
 | GET `/forum/subs`, `/forum/threads`, `/forum/threads/:id` | öffentlich lesbar (`myVote` für Angemeldete) |

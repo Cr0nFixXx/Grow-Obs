@@ -1,6 +1,6 @@
 import type {
   ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
-  CreateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
+  CreateGrowInput, FinishGrowInput, UpdateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
   Grow, GrowLog, HallEntry, Product, ReportAction, ReportGroup, ReportInput, ReportKind, SeedOffer, SocialPost, Strain,
 } from "@/types";
 
@@ -262,6 +262,17 @@ export interface GrowService {
   addLog(growId: string, log: Omit<GrowLog, "id">): Promise<void>;
   /** Foto zur Galerie (erstes Foto wird Cover). Liefert den aktualisierten Grow. */
   addPhoto(growId: string, url: string): Promise<Grow>;
+  /** Felder ändern (B-84). Tag und Fortschritt ergeben sich aus dem Startdatum. */
+  update(growId: string, patch: UpdateGrowInput): Promise<Grow>;
+  /** Phase wechseln (nur laufende Grows); das Datum des Wechsels wird gemerkt. */
+  setPhase(growId: string, phase: string): Promise<Grow>;
+  /** Ernte bzw. Abbruch eintragen (erneut aufrufen = Werte nachtragen). */
+  finish(growId: string, input: FinishGrowInput): Promise<Grow>;
+  /** Abgeschlossenen Grow wieder aufnehmen. */
+  reopen(growId: string): Promise<Grow>;
+  archive(growId: string, archived: boolean): Promise<Grow>;
+  /** Endgültig löschen samt Einträgen, Messwerten und Fotos. */
+  remove(growId: string): Promise<void>;
 }
 
 export interface SocialService {

@@ -22,6 +22,7 @@ import {
 } from "@/mocks/data";
 import { dbGet, dbSet } from "@/lib/db";
 import { APP_VERSION } from "@/lib/app-version";
+import { GROW_PHASE_NAMES, todayLocal } from "@/lib/grows";
 import type { Grow, SocialPost, Strain, Task } from "@/types";
 import type { BannedMember, CommunityDetail, ReportGroup } from "@/types";
 import type {
@@ -140,6 +141,36 @@ const socialService: SocialService = {
 /** Session-Store: neue Grows/Logs bleiben bis zum Reload sichtbar. */
 const growStore: Grow[] = seedGrows.map((g) => ({ ...g, logs: [...g.logs] }));
 
+function mockGrow(id: string): Grow {
+  const grow = growStore.find((g) => g.id === id);
+  if (!grow) throw new Error("Grow nicht gefunden");
+  return grow;
+}
+
+/** Phasenliste wie die API sie liefert; Startdaten bereits begonnener Phasen bleiben erhalten. */
+function mockPhases(index: number, status: Grow["status"], previous: Grow["phases"] = []): Grow["phases"] {
+  const today = todayLocal();
+  return GROW_PHASE_NAMES.map((label, i) => {
+    const before = previous.find((p) => p.label === label);
+    return {
+      key: label.toLowerCase().replace("ü", "ue"),
+      label,
+      done: status === "harvested" ? true : i < index,
+      active: status === "active" && i === index,
+      startedOn: before?.startedOn ?? (i === index && status === "active" ? today : null),
+    };
+  });
+}
+
+/** Tag und Fortschritt aus dem Startdatum (wie in der API). */
+function mockRecount(grow: Grow) {
+  const [sy, sm, sd] = grow.startDate.slice(0, 10).split("-").map(Number);
+  const end = grow.endedOn ?? todayLocal();
+  const [ey, em, ed] = end.slice(0, 10).split("-").map(Number);
+  grow.day = Math.max(0, Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86_400_000));
+  grow.progress = grow.status === "harvested" ? 100 : Math.min(100, Math.round((grow.day / Math.max(1, grow.totalDays)) * 100));
+}
+
 const growService: GrowService = {
   async list() {
     await delay();
@@ -156,24 +187,79 @@ const growService: GrowService = {
       name: input.name,
       strain: input.strain,
       breeder: input.breeder,
-      type: "Hybrid",
+      type: input.type ?? "Hybrid",
       medium: input.medium,
-      startDate: new Date().toISOString(),
+      startDate: input.startDate ?? todayLocal(),
       day: 0,
       totalDays: 84,
       phase: "Keimung",
       phaseIndex: 0,
       progress: 0,
-      health: 95,
+      status: "active",
+      condition: "gesund",
+      archived: false,
+      endedOn: null,
+      harvest: null,
       cover: seedGrows[0].cover,
       gallery: [],
       expectedYield: "—",
-      phases: [],
+      phases: mockPhases(0, "active"),
       env: [],
       logs: [],
     } as Grow;
+    mockRecount(grow);
     growStore.unshift(grow);
-    return grow;
+    return { ...grow };
+  },
+  async update(growId, patch) {
+    await delay(150);
+    const grow = mockGrow(growId);
+    Object.assign(grow, patch);
+    mockRecount(grow);
+    return { ...grow };
+  },
+  async setPhase(growId, phase) {
+    await delay(120);
+    const grow = mockGrow(growId);
+    if (grow.status !== "active") throw new Error("Der Grow ist abgeschlossen – bitte zuerst wieder aufnehmen");
+    const index = GROW_PHASE_NAMES.indexOf(phase as (typeof GROW_PHASE_NAMES)[number]);
+    if (index < 0) throw new Error("Ungültige Phase");
+    grow.phase = phase;
+    grow.phaseIndex = index;
+    grow.phases = mockPhases(index, "active", grow.phases);
+    return { ...grow };
+  },
+  async finish(growId, input) {
+    await delay(150);
+    const grow = mockGrow(growId);
+    const harvested = input.outcome === "harvested";
+    grow.status = input.outcome;
+    grow.endedOn = input.date ?? grow.endedOn ?? todayLocal();
+    grow.harvest = { wetG: harvested ? (input.wetG !== undefined ? input.wetG : (grow.harvest?.wetG ?? null)) : null, dryG: harvested ? (input.dryG !== undefined ? input.dryG : (grow.harvest?.dryG ?? null)) : null, note: input.note ?? grow.harvest?.note ?? "" };
+    grow.phases = mockPhases(grow.phaseIndex, harvested ? "harvested" : "aborted", grow.phases);
+    mockRecount(grow);
+    return { ...grow };
+  },
+  async reopen(growId) {
+    await delay(120);
+    const grow = mockGrow(growId);
+    grow.status = "active";
+    grow.endedOn = null;
+    grow.harvest = null;
+    grow.phases = mockPhases(grow.phaseIndex, "active", grow.phases);
+    mockRecount(grow);
+    return { ...grow };
+  },
+  async archive(growId, archived) {
+    await delay(100);
+    const grow = mockGrow(growId);
+    grow.archived = archived;
+    return { ...grow };
+  },
+  async remove(growId) {
+    await delay(150);
+    const at = growStore.findIndex((g) => g.id === growId);
+    if (at >= 0) growStore.splice(at, 1);
   },
   async addPhoto(growId, url) {
     await delay(150);

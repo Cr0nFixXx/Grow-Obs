@@ -119,9 +119,24 @@ export interface Conversation {
 export interface GrowPhase {
   key: string;
   label: string;
-  start: number; // day
-  end: number;
   done: boolean;
+  /** Aktuelle Phase eines laufenden Grows. */
+  active?: boolean;
+  /** Datum (JJJJ-MM-TT), an dem die Phase begonnen wurde; `null` = noch nicht begonnen. */
+  startedOn?: string | null;
+  /** Tag des Grows beim Phasenstart. */
+  startDay?: number | null;
+}
+
+/** Lebenszyklus (B-84): läuft, geerntet oder abgebrochen. */
+export type GrowStatus = "active" | "harvested" | "aborted";
+/** Selbst gesetzter Zustand (ersetzt den früheren Gesundheitsprozent). */
+export type GrowCondition = "gesund" | "beobachten" | "problem";
+
+export interface GrowHarvest {
+  wetG: number | null;
+  dryG: number | null;
+  note: string;
 }
 
 export interface EnvPoint {
@@ -154,7 +169,12 @@ export interface Grow {
   phase: string;
   phaseIndex: number;
   progress: number;
-  health: number;
+  status: GrowStatus;
+  condition: GrowCondition;
+  archived: boolean;
+  /** Ende (Ernte/Abbruch), JJJJ-MM-TT. */
+  endedOn: string | null;
+  harvest: GrowHarvest | null;
   cover: string;
   gallery: string[];
   phases: GrowPhase[];

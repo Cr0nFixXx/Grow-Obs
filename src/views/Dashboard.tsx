@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { conditionLabel, conditionTone, isActiveGrow, statusLabel } from "@/lib/grows";
 import { useCurrentUser } from "@/lib/auth";
 import { ArrowRight, Plus, Sparkles, X } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -55,16 +56,16 @@ export default function Dashboard() {
 
   // Demo-Werte (mocks/data) nur im Mock-Modus; im API-Modus zählen ausschließlich echte Daten.
   const demo = config.useMock;
-  const activeGrows = grows.filter((g) => g.phase !== "Ernte");
+  const activeGrows = grows.filter(isActiveGrow);
   const openTasks = loadedTasks.filter((t) => !t.done).length;
-  const avgHealth = activeGrows.length ? Math.round(activeGrows.reduce((sum, g) => sum + g.health, 0) / activeGrows.length) : null;
+  const needAttention = activeGrows.filter((g) => g.condition !== "gesund").length;
   type Stat = { id: string; label: string; value: React.ReactNode; delta?: string; trend?: "up" | "down"; icon: string; color: string };
   const stats: Stat[] = demo
     ? quickStats.map((s) => ({ id: s.id, label: s.label, value: <CountUp value={s.num} suffix={s.suffix} />, delta: s.delta, trend: s.trend as "up" | "down", icon: s.icon, color: s.color }))
     : [
         { id: "q1", label: "Aktive Grows", value: <CountUp value={activeGrows.length} />, icon: "Sprout", color: "leaf" },
         { id: "q2", label: "Offene Tasks", value: <CountUp value={openTasks} />, icon: "ListChecks", color: "warning" },
-        { id: "q4", label: "Ø Gesundheit", value: avgHealth === null ? "–" : <CountUp value={avgHealth} suffix=" %" />, icon: "HeartPulse", color: "leaf" },
+        { id: "q4", label: "Brauchen Aufmerksamkeit", value: <CountUp value={needAttention} />, icon: "HeartPulse", color: needAttention ? "warning" : "leaf" },
       ];
   // Klima: im API-Modus der letzte erfasste Messpunkt des ersten aktiven Grows mit Klimadaten.
   const climateGrow = activeGrows.find((g) => g.env.length > 0);
@@ -207,13 +208,13 @@ export default function Dashboard() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate text-sm font-semibold">{g.name}</span>
-                          <Badge tone={g.phase === "Blüte" ? "soil" : g.phase === "Ernte" ? "leaf" : "info"}>{g.phase}</Badge>
+                          <Badge tone={g.status === "harvested" ? "leaf" : g.phase === "Blüte" ? "soil" : "info"}>{g.status === "active" ? g.phase : statusLabel[g.status]}</Badge>
                         </div>
                         <div className="truncate text-xs text-fg-subtle">{g.strain} · {g.medium}</div>
                         <div className="mt-2">
                           <div className="mb-1 flex justify-between text-[11px] text-fg-subtle">
                             <span>Tag {g.day}/{g.totalDays}</span>
-                            <span className="text-leaf-500 dark:text-leaf-400">Gesundheit {g.health}%</span>
+                            <Badge tone={conditionTone[g.condition]}>{conditionLabel[g.condition]}</Badge>
                           </div>
                           <ProgressBar value={g.progress} />
                         </div>

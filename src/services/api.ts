@@ -63,6 +63,12 @@ const growService: GrowService = {
   create: (input) => http.post<Grow>("/grows", input),
   addLog: (growId, log) => http.post<void>(`/grows/${growId}/logs`, log),
   addPhoto: (growId, url) => http.post<Grow>(`/grows/${growId}/photos`, { url }),
+  update: (growId, patch) => http.patch<Grow>(`/grows/${growId}`, patch),
+  setPhase: (growId, phase) => http.post<Grow>(`/grows/${growId}/phase`, { phase }),
+  finish: (growId, input) => http.post<Grow>(`/grows/${growId}/finish`, input),
+  reopen: (growId) => http.post<Grow>(`/grows/${growId}/reopen`),
+  archive: (growId, archived) => http.post<Grow>(`/grows/${growId}/${archived ? "archive" : "unarchive"}`),
+  remove: async (growId) => { await http.delete<void>(`/grows/${growId}`); },
 };
 
 const socialService: SocialService = {

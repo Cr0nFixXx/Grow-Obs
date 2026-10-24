@@ -11,6 +11,7 @@ import { useFeatures } from "@/config/FeatureContext";
 import { createKinds, type CreateKind } from "@/config/create-kinds";
 import type { CreateStrainInput, GrowLog, TaskPriority } from "@/types";
 import { toneSoft } from "@/lib/tokens";
+import { GROW_MEDIUMS, GROW_TYPES, todayLocal } from "@/lib/grows";
 
 /**
  * Unterseiten der Schnellaktionen (FAB, Dashboard, Grows, Sorten, Wiki).
@@ -113,7 +114,7 @@ function done(toast: ReturnType<typeof useToast>, navigate: (v: ViewKey, p?: Rec
 
 /* ------------------------------ Grow ------------------------------ */
 
-const mediums = ["Living Soil (No-Till)", "Erde (Bio)", "Kokos/Perlit 70/30", "Hydro / DWC"];
+const mediums = GROW_MEDIUMS;
 
 function GrowForm() {
   const svc = useServices();
@@ -124,6 +125,8 @@ function GrowForm() {
   const [strain, setStrain] = useState("");
   const [breeder, setBreeder] = useState("");
   const [medium, setMedium] = useState(mediums[0]);
+  const [type, setType] = useState<(typeof GROW_TYPES)[number]>("Hybrid");
+  const [startDate, setStartDate] = useState(todayLocal());
   const [touched, setTouched] = useState(false);
   const errors = { name: !name.trim() ? "Bitte einen Namen angeben." : "", strain: !strain.trim() ? "Bitte eine Sorte angeben." : "" };
   const valid = !errors.name && !errors.strain;
@@ -133,7 +136,7 @@ function GrowForm() {
       setTouched(true);
       if (!valid) return;
       void run(async () => {
-        const grow = await svc.grows.create({ name: name.trim(), strain: strain.trim(), breeder: breeder.trim() || "Unbekannt", medium });
+        const grow = await svc.grows.create({ name: name.trim(), strain: strain.trim(), breeder: breeder.trim() || "Unbekannt", medium, type, startDate: startDate || undefined });
         invalidate("grows");
         done(toast, navigate, "Grow angelegt", grow.name, "Sprout", "grows", { growId: grow.id });
       });
@@ -147,8 +150,16 @@ function GrowForm() {
         </div>
         <Field label="Breeder" hint="optional"><Input value={breeder} onChange={(e) => setBreeder(e.target.value)} placeholder="z. B. Dutch Passion" /></Field>
       </div>
-      <Field label="Medium">
-        <Select value={medium} onChange={(e) => setMedium(e.target.value)}>{mediums.map((m) => <option key={m}>{m}</option>)}</Select>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Medium">
+          <Select value={medium} onChange={(e) => setMedium(e.target.value)}>{mediums.map((m) => <option key={m}>{m}</option>)}</Select>
+        </Field>
+        <Field label="Typ">
+          <Select value={type} onChange={(e) => setType(e.target.value as (typeof GROW_TYPES)[number])}>{GROW_TYPES.map((t) => <option key={t}>{t}</option>)}</Select>
+        </Field>
+      </div>
+      <Field label="Startdatum" hint="Der Tag des Grows wird daraus berechnet – auch rückwirkend.">
+        <Input type="date" value={startDate} max={todayLocal()} onChange={(e) => setStartDate(e.target.value)} />
       </Field>
       <FormActions busy={busy} label="Grow anlegen" />
     </Form>

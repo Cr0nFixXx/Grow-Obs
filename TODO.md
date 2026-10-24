@@ -20,7 +20,7 @@ The owner decides the order. Last update: B-62.
 - [ ] **Web push, follow-ups:** real-device acceptance (Android, iOS PWA), push for further triggers (task reminders, community invites), per-conversation mute.
 - [ ] **Moderation beyond communities:** global feed and forum (report, hide); **leave a community**; **paginate** the moderation queue (capped at 100); **live updates** of the community feed.
 - [ ] **Weekly report (B-71 done):** follow-ups: per-user time zone and send time (today fixed Sunday ≈ 18:00 Berlin), a "send test report" button, an external-cron note for self-hosting in a deployment guide, real-device check of the push; **Telegram bot** setting was removed from the settings (it had no effect), re-add it only together with a real bot integration.
-- [ ] **Grow diary (next, owner's choice):** `grows.day`/`phase`/`progress` are stored values that nothing advances (derive from `start_date`); no edit/delete for grows and log entries, no harvest/close-out, no phase change; `grow_env` readings have no input form.
+- [ ] **Grow diary round 2 (B-84 did round 1: edit/phase/condition/harvest/archive/delete):** edit and delete single log entries, delete single photos (and cover change), readings per day for temperature, humidity, EC and new pH with VPD computed from temperature and humidity, charts (`grow_env` still has no input form). B-84 production check: apply migration `0020_grows_lifecycle.sql` via `supabase__execute_query` and verify with test accounts.
 - [ ] **Detail URLs** for wiki, showcase and marketplace (`src/lib/routes.ts` + `public/sw-policy.js`).
 
 ## 2. Data sources missing (empty states in API mode)

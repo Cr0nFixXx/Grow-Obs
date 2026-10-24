@@ -251,6 +251,7 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0014 | group chats: roles, join time, topics, invitations, message kind |
 | 0015 | weekly report (B-71): `users.weekly_report` (opt-in, default off), `users.weekly_report_week` (ISO week of the last report, prevents double sends) |
 | 0017 | media in object storage (B-76): `media.data` nullable, `media.storage_key`, check "bytes or key", `users.cover_url` |
+| 0020 | grow lifecycle (B-84): `grows.strain_name/status/condition/archived_at/ended_on/phase_dates/wet_weight_g/dry_weight_g`, backfill of existing grows |
 | 0016 | profiles and follows (B-73): `users.bio/location/grow_since/medium/interests/profile_visibility/handle_changed_at`, table `follows` (pending/accepted, no self-follow, RLS on) |
 
 ---
