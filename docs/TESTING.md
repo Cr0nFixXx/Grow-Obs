@@ -12,10 +12,10 @@ Last full run: **B-76** for API and frontend (E2E: the profile spec ran in B-76,
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 318 / 318 (48 files, B-86a) |
+| Frontend unit/component tests | `npm test` | ✅ 331 / 331 (49 files, B-87) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 309 / 309 (25 files, B-86) |
-| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 49 passed, 1 skipped, 1 timing flake (full run B-81, ≈ 8 min; `moderation.spec.ts` first test hit the 45 s limit at 46.8 s in the full run and passed alone in 28.8 s; desktop 45 incl. the skipped one + mobile 5); the skipped test needs a browser that may subscribe to a real push service (see §3) |
+| API integration tests | `npm run test:api` | ✅ 335 / 335 (27 files, B-87) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 53 passed, 1 skipped, 1 timing flake (full run B-87, ≈ 10 min; `groups.spec.ts` hit the 45 s limit at 47.6 s in the full run and passed alone in 23.6 s; desktop incl. the skipped one + mobile 5 + mail 1); the skipped test needs a browser that may subscribe to a real push service (see §3) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
 | Version consistency | `npm run version:check` | ✅ |
@@ -71,6 +71,8 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `migrations.test.ts` | migration journal consistency (gapless, ascending timestamps, file present) and the SQL content of migrations 0006–0013 |
 | `chat-attachments.integration.test.ts` | chat attachments (B-81): file allow-list by extension and content, size limit, download headers (database and bucket), several attachments per message, foreign/unknown/too many attachments, cleanup keeps attached media, upload limits per host |
 | `grows.integration.test.ts` / `grow-state.test.ts` | grow lifecycle (B-84): day/progress/phase derived from the start date, strict create/PATCH validation, phase change with remembered date (409 when finished), harvest/abort/reopen (profile harvest count, weights discarded on abort), archive, delete incl. photos and media files (shared images kept), weekly report only for active grows, migration 0020 backfill |
+| `email-auth.integration.test.ts` | e-mail links (B-87, mail transport `memory`): no gate and 503 without mail; gate until confirmed (`403 email_unverified`, allowed routes), single-use / expired / foreign tokens, hash only in the DB, resend (new link invalidates the old, limit 3), operator confirm, forgot password (same answer for unknown, 1 h, ends all sessions, typo keeps the link, replaced link, unverified gets verification mail), change address (password, new address gets the link, old one a notice, taken 409, race 409, old reset links revoked, typo fix while gated), migration 0023 grandfathering and re-run |
+| `mailer.test.ts` | mail transport (B-87): modes off/memory/console, test transports ignored in production, SMTP_HOST+SMTP_FROM together, real SMTP against a local test server, unreachable server returns false without the address in the log, link base from `APP_URL`, HTML escaping |
 | `grow-diary.integration.test.ts` | grow diary (B-85): logs with a real date (day derived, range checks, strict fields, edit, delete, foreign access 404), photos (cover change, caption, delete incl. media file, next photo becomes cover, shared image kept), readings per day (upsert replaces the day, optional values, ranges, VPD computed and not stored, leaf offset 0–6 changes all VPD values, delete idempotent), migration 0021 backfill and re-run; target ranges per grow (B-86: defaults, change, switch off, invalid values 400, foreign 404) and idempotent migration 0022 |
 | `media-access.integration.test.ts` | media access and message deletion (B-82): 401 without login, non-members get 404 for chat attachments, `?raw=1` for PDFs from database and bucket (400 for other types), backfill of migration 0019, delete as sender/admin/stranger/system line, idempotency, media removed and reused media kept |
 | `security.integration.test.ts` | upload authorization, chat membership, private discovery, invite expiry/hash/parallel redemption, last-admin protection, DB role beats JWT role, admin contracts, registration normalization |
@@ -99,6 +101,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `realtime.spec.ts` | chat live (WebSocket), SSE fallback, forum comments and bell live |
 | `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
 | `push.spec.ts` | push settings card: categories, preview, quiet hours persist across reload; enabling a device only runs where the browser may subscribe (otherwise skipped) |
+| `mail-flow.spec.ts` | e-mail flow (B-87, own project `mail` and second server with real SMTP to `tests/e2e/support/mail-sink.mjs`): register → gate page → link → app → link used up → forgot password → reset link → old password fails, new one works |
 | `grows-lifecycle.spec.ts` | grow lifecycle (B-84): create with past start date (day derived), phase, condition, edit, harvest with weights, reopen, archive filter, delete after confirmation; diary (B-85): log with past date, edit log, readings dialog with live VPD, one entry per day, charts, delete a day, photo caption/cover/delete; target ranges (B-86): out-of-range pH shows the hint, red point and arrow, widening the range clears it |
 | `chat-attachments.spec.ts` | chat attachments with two users: several images + PDF, preview with paging and save link, file download headers, rejected `.exe`, receiver live; phone view |
 | `groups.spec.ts` | group chat with two users: create, invite, accept, topic, message with sender and unread counter, admins-only lock – live |

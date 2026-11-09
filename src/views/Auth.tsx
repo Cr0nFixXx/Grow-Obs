@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { n } from "@/lib/format";
 import { versionLabel } from "@/lib/app-version";
+import { ForgotPasswordForm } from "@/components/AccountLinks";
 
 const heroImg = assetSrc(heroAsset);
 
@@ -19,7 +20,7 @@ export default function Auth() {
   const { navigate, view } = useNav();
   const toast = useToast();
   const { login, register } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [name, setName] = useState(config.useMock ? "Max Grünfeld" : "");
   const [remember, setRemember] = useState(true);
   const [terms, setTerms] = useState(false);
@@ -97,6 +98,9 @@ export default function Auth() {
         </div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
           <Card className="card glass p-6 elev-2 sm:p-8">
+            {mode === "forgot" ? (
+              <ForgotPasswordForm initialEmail={email} onBack={() => setMode("login")} />
+            ) : (<>
             <div className="mb-6 flex rounded-xl bg-surface-2 p-1">
               {(["login", "register"] as const).map((m) => (
                 <button
@@ -130,7 +134,7 @@ export default function Auth() {
               {mode === "login" ? (
                 <div className="flex items-center justify-between text-sm">
                   <Checkbox checked={remember} onChange={setRemember} label="Angemeldet bleiben" />
-                  <button className="text-accent hover:underline" onClick={() => toast.push({ title: "Reset-Link gesendet", desc: "Bitte prüfe dein Postfach.", tone: "info", icon: "Mail" })}>
+                  <button className="text-accent hover:underline" data-testid="forgot-link" onClick={() => config.useMock ? toast.push({ title: "Demo-Modus", desc: "Im Demo-Modus werden keine E-Mails verschickt.", tone: "info", icon: "Mail" }) : setMode("forgot")}>
                     Passwort vergessen?
                   </button>
                 </div>
@@ -158,6 +162,7 @@ export default function Auth() {
                 {mode === "login" ? "Jetzt registrieren" : "Stattdessen anmelden"}
               </button>
             </p>
+            </>)}
           </Card>
           {config.useMock && <p className="mt-4 text-center text-xs text-fg-subtle">Schon {n(12400)} Grower vertrauen Grow|Observer.</p>}
           <p className="mt-1 text-center text-[11px] text-fg-subtle tnum" data-testid="app-version">{versionLabel()}</p>

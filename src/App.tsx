@@ -24,6 +24,7 @@ import { useDelayedReady, usePrefersReducedMotion } from "@/lib/hooks";
 import Onboarding from "@/views/Onboarding";
 import Auth from "@/views/Auth";
 import { ForcedPasswordChange } from "@/components/AccountSecurity";
+import { AccountLinkPage, EmailVerificationGate, clearAccountLink, parseAccountLink, type AccountLink } from "@/components/AccountLinks";
 import NotFound from "@/views/NotFound";
 
 /* Views werden einzeln nachgeladen (Code-Splitting). Shell-kritische Views bleiben eager. */
@@ -183,6 +184,14 @@ function Shell() {
   const { view } = useNav();
   const { user, loading, sessionError, retrySession, logout } = useAuth();
   const [onboard, setOnboard] = useState(false);
+  // B-87: Links aus E-Mails (`/#verify=…`, `/#reset=…`) – unabhängig von Anmeldung und Ansicht.
+  const [accountLink, setAccountLink] = useState<AccountLink | null>(() => (typeof window === "undefined" ? null : parseAccountLink(window.location.hash)));
+  const closeAccountLink = () => { clearAccountLink(); setAccountLink(null); };
+  useEffect(() => {
+    const onHash = () => { const next = parseAccountLink(window.location.hash); if (next) setAccountLink(next); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   useEffect(() => {
     const boot = document.getElementById("boot");
@@ -199,8 +208,11 @@ function Shell() {
 
   if (loading) return <div className="grid min-h-dvh place-items-center p-6" role="status"><p>Sitzung wird geprüft…</p></div>;
   if (sessionError) return <div className="mx-auto max-w-lg px-4 py-20"><EmptyState icon="Cloud" title="Verbindung erforderlich" desc={sessionError} action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={retrySession}>Erneut versuchen</Button><Button variant="secondary" onClick={logout}>Abmelden</Button></div>} /></div>;
+  if (accountLink) return <><Background /><AccountLinkPage link={accountLink} onDone={closeAccountLink} /></>;
   // Einmalpasswort (B-58): bis zum Wechsel nur die Passwort-Sperre zeigen, unabhängig von der URL/Ansicht.
   if (user?.mustChangePassword) return <><Background /><ForcedPasswordChange /></>;
+  // E-Mail-Bestätigung (B-87): nur wenn der Server Mails versenden kann; bis dahin lehnt er fast alles ab.
+  if (user?.emailVerificationPending) return <><Background /><EmailVerificationGate /></>;
   const showAuth = view === "auth" || !user;
 
   return (

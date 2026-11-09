@@ -58,10 +58,31 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull().default("member"),
   /** Gesetzt für Betreiber-Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel sind fast alle Endpunkte gesperrt. */
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  /** Zeitpunkt der E-Mail-Bestätigung (B-87); Bestandskonten wurden bei der Migration als bestätigt markiert. */
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   /** Online-Status (B-59): gilt als online, solange `online_until` in der Zukunft liegt (Herzschlag verlängert um ~70 s). */
   onlineUntil: timestamp("online_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Einmal-Links per E-Mail (B-87): Bestätigung, Passwort-Reset, Adresswechsel. Gespeichert wird nur der SHA-256-Hash des
+ * Tokens; ein Link gilt einmal (`used_at`) und bis `expires_at`. `new_email` nur bei `change_email`.
+ */
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["verify_email", "reset_password", "change_email"] }).notNull(),
+    tokenHash: text("token_hash").notNull(),
+    newEmail: text("new_email"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("auth_tokens_hash_idx").on(t.tokenHash), index("auth_tokens_user_kind_idx").on(t.userId, t.kind)]
+);
 
 /** Folgen (B-73): `pending` = Anfrage an ein nicht öffentliches Profil, `accepted` = aktiv. Löschen = entfolgen/ablehnen. */
 export const follows = pgTable(
@@ -95,7 +116,7 @@ export const loginEvents = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    event: text("event", { enum: ["login", "login_failed", "register", "password_changed", "role_changed"] }).notNull(),
+    event: text("event", { enum: ["login", "login_failed", "register", "password_changed", "role_changed", "password_reset", "email_verified", "email_changed"] }).notNull(),
     device: text("device").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

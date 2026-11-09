@@ -965,6 +965,11 @@ const adminService: AdminService = {
       .filter((u) => !needle || `${u.name} ${u.handle} ${u.email}`.toLowerCase().includes(needle))
       .map((u) => ({ ...u }));
   },
+  async verifyEmail(userId) {
+    await delay(140);
+    const i = adminUsers.findIndex((u) => u.id === userId);
+    if (i >= 0) adminUsers[i] = { ...adminUsers[i], emailVerified: true };
+  },
   async setRole(userId, role) {
     await delay(140);
     const i = adminUsers.findIndex((u) => u.id === userId);

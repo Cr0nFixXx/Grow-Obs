@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-86 (grows round 3: smooth charts, pH/EC target ranges; committed on `A`, not yet deployed; migration 0022 must be applied in production by hand first; B-85 is live)** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
+**State: B-87 (e-mail: password reset by link, e-mail confirmation, change address; committed on `A`; inactive until SMTP is configured; migration 0023 applied in production; B-86 and B-86a are live)** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 
@@ -96,7 +96,7 @@ Full list with priorities: `TODO.md`. Release gates (audit, uploads, Docker …)
 
 - Docker stack, MinIO and the compose `admin` service are untested; real iOS/Android behavior is untested.
 - No data source yet (empty states in API mode): cost/consumption, AI chat (UI only, no server proxy), soil recipes, stories, strain ratings.
-- Accounts: no password reset for regular members (no email infrastructure); online status cannot be hidden.
+- Accounts: password reset and e-mail confirmation exist (B-87) but only work once SMTP is configured; without it members cannot reset (operators can, via CLI); online status cannot be hidden.
 - Vercel (B-66): see `ARCHITECTURE.md` "Serverless deployment". `DB_POOL_MAX`, `SKIP_MIGRATIONS`, `NEXT_PUBLIC_REALTIME` (polling is the default on Vercel builds). 503 `Backend nicht verfügbar` = boot failure, read `embedded_api_boot_failed` (`causeCode`). Not verified under load on Vercel.
 - Selection (B-68): the whole UI is `user-select: none` except inputs/textareas (owner decision, to stop Chrome Android's "Suchergebnisse anzeigen" bar); content cannot be copied by selecting. `api_error` logs `code`/`path`/`cause` — use it to find the cause of 500s on Vercel (open).
 - Weekly report (B-71): opt-in per account; needs `CRON_SECRET` in the host environment (`GET /api/cron/weekly-report`, Vercel Cron in `vercel.json`, Sundays 17:00 UTC); without it the route is 404. Device-only settings (reduce motion, sounds) live in `localStorage`. Never verified end to end on a real host or device.

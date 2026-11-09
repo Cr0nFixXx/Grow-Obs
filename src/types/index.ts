@@ -31,6 +31,11 @@ export interface User {
   role: "member" | "moderator" | "admin" | "platform_admin";
   /** Gesetzt für Konten mit Einmalpasswort (B-58): bis zum Passwortwechsel ist die App gesperrt. */
   mustChangePassword?: boolean;
+  /** Eigene Adresse (nur in der eigenen Sitzung, B-87). */
+  email?: string;
+  emailVerified?: boolean;
+  /** true = Bestätigung steht aus und ist Pflicht (Mailversand konfiguriert): die App zeigt nur die Bestätigungsseite. */
+  emailVerificationPending?: boolean;
 }
 
 /** Eingaben für neue Entitäten (Subset der Pflichtfelder). */

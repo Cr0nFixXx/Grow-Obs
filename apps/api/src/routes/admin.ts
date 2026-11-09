@@ -61,7 +61,7 @@ admin.get("/users", async (c) => {
   const rows = await db
     .select({
       id: users.id, name: users.name, handle: users.handle, email: users.email,
-      role: users.role, level: users.level, createdAt: users.createdAt,
+      role: users.role, level: users.level, createdAt: users.createdAt, emailVerifiedAt: users.emailVerifiedAt,
     })
     .from(users)
     .where(where)
@@ -69,9 +69,17 @@ admin.get("/users", async (c) => {
   return c.json(
     await Promise.all(rows.map(async (u) => {
       const [g] = await db.select({ n: count() }).from(grows).where(eq(grows.userId, u.id));
-      return { ...u, grows: g.n, status: "aktiv" };
+      return { id: u.id, name: u.name, handle: u.handle, email: u.email, role: u.role, level: u.level, createdAt: u.createdAt, emailVerified: u.emailVerifiedAt !== null, grows: g.n, status: "aktiv" };
     }))
   );
+});
+
+/** Betreiber bestätigt eine Adresse von Hand (z. B. wenn Mails eines Anbieters nicht ankommen). Idempotent. */
+admin.post("/users/:id/verify-email", async (c) => {
+  const targetId = uuid(c.req.param("id"));
+  const [row] = await db.update(users).set({ emailVerifiedAt: sql`coalesce(${users.emailVerifiedAt}, now())` }).where(eq(users.id, targetId)).returning({ id: users.id });
+  if (!row) return c.json({ error: "Nicht gefunden" }, 404);
+  return c.body(null, 204);
 });
 
 const roleSchema = z.object({ role: z.enum(["member", "moderator", "admin", "platform_admin"]) });

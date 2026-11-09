@@ -59,6 +59,7 @@ export async function provisionOperator(input: { email: string; name?: string; p
     const [created] = await tx.insert(users).values({
       email, name, handle: `operator_${randomBytes(4).toString("hex")}`, passwordHash: await hashPassword(password), role: "platform_admin",
       mustChangePassword: true,
+      emailVerifiedAt: new Date(), // vom Betreiber selbst angelegt: Adresse gilt als bestätigt
     }).onConflictDoNothing().returning({ id: users.id });
     if (!created) throw new OperatorError("Konto konnte nicht angelegt werden (Konflikt). Bitte erneut versuchen.");
     return { action: "created", email, password };

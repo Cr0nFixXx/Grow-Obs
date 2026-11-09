@@ -101,7 +101,7 @@ export function clearSessionCookie(c: Context): void {
   deleteCookie(c, SESSION_COOKIE, attrs);
 }
 
-export interface ActiveSession { sessionId: string; userId: string; role: typeof users.$inferSelect.role; mustChangePassword: boolean }
+export interface ActiveSession { sessionId: string; userId: string; role: typeof users.$inferSelect.role; mustChangePassword: boolean; emailVerified: boolean }
 
 /** Prüft Token → JWT-Signatur → Sitzung in der DB (nicht abgelaufen, nicht widerrufen) und lädt die aktuelle Rolle. */
 export async function authenticateToken(token: string | undefined): Promise<ActiveSession | null> {
@@ -109,7 +109,7 @@ export async function authenticateToken(token: string | undefined): Promise<Acti
   let claims;
   try { claims = await verifyToken(token); } catch { return null; }
   const [row] = await db
-    .select({ sessionId: sessions.id, userId: users.id, role: users.role, mustChangePassword: users.mustChangePassword, lastSeenAt: sessions.lastSeenAt })
+    .select({ sessionId: sessions.id, userId: users.id, role: users.role, mustChangePassword: users.mustChangePassword, emailVerifiedAt: users.emailVerifiedAt, lastSeenAt: sessions.lastSeenAt })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.id, claims.sid), eq(sessions.userId, claims.sub), gt(sessions.expiresAt, new Date())))
@@ -118,7 +118,7 @@ export async function authenticateToken(token: string | undefined): Promise<Acti
   if (Date.now() - row.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) {
     await db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, row.sessionId));
   }
-  return { sessionId: row.sessionId, userId: row.userId, role: row.role, mustChangePassword: row.mustChangePassword };
+  return { sessionId: row.sessionId, userId: row.userId, role: row.role, mustChangePassword: row.mustChangePassword, emailVerified: row.emailVerifiedAt !== null };
 }
 
 /** Wie `authenticateToken`, liest das Token aus Cookie bzw. (falls freigeschaltet) Header der Anfrage. */

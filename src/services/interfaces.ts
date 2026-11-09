@@ -489,6 +489,8 @@ export interface AdminUser {
   level: number;
   grows: number;
   status: string;
+  /** B-87: Adresse bestätigt (Betreiber kann sie von Hand bestätigen). */
+  emailVerified?: boolean;
 }
 
 export interface AdminContentItem {
@@ -504,6 +506,8 @@ export interface AdminService {
   stats(): Promise<AdminStats>;
   users(q?: string): Promise<AdminUser[]>;
   setRole(userId: string, role: AdminRole): Promise<void>;
+  /** Adresse eines Kontos von Hand bestätigen (B-87). */
+  verifyEmail(userId: string): Promise<void>;
   content(): Promise<AdminContentItem[]>;
   deleteThread(id: string): Promise<void>;
   deletePost(id: string): Promise<void>;

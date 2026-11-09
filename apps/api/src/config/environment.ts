@@ -61,11 +61,25 @@ export const environmentSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().regex(/^[A-Za-z0-9_-]{80,100}$/, "VAPID public key (base64url) expected").optional(),
   VAPID_PRIVATE_KEY: z.string().regex(/^[A-Za-z0-9_-]{40,50}$/, "VAPID private key (base64url) expected").optional(),
   VAPID_SUBJECT: z.string().regex(/^(mailto:[^\s@]+@[^\s@]+|https:\/\/\S+)$/, "VAPID_SUBJECT must be mailto:… or https://…").optional(),
+  /**
+   * E-Mail-Versand (B-87) über einen beliebigen SMTP-Server. Mit SMTP_HOST + SMTP_FROM ist Versand an: dann ist die
+   * E-Mail-Bestätigung Pflicht und der Passwort-Reset per Link verfügbar. Ohne beides ist Versand aus (Registrierung wie
+   * bisher, Reset nur durch Betreiber). Port 465 verwendet TLS von Anfang an, sonst STARTTLS, falls der Server es anbietet.
+   */
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASS: z.string().min(1).optional(),
+  SMTP_FROM: z.string().min(3).max(200).optional(),
+  /** Öffentliche Adresse der App für Links in E-Mails (ohne Pfad, mit https://). Ersatzweise NEXT_PUBLIC_SITE_URL. */
+  APP_URL: z.string().url().optional(),
   SEED_ADMIN_EMAIL: z.string().optional(),
   SEED_ADMIN_PASSWORD: z.string().optional(),
 }).superRefine((env, ctx) => {
   const vapid = [env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY, env.VAPID_SUBJECT].filter(Boolean).length;
   if (vapid !== 0 && vapid !== 3) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["VAPID_PUBLIC_KEY"], message: "Set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT together (or none)" });
+  if (Boolean(env.SMTP_HOST) !== Boolean(env.SMTP_FROM)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SMTP_HOST"], message: "Set SMTP_HOST and SMTP_FROM together (or none)" });
+  if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASS)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SMTP_USER"], message: "Set SMTP_USER and SMTP_PASS together (or none)" });
   const origins = env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean);
   if (!origins.length || origins.some((origin) => {
     try { const url = new URL(origin); return !["http:", "https:"].includes(url.protocol) || url.origin !== origin; }

@@ -263,12 +263,20 @@ function Users({ record }: { record: (action: string) => void }) {
     } catch (error) { toast.push({ title: "Rolle nicht geändert", desc: error instanceof Error ? error.message : "Anfrage fehlgeschlagen", tone: "danger" }); }
     finally { setSaving(false); inFlight.current = false; }
   };
+  const verify = async (user: AdminUser) => {
+    try {
+      await admin.verifyEmail(user.id);
+      record("E-Mail-Adresse bestätigt");
+      toast.push({ title: "Adresse bestätigt", desc: user.email, tone: "leaf" });
+      await query.refresh();
+    } catch (error) { toast.push({ title: "Nicht bestätigt", desc: error instanceof Error ? error.message : "Anfrage fehlgeschlagen", tone: "danger" }); }
+  };
   return <section className="min-w-0 space-y-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-lg">Benutzerverwaltung</h2><SearchInput aria-label="Benutzer suchen" placeholder="Name, Handle, E-Mail" value={q} onChange={(event) => setQ(event.target.value)} className="sm:w-80" /></div>
     {query.error && <p role="alert" className="text-sm text-danger">{query.error}</p>}
     {query.loading && !query.data && <SkeletonCard />}
     {query.data?.length === 0 && <EmptyState icon="Users" title="Keine Treffer" desc="Passe den Suchbegriff an." />}
-    <ul className="divide-y divide-border" aria-busy={query.loading}>{query.data?.map((user) => <li key={user.id} className="flex min-w-0 flex-wrap items-center gap-3 py-4"><div className="min-w-0 flex-1 basis-36"><p className="break-words text-sm font-semibold">{user.name}</p><p className="break-all text-xs text-fg-muted">{user.email}</p></div><Badge tone={user.role === "platform_admin" ? "leaf" : "info"}>{user.role}</Badge><Button variant="secondary" size="sm" disabled={user.id === me?.id} onClick={() => { setTarget(user); setRole(user.role); }}>{user.id === me?.id ? "Dein Konto" : "Rolle ändern"}</Button></li>)}</ul>
+    <ul className="divide-y divide-border" aria-busy={query.loading}>{query.data?.map((user) => <li key={user.id} className="flex min-w-0 flex-wrap items-center gap-3 py-4"><div className="min-w-0 flex-1 basis-36"><p className="break-words text-sm font-semibold">{user.name}</p><p className="break-all text-xs text-fg-muted">{user.email}</p></div><Badge tone={user.role === "platform_admin" ? "leaf" : "info"}>{user.role}</Badge>{user.emailVerified === false && <><Badge tone="warning">E-Mail unbestätigt</Badge><Button variant="ghost" size="sm" onClick={() => void verify(user)}>E-Mail bestätigen</Button></>}<Button variant="secondary" size="sm" disabled={user.id === me?.id} onClick={() => { setTarget(user); setRole(user.role); }}>{user.id === me?.id ? "Dein Konto" : "Rolle ändern"}</Button></li>)}</ul>
     <Modal open={!!target} onClose={() => { if (!saving) setTarget(null); }} title="Rollenänderung bestätigen">
       <p className="mb-4 text-sm text-fg-muted">{target?.name}: Die Änderung wirkt beim nächsten API-Zugriff. Community-Rollen sind davon unabhängig.</p>
       <Field label="Plattformrolle"><Select value={role} disabled={saving} onChange={(event) => setRole(event.target.value as AdminRole)}>{["member", "moderator", "admin", "platform_admin"].map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field>

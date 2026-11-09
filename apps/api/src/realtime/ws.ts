@@ -3,6 +3,7 @@ import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import { corsOrigins } from "../env.ts";
 import { authenticateToken, headerSessionEnabled, SESSION_COOKIE, type ActiveSession } from "../lib/session.ts";
+import { emailVerificationRequired } from "../lib/mailer.ts";
 import { clientMessageSchema, handleClientMessage } from "./commands.ts";
 import { newConnectionId, register, unregister, type Connection, type RealtimeEvent } from "./hub.ts";
 
@@ -69,6 +70,7 @@ async function onConnection(ws: WebSocket, req: IncomingMessage): Promise<void> 
   const start = async (active: ActiveSession) => {
     if (isDone()) return;
     if (active.mustChangePassword) return fail(4403, "Passwortwechsel erforderlich");
+    if (!active.emailVerified && emailVerificationRequired()) return fail(4403, "E-Mail-Bestätigung erforderlich");
     session = active;
     const connection: Connection = {
       id: newConnectionId(), userId: active.userId, sessionId: active.sessionId, transport: "ws", topics: new Set(),

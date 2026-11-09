@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Icon } from "@/components/Icon";
+import { EmailCard } from "@/components/AccountLinks";
 import { SessionsCard } from "@/components/SessionsCard";
 import { useToast } from "@/components/Toast";
 import { Button, CollapsibleCard, Field, Input } from "@/components/ui";
@@ -63,9 +64,10 @@ export function PasswordCard({ onChanged }: { onChanged?: () => void }) {
   );
 }
 
-interface LoginEventInfo { id: string; event: "login" | "login_failed" | "register" | "password_changed" | "role_changed"; device: string; createdAt: string }
+interface LoginEventInfo { id: string; event: "login" | "login_failed" | "register" | "password_changed" | "role_changed" | "password_reset" | "email_verified" | "email_changed"; device: string; createdAt: string }
 const EVENT_LABEL: Record<LoginEventInfo["event"], string> = {
   login: "Angemeldet", login_failed: "Anmeldung fehlgeschlagen", register: "Konto erstellt", password_changed: "Passwort geändert", role_changed: "Rolle geändert",
+  password_reset: "Passwort per E-Mail-Link zurückgesetzt", email_verified: "E-Mail-Adresse bestätigt", email_changed: "E-Mail-Adresse geändert",
 };
 const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
 
@@ -113,6 +115,7 @@ export function AccountSecurity({ onSignedOut }: { onSignedOut?: () => void }) {
   if (config.useMock) return null;
   return (
     <div className="space-y-4">
+      <EmailCard onChanged={() => setVersion((v) => v + 1)} />
       <PasswordCard onChanged={() => setVersion((v) => v + 1)} />
       <SessionsCard onSignedOut={onSignedOut} refreshKey={version} />
       <LoginHistoryCard refreshKey={version} />

@@ -1,10 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { and, count, desc, eq, gt, ne } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
 import { follows, grows, loginEvents, sessions, users } from "../db/schema.ts";
 import { hashPassword, verifyPassword } from "../lib/password.ts";
+import { consumeToken, issueToken, revokeTokens } from "../lib/auth-tokens.ts";
+import { emailVerificationRequired, mailEnabled, sendMail } from "../lib/mailer.ts";
+import { changeEmailMail, emailChangeNoticeMail, resetPasswordMail, verifyEmailMail } from "../lib/mail-templates.ts";
 import { clearSessionCookie, deviceLabel, LOGIN_LOG_RETENTION_DAYS, recordLoginEvent, sessionIdFromCookie, startSession } from "../lib/session.ts";
 import { requireAuth, requireAuthAllowPending, type AuthEnv } from "../middleware/auth.ts";
 import { emailKey, rateLimit, userKey } from "../middleware/rate-limit.ts";
@@ -27,6 +30,10 @@ async function toUser(id: string) {
   ]);
   return {
     id: u.id,
+    email: u.email,
+    emailVerified: u.emailVerifiedAt !== null,
+    /** true = Bestätigung steht aus UND ist Pflicht (Mailversand konfiguriert): die App zeigt dann nur die Bestätigungsseite. */
+    emailVerificationPending: u.emailVerifiedAt === null && emailVerificationRequired(),
     name: u.name,
     handle: u.handle,
     avatar: u.avatarUrl ?? "",
@@ -80,6 +87,9 @@ auth.post("/register", registerLimit, async (c) => {
     .returning();
   if (!u) return c.json({ error: "E-Mail oder Handle bereits vergeben" }, 409);
 
+  // B-87: Bestätigungslink verschicken (nur wenn Mailversand konfiguriert ist). Scheitert der Versand, bleibt das Konto
+  // bestehen – die Bestätigungsseite bietet „Erneut senden“.
+  if (emailVerificationRequired()) await sendMail(verifyEmailMail(u.email, u.name, await issueToken(u.id, "verify_email")));
   const { token } = await startSession(c, u, remember ?? true);
   await recordLoginEvent(c, u.id, "register");
   return c.json({ user: await toUser(u.id), ...(token ? { token } : {}) }, 201);
@@ -253,4 +263,114 @@ auth.get("/login-history", requireAuth, async (c) => {
     .where(and(eq(loginEvents.userId, c.get("userId")), gt(loginEvents.createdAt, since)))
     .orderBy(desc(loginEvents.createdAt)).limit(50);
   return c.json(rows.map((row) => ({ id: row.id, event: row.event, device: row.device, createdAt: row.createdAt.toISOString() })));
+});
+
+/* ------------------------------------------------------------------------------------------------------------------
+ * B-87: Passwort vergessen, E-Mail bestätigen, Adresse ändern (Einmal-Links per E-Mail)
+ * ---------------------------------------------------------------------------------------------------------------- */
+
+const MAIL_OFF = { error: "E-Mail-Versand ist auf diesem Server nicht eingerichtet. Bitte wende dich an den Betreiber." };
+const INVALID_LINK = { error: "Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an." };
+const forgotLimit = rateLimit({ name: "forgot", limit: 5, windowMs: 60 * 60 * 1000, keys: emailKey });
+const linkLimit = rateLimit({ name: "mail-link", limit: 20, windowMs: 60 * 60 * 1000 });
+const resendLimit = rateLimit({ name: "mail-resend", limit: 3, windowMs: 15 * 60 * 1000, keys: userKey });
+const emailChangeLimit = rateLimit({ name: "email-change", limit: 5, windowMs: 15 * 60 * 1000, keys: userKey });
+const tokenSchema = z.object({ token: z.string().min(20).max(100) });
+
+/**
+ * Passwort vergessen: antwortet immer 204 (verrät nicht, ob die Adresse existiert). Bestätigte Konten bekommen einen
+ * Reset-Link (1 Stunde), unbestätigte stattdessen einen neuen Bestätigungslink. Ohne Mailversand 503.
+ */
+auth.post("/forgot-password", forgotLimit, async (c) => {
+  const body = z.object({ email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()) }).safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: "Bitte gib eine gültige E-Mail-Adresse ein." }, 400);
+  if (!mailEnabled()) return c.json(MAIL_OFF, 503);
+  const u = await db.query.users.findFirst({ where: eq(users.email, body.data.email) });
+  if (u) {
+    await sendMail(u.emailVerifiedAt
+      ? resetPasswordMail(u.email, u.name, await issueToken(u.id, "reset_password"))
+      : verifyEmailMail(u.email, u.name, await issueToken(u.id, "verify_email")));
+  }
+  return c.body(null, 204);
+});
+
+const resetSchema = z.object({ token: z.string().min(20).max(100), newPassword: z.string().min(12, "Mindestens 12 Zeichen").max(128) });
+
+/** Neues Passwort per Reset-Link: Token einmalig, danach sind ALLE Sitzungen beendet (neu anmelden). */
+auth.post("/reset-password", linkLimit, async (c) => {
+  const body = resetSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
+  // Passwort zuerst prüfen (oben), erst dann den Link verbrauchen – ein Tippfehler darf den Link nicht entwerten.
+  const claim = await consumeToken(body.data.token, ["reset_password"]);
+  if (!claim) return c.json(INVALID_LINK, 400);
+  await db.update(users).set({
+    passwordHash: await hashPassword(body.data.newPassword), mustChangePassword: false,
+    // Der Link ging an die Adresse des Kontos: damit ist sie auch bestätigt.
+    emailVerifiedAt: sql`coalesce(${users.emailVerifiedAt}, now())`,
+  }).where(eq(users.id, claim.userId));
+  await db.delete(sessions).where(eq(sessions.userId, claim.userId));
+  await revokeTokens(claim.userId, ["reset_password"]);
+  await recordLoginEvent(c, claim.userId, "password_reset");
+  return c.body(null, 204);
+});
+
+/** Bestätigungslink einlösen (Registrierung oder neue Adresse). Ohne Anmeldung nutzbar – der Link selbst ist der Beweis. */
+auth.post("/verify-email", linkLimit, async (c) => {
+  const body = tokenSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json(INVALID_LINK, 400);
+  const claim = await consumeToken(body.data.token, ["verify_email", "change_email"]);
+  if (!claim) return c.json(INVALID_LINK, 400);
+  if (claim.kind === "change_email" && claim.newEmail) {
+    try {
+      await db.update(users).set({ email: claim.newEmail, emailVerifiedAt: new Date() }).where(eq(users.id, claim.userId));
+    } catch (error) {
+      const code = (error as { cause?: { code?: string } }).cause?.code ?? (error as { code?: string }).code;
+      if (code === "23505") return c.json({ error: "Diese Adresse ist inzwischen bei einem anderen Konto in Benutzung." }, 409);
+      throw error;
+    }
+    await revokeTokens(claim.userId, ["reset_password", "verify_email"]); // alte Links gelten für die alte Adresse
+    await recordLoginEvent(c, claim.userId, "email_changed");
+    return c.json({ kind: "change_email" as const });
+  }
+  await db.update(users).set({ emailVerifiedAt: new Date() }).where(and(eq(users.id, claim.userId), isNull(users.emailVerifiedAt)));
+  await recordLoginEvent(c, claim.userId, "email_verified");
+  return c.json({ kind: "verify_email" as const });
+});
+
+/** Bestätigungslink erneut senden (auch für gesperrte, unbestätigte Konten). */
+auth.post("/resend-verification", requireAuthAllowPending, resendLimit, async (c) => {
+  if (!mailEnabled()) return c.json(MAIL_OFF, 503);
+  const u = await db.query.users.findFirst({ where: eq(users.id, c.get("userId")) });
+  if (!u || u.emailVerifiedAt) return c.body(null, 204);
+  const sent = await sendMail(verifyEmailMail(u.email, u.name, await issueToken(u.id, "verify_email")));
+  if (!sent) return c.json({ error: "Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut." }, 502);
+  return c.body(null, 204);
+});
+
+const changeEmailSchema = z.object({
+  newEmail: z.string().trim().email("Bitte gib eine gültige E-Mail-Adresse ein.").max(254).transform((value) => value.toLowerCase()),
+  password: z.string().min(1).max(128),
+});
+
+/**
+ * Adresse ändern: verlangt das Passwort, schickt den Bestätigungslink an die NEUE Adresse (die alte bleibt bis dahin
+ * gültig) und informiert die bisherige Adresse. Auch für unbestätigte Konten (Tippfehler bei der Registrierung).
+ */
+auth.post("/email", requireAuthAllowPending, emailChangeLimit, async (c) => {
+  const body = changeEmailSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
+  if (!mailEnabled()) return c.json(MAIL_OFF, 503);
+  const userId = c.get("userId");
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!u || !(await verifyPassword(body.data.password, u.passwordHash))) {
+    await recordLoginEvent(c, userId, "login_failed");
+    return c.json({ error: "Passwort ist falsch" }, 403);
+  }
+  if (body.data.newEmail === u.email) return c.json({ error: "Das ist bereits deine Adresse." }, 400);
+  const taken = await db.query.users.findFirst({ where: eq(users.email, body.data.newEmail), columns: { id: true } });
+  if (taken) return c.json({ error: "Diese Adresse wird bereits verwendet." }, 409);
+  const sent = await sendMail(changeEmailMail(body.data.newEmail, u.name, await issueToken(userId, "change_email", body.data.newEmail)));
+  if (!sent) return c.json({ error: "Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut." }, 502);
+  if (u.emailVerifiedAt) await sendMail(emailChangeNoticeMail(u.email, u.name, body.data.newEmail));
+  return c.body(null, 204);
 });

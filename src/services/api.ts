@@ -216,6 +216,7 @@ const adminService: AdminService = {
   health: () => http.get<SystemHealth>("/admin/health"),
   stats: () => http.get<AdminStats>("/admin/stats"),
   users: (q) => http.get<AdminUser[]>(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  verifyEmail: (userId) => http.post<void>(`/admin/users/${userId}/verify-email`),
   setRole: (userId, role) => http.patch<void>(`/admin/users/${userId}/role`, { role }),
   content: () => http.get<AdminContentItem[]>("/admin/content"),
   deleteThread: (id) => http.delete<void>(`/admin/threads/${id}`),
