@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
 import { conversationInvites, conversationMembers, conversations, conversationTopics, messages, topicMembers, topicUserState, users } from "../db/schema.ts";
@@ -82,7 +82,7 @@ async function createInvites(access: Access, inviterId: string, ids: string[]): 
   const result = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM conversations WHERE id = ${cv.id} FOR UPDATE`);
     await tx.update(conversationInvites).set({ status: "expired" }).where(and(eq(conversationInvites.status, "pending"), sql`${conversationInvites.expiresAt} < now()`));
-    const existingUsers = new Set((await tx.select({ id: users.id }).from(users).where(inArray(users.id, ids))).map((u) => u.id));
+    const existingUsers = new Set((await tx.select({ id: users.id }).from(users).where(and(inArray(users.id, ids), isNull(users.deletedAt)))).map((u) => u.id));
     const memberNow = new Set((await tx.select({ id: conversationMembers.userId }).from(conversationMembers).where(eq(conversationMembers.conversationId, cv.id))).map((m) => m.id));
     const pendingHere = new Set((await tx.select({ id: conversationInvites.inviteeId }).from(conversationInvites).where(and(eq(conversationInvites.conversationId, cv.id), eq(conversationInvites.status, "pending")))).map((r) => r.id));
     const candidates: string[] = [];

@@ -166,6 +166,10 @@ Ist ein Feature global deaktiviert, antworten seine Pfade mit `403 { error, feat
 | GET `/follows/requests`, POST `/follows/requests/:userId/accept` bzw. `/decline`, DELETE `/follows/followers/:userId` | eigene offene Anfragen annehmen/ablehnen; Follower entfernen |
 | GET `/auth/sessions`, DELETE `/auth/sessions/:id` | eigene Geräteliste (höchstens 5) / einzelne Sitzung beenden |
 | POST `/auth/password` | aktuelles Passwort Pflicht (falsch = 403), beendet alle anderen Sitzungen, 5 Versuche/15 min je Nutzer; entsperrt den Pflichtwechsel |
+| GET `/auth/account/check` | Auth (B-74); was das Löschen verhindert: `{platformAdmin, communities[], groups[], blocked}` |
+| POST `/auth/export` | Auth, Passwort Pflicht (falsch = 403), 3/Stunde je Nutzer; liefert `{path}` mit einem 2 Minuten gültigen Ticket (an Konto und Sitzung gebunden) |
+| GET `/auth/export/download?ticket=` | Auth; streamt das ZIP (`daten.json` + `medien/…`), `no-store`; abgelaufen oder fremd = 410 |
+| DELETE `/auth/account` | Auth; `{password, confirm:"LÖSCHEN", options:{forum,feed,comments,chat: "delete"\|"keep", media: "remove"\|"keep"}}`; sofort und endgültig, 403 falsches Passwort, 409 `account_blocked` (letzter Plattform-Admin, alleiniger Admin einer Community/Gruppe mit weiteren Mitgliedern), 5 Versuche/15 min; Rest bleibt als Hülle „Gelöschtes Mitglied“ |
 | GET `/auth/login-history` | eigenes Anmeldeprotokoll (höchstens 50, ohne IP, 90 Tage) |
 | POST `/upload/presign` | Auth; `{ name, contentType, size }`; JPEG/PNG/WebP, deklarierte Größe ≤ 8 MB; 30 pro 10 min je Nutzer |
 

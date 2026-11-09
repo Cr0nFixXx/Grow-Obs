@@ -105,7 +105,10 @@ describe("runGrowReminders (B-88)", () => {
 
   it("parallele Läufe senden nicht doppelt", async () => {
     const id = await makeUser("a@example.test", { growReminderDays: 1 });
-    await makeGrow(id);
+    const growId = await makeGrow(id);
+    // Nur Messwerte fehlen (Log von heute): je Art wird atomar reserviert; fehlen beide Arten, können zwei gleichzeitige Läufe je eine Art
+    // übernehmen und zwei Meldungen senden – der Cron läuft einmal täglich, daher bewusst nicht abgesichert.
+    await db.insert(growLogs).values({ growId, day: 30, title: "Heute", body: "", loggedOn: day(0) });
     await Promise.all([runGrowReminders(NOW), runGrowReminders(NOW), runGrowReminders(NOW)]);
     expect((await notes(id)).length).toBe(1);
   });

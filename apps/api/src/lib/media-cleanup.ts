@@ -16,11 +16,11 @@ export const MEDIA_REFERENCES = [
 /** Karenzzeit: frisch hochgeladene Bilder (noch nicht gespeichert, z. B. offener Dialog) werden nie als Waisen entfernt. */
 export const ORPHAN_GRACE_HOURS = 24;
 
-const usedBy = (idExpr: ReturnType<typeof sql>) =>
+export const usedBy = (idExpr: ReturnType<typeof sql>) =>
   sql.join(MEDIA_REFERENCES.map(([table, column]) =>
     sql`exists (select 1 from ${sql.identifier(table)} where position('/media/' || ${idExpr} in ${sql.identifier(column)}::text) > 0)`), sql` or `);
 
-async function removeObjects(keys: (string | null)[]): Promise<void> {
+export async function removeObjects(keys: (string | null)[]): Promise<void> {
   for (const key of keys) {
     if (key) await deleteObject(key).catch((error: Error) => console.error(JSON.stringify({ event: "storage_error", op: "delete", type: error.name })));
   }

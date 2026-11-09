@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { MEDIA_PATH, imageRef } from "../lib/media-ref.ts";
 import { releaseMedia } from "../lib/media-cleanup.ts";
@@ -132,7 +132,7 @@ chat.get("/users", rateLimit({ name: "chat-users", limit: 60, windowMs: 60_000, 
   if (q.length < 2) return c.json([]);
   const pattern = `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
   const rows = await db.select({ id: users.id, name: users.name, handle: users.handle, avatar: users.avatarUrl }).from(users)
-    .where(and(ne(users.id, c.get("userId")), or(ilike(users.name, pattern), ilike(users.handle, pattern)))).orderBy(users.name).limit(10);
+    .where(and(ne(users.id, c.get("userId")), isNull(users.deletedAt), or(ilike(users.name, pattern), ilike(users.handle, pattern)))).orderBy(users.name).limit(10);
   return c.json(rows.map((r) => ({ id: r.id, name: r.name, handle: r.handle, avatar: r.avatar ?? "" })));
 });
 
@@ -142,7 +142,7 @@ chat.post("/", rateLimit({ name: "chat-start", limit: 30, windowMs: 10 * 60_000,
   const body = z.object({ userId: z.string().uuid() }).safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
   if (body.data.userId === me) return c.json({ error: "Du kannst dir nicht selbst schreiben" }, 400);
-  const [partner] = await db.select({ id: users.id }).from(users).where(eq(users.id, body.data.userId)).limit(1);
+  const [partner] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, body.data.userId), isNull(users.deletedAt))).limit(1);
   if (!partner) return c.json({ error: "Person nicht gefunden" }, 404);
   const directKey = [me, partner.id].sort().join(":");
   const created = await db.transaction(async (tx) => {
@@ -197,6 +197,11 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
   const id = uuid(c.req.param("id"));
   const userId = c.get("userId");
   const access = await requireAccess(id, userId);
+  if (!access.cv.isGroup) {
+    const partnerId = access.memberIds.find((memberId) => memberId !== userId);
+    const [partner] = partnerId ? await db.select({ deletedAt: users.deletedAt }).from(users).where(eq(users.id, partnerId)).limit(1) : [];
+    if (partner?.deletedAt) return c.json({ error: "Dieses Mitglied hat sein Konto gelöscht." }, 409);
+  }
   const body = z.object({
     text: z.string().trim().max(10000).default(""),
     image: imageRef.optional(),

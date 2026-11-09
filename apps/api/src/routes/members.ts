@@ -1,5 +1,5 @@
 import { Hono, type Context } from "hono";
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull } from "drizzle-orm";
 import { db } from "../db/client.ts";
 import { follows, grows, users } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
@@ -23,7 +23,7 @@ const person = { id: users.id, name: users.name, handle: users.handle, avatar: u
 const toPerson = (r: { id: string; name: string; handle: string; avatar: string | null; title: string }) => ({ id: r.id, name: r.name, handle: r.handle, avatar: r.avatar ?? "", title: r.title });
 
 async function findByHandle(handle: string) {
-  return db.query.users.findFirst({ where: eq(users.handle, handle.toLowerCase()) });
+  return db.query.users.findFirst({ where: and(eq(users.handle, handle.toLowerCase()), isNull(users.deletedAt)) });
 }
 async function relationOf(followerId: string, followeeId: string): Promise<Relation> {
   const row = await db.query.follows.findFirst({ where: and(eq(follows.followerId, followerId), eq(follows.followeeId, followeeId)), columns: { status: true } });

@@ -129,7 +129,7 @@ export const http = {
   post: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>({ method: "POST", path, body, signal }),
   put: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>({ method: "PUT", path, body, signal }),
   patch: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>({ method: "PATCH", path, body, signal }),
-  delete: <T>(path: string, signal?: AbortSignal) => request<T>({ method: "DELETE", path, signal }),
+  delete: <T>(path: string, signal?: AbortSignal, body?: unknown) => request<T>({ method: "DELETE", path, signal, body }),
   /** Binär-Upload (60 s Timeout für langsame Mobilnetze). */
   upload: <T>(path: string, blob: Blob, signal?: AbortSignal) => request<T>({ method: "POST", path, raw: blob, signal, timeoutMs: 60000 }),
 };

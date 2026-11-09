@@ -34,7 +34,7 @@ admin.get("/health", async (c) => {
 
 admin.get("/stats", async (c) => {
   const [[u], [g], [p], [t], [cm], [s], [pr], [w], [h], [n], [active]] = await Promise.all([
-    db.select({ n: count() }).from(users),
+    db.select({ n: count() }).from(users).where(isNull(users.deletedAt)),
     db.select({ n: count() }).from(grows),
     db.select({ n: count() }).from(posts),
     db.select({ n: count() }).from(threads),
@@ -56,8 +56,8 @@ admin.get("/stats", async (c) => {
 admin.get("/users", async (c) => {
   const q = c.req.query("q")?.trim().slice(0, 100);
   const where = q
-    ? or(ilike(users.name, `%${q}%`), ilike(users.handle, `%${q}%`), ilike(users.email, `%${q}%`))
-    : undefined;
+    ? and(isNull(users.deletedAt), or(ilike(users.name, `%${q}%`), ilike(users.handle, `%${q}%`), ilike(users.email, `%${q}%`)))
+    : isNull(users.deletedAt);
   const rows = await db
     .select({
       id: users.id, name: users.name, handle: users.handle, email: users.email,

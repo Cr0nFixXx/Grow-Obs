@@ -64,6 +64,8 @@ export const users = pgTable("users", {
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   /** Online-Status (B-59): gilt als online, solange `online_until` in der Zukunft liegt (Herzschlag verlängert um ~70 s). */
   onlineUntil: timestamp("online_until", { withTimezone: true }),
+  /** Konto gelöscht (B-74): die Zeile bleibt nur als anonyme Hülle, wenn Inhalte anderer daran hängen; kein Login mehr möglich. */
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

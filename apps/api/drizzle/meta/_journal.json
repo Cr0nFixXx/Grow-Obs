@@ -176,6 +176,13 @@
       "when": 1792245600000,
       "tag": "0024_grows_round4",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792332000000,
+      "tag": "0025_account_deletion",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,9 @@ import { requireAuth, requireAuthAllowPending, type AuthEnv } from "../middlewar
 import { emailKey, rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { imageRef } from "../lib/media-ref.ts";
 import { releaseMedia } from "../lib/media-cleanup.ts";
+import { accountBlockers, DELETE_CONFIRM_WORD, deleteAccount, deleteOptionsSchema, isBlocked } from "../lib/account.ts";
+import { exportZipStream } from "../lib/account-export.ts";
+import { signExportTicket, verifyExportTicket } from "../lib/jwt.ts";
 import { BIO_MAX, GROW_SINCE_MIN, HANDLE_COOLDOWN_DAYS, HANDLE_PATTERN, INTERESTS, INTERESTS_MAX, LOCATION_MAX, MEDIA, VISIBILITIES } from "../lib/profile-fields.ts";
 
 export const auth = new Hono<AuthEnv>();
@@ -376,4 +379,74 @@ auth.post("/email", requireAuthAllowPending, emailChangeLimit, async (c) => {
   if (!sent) return c.json({ error: "Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut." }, 502);
   if (u.emailVerifiedAt) await sendMail(emailChangeNoticeMail(u.email, u.name, body.data.newEmail));
   return c.body(null, 204);
+});
+
+/* ------------------------------------------------------------------------------------------------------------------
+ * B-74: Daten exportieren, Konto löschen
+ * ---------------------------------------------------------------------------------------------------------------- */
+
+const exportLimit = rateLimit({ name: "account-export", limit: 3, windowMs: 60 * 60 * 1000, keys: userKey });
+const deleteLimit = rateLimit({ name: "account-delete", limit: 5, windowMs: 15 * 60 * 1000, keys: userKey });
+const passwordOnly = z.object({ password: z.string().min(1).max(128) }).strict();
+
+async function passwordIsRight(c: Parameters<typeof recordLoginEvent>[0], userId: string, password: string): Promise<boolean> {
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (u && (await verifyPassword(password, u.passwordHash))) return true;
+  await recordLoginEvent(c, userId, "login_failed");
+  return false;
+}
+
+/** Was hindert das Löschen? (letzter Plattform-Admin, alleiniger Admin einer Community oder Gruppe mit weiteren Mitgliedern) */
+auth.get("/account/check", requireAuth, async (c) => {
+  const blockers = await accountBlockers(c.get("userId"));
+  return c.json({ ...blockers, blocked: isBlocked(blockers) });
+});
+
+/** Export anfordern: verlangt das Passwort und liefert einen 2 Minuten gültigen Download-Link (ZIP mit JSON und Dateien). */
+auth.post("/export", requireAuth, exportLimit, async (c) => {
+  const body = passwordOnly.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: "Bitte gib dein Passwort ein." }, 400);
+  const userId = c.get("userId");
+  if (!(await passwordIsRight(c, userId, body.data.password))) return c.json({ error: "Passwort ist falsch" }, 403);
+  const ticket = await signExportTicket(userId, c.get("sessionId"));
+  return c.json({ path: `/auth/export/download?ticket=${encodeURIComponent(ticket)}` });
+});
+
+auth.get("/export/download", requireAuth, async (c) => {
+  const claim = await verifyExportTicket(c.req.query("ticket") ?? "");
+  if (!claim || claim.userId !== c.get("userId") || claim.sessionId !== c.get("sessionId")) {
+    return c.json({ error: "Der Download-Link ist abgelaufen. Bitte fordere den Export erneut an." }, 410);
+  }
+  const stream = await exportZipStream(claim.userId);
+  if (!stream) return c.json({ error: "Nicht gefunden" }, 404);
+  const day = new Date().toISOString().slice(0, 10);
+  return new Response(stream, {
+    status: 200,
+    headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="grow-observer-daten-${day}.zip"`, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+  });
+});
+
+const deleteSchema = z.object({ password: z.string().min(1).max(128), confirm: z.string().max(40), options: deleteOptionsSchema }).strict();
+
+/**
+ * Konto endgültig löschen. Verlangt Passwort und das Wort LÖSCHEN; die Auswahl bestimmt, was mit Forum, Feed, Kommentaren, Chat
+ * und Dateien geschieht (siehe `lib/account.ts`). Gesperrt für den letzten Plattform-Admin und für alleinige Admins von
+ * Communities/Gruppen mit weiteren Mitgliedern (409 mit Liste).
+ */
+auth.delete("/account", requireAuth, deleteLimit, async (c) => {
+  const body = deleteSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: "Ungültige Angaben" }, 400);
+  if (body.data.confirm.trim().toLocaleUpperCase("de-DE") !== DELETE_CONFIRM_WORD) return c.json({ error: `Bitte tippe ${DELETE_CONFIRM_WORD} zur Bestätigung.` }, 400);
+  const userId = c.get("userId");
+  if (!(await passwordIsRight(c, userId, body.data.password))) return c.json({ error: "Passwort ist falsch" }, 403);
+  const blockers = await accountBlockers(userId);
+  if (isBlocked(blockers)) return c.json({ error: "Das Konto kann noch nicht gelöscht werden.", code: "account_blocked", ...blockers }, 409);
+  try {
+    const result = await deleteAccount(userId, body.data.options);
+    clearSessionCookie(c);
+    return c.json(result);
+  } catch (error) {
+    if ((error as Error).message === "account_gone") return c.json({ error: "Nicht gefunden" }, 404);
+    throw error;
+  }
 });

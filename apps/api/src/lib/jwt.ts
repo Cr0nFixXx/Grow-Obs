@@ -30,3 +30,17 @@ export async function verifyToken(token: string): Promise<TokenPayload> {
   });
   return claimsSchema.parse(payload);
 }
+
+/** Einmal-Ticket für den Datenexport (B-74): 2 Minuten gültig, an Konto UND Sitzung gebunden. Der Download ist ein normaler Link-Aufruf. */
+const exportAudience = "grow-observer-export";
+export async function signExportTicket(userId: string, sessionId: string): Promise<string> {
+  return new SignJWT({ sid: sessionId })
+    .setProtectedHeader({ alg: "HS256" }).setIssuer(issuer).setAudience(exportAudience).setSubject(userId)
+    .setIssuedAt().setExpirationTime("2m").sign(secret);
+}
+export async function verifyExportTicket(ticket: string): Promise<{ userId: string; sessionId: string } | null> {
+  try {
+    const { payload } = await jwtVerify(ticket, secret, { algorithms: ["HS256"], issuer, audience: exportAudience, requiredClaims: ["exp", "sub", "sid"] });
+    return typeof payload.sub === "string" && typeof payload.sid === "string" ? { userId: payload.sub, sessionId: payload.sid } : null;
+  } catch { return null; }
+}

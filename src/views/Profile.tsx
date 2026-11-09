@@ -13,6 +13,7 @@ import { Avatar, Badge, Button, Card, Chip, CollapsibleCard, Field, Input, Modal
 import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
 import { AccountSecurity } from "@/components/AccountSecurity";
+import { AccountData } from "@/components/AccountData";
 import { PushCard } from "@/components/PushCard";
 import { atHandle, FollowListModal, FollowRequestsCard, ProfileBanner } from "@/components/members";
 import { GROW_SINCE_MIN, INTERESTS, INTERESTS_MAX, MEDIA, BIO_MAX, LOCATION_MAX, HANDLE_COOLDOWN_DAYS, HANDLE_PATTERN } from "@/lib/profile-fields";
@@ -202,10 +203,13 @@ export default function Profile() {
             </Reveal>
           )}
           <Reveal delay={0.15}>
-            <CollapsibleCard icon="AlertTriangle" tone="danger" title="Gefahrenzone" className="border-danger/30 p-5" bodyClassName="space-y-2">
-              <p className="text-sm text-fg-muted">Lösche dein Konto unwiderruflich inkl. aller Grows & Daten.</p>
-              <Button variant="danger" onClick={() => toast.push({ title: "Bestätigung nötig", desc: "Demo – keine Löschung.", tone: "danger", icon: "AlertTriangle" })}>Konto löschen</Button>
-            </CollapsibleCard>
+            {isGuest ? (
+              <CollapsibleCard icon="AlertTriangle" tone="danger" title="Gefahrenzone" className="border-danger/30 p-5" bodyClassName="space-y-2">
+                <p className="text-sm text-fg-muted">Als Gast gibt es kein Konto, das gelöscht werden könnte.</p>
+              </CollapsibleCard>
+            ) : (
+              <AccountData onDeleted={() => navigate("auth")} />
+            )}
           </Reveal>
         </div>
       )}
