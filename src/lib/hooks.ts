@@ -63,7 +63,7 @@ export function useBodyScrollLock(locked: boolean) {
       body.style.width = bodyStyleSnapshot.width ?? "";
       body.style.paddingRight = bodyStyleSnapshot.paddingRight ?? "";
       delete body.dataset.scrollLock;
-      window.scrollTo(0, bodyScrollY);
+      window.scrollTo({ top: bodyScrollY, left: 0, behavior: "auto" }); // html hat scroll-behavior: smooth – ohne „auto“ springt die Seite erst nach oben und gleitet dann zurück
     };
   }, [locked]);
 }

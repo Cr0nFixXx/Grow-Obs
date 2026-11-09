@@ -77,9 +77,10 @@ export default function Profile() {
           <ProfileBanner src={me.cover} className="h-28 sm:h-36" />
           <div className="px-5 pb-5">
             <div className="-mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex items-end gap-4">
-                <Avatar src={me.avatar} name={me.name} size={84} className="ring-4 ring-surface" />
-                <div className="pb-1">
+              <div className="flex items-start gap-4">
+                <Avatar src={me.avatar} name={me.name} size={84} className="shrink-0 ring-4 ring-surface" />
+                {/* Der Avatar ragt 40 px ins Titelbild; Name und Handle starten klar darunter (B-90). */}
+                <div className="min-w-0 pt-14">
                   <div className="text-xl font-bold">{me.name}</div>
                   <div className="text-sm text-fg-subtle">{atHandle(me.handle)} · {me.title}</div>
                 </div>

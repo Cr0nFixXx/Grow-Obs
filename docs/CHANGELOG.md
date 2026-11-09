@@ -11,6 +11,21 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-90 – Fehlerbehebungen aus der TODO-Liste (Runde 1)
+
+**Anlass:** Der Eigner hat eine TODO-Liste mit Fehlern, UI/UX-Punkten und Verbesserungen geliefert; bestätigt: alles in mehreren Runden, Name „Grow|Obs“ überall inkl. Doku, Livestatus als eigene spätere Runde. Runde 1 = Fehler + UI/UX.
+
+**Behoben:**
+- **Forum-Sortierung:** „Neu“ sortierte nach Kommentaranzahl, „Heiß“ und „Top“ waren identisch. Jetzt: **Neu** = jüngster zuerst (neues Feld `createdAt` in `GET /forum/threads`), **Top** = meiste Stimmen (Gleichstand: mehr Kommentare, dann neuer), **Heiß** = Stimmen und Kommentare mit Zeitabfall (ältere Threads sinken). Logik in `src/lib/forum-sort.ts`.
+- **„Grow-Report als Bild“:** Der Knopf zeigte nur einen Hinweis. Jetzt wird die Grafik (Kennzahlen, Phasen-Verlauf, Klima-Kurve, Durchschnittswerte, Fazit) im Browser gezeichnet und als PNG gespeichert (`src/lib/report-image.ts`, keine neue Abhängigkeit).
+- **Drawer schließen springt nach oben:** Ursache war `scroll-behavior: smooth` auf `html`; die Scroll-Sperre stellte die Position per weichem Scrollen von 0 aus wieder her. Jetzt `behavior: "auto"` (`useBodyScrollLock`).
+- **Toast wegwischen = „Zurück“:** Der Toast trägt jetzt `data-no-swipe`/`data-no-tab-swipe`, die globale Seitengeste greift dort nicht.
+- **Profil:** Name und Handle starten klar unterhalb des Titelbilds (vorher am unteren Avatar-Rand, direkt am Banner).
+
+**Tests:** Vitest 380 (neu: `forum-sort`, `report-image`, `body-scroll-lock`; `touch-hooks` angepasst); E2E `report-image.spec.ts` (PNG-Signatur, Dateiname, Toast) grün, Ergebnis zusätzlich per Bildansicht geprüft.
+**Nicht geprüft:** Toast-Wischen und Drawer-Sprung auf echten Touch-Geräten (nur Logik/Unit); Voll-E2E-Lauf und API-Tests nicht neu gelaufen (Backend nur um ein Feld erweitert).
+**Offen aus der Liste:** Name „Grow|Obs“ überall, Titel → Home, Home-Kacheln klickbar, Profil-Klicks/Aktivitäten, Forum-Filter, Chat (Profil, Antworten), „Was ist neu“, Livestatus. Auffällig: „Teilen“ und „Vorlage“ im Report zeigen ebenfalls nur Hinweise ohne Funktion.
+
 ### B-89 – Moderations-Runde
 
 **Anlass:** Moderation gab es nur innerhalb von Communities. Der Eigner hat alle fünf offenen Punkte beauftragt: fremde Konten verwalten, globalen Feed und Forum melden/ausblenden, Community verlassen, Warteschlange paginieren, Live-Updates im Community-Feed.

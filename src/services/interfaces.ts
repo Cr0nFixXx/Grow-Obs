@@ -197,6 +197,8 @@ export interface ForumThreadBrief {
   myVote?: number;
   comments: number;
   ago: string;
+  /** Erstellzeit (ISO, Server) – Grundlage der Sortierung „Neu“/„Heiß“. */
+  createdAt?: string;
   excerpt: string;
   /** Voller Text (Detailansicht); fehlt bei älteren Mock-Daten. */
   body?: string;

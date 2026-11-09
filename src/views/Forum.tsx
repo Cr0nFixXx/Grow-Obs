@@ -19,6 +19,7 @@ import { isPlatformModerator, moderationFor } from "@/lib/moderation-scope";
 import { ReportSheet } from "@/components/community/ReportSheet";
 import type { ReportKind } from "@/types";
 import type { ForumComment, ForumThreadBrief, ForumThreadDetail } from "@/services/interfaces";
+import { sortThreads, type ForumSort } from "@/lib/forum-sort";
 
 export default function Forum() {
   const { params } = useNav();
@@ -39,7 +40,7 @@ function ForumList() {
   const { threads, loading, error, createThread } = useForumThreads();
   const { subs } = useSubs();
   const [sub, setSub] = useState("Alle");
-  const [sort, setSort] = useState<"hot" | "top" | "new">("hot");
+  const [sort, setSort] = useState<ForumSort>("hot");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [chosenSub, setChosenSub] = useState("");
@@ -65,9 +66,7 @@ function ForumList() {
   if (loading) return <div className="grid gap-3"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
   if (error) return <EmptyState icon="AlertTriangle" title="Forum nicht geladen" desc={error} />;
 
-  const list = (sub === "Alle" ? threads : threads.filter((t) => t.sub === sub))
-    .slice()
-    .sort((a, b) => (sort === "top" ? b.votes - a.votes : sort === "new" ? b.comments - a.comments : b.votes - a.votes));
+  const list = sortThreads(sub === "Alle" ? threads : threads.filter((t) => t.sub === sub), sort);
 
   return (
     <div className="space-y-6">

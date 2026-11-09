@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-89 (moderation round: operator bans/unbans/deletes accounts with a moderation log, global feed and forum report/hide, leave a community, paged report queue, live community feed; migration 0026; live (commit `bb56929`, migration 0026 applied in production) — B-74 is live (build 26110919, migration 0025); B-87 e-mail is live but inactive until SMTP is configured** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
+**State: B-90 round 1 (forum sort, report PNG, drawer scroll jump, toast swipe, profile spacing; local, not yet deployed); B-89 (moderation round: operator bans/unbans/deletes accounts with a moderation log, global feed and forum report/hide, leave a community, paged report queue, live community feed; migration 0026; live (commit `bb56929`, migration 0026 applied in production) — B-74 is live (build 26110919, migration 0025); B-87 e-mail is live but inactive until SMTP is configured** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/utils/cn";
 import { average, conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow } from "@/lib/grows";
 import { useToast } from "@/components/Toast";
@@ -6,6 +7,7 @@ import { Badge, Button, Card, EmptyState, PageHeader, SkeletonCard } from "@/com
 import { SeriesChart } from "@/components/charts";
 import { Reveal } from "@/components/motion";
 import { useGrows } from "@/data/hooks";
+import { buildReportImageModel, downloadBlob, renderReportImage, reportImageName } from "@/lib/report-image";
 
 /** „24,6 °C“ bzw. „–“, wenn nichts gemessen wurde. */
 const avgText = (values: (number | null)[], unit: string, digits: number) => {
@@ -15,6 +17,7 @@ const avgText = (values: (number | null)[], unit: string, digits: number) => {
 
 export default function Report() {
   const toast = useToast();
+  const [imageBusy, setImageBusy] = useState(false);
   const { grows, loading, error } = useGrows();
   const g = grows.find(isActiveGrow) ?? grows.find((x) => !x.archived) ?? grows[0];
 
@@ -29,6 +32,20 @@ export default function Report() {
     { label: "Erwartet", value: g.expectedYield, icon: "Trophy" },
     { label: "Phase", value: g.phase, icon: "GitBranch" },
   ];
+
+  // Bild-Export (B-90): wird im Browser auf ein Canvas gezeichnet und als PNG gespeichert.
+  const exportImage = async () => {
+    setImageBusy(true);
+    try {
+      const blob = await renderReportImage(buildReportImageModel(g));
+      downloadBlob(blob, reportImageName(g.name));
+      toast.push({ title: "Bild gespeichert", desc: reportImageName(g.name), tone: "leaf", icon: "Image" });
+    } catch (error) {
+      toast.push({ title: "Bild nicht erstellt", desc: error instanceof Error ? error.message : "Bitte noch einmal versuchen.", tone: "danger", icon: "AlertTriangle" });
+    } finally {
+      setImageBusy(false);
+    }
+  };
 
   // PDF-Export via Browser-Druckdialog (offline, ohne schwere Bibliothek)
   const exportPDF = () => {
@@ -59,7 +76,7 @@ export default function Report() {
         actions={
           <>
             <Button variant="secondary" onClick={exportPDF}><Icon name="Download" size={16} /> PDF</Button>
-            <Button onClick={() => toast.push({ title: "Bild exportiert", tone: "leaf", icon: "Image" })}><Icon name="Image" size={16} /> Bild</Button>
+            <Button onClick={() => void exportImage()} disabled={imageBusy}><Icon name="Image" size={16} /> Bild</Button>
           </>
         } />
 

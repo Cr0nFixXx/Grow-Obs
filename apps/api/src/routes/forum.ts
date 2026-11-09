@@ -118,6 +118,7 @@ forum.get("/threads", optionalAuth, async (c) => {
       mine: !!viewerId && t.userId === viewerId,
       ...(t.hiddenAt ? { hidden: true } : {}),
       ago: ago(t.createdAt),
+      createdAt: t.createdAt.toISOString(),
       excerpt: t.body.slice(0, 140),
       tag: t.tag,
       top: t.isTop,

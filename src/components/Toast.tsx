@@ -64,6 +64,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   const away = Math.abs(info.offset.x) > 72 || Math.abs(info.velocity.x) > 500 || info.offset.y > 48 || info.velocity.y > 500;
                   if (away) dismiss(t.id);
                 }}
+                // Der Toast hat eine eigene Wischgeste: die globale Seitengeste („zurück“) darf dort nicht greifen.
+                data-no-swipe
+                data-no-tab-swipe
                 className="card glass pointer-events-auto flex cursor-grab touch-none select-none items-start gap-3 p-3.5 elev-2 active:cursor-grabbing"
               >
                 <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", toneSoft[t.tone ?? "leaf"])}>
