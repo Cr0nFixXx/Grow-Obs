@@ -16,7 +16,7 @@ async function startChat(page: Page, withName: string) {
   await page.getByRole("button", { name: /^Chat/ }).first().click();
   await page.getByRole("button", { name: "Neue Nachricht" }).click();
   await page.getByLabel("Person suchen").fill(withName);
-  await page.getByRole("button", { name: new RegExp(withName) }).click();
+  await page.getByRole("button", { name: new RegExp(withName) }).first().click();
   await expect(page.getByRole("log", { name: "Chat-Verlauf" })).toBeVisible();
 }
 
@@ -38,7 +38,7 @@ test.describe("Chat & Echtzeit (B-59)", () => {
     await expect(chatNav(B.page)).toHaveText(/Chat\s*1/);
     await chatNav(B.page).click();
     await expect(B.page.getByTestId("live-status")).toHaveAttribute("data-live", "ws");
-    await B.page.getByRole("button", { name: new RegExp(a) }).click();
+    await B.page.getByRole("button", { name: new RegExp(a) }).first().click();
     await expect(B.page.getByRole("log").getByText("Hallo live")).toBeVisible();
     await expect(chatNav(B.page)).not.toHaveText(/Chat\s*\d/); // gelesen → Badge weg
 
@@ -70,7 +70,7 @@ test.describe("Chat & Echtzeit (B-59)", () => {
     await expect(chatNav(B.page)).toHaveText(/Chat\s*1/);
     await chatNav(B.page).click();
     await expect(B.page.getByTestId("live-status")).toHaveAttribute("data-live", "sse");
-    await B.page.getByRole("button", { name: new RegExp(a) }).click();
+    await B.page.getByRole("button", { name: new RegExp(a) }).first().click();
     await expect(B.page.getByRole("log").getByText("Per SSE")).toBeVisible();
 
     await B.page.getByPlaceholder("Nachricht schreiben…").pressSequentially("tipp");

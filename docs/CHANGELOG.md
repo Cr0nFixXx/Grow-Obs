@@ -20,6 +20,8 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 **Tests:** E2E `scroll-lock.spec.ts` schreibt jeden Frame die Scrollposition mit; **schlägt ohne die Korrektur fehl** (Position fällt auf 0) und läuft damit grün. Vitest +2 (`scroll-restore.test.ts`).
 **Nicht geprüft:** echtes iOS-/Android-Gerät (Adressleiste, Gummiband-Scrollen).
 
+**CI-Korrektur (nach dem Push von B-92 bis B-96):** Drei E2E-Tests schlugen auf GitHub fehl: `realtime.spec.ts` (2×, der Chat-Kopf aus B-94 hat jetzt Knöpfe mit dem Namen, `getByRole("button", {name})` traf drei Elemente → `.first()` auf den Listeneintrag) und `profile-round.spec.ts` (Grow bearbeiten meldete „Startdatum darf nicht in der Zukunft liegen“: der Server rechnet in Europe/Berlin, der Browser lief in UTC; zwischen 22 und 24 Uhr UTC liegt das Berliner Datum einen Tag vorn). `playwright.config.ts` setzt jetzt `timezoneId: "Europe/Berlin"`. Lokal reproduziert und behoben (4/4 grün). 61 Tests waren grün, 1 übersprungen.
+
 ### B-95 – TODO-Runde 3d: „Was ist neu“ nach jedem Update
 
 **Neu:**

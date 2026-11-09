@@ -33,6 +33,8 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   use: {
     baseURL: `http://127.0.0.1:${port}`,
+    // Die App rechnet Grow-Tage in Europe/Berlin (GROW_TIME_ZONE); ein Browser in UTC sah nach 22/23 Uhr UTC ein „zukünftiges“ Startdatum.
+    timezoneId: "Europe/Berlin",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
