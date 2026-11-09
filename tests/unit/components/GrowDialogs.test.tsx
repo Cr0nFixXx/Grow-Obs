@@ -48,6 +48,18 @@ describe("Grow-Dialoge (B-84)", () => {
     expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "Run 2", totalDays: 90, startDate: "2026-09-01", strain: "Haze" }));
   });
 
+  it("Bearbeiten: Sichtbarkeit (B-92) – Standard „Nur ich“, Wechsel wird mitgesendet", async () => {
+    const onSaved = vi.fn();
+    render(<EditGrowModal grow={grow()} open onClose={() => undefined} onSaved={onSaved} />);
+    const select = screen.getByTestId("grow-visibility") as HTMLSelectElement;
+    expect(select.value).toBe("private");
+    fireEvent.change(select, { target: { value: "community" } });
+    expect(screen.getByText(/gemeinsamen Community/)).toBeTruthy();
+    fireEvent.submit(screen.getByTestId("edit-grow-form"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ visibility: "community" }));
+  });
+
   it("Bearbeiten: Dauer außerhalb 14–400 und Zukunftsdatum werden abgelehnt", async () => {
     render(<EditGrowModal grow={grow()} open onClose={() => undefined} onSaved={() => undefined} />);
     fireEvent.change(screen.getByLabelText(/Geplante Dauer/), { target: { value: "5" } });

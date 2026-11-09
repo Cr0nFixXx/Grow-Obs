@@ -132,6 +132,17 @@ export interface GrowPhase {
 export type GrowStatus = "active" | "harvested" | "aborted";
 /** Selbst gesetzter Zustand (ersetzt den früheren Gesundheitsprozent). */
 export type GrowCondition = "gesund" | "beobachten" | "problem";
+/** Wer einen Grow auf dem Profil sieht (B-92): nur ich (Standard), jedes Mitglied oder nur gemeinsame Communities. */
+export type GrowVisibility = "private" | "public" | "community";
+/** Kurzform eines Grows in der Liste auf einem fremden Profil. */
+export interface MemberGrowBrief {
+  id: string; name: string; strain: string; type: string; medium: string; startDate: string; day: number; totalDays: number;
+  phase: string; progress: number; status: GrowStatus; condition: GrowCondition; cover: string; visibility: GrowVisibility; archived: boolean;
+}
+/** Öffentliche Aktivität eines Mitglieds: Forum-Thread, Forum-Kommentar oder Wiki-Artikel. */
+export interface MemberActivityItem {
+  id: string; kind: "thread" | "comment" | "wiki"; title: string; sub: string; targetId: string; at: string; ago: string;
+}
 
 export interface GrowHarvest {
   wetG: number | null;
@@ -198,6 +209,7 @@ export interface Grow {
   progress: number;
   status: GrowStatus;
   condition: GrowCondition;
+  visibility: GrowVisibility;
   archived: boolean;
   /** Ende (Ernte/Abbruch), JJJJ-MM-TT. */
   endedOn: string | null;

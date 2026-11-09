@@ -36,7 +36,7 @@ function targetBand(grow: Grow, key: TargetKey, axis: "left" | "right"): EnvBand
 }
 
 /** Messwerte eines Grows (B-85): Diagramme (Temperatur + Feuchte, pH + EC, VPD mit Zielband) und Liste mit Bearbeiten. */
-export function GrowMeasurements({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<void> | void }) {
+export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: Grow; onChanged: () => Promise<void> | void; readOnly?: boolean }) {
   const [range, setRange] = useState<Range>("all");
   const [dialog, setDialog] = useState<null | { date?: string }>(null);
   const [showAll, setShowAll] = useState(false);
@@ -68,11 +68,11 @@ export function GrowMeasurements({ grow, onChanged }: { grow: Grow; onChanged: (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Thermometer" size={16} /> Messwerte</h2>
-            <p className="mt-0.5 text-xs text-fg-subtle">Ein Eintrag pro Tag · alle Werte optional · VPD wird berechnet</p>
+            {!readOnly && <p className="mt-0.5 text-xs text-fg-subtle">Ein Eintrag pro Tag · alle Werte optional · VPD wird berechnet</p>}
           </div>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" onClick={exportCsv} data-testid="export-env" aria-label="Messwerte als CSV exportieren"><Icon name="Download" size={15} /> CSV</Button>
-            <Button size="sm" onClick={() => setDialog({})} data-testid="add-env"><Icon name="Plus" size={15} /> Messwerte</Button>
+            {!readOnly && <Button size="sm" onClick={() => setDialog({})} data-testid="add-env"><Icon name="Plus" size={15} /> Messwerte</Button>}
           </div>
         </div>
         {alerts.length > 0 && (

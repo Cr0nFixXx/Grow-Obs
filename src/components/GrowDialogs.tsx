@@ -3,9 +3,9 @@ import { Icon } from "@/components/Icon";
 import { Button, Field, Input, Modal, Segmented, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { useServices } from "@/data/DataContext";
-import { GROW_MEDIUMS, GROW_TYPES, TARGET_KEYS, TARGET_META, conditionLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
+import { GROW_MEDIUMS, GROW_TYPES, GROW_VISIBILITIES, TARGET_KEYS, TARGET_META, conditionLabel, visibilityHint, visibilityLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
 import { resolveMedia } from "@/lib/media";
-import type { EnvPoint, FinishGrowInput, Grow, GrowCondition, GrowLog, GrowPhoto, TargetKey, TargetRange, UpdateGrowInput } from "@/types";
+import type { EnvPoint, FinishGrowInput, Grow, GrowCondition, GrowLog, GrowPhoto, GrowVisibility, TargetKey, TargetRange, UpdateGrowInput } from "@/types";
 
 /** Gemeinsamer Fehlerton für alle Grow-Dialoge. */
 function useGrowAction(onDone: (grow?: Grow) => void) {
@@ -82,6 +82,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
   const [totalDays, setTotalDays] = useState(String(grow.totalDays));
   const [expectedYield, setExpectedYield] = useState(grow.expectedYield === "—" ? "" : grow.expectedYield);
   const [leafOffset, setLeafOffset] = useState(String(grow.leafOffset).replace(".", ","));
+  const [visibility, setVisibility] = useState<GrowVisibility>(grow.visibility ?? "private");
   const [targetFields, setTargetFields] = useState<Record<TargetKey, TargetFieldState>>(() => Object.fromEntries(TARGET_KEYS.map((k) => [k, targetFieldOf(grow.targets[k])])) as Record<TargetKey, TargetFieldState>);
   const setTargetField = (key: TargetKey, patch: Partial<TargetFieldState>) => setTargetFields((cur) => ({ ...cur, [key]: { ...cur[key], ...patch } }));
   const phaseDefaults = effectiveTargets(grow.phase, {});
@@ -108,7 +109,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
     if (!valid) return;
     const patch: UpdateGrowInput = {
       name: name.trim(), strain: strain.trim(), breeder: breeder.trim(), type, medium, startDate, totalDays: days,
-      expectedYield: expectedYield.trim() || "—", leafOffset: offset,
+      expectedYield: expectedYield.trim() || "—", leafOffset: offset, visibility,
       targets: targetPatches as UpdateGrowInput["targets"],
     };
     void run(() => svc.grows.update(grow.id, patch), { title: "Grow gespeichert", desc: patch.name, icon: "Save" });
@@ -150,6 +151,11 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
           </Field>
         </div>
         {touched && <ErrorLine error={problems.leafOffset} />}
+        <Field label="Sichtbar für" hint={visibilityHint[visibility]}>
+          <Select value={visibility} onChange={(e) => setVisibility(e.target.value as GrowVisibility)} data-testid="grow-visibility">
+            {GROW_VISIBILITIES.map((v) => <option key={v} value={v}>{visibilityLabel[v]}</option>)}
+          </Select>
+        </Field>
         <fieldset className="space-y-3 rounded-xl border border-border p-3" data-testid="target-fields">
           <legend className="px-1 text-[13px] font-semibold">Zielbereiche in den Diagrammen</legend>
           <p className="text-xs text-fg-subtle">Standardmäßig gelten Richtwerte je Phase (Keimung, Vegetativ, Blüte …). Hier kannst du jede Größe für den ganzen Grow überschreiben oder abschalten. Werte außerhalb werden markiert.</p>

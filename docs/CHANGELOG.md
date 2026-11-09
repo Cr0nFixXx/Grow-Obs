@@ -11,6 +11,17 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-92 – TODO-Runde 3a: Grow-Sichtbarkeit, Grows im Profil, Bildmenü, Forum-/Wiki-Aktivität
+
+**Neu:**
+- **Sichtbarkeit je Grow** (Migration `0027_profile_round.sql`, `grows.visibility`): **Nur ich** (Standard), **Öffentlich** (jedes Mitglied, das das Profil sehen darf) oder **Community** (nur Mitglieder mit gemeinsamer Community). Schalter im Dialog „Grow bearbeiten“ („Sichtbar für“), `PATCH /grows/:id { visibility }`. Bestehende Grows bleiben privat.
+- **Grows im Profil:** „Grows“ am fremden Profil öffnet die Liste der für den Betrachter sichtbaren Grows (`GET /members/:handle/grows`), ein Tipp öffnet die **Lesesicht** (`GET /members/:handle/grows/:id`: Tagebuch, Fotos, Messwerte, Phasen – ohne Bearbeiten, Zustand umschalten, Report; Notizen und Kosten gibt es dort nicht). Nicht sichtbare Grows antworten 404 (verraten nichts). Die Zahl „Grows“/„Ernten“ im fremden Profil zählt nur sichtbare Grows. Am eigenen Profil führt die Kachel zur Grow-Liste.
+- **Profil-/Titelbild:** Eigenes Profil: Antippen öffnet ein Menü **Ansehen / Ändern / Entfernen** (Entfernen mit Rückfrage; ersetzte/entfernte Bilder werden wie bisher gelöscht). Fremde Profile: Großansicht (ohne Bild nicht antippbar).
+- **Aktivität im Profil:** neuer Block mit eigenen Forum-Threads, Forum-Kommentaren und Wiki-Artikeln (`GET /members/:handle/activity`; ausgeblendete Inhalte fehlen, Profil-Sichtbarkeit gilt, sonst 403). Ein Tipp öffnet Thread bzw. Artikel. Am eigenen Profil heißt die alte Liste jetzt „Letzte Meldungen“.
+
+**Tests:** API `profile-round.integration.test.ts` (8; Sichtbarkeitsmatrix privat/öffentlich/Community, Zähler, 404, Profil „nur Follower“, Aktivität, 403), `members`/`grows` unverändert grün; Vitest +8 (Bildmenü, Grows-Liste, Ziel der Aktivität, Sichtbarkeits-Schalter); E2E `profile-round.spec.ts` plus `profiles`, `grows-lifecycle`, `grows-round4` grün.
+**Nicht geprüft:** Community-Sichtbarkeit nur per API-Test (Community-Funktionen sind in Produktion hinter dem Flag `social`); Lesesicht auf echtem Touch-Gerät; Lesesicht lässt sich nicht per Direkt-URL öffnen (nur über das Profil).
+
 ### B-91 – TODO-Runde 2: Name „Grow|Obs“, Marke → Startseite, klickbare Startseite
 
 **Neu:**

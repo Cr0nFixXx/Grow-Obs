@@ -16,6 +16,7 @@ import { AccountSecurity } from "@/components/AccountSecurity";
 import { AccountData } from "@/components/AccountData";
 import { PushCard } from "@/components/PushCard";
 import { atHandle, FollowListModal, FollowRequestsCard, ProfileBanner } from "@/components/members";
+import { MemberActivityCard, ProfileImageMenu } from "@/components/profile-extras";
 import { GROW_SINCE_MIN, INTERESTS, INTERESTS_MAX, MEDIA, BIO_MAX, LOCATION_MAX, HANDLE_COOLDOWN_DAYS, HANDLE_PATTERN } from "@/lib/profile-fields";
 import type { ProfileVisibility } from "@/services/interfaces";
 import { Reveal } from "@/components/motion";
@@ -74,11 +75,11 @@ export default function Profile() {
       {/* Identity */}
       <Reveal>
         <Card className="overflow-hidden p-0">
-          <ProfileBanner src={me.cover} className="h-28 sm:h-36" />
+          <ProfileImageMenu label="Titelbild" src={me.cover} editable={!isGuest} onChange={(path) => updateProfile({ cover: path })} className="block w-full"><ProfileBanner src={me.cover} className="h-28 sm:h-36" /></ProfileImageMenu>
           <div className="px-5 pb-5">
             <div className="-mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex items-start gap-4">
-                <Avatar src={me.avatar} name={me.name} size={84} className="shrink-0 ring-4 ring-surface" />
+                <ProfileImageMenu label="Profilbild" src={me.avatar} editable={!isGuest} onChange={(path) => updateProfile({ avatar: path })} className="shrink-0 rounded-full"><Avatar src={me.avatar} name={me.name} size={84} className="shrink-0 ring-4 ring-surface" /></ProfileImageMenu>
                 {/* Der Avatar ragt 40 px ins Titelbild; Name und Handle starten klar darunter (B-90). */}
                 <div className="min-w-0 pt-14">
                   <div className="text-xl font-bold">{me.name}</div>
@@ -90,7 +91,7 @@ export default function Profile() {
             {me.bio && <p className="mt-4 whitespace-pre-line text-sm">{me.bio}</p>}
             <ProfileFacts me={me} />
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-xl bg-surface-2 p-3 text-center"><div className="text-lg font-bold tnum">{me.grows.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Grows</div></div>
+              <button type="button" onClick={() => navigate("grows")} className="rounded-xl bg-surface-2 p-3 text-center transition hover:bg-surface-3" data-testid="own-grows-tile"><div className="text-lg font-bold tnum">{me.grows.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Grows</div></button>
               <div className="rounded-xl bg-surface-2 p-3 text-center"><div className="text-lg font-bold tnum">{me.harvests.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Ernten</div></div>
               <button type="button" disabled={isGuest} onClick={() => setList("followers")} className="rounded-xl bg-surface-2 p-3 text-center transition hover:bg-surface-3"><div className="text-lg font-bold tnum">{me.followers.toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Follower</div></button>
               <button type="button" disabled={isGuest} onClick={() => setList("following")} className="rounded-xl bg-surface-2 p-3 text-center transition hover:bg-surface-3"><div className="text-lg font-bold tnum">{(me.following ?? 0).toLocaleString("de-DE")}</div><div className="text-xs text-fg-subtle">Folgt</div></button>
@@ -104,9 +105,10 @@ export default function Profile() {
       {tab === "profil" && (
         <>
           {!isGuest && <Reveal delay={0.03}><FollowRequestsCard onChanged={() => void refreshUser()} /></Reveal>}
-          <Reveal delay={0.05}>
+          {!isGuest && !config.useMock && <Reveal delay={0.05}><MemberActivityCard handle={me.handle} title="Meine Forum- und Wiki-Aktivität" /></Reveal>}
+          <Reveal delay={0.06}>
             <Card className="p-5">
-              <h2 className="mb-3 text-sm font-semibold text-fg-muted">Letzte Aktivität</h2>
+              <h2 className="mb-3 text-sm font-semibold text-fg-muted">Letzte Meldungen</h2>
               <div className="space-y-1">
                 {activity.length === 0 && <p className="py-4 text-center text-sm text-fg-subtle">Noch keine Aktivität.</p>}
                 {activity.map((a) => (

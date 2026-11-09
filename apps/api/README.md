@@ -162,6 +162,8 @@ Ist ein Feature global deaktiviert, antworten seine Pfade mit `403 { error, feat
 | POST `/auth/logout`, `/auth/logout-all` | Sitzung beenden / alle Geräte abmelden (`logout-all` auch bei Pflichtwechsel) |
 | GET `/members/:handle` | Auth; Profil eines Mitglieds. Eingeschränkt sichtbare Profile (`restricted: true`) liefern nur Name, Bild, Titel, `relation`, `canFollow`; sonst Profilfelder und echte Zähler |
 | POST / DELETE `/members/:handle/follow` | folgen (sofort bei „Alle“, Anfrage bei „Nur Follower“, 403 bei „Niemand“) / entfolgen bzw. Anfrage zurückziehen; 60 je 10 min |
+| GET `/members/:handle/grows` · `/grows/:id` | B-92: Grows des Mitglieds, soweit sichtbar (Besitzer: alle; sonst Profil sichtbar **und** `public`, oder `community` bei gemeinsamer Community; privat nie). Detail = voller Grow nur lesend, unsichtbar → 404 |
+| GET `/members/:handle/activity` | B-92: bis zu 20 jüngste Forum-Threads, Forum-Kommentare und Wiki-Artikel (ohne ausgeblendete); 403 bei nicht sichtbarem Profil |
 | GET `/members/:handle/followers`, `/following` | Listen, nur wenn das Profil sichtbar ist (sonst 403) |
 | GET `/follows/requests`, POST `/follows/requests/:userId/accept` bzw. `/decline`, DELETE `/follows/followers/:userId` | eigene offene Anfragen annehmen/ablehnen; Follower entfernen |
 | GET `/auth/sessions`, DELETE `/auth/sessions/:id` | eigene Geräteliste (höchstens 5) / einzelne Sitzung beenden |

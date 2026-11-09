@@ -8,7 +8,7 @@ import { GrowMeasurements } from "@/components/GrowMeasurements";
 import { PhotoCompareModal } from "@/components/PhotoCompare";
 import { downloadCsv, logsCsv } from "@/lib/grow-csv";
 import { DeleteGrowModal, EditGrowModal, EditLogModal, FinishGrowModal, PhotoModal } from "@/components/GrowDialogs";
-import { GROW_PHASE_NAMES, conditionIcon, conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow, statusLabel } from "@/lib/grows";
+import { GROW_PHASE_NAMES, visibilityLabel, conditionIcon, conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow, statusLabel } from "@/lib/grows";
 import { Reveal } from "@/components/motion";
 import { type Grow, type GrowCondition, type GrowLog } from "@/types";
 import { invalidate, useGrows } from "@/data/hooks";
@@ -164,7 +164,7 @@ function PhaseTimeline({ grow }: { grow: Grow }) {
   );
 }
 
-function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<void> | void }) {
+export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { grow: Grow; onChanged: () => Promise<void> | void; readOnly?: boolean; ownerName?: string }) {
   const svc = useServices();
   const toast = useToast();
   const addPhoto = async (path: string) => {
@@ -219,11 +219,11 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
   return (
     <div className="space-y-6">
       <PageHeader
-        breadcrumb={["Grows", grow.name]}
+        breadcrumb={[readOnly ? (ownerName ?? "Mitglied") : "Grows", grow.name]}
         title={grow.name}
         subtitle={`${grow.strain} · ${grow.breeder} · ${grow.medium}`}
         icon="Sprout"
-        actions={
+        actions={readOnly ? <Button variant="secondary" onClick={back}>Zurück</Button> : 
           <>
             <Button variant="secondary" onClick={back}>Zurück</Button>
             <Button onClick={() => navigate("create", { kind: "log", growId: grow.id })}>
@@ -266,7 +266,13 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
         </Card>
       </Reveal>
 
-      {grow.archived && (
+      {readOnly && (
+        <Card className="flex items-center gap-2 border-dashed p-4 text-sm text-fg-muted" data-testid="grow-readonly-banner">
+          <Icon name="Eye" size={16} /> Du siehst den Grow von {ownerName ?? "diesem Mitglied"} – nur lesend. Notizen und Kosten bleiben privat.
+        </Card>
+      )}
+
+      {grow.archived && !readOnly && (
         <Card className="flex flex-wrap items-center justify-between gap-3 border-dashed p-4 text-sm" data-testid="grow-archived-banner">
           <span className="flex items-center gap-2 text-fg-muted"><Icon name="Archive" size={16} /> Dieser Grow ist archiviert und erscheint nicht in der Liste der aktiven Grows.</span>
           <Button size="sm" variant="secondary" loading={busy} onClick={() => void act(() => svc.grows.archive(grow.id, false), { title: "Aus dem Archiv geholt", desc: grow.name, icon: "ArchiveRestore" })}>Zurückholen</Button>
@@ -286,17 +292,17 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
             </div>
           )}
           {grow.harvest?.note && <p className="text-sm text-fg-muted">{grow.harvest.note}</p>}
-          <div className="flex flex-wrap gap-2">
+          {!readOnly && <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => setDialog(grow.status === "harvested" ? "harvest" : "abort")}><Icon name="Pencil" size={14} /> {grow.status === "harvested" ? "Ernte bearbeiten" : "Abschluss bearbeiten"}</Button>
             <Button size="sm" variant="ghost" loading={busy} onClick={() => void act(() => svc.grows.reopen(grow.id), { title: "Grow wieder aufgenommen", desc: grow.name, icon: "RotateCcw" })}><Icon name="RotateCcw" size={14} /> Wieder aufnehmen</Button>
-          </div>
+          </div>}
         </Card>
       )}
 
       <Reveal>
         <Card className="space-y-5 p-5">
           <PhaseTimeline grow={grow} />
-          {active && (
+          {active && !readOnly && (
             <div className="space-y-3 border-t border-border pt-4" data-testid="phase-controls">
               <div className="text-xs font-medium text-fg-subtle">Aktuelle Phase festlegen</div>
               <div className="flex flex-wrap gap-2">
@@ -322,17 +328,17 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Reveal>
-            <GrowMeasurements grow={grow} onChanged={saved} />
+            <GrowMeasurements grow={grow} onChanged={saved} readOnly={readOnly} />
           </Reveal>
 
           <Reveal>
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="NotebookPen" size={16} /> Log-Einträge</h2>
-                <div className="flex items-center gap-1">
+                {!readOnly && <div className="flex items-center gap-1">
                   <Button size="sm" variant="ghost" onClick={exportLogs} data-testid="export-logs" aria-label="Tagebuch als CSV exportieren"><Icon name="Download" size={15} /> CSV</Button>
                   <Button size="sm" variant="ghost" onClick={() => navigate("create", { kind: "log", growId: grow.id })}>+ Eintrag</Button>
-                </div>
+                </div>}
               </div>
               {grow.logs.length === 0 && <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Einträge. Halte Gießen, Düngen, Training und Beobachtungen fest.</p>}
               <div className="space-y-1">
@@ -347,7 +353,7 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
                         <span className="text-sm font-semibold">{l.title}</span>
                         <span className="flex shrink-0 items-center gap-1 text-xs text-fg-subtle">
                           Tag {l.day} · {formatDay(l.date)}
-                          <button type="button" aria-label={`Eintrag „${l.title}“ bearbeiten`} onClick={() => setEditLog(l)} className="grid size-8 place-items-center rounded-lg text-fg-muted transition hover:bg-surface-2 hover:text-fg" data-testid="edit-log"><Icon name="Pencil" size={14} /></button>
+                          {!readOnly && <button type="button" aria-label={`Eintrag „${l.title}“ bearbeiten`} onClick={() => setEditLog(l)} className="grid size-8 place-items-center rounded-lg text-fg-muted transition hover:bg-surface-2 hover:text-fg" data-testid="edit-log"><Icon name="Pencil" size={14} /></button>}
                         </span>
                       </div>
                       {l.text && <p className="mt-0.5 whitespace-pre-line text-sm text-fg-muted">{l.text}</p>}
@@ -367,9 +373,9 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
                 {grow.photos.length >= 2 && (
                   <Button size="sm" variant="ghost" onClick={() => setComparing(true)} data-testid="compare-photos"><Icon name="Layers" size={15} /> Vergleichen</Button>
                 )}
-                <ImagePickButton onUploaded={addPhoto} className="flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-accent transition hover:bg-accent/10">
+                {!readOnly && <ImagePickButton onUploaded={addPhoto} className="flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-accent transition hover:bg-accent/10">
                   <Icon name="Camera" size={16} /> Foto hinzufügen
-                </ImagePickButton>
+                </ImagePickButton>}
                 </div>
               </div>
               {grow.photos.length === 0 ? (
@@ -382,7 +388,7 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
                       <img src={resolveMedia(photo.url)} alt={photo.caption || `Galerie ${i + 1}`} loading="lazy" className="w-full object-cover transition duration-500 hover:scale-105" style={{ aspectRatio: i % 2 ? "3/4" : "4/3" }} />
                     </button>
                     {photo.cover && <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"><Icon name="Star" size={11} /> Titelbild</span>}
-                    <button type="button" aria-label={`Foto ${i + 1} bearbeiten`} onClick={() => setEditPhotoId(photo.id)} className="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-black/55 text-white transition hover:bg-black/75" data-testid="edit-photo"><Icon name="Pencil" size={14} /></button>
+                    {!readOnly && <button type="button" aria-label={`Foto ${i + 1} bearbeiten`} onClick={() => setEditPhotoId(photo.id)} className="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-black/55 text-white transition hover:bg-black/75" data-testid="edit-photo"><Icon name="Pencil" size={14} /></button>}
                     {photo.caption && <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-2 pt-6 text-xs text-white">{photo.caption}</figcaption>}
                   </figure>
                 ))}
@@ -401,7 +407,7 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
                   <button
                     key={key}
                     type="button"
-                    disabled={busy}
+                    disabled={busy || readOnly}
                     aria-pressed={grow.condition === key}
                     onClick={() => grow.condition !== key && void act(() => svc.grows.update(grow.id, { condition: key }), { title: `Zustand: ${conditionLabel[key]}`, desc: grow.name, icon: conditionIcon[key] })}
                     className={cn("flex flex-col items-center gap-1 rounded-xl border px-1 py-3 text-xs font-medium transition", grow.condition === key ? cn("border-transparent", toneSoft[conditionTone[key]]) : "border-border text-fg-muted hover:bg-surface-2")}
@@ -416,10 +422,11 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
                 <Row label="Typ" value={grow.type} />
                 <Row label="Breeder" value={grow.breeder} />
                 <Row label="Start" value={new Date(grow.startDate).toLocaleDateString("de-DE")} />
+                {!readOnly && <Row label="Sichtbar für" value={visibilityLabel[grow.visibility ?? "private"]} />}
               </div>
-              <Button className="mt-4 w-full" variant="secondary" onClick={() => navigate("report")}>
+              {!readOnly && <Button className="mt-4 w-full" variant="secondary" onClick={() => navigate("report")}>
                 <Icon name="Newspaper" size={16} /> Grow-Report
-              </Button>
+              </Button>}
             </Card>
           </Reveal>
         </div>

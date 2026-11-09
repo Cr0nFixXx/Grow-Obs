@@ -218,6 +218,7 @@ const growService: GrowService = {
       progress: 0,
       status: "active",
       condition: "gesund",
+      visibility: "private",
       archived: false,
       endedOn: null,
       harvest: null,
@@ -667,6 +668,9 @@ const memberService: MemberService = {
   async accept() { await delay(); },
   async decline() { await delay(); },
   async removeFollower() { await delay(); },
+  async grows() { await delay(); return []; },
+  async grow() { await delay(); throw new Error("Nicht gefunden"); },
+  async activity() { await delay(); return []; },
 };
 
 const noGroups = async (): Promise<never> => { throw new Error("Gruppen brauchen den Server"); };

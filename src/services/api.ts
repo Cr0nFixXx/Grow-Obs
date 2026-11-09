@@ -1,6 +1,6 @@
 import { http } from "@/lib/api";
 import type {
-  ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, EnvPoint, Grow, GrowLog, HallEntry, Product, SeedOffer,
+  ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, EnvPoint, Grow, GrowLog, HallEntry, MemberActivityItem, MemberGrowBrief, Product, SeedOffer,
   ReportPage, SocialPost, Strain, Task,
 } from "@/types";
 import type {
@@ -243,6 +243,9 @@ const memberService: MemberService = {
   unfollow: async (handle) => { await http.delete<unknown>(`/members/${encodeURIComponent(handle)}/follow`); },
   followers: (handle) => http.get<MemberPerson[]>(`/members/${encodeURIComponent(handle)}/followers`),
   following: (handle) => http.get<MemberPerson[]>(`/members/${encodeURIComponent(handle)}/following`),
+  grows: (handle) => http.get<MemberGrowBrief[]>(`/members/${encodeURIComponent(handle)}/grows`),
+  grow: (handle, growId) => http.get<Grow>(`/members/${encodeURIComponent(handle)}/grows/${encodeURIComponent(growId)}`),
+  activity: (handle) => http.get<MemberActivityItem[]>(`/members/${encodeURIComponent(handle)}/activity`),
   requests: () => http.get<FollowRequest[]>("/follows/requests"),
   accept: async (userId) => { await http.post<unknown>(`/follows/requests/${userId}/accept`, {}); },
   decline: async (userId) => { await http.post<unknown>(`/follows/requests/${userId}/decline`, {}); },

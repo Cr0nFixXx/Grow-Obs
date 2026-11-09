@@ -190,6 +190,13 @@
       "when": 1792418400000,
       "tag": "0026_moderation_round",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792504800000,
+      "tag": "0027_profile_round",
+      "breakpoints": true
     }
   ]
 }

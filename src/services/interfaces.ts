@@ -1,7 +1,7 @@
 import type {
   ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
   AddLogInput, CreateGrowInput, EnvInput, FinishGrowInput, UpdateLogInput, UpdateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
-  EnvPoint, Grow, GrowLog, HallEntry, Product, ReportAction, ReportInput, ReportKind, ReportPage, SeedOffer, SocialPost, Strain,
+  EnvPoint, Grow, GrowLog, MemberActivityItem, MemberGrowBrief, HallEntry, Product, ReportAction, ReportInput, ReportKind, ReportPage, SeedOffer, SocialPost, Strain,
 } from "@/types";
 
 export interface WikiArticleBrief {
@@ -384,6 +384,12 @@ export interface MemberService {
   accept(userId: string): Promise<void>;
   decline(userId: string): Promise<void>;
   removeFollower(userId: string): Promise<void>;
+  /** Grows, die der Betrachter sehen darf (B-92). */
+  grows(handle: string): Promise<MemberGrowBrief[]>;
+  /** Ein sichtbarer Grow, nur lesend. */
+  grow(handle: string, growId: string): Promise<Grow>;
+  /** Forum-Threads, -Kommentare und Wiki-Artikel des Mitglieds. */
+  activity(handle: string): Promise<MemberActivityItem[]>;
 }
 
 /** Globale Feature-Overrides (Server = Quelle der Wahrheit; Mock = lokale Vorschau). */

@@ -13,6 +13,9 @@ export const growsApi = new Hono<AuthEnv>();
 
 type GrowRow = typeof grows.$inferSelect;
 
+export const GROW_VISIBILITIES = ["private", "public", "community"] as const;
+export type GrowVisibility = (typeof GROW_VISIBILITIES)[number];
+
 /** Größen mit Zielbereich (Standard je Phase im Frontend; hier nur die Überschreibungen, B-88). */
 const TARGET_KEYS = ["ph", "ec", "temp", "rh", "vpd"] as const;
 const TARGET_LIMITS: Record<(typeof TARGET_KEYS)[number], { label: string; lo: number; hi: number }> = {
@@ -38,7 +41,7 @@ function cleanTargets(raw: unknown): Record<string, { min: number; max: number }
 }
 
 /** Mappt eine Grow-Row auf den vollen Frontend-`Grow`-Shape. */
-async function toGrow(row: GrowRow) {
+export async function toGrow(row: GrowRow) {
   const strain = row.strainId
     ? await db.query.strains.findFirst({ where: eq(strains.id, row.strainId) })
     : undefined;
@@ -60,6 +63,7 @@ async function toGrow(row: GrowRow) {
     phaseIndex: state.phaseIndex,
     progress: state.progress,
     status: row.status as GrowStatus,
+    visibility: row.visibility as GrowVisibility,
     condition: row.condition as GrowCondition,
     archived: row.archivedAt !== null,
     endedOn: row.endedOn,
@@ -206,6 +210,7 @@ const patchGrowSchema = z.object({
   totalDays: growFields.totalDays,
   expectedYield: growFields.expectedYield,
   condition: z.enum(GROW_CONDITIONS),
+  visibility: z.enum(GROW_VISIBILITIES),
   leafOffset: z.number().min(0, "Abzug zwischen 0 und 6 °C").max(6, "Abzug zwischen 0 und 6 °C"),
   targets: z.object({ ph: targetRange("ph").optional(), ec: targetRange("ec").optional(), temp: targetRange("temp").optional(), rh: targetRange("rh").optional(), vpd: targetRange("vpd").optional() }).strict(),
 }).partial().strict();

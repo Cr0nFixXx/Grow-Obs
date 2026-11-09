@@ -83,6 +83,7 @@ export interface UpdateGrowInput {
   totalDays?: number;
   expectedYield?: string;
   condition?: import("./domain").GrowCondition;
+  visibility?: import("./domain").GrowVisibility;
   /** Blatt-Abzug fürs VPD, 0–6 °C (B-85). */
   leafOffset?: number;
   /** Zielbereiche (B-86/B-88); fehlender Schlüssel = unverändert, `null` = kein Ziel, `"default"` = Richtwert der Phase. */

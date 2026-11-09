@@ -319,6 +319,8 @@ export const grows = pgTable("grows", {
   strainName: text("strain_name").notNull().default(""),
   /** `active` | `harvested` | `aborted`. */
   status: text("status").notNull().default("active"),
+  /** B-92: `private` (Standard) | `public` | `community` – wer den Grow auf dem Profil sieht. */
+  visibility: text("visibility").notNull().default("private"),
   /** Selbst gesetzter Zustand: `gesund` | `beobachten` | `problem` (ersetzt den früheren Gesundheitsprozent). */
   condition: text("condition").notNull().default("gesund"),
   archivedAt: timestamp("archived_at", { withTimezone: true }),

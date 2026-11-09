@@ -1,4 +1,4 @@
-import type { EffectiveTargets, Grow, GrowCondition, GrowStatus, GrowTargets, TargetKey, TargetRange } from "@/types";
+import type { EffectiveTargets, Grow, GrowCondition, GrowStatus, GrowVisibility, GrowTargets, TargetKey, TargetRange } from "@/types";
 import type { Tone } from "@/lib/tokens";
 
 /** Phasen eines Grows in Reihenfolge (B-84); die Phase wechselt der Nutzer selbst. */
@@ -9,6 +9,13 @@ export const GROW_MEDIUMS = ["Living Soil (No-Till)", "Erde (Bio)", "Kokos/Perli
 /** Läuft und ist nicht archiviert. */
 export const isActiveGrow = (g: Pick<Grow, "status" | "archived">) => g.status === "active" && !g.archived;
 
+export const GROW_VISIBILITIES = ["private", "public", "community"] as const;
+export const visibilityLabel: Record<GrowVisibility, string> = { private: "Nur ich", public: "Öffentlich", community: "Community" };
+export const visibilityHint: Record<GrowVisibility, string> = {
+  private: "Nur du siehst diesen Grow.",
+  public: "Jedes Mitglied, das dein Profil sehen darf, sieht Tagebuch, Fotos und Messwerte – nur lesend. Notizen und Kosten bleiben privat.",
+  community: "Nur Mitglieder, die mit dir in einer gemeinsamen Community sind, sehen Tagebuch, Fotos und Messwerte – nur lesend.",
+};
 export const conditionLabel: Record<GrowCondition, string> = { gesund: "Gesund", beobachten: "Beobachten", problem: "Problem" };
 export const conditionTone: Record<GrowCondition, Tone> = { gesund: "leaf", beobachten: "warning", problem: "danger" };
 export const conditionIcon: Record<GrowCondition, string> = { gesund: "HeartPulse", beobachten: "Eye", problem: "AlertTriangle" };
