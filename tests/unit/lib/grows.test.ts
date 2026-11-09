@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VPD_BAND, average, dayDiff, dryRatio, formatDay, formatGrams, isActiveGrow, conditionLabel, GROW_PHASE_NAMES, shiftDay, vpdKpa } from "@/lib/grows";
+import { VPD_BAND, formatRange, outsideRange, rangeAlerts, average, dayDiff, dryRatio, formatDay, formatGrams, isActiveGrow, conditionLabel, GROW_PHASE_NAMES, shiftDay, vpdKpa } from "@/lib/grows";
 import { parseGrams } from "@/components/GrowDialogs";
 
 describe("Grow-Hilfen (B-84)", () => {
@@ -54,5 +54,36 @@ describe("Grow-Hilfen (B-84)", () => {
     expect(shiftDay("2026-12-31", 1)).toBe("2027-01-01");
     expect(average([1, null, 2, undefined, 3])).toBe(2);
     expect(average([null])).toBeNull();
+  });
+});
+
+describe("Zielbereiche (B-86)", () => {
+  const targets = { ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } };
+  const point = (date: string, over: Partial<{ ph: number | null; ec: number | null; vpd: number | null }> = {}) => ({ day: 1, date, temp: null, rh: null, vpd: null, ec: null, ph: null, ...over });
+
+  it("outsideRange: Grenzen zählen als im Bereich; ohne Wert oder Bereich nie außerhalb", () => {
+    expect(outsideRange(5.8, targets.ph)).toBeNull();
+    expect(outsideRange(6.5, targets.ph)).toBeNull();
+    expect(outsideRange(5.79, targets.ph)).toBe("low");
+    expect(outsideRange(6.51, targets.ph)).toBe("high");
+    expect(outsideRange(null, targets.ph)).toBeNull();
+    expect(outsideRange(9, null)).toBeNull();
+  });
+
+  it("formatRange: deutsches Format mit optionaler Einheit", () => {
+    expect(formatRange({ min: 5.8, max: 6.5 })).toBe("5,8–6,5");
+    expect(formatRange({ min: 1, max: 2 }, "mS")).toBe("1–2 mS");
+  });
+
+  it("rangeAlerts: nur der jeweils letzte Wert zählt; Bereich aus = kein Hinweis; VPD nutzt das feste Band", () => {
+    const env = [
+      point("2026-10-01", { ph: 7.5, ec: 3 }), // alt, außerhalb – wird vom neueren überholt
+      point("2026-10-02", { ph: 6.1, ec: 2.4, vpd: 1.5 }),
+      point("2026-10-03", { ph: null, ec: null, vpd: null }), // leerer Tag ändert nichts
+    ];
+    const alerts = rangeAlerts(env, targets);
+    expect(alerts.map((a) => [a.key, a.direction, a.date])).toEqual([["ec", "high", "2026-10-02"], ["vpd", "high", "2026-10-02"]]);
+    expect(rangeAlerts(env, { ph: null, ec: null }).map((a) => a.key)).toEqual(["vpd"]);
+    expect(rangeAlerts([], targets)).toEqual([]);
   });
 });

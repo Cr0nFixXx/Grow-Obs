@@ -303,6 +303,11 @@ export const grows = pgTable("grows", {
   harvestNote: text("harvest_note").notNull().default(""),
   /** B-85: Blatttemperatur = Lufttemperatur minus dieser Wert (für den VPD). */
   leafOffset: doublePrecision("leaf_offset").notNull().default(2),
+  /** B-86: Zielbereiche für pH und EC (mS); `null` = kein Zielbereich (Band ausgeblendet). */
+  phMin: doublePrecision("ph_min").default(5.8),
+  phMax: doublePrecision("ph_max").default(6.5),
+  ecMin: doublePrecision("ec_min").default(1),
+  ecMax: doublePrecision("ec_max").default(2),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

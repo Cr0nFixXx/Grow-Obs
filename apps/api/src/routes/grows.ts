@@ -13,6 +13,9 @@ export const growsApi = new Hono<AuthEnv>();
 
 type GrowRow = typeof grows.$inferSelect;
 
+/** Zielbereich aus zwei nullable Spalten; unvollständig = kein Zielbereich. */
+const range = (min: number | null, max: number | null) => (min !== null && max !== null ? { min, max } : null);
+
 /** Mappt eine Grow-Row auf den vollen Frontend-`Grow`-Shape. */
 async function toGrow(row: GrowRow) {
   const strain = row.strainId
@@ -46,6 +49,10 @@ async function toGrow(row: GrowRow) {
     gallery: photos.map((p) => p.url),
     photos: photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, cover: p.url === row.coverUrl })),
     leafOffset: row.leafOffset,
+    targets: {
+      ph: range(row.phMin, row.phMax),
+      ec: range(row.ecMin, row.ecMax),
+    },
     expectedYield: row.expectedYield,
     phases: state.phases,
     env: env.map((e) => toEnv(e, row)),
@@ -160,6 +167,13 @@ growsApi.post("/", requireAuth, async (c) => {
   return c.json(await toGrow(row), 201);
 });
 
+/** Zielbereich im Request: `{min, max}` oder `null` (Band aus). */
+const targetRange = (label: string, lo: number, hi: number) =>
+  z.object({
+    min: z.number().min(lo, `${label} zwischen ${lo} und ${hi}`).max(hi, `${label} zwischen ${lo} und ${hi}`),
+    max: z.number().min(lo, `${label} zwischen ${lo} und ${hi}`).max(hi, `${label} zwischen ${lo} und ${hi}`),
+  }).strict().refine((r) => r.min < r.max, `${label}: Minimum muss kleiner als das Maximum sein`).nullable();
+
 const patchGrowSchema = z.object({
   name: growFields.name,
   strain: growFields.strain,
@@ -171,6 +185,7 @@ const patchGrowSchema = z.object({
   expectedYield: growFields.expectedYield,
   condition: z.enum(GROW_CONDITIONS),
   leafOffset: z.number().min(0, "Abzug zwischen 0 und 6 °C").max(6, "Abzug zwischen 0 und 6 °C"),
+  targets: z.object({ ph: targetRange("pH", 0, 14).optional(), ec: targetRange("EC", 0, 10).optional() }).strict(),
 }).partial().strict();
 
 growsApi.patch("/:id", requireAuth, async (c) => {
@@ -178,8 +193,10 @@ growsApi.patch("/:id", requireAuth, async (c) => {
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
   const row = await getOwnedRow(c.req.param("id"), c.get("userId"));
   if (!row) return c.json({ error: "Nicht gefunden" }, 404);
-  const { strain, ...rest } = body.data;
+  const { strain, targets, ...rest } = body.data;
   const patch: Partial<typeof grows.$inferInsert> = { ...rest, updatedAt: new Date() };
+  if (targets?.ph !== undefined) { patch.phMin = targets.ph?.min ?? null; patch.phMax = targets.ph?.max ?? null; }
+  if (targets?.ec !== undefined) { patch.ecMin = targets.ec?.min ?? null; patch.ecMax = targets.ec?.max ?? null; }
   if (strain !== undefined) {
     const strainRow = await findStrain(strain);
     patch.strainName = strain;

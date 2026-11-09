@@ -54,7 +54,7 @@ Frontend dafür bauen mit `NEXT_PUBLIC_API_URL=http://localhost:8787`. Details, 
 
 ## ✨ Funktionen
 
-- **Grow-Tagebuch** mit Phasen, Messwerten (Temperatur, Luftfeuchte, EC, pH, berechnetes VPD) mit Diagrammen, Galerie mit Bildunterschriften und datierten Logs · **Sorten**, Breeder, Marktplatz, **Wiki** (editierbar)
+- **Grow-Tagebuch** mit Phasen, Messwerten (Temperatur, Luftfeuchte, EC, pH, berechnetes VPD) mit weichen Diagrammen und Zielbereichen für pH/EC/VPD, Galerie mit Bildunterschriften und datierten Logs · **Sorten**, Breeder, Marktplatz, **Wiki** (editierbar)
 - **Social:** Community-Feed, Forum (Votes, Antworten), Chat (live, „schreibt …“, Online-Status), Benachrichtigungen in Echtzeit
 - **Communities:** öffentlich/privat, Einladungscode, Rollen, eigener Feed, Moderation (Ausblenden, Meldungen, Rauswurf/Sperre)
 - **Konto:** Sitzungen und Geräteliste, Passwort ändern, Anmeldeprotokoll · Developer-Admin mit Feature-Flags, Health und Release-Notes

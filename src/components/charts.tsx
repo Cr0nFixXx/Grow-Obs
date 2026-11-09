@@ -7,20 +7,38 @@ interface Pt {
   y: number;
 }
 
-/** Catmull-Rom → cubic bézier smoothing for organic curves. */
+/**
+ * Weiche Kurve durch alle Punkte (monotone kubische Interpolation nach Fritsch–Carlson):
+ * rund wie Catmull-Rom, schwingt aber nie über die Datenwerte hinaus – ein Tal bleibt ein Tal.
+ * Die x-Werte müssen aufsteigend sein; bei gleichem x wird gerade verbunden.
+ */
 export function smooth(pts: Pt[]): string {
-  if (pts.length === 0) return "";
-  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  const n = pts.length;
+  if (n === 0) return "";
+  if (n === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  const dx = pts.slice(0, -1).map((p, i) => pts[i + 1].x - p.x);
+  const slope = pts.slice(0, -1).map((p, i) => (dx[i] > 0 ? (pts[i + 1].y - p.y) / dx[i] : 0));
+  const tangent = pts.map((_p, i) => {
+    if (i === 0) return slope[0];
+    if (i === n - 1) return slope[n - 2];
+    return slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+  });
+  // Tangenten begrenzen, damit die Kurve zwischen zwei Punkten monoton bleibt.
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) { tangent[i] = 0; tangent[i + 1] = 0; continue; }
+    const a = tangent[i] / slope[i];
+    const b = tangent[i + 1] / slope[i];
+    const h = Math.hypot(a, b);
+    if (h > 3) { tangent[i] = (3 * a * slope[i]) / h; tangent[i + 1] = (3 * b * slope[i]) / h; }
+  }
   let d = `M ${pts[0].x} ${pts[0].y}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i];
+  for (let i = 0; i < n - 1; i++) {
     const p1 = pts[i];
     const p2 = pts[i + 1];
-    const p3 = pts[i + 2] ?? p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
+    const c1x = p1.x + dx[i] / 3;
+    const c1y = p1.y + (tangent[i] * dx[i]) / 3;
+    const c2x = p2.x - dx[i] / 3;
+    const c2y = p2.y - (tangent[i + 1] * dx[i]) / 3;
     d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
   }
   return d;
@@ -63,7 +81,7 @@ export function SeriesChart({
     }));
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("relative w-full", className)}>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height }}>
         <defs>
           {series.map((s, i) => (
@@ -91,7 +109,7 @@ export function SeriesChart({
           const line = smooth(pts);
           const fill = area ? `${line} L ${W} ${H - padB} L 0 ${H - padB} Z` : "";
           return (
-            <g key={i}>
+            <g key={i} className="chart-reveal">
               {area && <path d={fill} fill={`url(#g-${uid}-${i})`} />}
               <path
                 d={line}
@@ -106,6 +124,17 @@ export function SeriesChart({
           );
         })}
       </svg>
+      {/* Atmender Punkt am letzten Wert (HTML, damit er trotz gestauchtem SVG rund bleibt). */}
+      {series.map((s, i) => {
+        const last = toPts(s.data).at(-1);
+        if (!last) return null;
+        return (
+          <span key={i} aria-hidden className="chart-live-dot pointer-events-none absolute" style={{ left: `${last.x}%`, top: last.y, marginLeft: -5, marginTop: -5, color: s.color }}>
+            <span className="chart-live-ring" />
+            <span className="block h-2.5 w-2.5 rounded-full border-2 bg-surface" style={{ borderColor: s.color }} />
+          </span>
+        );
+      })}
       {labels && (
         <div className="mt-2 flex justify-between text-[10px] text-fg-subtle">
           {labels.map((l, i) => (
@@ -141,7 +170,7 @@ export function Sparkline({
   }));
   return (
     <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" className={cn("w-full", className)} style={{ height }}>
-      <path d={smooth(pts)} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+      <path className="chart-reveal" d={smooth(pts)} fill="none" stroke={color} strokeWidth="2.25" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -250,8 +279,8 @@ export function Bars({
         {data.map((d, i) => (
           <div key={i} className="group flex-1" title={`${d.label}: ${d.value}`}>
             <div
-              className="w-full rounded-t-md transition-all duration-700 ease-out group-hover:brightness-110"
-              style={{ height: `${(d.value / max) * 100}%`, background: d.color ?? "var(--accent)", minHeight: 4 }}
+              className="chart-bar w-full rounded-t-lg transition-[filter,height] duration-500 ease-out group-hover:brightness-110"
+              style={{ height: `${(d.value / max) * 100}%`, background: d.color ?? "var(--accent)", minHeight: 4, animationDelay: `${Math.min(i, 20) * 45}ms` }}
             />
           </div>
         ))}

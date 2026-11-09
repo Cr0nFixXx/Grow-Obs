@@ -78,6 +78,8 @@ export interface UpdateGrowInput {
   condition?: import("./domain").GrowCondition;
   /** Blatt-Abzug fürs VPD, 0–6 °C (B-85). */
   leafOffset?: number;
+  /** Zielbereiche pH/EC (B-86); fehlender Schlüssel = unverändert, `null` = aus. */
+  targets?: { ph?: import("./domain").TargetRange | null; ec?: import("./domain").TargetRange | null };
 }
 
 export interface FinishGrowInput {

@@ -222,6 +222,7 @@ const growService: GrowService = {
       cover: seedGrows[0].cover,
       photos: [],
       leafOffset: 2,
+      targets: { ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } },
       expectedYield: "—",
       phases: mockPhases(0, "active"),
       env: [],
@@ -234,7 +235,9 @@ const growService: GrowService = {
   async update(growId, patch) {
     await delay(150);
     const grow = mockGrow(growId);
-    Object.assign(grow, patch);
+    const { targets, ...fields } = patch;
+    Object.assign(grow, fields);
+    if (targets) grow.targets = { ...grow.targets, ...targets };
     mockRecount(grow);
     if (patch.leafOffset !== undefined) grow.env = grow.env.map((e) => withVpd(e, grow.leafOffset));
     return { ...grow };

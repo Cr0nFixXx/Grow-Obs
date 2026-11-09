@@ -210,7 +210,7 @@ function growPhases(index: number, status: "active" | "harvested"): Grow["phases
 }
 
 /* ----------------------------- Grows ----------------------------- */
-type SeedGrow = Omit<Grow, "photos" | "leafOffset" | "env"> & {
+type SeedGrow = Omit<Grow, "photos" | "leafOffset" | "targets" | "env"> & {
   gallery: string[];
   env: { day: number; temp: number; rh: number; vpd: number; ec: number }[];
 };
@@ -252,6 +252,7 @@ function addDays(start: string, days: number): string {
 export const grows: Grow[] = seedGrowList.map(({ gallery, env, logs, ...g }) => ({
   ...g,
   leafOffset: 2,
+  targets: { ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } },
   photos: gallery.map((url, i) => ({ id: `${g.id}-p${i}`, url, caption: "", cover: url === g.cover })),
   env: env.map((e, i) => ({ ...e, date: addDays(g.startDate, e.day), ph: +(6.1 + Math.sin(i) * 0.2).toFixed(1) })),
   logs: logs.map((l) => ({ id: l.id, day: l.day, date: addDays(g.startDate, l.day), title: l.title, text: l.text, tag: l.tag })),

@@ -26,7 +26,8 @@ const call = (who: Who | null, path: string, method = "GET", body?: unknown) =>
 interface Log { id: string; day: number; date: string; title: string; text: string; tag: string }
 interface Env { day: number; date: string; temp: number | null; rh: number | null; vpd: number | null; ec: number | null; ph: number | null }
 interface Photo { id: string; url: string; caption: string; cover: boolean }
-interface GrowDto { id: string; cover: string; leafOffset: number; logs: Log[]; env: Env[]; photos: Photo[]; gallery: string[] }
+interface Range { min: number; max: number }
+interface GrowDto { id: string; cover: string; leafOffset: number; targets: { ph: Range | null; ec: Range | null }; logs: Log[]; env: Env[]; photos: Photo[]; gallery: string[] }
 const daysAgo = (n: number) => { const d = new Date(`${todayIso()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
 const create = async (who: Who, body: Record<string, unknown> = {}) => {
   const res = await call(who, "/grows", "POST", { name: "Haze Run", strain: "Eigene Kreuzung", medium: "Erde", startDate: daysAgo(20), ...body });
@@ -227,6 +228,28 @@ describe("Grows: Messwerte je Tag (B-85)", () => {
     expect((await call(anna, `/grows/${grow.id}`, "PATCH", { leafOffset: -1 })).status).toBe(400);
   });
 
+  it("Zielbereiche pH/EC: Standard, ändern, einzeln abschalten, ungültige Werte abgelehnt (B-86)", async () => {
+    const anna = await makeUser("anna");
+    const bob = await makeUser("bob");
+    const grow = await create(anna);
+    expect(grow.targets).toEqual({ ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } });
+    const set = async (targets: unknown) => call(anna, `/grows/${grow.id}`, "PATCH", { targets });
+    const changed = (await (await set({ ph: { min: 6, max: 7 } })).json()) as GrowDto;
+    expect(changed.targets).toEqual({ ph: { min: 6, max: 7 }, ec: { min: 1, max: 2 } }); // EC unberührt
+    const off = (await (await set({ ec: null })).json()) as GrowDto;
+    expect(off.targets).toEqual({ ph: { min: 6, max: 7 }, ec: null });
+    expect((await get(anna, grow.id)).targets.ec).toBeNull();
+    expect((await set({ ph: { min: 7, max: 6 } })).status).toBe(400);
+    expect((await set({ ph: { min: 6, max: 6 } })).status).toBe(400);
+    expect((await set({ ph: { min: -1, max: 6 } })).status).toBe(400);
+    expect((await set({ ph: { min: 5, max: 15 } })).status).toBe(400);
+    expect((await set({ ec: { min: 1, max: 11 } })).status).toBe(400);
+    expect((await set({ ph: { min: 5 } })).status).toBe(400);
+    expect((await set({ vpd: null })).status).toBe(400);
+    expect((await get(anna, grow.id)).targets.ph).toEqual({ min: 6, max: 7 });
+    expect((await call(bob, `/grows/${grow.id}`, "PATCH", { targets: { ph: null } })).status).toBe(404);
+  });
+
   it("Grow löschen entfernt Einträge, Messwerte und Fotos mit", async () => {
     const anna = await makeUser("anna");
     const grow = await create(anna);
@@ -259,5 +282,17 @@ describe("Migration 0021: Bestand wird übernommen", () => {
     // Migration ist wiederholbar
     await db.execute(sql.raw(file));
     expect(await db.select().from(growEnv).where(eq(growEnv.growId, grow.id))).toHaveLength(2);
+  });
+});
+
+describe("Migration 0022: Zielbereiche (B-86)", () => {
+  it("ist idempotent und gibt Bestands-Grows die Standardbereiche", async () => {
+    const anna = await makeUser("anna");
+    const grow = await create(anna);
+    await db.execute(sql`ALTER TABLE grows DROP COLUMN ph_min, DROP COLUMN ph_max, DROP COLUMN ec_min, DROP COLUMN ec_max`);
+    const fs = await import("node:fs/promises");
+    const file = await fs.readFile(fileURLToPath(new URL("../../apps/api/drizzle/0022_grows_targets.sql", import.meta.url)), "utf8");
+    for (let i = 0; i < 2; i++) await db.execute(sql.raw(file));
+    expect((await get(anna, grow.id)).targets).toEqual({ ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } });
   });
 });

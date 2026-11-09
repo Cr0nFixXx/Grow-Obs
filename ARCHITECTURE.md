@@ -252,6 +252,7 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0015 | weekly report (B-71): `users.weekly_report` (opt-in, default off), `users.weekly_report_week` (ISO week of the last report, prevents double sends) |
 | 0017 | media in object storage (B-76): `media.data` nullable, `media.storage_key`, check "bytes or key", `users.cover_url` |
 | 0021 | grow diary (B-85): `grows.leaf_offset`, `grow_logs.logged_on`, `grow_photos.caption`, `grow_env.ph/logged_on` (readings nullable, one row per grow and day, unique index), backfill of existing rows |
+| 0022 | grow target ranges (B-86): `grows.ph_min/ph_max/ec_min/ec_max` (defaults 5.8/6.5/1/2, `NULL` = no band) |
 | 0020 | grow lifecycle (B-84): `grows.strain_name/status/condition/archived_at/ended_on/phase_dates/wet_weight_g/dry_weight_g`, backfill of existing grows |
 | 0016 | profiles and follows (B-73): `users.bio/location/grow_since/medium/interests/profile_visibility/handle_changed_at`, table `follows` (pending/accepted, no self-follow, RLS on) |
 

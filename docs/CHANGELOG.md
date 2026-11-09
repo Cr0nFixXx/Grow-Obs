@@ -11,6 +11,19 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-86 – Grows Runde 3: weiche Diagramme, Zielbereiche für pH und EC
+
+**Anlass:** Die Diagramme wirkten spitz und eckig (gerade Linienstücke zwischen den Punkten). Zusätzlich gab es kein Zielband für pH und EC (der Eigner hat es für Runde 3 gewählt).
+
+- **Weiche Kurven überall:** `smooth()` in `charts.tsx` nutzt jetzt monotone kubische Interpolation (Fritsch–Carlson) statt Catmull-Rom: rund, aber ohne Überschwingen (ein Plateau schwingt nicht unter die Messwerte). `EnvChart` (Messwerte), `SeriesChart` (Dashboard-Klima, Report, Simulation, Verbrauch), `Sparkline` und `Bars` teilen den Stil.
+- **Dynamik:** Linie und Fläche werden beim Laden von links aufgedeckt (`clip-path`), Punkte poppen gestaffelt auf, Balken wachsen, `SeriesChart` hat einen atmenden Punkt am letzten Wert, das Fadenkreuz im Messwert-Diagramm gleitet. Flächenverlauf je Reihe. Bei „Weniger Bewegung“ (System oder Einstellung) greift die vorhandene globale Regel, die Animationen sofort beendet.
+- **Weniger Rauschen:** Ab 15 Punkten je Reihe werden nur Werte außerhalb des Zielbands und der angetippte Punkt als Kreis gezeichnet.
+- **Zielbereiche je Grow:** Migration 0022 (`grows.ph_min/ph_max/ec_min/ec_max`, Standard pH 5,8–6,5 und EC 1–2 mS, `NULL` = kein Band, auch für bestehende Grows). `PATCH /grows/:id` nimmt `targets: {ph?: {min,max}|null, ec?: {min,max}|null}` (strikt; pH 0–14, EC 0–10, Minimum < Maximum); das DTO liefert `targets`. Im Dialog „Grow bearbeiten“ vier Felder; beide leer = Band aus; unvollständig oder ungültig wird abgelehnt.
+- **Wirkung:** Band im pH-/EC-Diagramm (pH links, EC rechts), Punkte außerhalb rot, Tooltip nennt „zu hoch/zu niedrig“, Messwert-Liste markiert Werte rot mit Pfeil (auch als Text für Screenreader), und über den Diagrammen steht je Größe ein Hinweis, wenn der **letzte** Wert (pH, EC, VPD) außerhalb liegt. Das VPD nutzt weiter das feste Band 0,8–1,2 kPa. Keine Push-Warnung.
+- **Kleinfehler:** Die Zeitachse zeigt bei einem einzelnen Tag keine doppelten Datumsbeschriftungen mehr.
+- **Tests:** API 309 (neu: Zielbereiche 1, Migration 0022 idempotent 1), Vitest 317 (neu: `GrowMeasurements.test.tsx` 3, `EnvChart` +3, `charts` +2, `grows` +3, `GrowDialogs` +1), E2E `grows-lifecycle.spec.ts` um Hinweis/Markierung/Bereich ändern erweitert (beide Tests grün); `tsc` (Frontend, API, `tsconfig.tools.json`) und ESLint sauber. Ansicht mit 31 Messtagen per Playwright-Screenshot geprüft.
+- **Nicht geprüft:** Bedienung und Animationen auf einem echten Handy; Migration 0022 ist noch **nicht** in der Produktion eingespielt (`SKIP_MIGRATIONS=true`, von Hand nötig).
+
 ### B-85 – Grows Runde 2: Tagebuch, Messwerte, Diagramme, Fotos verwalten
 
 **Ausgangslage:** Log-Einträge waren nach dem Speichern fest („heute“ als Text, Tag aus dem Grow-Stand), einzelne Fotos ließen sich nicht löschen, für Temperatur, Luftfeuchte und EC gab es keine Eingabe (`grow_env` blieb leer; Dashboard und Report zeigten teils feste Beispielwerte). Versionen unverändert, nur die Build-Nummer. **Migration `0021_grows_diary.sql`** (handgeschrieben, idempotent): `grows.leaf_offset` (Standard 2), `grow_logs.logged_on` (Datum, Bestand aus `created_at` in Europe/Berlin), `grow_photos.caption`, `grow_env.ph` und `grow_env.logged_on` (Bestand aus Startdatum + Tag), Messwerte nullable, Duplikate je Tag zusammengeführt, Unique-Index `(grow_id, logged_on)`.

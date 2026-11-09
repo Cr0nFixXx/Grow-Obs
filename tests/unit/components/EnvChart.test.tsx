@@ -26,7 +26,8 @@ describe("EnvChart (B-85)", () => {
     );
     const d = container.querySelector('[data-series="ph"] path')!.getAttribute("d")!;
     expect(d.match(/M /g)).toHaveLength(2); // 01.–03.10. verbunden, 20.10. einzeln
-    expect(d.match(/L /g)).toHaveLength(2);
+    expect(d.match(/ C /g)).toHaveLength(2); // weiche Kurve: zwei Kurvenstücke zwischen drei Punkten
+    expect(d).not.toContain(" L ");
   });
 
   it("Reihen ohne Werte fehlen in der Legende; ohne jede Messung steht ein Leerzustand da", () => {
@@ -39,12 +40,12 @@ describe("EnvChart (B-85)", () => {
     const { container } = render(
       <EnvChart
         label="VPD" testId="vpd" dates={dates}
-        band={{ min: 0.8, max: 1.2, label: "Ziel 0,8–1,2 kPa" }}
+        bands={[{ min: 0.8, max: 1.2, label: "Ziel 0,8–1,2 kPa", seriesKey: "vpd" }]}
         series={[{ key: "vpd", label: "VPD", unit: "kPa", color: "green", axis: "left", values: [0.9, 1.1, null, 1.4], digits: 2 }]}
       />,
     );
     expect(screen.getByText("Ziel 0,8–1,2 kPa")).toBeTruthy();
-    expect(container.querySelectorAll("rect").length).toBe(1);
+    expect(container.querySelectorAll("rect[data-band]").length).toBe(1);
     const svg = screen.getByRole("img", { name: "VPD" });
     svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 320, height: 190, right: 320, bottom: 190, x: 0, y: 0, toJSON: () => ({}) });
     fireEvent.pointerDown(svg, { clientX: 36 }); // linker Rand = erster Tag
@@ -60,5 +61,49 @@ describe("EnvChart (B-85)", () => {
     expect(container.querySelectorAll("circle")).toHaveLength(1);
     expect(container.textContent).toContain("18.10.");
     expect(container.textContent).toContain("24.10.");
+  });
+
+  it("Punkte außerhalb des Zielbands sind rot markiert, Tooltip nennt „zu hoch/zu niedrig“ (B-86)", () => {
+    const { container } = render(
+      <EnvChart
+        label="pH" testId="ph" dates={dates}
+        bands={[{ min: 5.8, max: 6.5, label: "pH-Ziel 5,8–6,5", seriesKey: "ph" }]}
+        series={[{ key: "ph", label: "pH", unit: "", color: "green", axis: "left", values: [6.1, 7.2, 5.2, 6.4], digits: 2 }]}
+      />,
+    );
+    const dots = [...container.querySelectorAll('[data-series="ph"] circle')];
+    expect(dots.map((c) => c.getAttribute("data-out"))).toEqual([null, "high", "low", null]);
+    const svg = screen.getByRole("img", { name: "pH" });
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 320, height: 190, right: 320, bottom: 190, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.pointerDown(svg, { clientX: 36 + (320 - 36 - 12) * (1 / 19) }); // 02.10.
+    const tip = screen.getByTestId("ph-tip");
+    expect(tip.textContent).toContain("zu hoch");
+    expect(tip.querySelector('[data-flag="high"]')).toBeTruthy();
+  });
+
+  it("Zielband zweier Reihen auf getrennten Achsen: Band einer leeren Reihe verschwindet", () => {
+    const { container } = render(
+      <EnvChart
+        label="pH+EC" dates={dates}
+        bands={[
+          { min: 5.8, max: 6.5, label: "pH-Ziel", axis: "left", seriesKey: "ph" },
+          { min: 1, max: 2, label: "EC-Ziel", axis: "right", seriesKey: "ec" },
+        ]}
+        series={[
+          { key: "ph", label: "pH", unit: "", color: "green", axis: "left", values: [6, 6.1, null, 6.2] },
+          { key: "ec", label: "EC", unit: "mS", color: "orange", axis: "right", values: [null, null, null, null] },
+        ]}
+      />,
+    );
+    expect(container.querySelectorAll("rect[data-band]")).toHaveLength(1);
+    expect(screen.queryByText("EC-Ziel")).toBeNull();
+    expect(screen.getByText("pH-Ziel")).toBeTruthy();
+  });
+
+  it("Flächenverlauf je Reihe; bei sehr vielen Punkten nur der gewählte Punkt als Kreis", () => {
+    const unique = Array.from({ length: 40 }, (_v, i) => new Date(Date.UTC(2026, 9, 1 + i)).toISOString().slice(0, 10));
+    const { container } = render(<EnvChart label="x" dates={unique} series={[{ key: "t", label: "T", unit: "°C", color: "red", axis: "left", values: unique.map((_d, i) => 20 + (i % 5)) }]} />);
+    expect(container.querySelector('[data-area="t"]')?.getAttribute("d")).toContain("Z");
+    expect(container.querySelectorAll("circle")).toHaveLength(0);
   });
 });

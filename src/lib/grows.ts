@@ -1,4 +1,4 @@
-import type { Grow, GrowCondition, GrowStatus } from "@/types";
+import type { EnvPoint, Grow, GrowCondition, GrowStatus, GrowTargets } from "@/types";
 import type { Tone } from "@/lib/tokens";
 
 /** Phasen eines Grows in Reihenfolge (B-84); die Phase wechselt der Nutzer selbst. */
@@ -50,6 +50,36 @@ export const vpdKpa = (tempC: number, rhPercent: number, leafOffsetC = 2) =>
 
 /** Zielband fürs VPD (kPa). */
 export const VPD_BAND = { min: 0.8, max: 1.2 } as const;
+
+/** Liegt der Wert unter/über dem Zielbereich? `null` = im Bereich, ohne Wert oder ohne Bereich. */
+export const outsideRange = (value: number | null | undefined, range: { min: number; max: number } | null | undefined): "low" | "high" | null => {
+  if (value == null || !range) return null;
+  return value < range.min ? "low" : value > range.max ? "high" : null;
+};
+
+const de = (v: number) => v.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+/** „5,8–6,5“ (mit Einheit, falls angegeben). */
+export const formatRange = (range: { min: number; max: number }, unit = "") => `${de(range.min)}–${de(range.max)}${unit ? ` ${unit}` : ""}`;
+
+export interface RangeAlert { key: "ph" | "ec" | "vpd"; label: string; unit: string; value: number; date: string; direction: "low" | "high"; range: { min: number; max: number }; digits: number }
+
+/** Letzter Messwert je Größe, der außerhalb seines Zielbereichs liegt (pH, EC, VPD). */
+export function rangeAlerts(env: EnvPoint[], targets: GrowTargets): RangeAlert[] {
+  const sorted = [...env].sort((a, b) => b.date.localeCompare(a.date));
+  const defs = [
+    { key: "ph", label: "pH", unit: "", range: targets.ph, digits: 2 },
+    { key: "ec", label: "EC", unit: "mS", range: targets.ec, digits: 2 },
+    { key: "vpd", label: "VPD", unit: "kPa", range: VPD_BAND, digits: 2 },
+  ] as const;
+  const out: RangeAlert[] = [];
+  for (const d of defs) {
+    const latest = sorted.find((e) => e[d.key] != null);
+    const value = latest?.[d.key];
+    const direction = outsideRange(value, d.range);
+    if (latest && value != null && direction && d.range) out.push({ key: d.key, label: d.label, unit: d.unit, value, date: latest.date, direction, range: d.range, digits: d.digits });
+  }
+  return out;
+}
 
 /** Mittelwert der vorhandenen Werte (leere ignoriert) oder `null`. */
 export const average = (values: (number | null | undefined)[]) => {

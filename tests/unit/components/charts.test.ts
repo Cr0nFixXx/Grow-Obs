@@ -32,4 +32,17 @@ describe("smooth (path builder)", () => {
     expect(d.startsWith("M ")).toBe(true);
     expect(d).toContain(" C ");
   });
+
+  it("überschwingt nie: Kontrollpunkte bleiben zwischen den Datenwerten (B-86)", () => {
+    // Plateau und Spitze: Catmull-Rom würde hier unter 0 bzw. über 10 schwingen.
+    const pts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 10 }, { x: 30, y: 10 }, { x: 40, y: 0 }];
+    const d = smooth(pts);
+    const ys = [...d.matchAll(/C ([\d.-]+) ([\d.-]+), ([\d.-]+) ([\d.-]+), ([\d.-]+) ([\d.-]+)/g)].flatMap((m) => [Number(m[2]), Number(m[4])]);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(10);
+  });
+
+  it("verbindet Punkte mit gleichem x gerade statt NaN zu erzeugen", () => {
+    expect(smooth([{ x: 5, y: 1 }, { x: 5, y: 4 }, { x: 9, y: 2 }])).not.toContain("NaN");
+  });
 });

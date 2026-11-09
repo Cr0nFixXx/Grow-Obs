@@ -41,6 +41,20 @@ export function parseGrams(text: string): number | null {
   return Number.isFinite(value) && value >= 0 ? Math.round(value) : Number.NaN;
 }
 
+/** Zielbereich aus zwei Textfeldern: beide leer = aus (`null`), sonst `{min, max}`; `string` = Fehlertext. */
+export function parseTargetRange(minText: string, maxText: string, label: string, lo: number, hi: number): { min: number; max: number } | null | string {
+  const a = minText.trim().replace(",", ".");
+  const b = maxText.trim().replace(",", ".");
+  if (!a && !b) return null;
+  if (!a || !b) return `${label}: bitte Minimum und Maximum angeben – oder beide leer lassen.`;
+  const min = Number(a);
+  const max = Number(b);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min < lo || max > hi || min > hi || max < lo) return `${label}: Werte zwischen ${lo} und ${hi}.`;
+  if (min >= max) return `${label}: Minimum muss kleiner als das Maximum sein.`;
+  return { min, max };
+}
+const toField = (v: number | undefined) => (v === undefined ? "" : String(v).replace(".", ","));
+
 /* ------------------------------ Bearbeiten ------------------------------ */
 
 export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; open: boolean; onClose: () => void; onSaved: (grow: Grow) => void }) {
@@ -54,9 +68,15 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
   const [totalDays, setTotalDays] = useState(String(grow.totalDays));
   const [expectedYield, setExpectedYield] = useState(grow.expectedYield === "—" ? "" : grow.expectedYield);
   const [leafOffset, setLeafOffset] = useState(String(grow.leafOffset).replace(".", ","));
+  const [phMin, setPhMin] = useState(toField(grow.targets.ph?.min));
+  const [phMax, setPhMax] = useState(toField(grow.targets.ph?.max));
+  const [ecMin, setEcMin] = useState(toField(grow.targets.ec?.min));
+  const [ecMax, setEcMax] = useState(toField(grow.targets.ec?.max));
   const { busy, error, run } = useGrowAction((g) => g && onSaved(g));
   const [touched, setTouched] = useState(false);
 
+  const phRange = parseTargetRange(phMin, phMax, "pH", 0, 14);
+  const ecRange = parseTargetRange(ecMin, ecMax, "EC", 0, 10);
   const days = Number(totalDays);
   const offset = Number(leafOffset.trim().replace(",", ".") || Number.NaN);
   const problems = {
@@ -65,6 +85,8 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
     startDate: startDate && startDate <= todayLocal() ? "" : "Startdatum darf nicht in der Zukunft liegen.",
     totalDays: Number.isInteger(days) && days >= 14 && days <= 400 ? "" : "Zwischen 14 und 400 Tagen.",
     leafOffset: Number.isFinite(offset) && offset >= 0 && offset <= 6 ? "" : "Blatt-Abzug zwischen 0 und 6 °C.",
+    ph: typeof phRange === "string" ? phRange : "",
+    ec: typeof ecRange === "string" ? ecRange : "",
   };
   const valid = Object.values(problems).every((p) => !p);
 
@@ -75,6 +97,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
     const patch: UpdateGrowInput = {
       name: name.trim(), strain: strain.trim(), breeder: breeder.trim(), type, medium, startDate, totalDays: days,
       expectedYield: expectedYield.trim() || "—", leafOffset: offset,
+      targets: { ph: phRange as { min: number; max: number } | null, ec: ecRange as { min: number; max: number } | null },
     };
     void run(() => svc.grows.update(grow.id, patch), { title: "Grow gespeichert", desc: patch.name, icon: "Save" });
   };
@@ -115,6 +138,17 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
           </Field>
         </div>
         {touched && <ErrorLine error={problems.leafOffset} />}
+        <fieldset className="space-y-3 rounded-xl border border-border p-3" data-testid="target-fields">
+          <legend className="px-1 text-[13px] font-semibold">Zielbereiche in den Diagrammen</legend>
+          <p className="text-xs text-fg-subtle">Als Band hinterlegt; Werte außerhalb werden markiert. Beide Felder leer lassen = kein Band.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="pH von"><Input inputMode="decimal" aria-label="pH Minimum" value={phMin} onChange={(e) => setPhMin(e.target.value)} placeholder="5,8" aria-invalid={touched && !!problems.ph} /></Field>
+            <Field label="pH bis"><Input inputMode="decimal" aria-label="pH Maximum" value={phMax} onChange={(e) => setPhMax(e.target.value)} placeholder="6,5" aria-invalid={touched && !!problems.ph} /></Field>
+            <Field label="EC von (mS)"><Input inputMode="decimal" aria-label="EC Minimum" value={ecMin} onChange={(e) => setEcMin(e.target.value)} placeholder="1,0" aria-invalid={touched && !!problems.ec} /></Field>
+            <Field label="EC bis (mS)"><Input inputMode="decimal" aria-label="EC Maximum" value={ecMax} onChange={(e) => setEcMax(e.target.value)} placeholder="2,0" aria-invalid={touched && !!problems.ec} /></Field>
+          </div>
+          {touched && <ErrorLine error={problems.ph || problems.ec} />}
+        </fieldset>
         <ErrorLine error={error} />
         <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={onClose}>Abbrechen</Button>

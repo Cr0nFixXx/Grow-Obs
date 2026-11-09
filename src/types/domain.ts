@@ -151,6 +151,11 @@ export interface EnvPoint {
   ph: number | null;
 }
 
+export interface TargetRange { min: number; max: number }
+
+/** Zielbereiche eines Grows; `null` blendet das Band im Diagramm aus. */
+export interface GrowTargets { ph: TargetRange | null; ec: TargetRange | null }
+
 export interface GrowPhoto {
   id: string;
   url: string;
@@ -191,6 +196,8 @@ export interface Grow {
   photos: GrowPhoto[];
   /** Abzug von der Lufttemperatur für die Blatttemperatur (°C) beim VPD, Standard 2. */
   leafOffset: number;
+  /** Zielbereiche für pH und EC (mS); `null` = kein Zielbereich (B-86). */
+  targets: GrowTargets;
   phases: GrowPhase[];
   env: EnvPoint[];
   logs: GrowLog[];

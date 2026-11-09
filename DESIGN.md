@@ -93,7 +93,7 @@ Toasts: `Toast.tsx` (`ToastProvider`, `useToast`). Feature components: `src/comp
 
 ## 7. Charts (hand-made SVG, `src/components/charts.tsx`)
 
-`SeriesChart` (multi-series smooth area, `non-scaling-stroke`) · `Sparkline` · `Gauge` (radial) · `Donut` · `Bars` (CSS). Colors via `var(--accent)` etc.; guarded against empty data (`Math.min(...[])` crashes).
+`SeriesChart` (multi-series smooth area, `non-scaling-stroke`; curves via `smooth()` = monotone cubic, no overshoot; reveal animation through the global `.chart-reveal`/`.chart-bar`/`.chart-dot` classes in `index.css`, silenced by the reduced-motion rule). Grow readings use `EnvChart` (time axis, target bands, out-of-range points in `--danger`) · `Sparkline` · `Gauge` (radial) · `Donut` · `Bars` (CSS). Colors via `var(--accent)` etc.; guarded against empty data (`Math.min(...[])` crashes).
 Why no chart library: the legacy build is a single file (`vite-plugin-singlefile`); a library would bloat the bundle, and the SVG charts are small, theme-aware and sufficient.
 
 ---

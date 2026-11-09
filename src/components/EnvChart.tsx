@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { smooth } from "@/components/charts";
 import { formatDay } from "@/lib/grows";
 import { cn } from "@/utils/cn";
 
@@ -14,7 +15,8 @@ export interface EnvSeries {
   digits?: number;
 }
 
-export interface EnvBand { min: number; max: number; label: string }
+/** Zielband; `seriesKey` markiert Punkte dieser Reihe außerhalb des Bands. */
+export interface EnvBand { min: number; max: number; label: string; axis?: "left" | "right"; seriesKey?: string }
 
 const DAY_MS = 86_400_000;
 const toTime = (iso: string) => {
@@ -23,6 +25,8 @@ const toTime = (iso: string) => {
 };
 const shortDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
 const fmt = (v: number, digits = 1) => v.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: digits });
+/** Bis zu dieser Zahl an Punkten je Reihe werden alle Punkte gezeichnet; darüber nur Werte außerhalb des Ziels und der gewählte. */
+const MAX_DOTS = 14;
 /** Linien reißen ab, wenn zwischen zwei Messwerten mehr als so viele Tage liegen. */
 const MAX_GAP_DAYS = 7;
 
@@ -57,27 +61,29 @@ function useWidth(fallback = 320) {
 }
 
 /**
- * Messwert-Diagramm nach Datum (B-85): Zeitachse mit echten Abständen, ein Punkt je Tag,
- * Lücken bei fehlenden Werten, linke und rechte Skala, optionales Zielband.
- * Tippen/Hovern wählt den nächsten Tag; die Werte stehen dann über dem Diagramm.
+ * Messwert-Diagramm nach Datum (B-85/B-86): Zeitachse mit echten Abständen, weiche Kurven ohne Überschwingen,
+ * sanfter Flächenverlauf, Lücken bei fehlenden Werten, linke und rechte Skala, Zielbänder (Punkte außerhalb
+ * werden rot markiert). Tippen/Hovern wählt den nächsten Tag; die Werte stehen dann über dem Diagramm.
  */
 export function EnvChart({
-  dates, series, from, to, band, height = 190, label, className, testId,
+  dates, series, from, to, bands, height = 190, label, className, testId,
 }: {
   dates: string[];
   series: EnvSeries[];
   from?: string;
   to?: string;
-  band?: EnvBand;
+  bands?: EnvBand[];
   height?: number;
   label: string;
   className?: string;
   testId?: string;
 }) {
+  const uid = useId().replace(/[:]/g, "");
   const [wrap, width] = useWidth();
   const [picked, setPicked] = useState<number | null>(null);
 
   const visible = series.filter((s) => s.values.some((v) => v !== null));
+  const activeBands = (bands ?? []).filter((b) => !b.seriesKey || visible.some((s) => s.key === b.seriesKey));
   const t0 = toTime(from ?? dates[0] ?? "");
   const t1Raw = toTime(to ?? dates[dates.length - 1] ?? "");
   const t1 = t1Raw > t0 ? t1Raw : t0 + DAY_MS;
@@ -94,7 +100,7 @@ export function EnvChart({
   const scaleFor = (axis: "left" | "right") => {
     const group = visible.filter((s) => s.axis === axis);
     const vals = group.flatMap((s) => s.values.filter((v): v is number => v !== null));
-    if (band && axis === "left") vals.push(band.min, band.max);
+    for (const b of activeBands) if ((b.axis ?? "left") === axis) vals.push(b.min, b.max);
     if (!vals.length) return null;
     return niceScale(Math.min(...vals), Math.max(...vals));
   };
@@ -103,11 +109,23 @@ export function EnvChart({
     const sc = scales[axis]!;
     return padT + innerH - ((v - sc.min) / (sc.max - sc.min)) * innerH;
   };
+  const baseY = padT + innerH;
+
+  const bandFor = (key: string) => activeBands.find((b) => b.seriesKey === key);
+  const flag = (key: string, v: number): "low" | "high" | null => {
+    const b = bandFor(key);
+    return !b ? null : v < b.min ? "low" : v > b.max ? "high" : null;
+  };
+
+  type Dot = { x: number; y: number; t: number; v: number };
+  const pointsOf = (s: EnvSeries): Dot[] =>
+    s.values.map((v, i) => (v === null || !dates[i] ? null : { x: x(dates[i]!), y: y(s.axis, v), t: toTime(dates[i]!), v })).filter((p): p is Dot => p !== null);
 
   const hasData = visible.length > 0;
   const primary = scales.left ?? scales.right;
   const tickCount = Math.min(5, Math.max(2, Math.floor(innerW / 70)));
-  const xTicks: string[] = Array.from({ length: tickCount }, (_unused, i) => new Date(t0 + ((t1 - t0) * i) / (tickCount - 1)).toISOString().slice(0, 10));
+  // Bei kurzem Zeitraum (z. B. ein einzelner Tag) fallen Beschriftungen auf dasselbe Datum – nur einmal zeigen.
+  const xTicks: string[] = [...new Set(Array.from({ length: tickCount }, (_unused, i) => new Date(t0 + ((t1 - t0) * i) / (tickCount - 1)).toISOString().slice(0, 10)))];
 
   const pick = (clientX: number, rect: DOMRect) => {
     if (!dates.length) return;
@@ -122,8 +140,11 @@ export function EnvChart({
   };
 
   const pickedDate = picked !== null ? dates[picked] : undefined;
-  const pickedValues: { s: EnvSeries; v: number }[] = [];
-  if (picked !== null) for (const s of visible) { const v = s.values[picked]; if (v !== null && v !== undefined) pickedValues.push({ s, v }); }
+  const pickedValues: { s: EnvSeries; v: number; flag: "low" | "high" | null }[] = [];
+  if (picked !== null) for (const s of visible) { const v = s.values[picked]; if (v !== null && v !== undefined) pickedValues.push({ s, v, flag: flag(s.key, v) }); }
+
+  /** Ändert sich der Datenstand, läuft die Einblend-Animation neu (nicht bei Größenänderung oder Antippen). */
+  const dataKey = `${from ?? ""}|${to ?? ""}|${dates.join(",")}|${visible.map((s) => s.values.join(",")).join(";")}`;
 
   return (
     <div className={cn("w-full", className)} data-testid={testId}>
@@ -134,13 +155,20 @@ export function EnvChart({
             {s.label}
           </span>
         ))}
-        {band && <span className="inline-flex items-center gap-1.5 text-fg-muted"><span className="h-2 w-3 rounded-sm bg-accent/25" />{band.label}</span>}
+        {activeBands.map((b) => {
+          const color = visible.find((s) => s.key === b.seriesKey)?.color ?? "var(--accent)";
+          return <span key={b.label} className="inline-flex items-center gap-1.5 text-fg-muted"><span className="h-2 w-3 rounded-sm" style={{ background: color, opacity: 0.35 }} />{b.label}</span>;
+        })}
       </div>
       <div aria-live="polite" className="mb-1 min-h-[18px] text-[12px] text-fg" data-testid={testId ? `${testId}-tip` : undefined}>
         {pickedDate && (
           <>
             <strong>{formatDay(pickedDate)}</strong>
-            {pickedValues.map(({ s, v }) => <span key={s.key} className="ml-3 tabular-nums" style={{ color: s.color }}>{s.label} {fmt(v, s.digits)} {s.unit}</span>)}
+            {pickedValues.map(({ s, v, flag: f }) => (
+              <span key={s.key} className="ml-3 tabular-nums" style={{ color: f ? "var(--danger)" : s.color }} data-flag={f ?? undefined}>
+                {s.label} {fmt(v, s.digits)} {s.unit}{f ? (f === "high" ? " ↑ zu hoch" : " ↓ zu niedrig") : ""}
+              </span>
+            ))}
           </>
         )}
       </div>
@@ -156,9 +184,20 @@ export function EnvChart({
             onPointerDown={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}
             onMouseLeave={() => setPicked(null)}
           >
-            {band && scales.left && (
-              <rect x={padL} width={innerW} y={y("left", band.max)} height={Math.max(0, y("left", band.min) - y("left", band.max))} fill="var(--accent)" opacity="0.14" />
-            )}
+            <defs>
+              {visible.map((s) => (
+                <linearGradient key={s.key} id={`env-${uid}-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={s.color} stopOpacity="0.28" />
+                  <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+                </linearGradient>
+              ))}
+            </defs>
+            {activeBands.map((b) => {
+              const axis = b.axis ?? "left";
+              if (!scales[axis]) return null;
+              const color = visible.find((s) => s.key === b.seriesKey)?.color ?? "var(--accent)";
+              return <rect key={b.label} data-band={b.seriesKey ?? "band"} x={padL} width={innerW} y={y(axis, b.max)} height={Math.max(0, y(axis, b.min) - y(axis, b.max))} rx="4" fill={color} opacity="0.14" />;
+            })}
             {primary.ticks.map((t) => {
               const yy = padT + innerH - ((t - primary.min) / (primary.max - primary.min)) * innerH;
               return <line key={t} x1={padL} x2={padL + innerW} y1={yy} y2={yy} stroke="var(--border)" strokeDasharray="2 5" />;
@@ -172,21 +211,61 @@ export function EnvChart({
             {xTicks.map((d, i) => (
               <text key={d} x={x(d)} y={height - 6} textAnchor={i === 0 ? "start" : i === xTicks.length - 1 ? "end" : "middle"} fontSize="10" fill="var(--fg-muted)">{shortDay(d)}</text>
             ))}
-            {pickedDate && <line x1={x(pickedDate)} x2={x(pickedDate)} y1={padT} y2={padT + innerH} stroke="var(--fg-muted)" strokeDasharray="3 3" />}
-            {visible.map((s) => {
-              const pts = s.values.map((v, i) => (v === null || !dates[i] ? null : { x: x(dates[i]!), y: y(s.axis, v), t: toTime(dates[i]!) })).filter((p): p is { x: number; y: number; t: number } => p !== null);
-              let path = "";
-              pts.forEach((p, i) => {
-                const prev = pts[i - 1];
-                path += prev && (p.t - prev.t) / DAY_MS <= MAX_GAP_DAYS ? ` L ${p.x} ${p.y}` : `${path ? " " : ""}M ${p.x} ${p.y}`;
-              });
-              return (
-                <g key={s.key} data-series={s.key}>
-                  <path d={path} fill="none" stroke={s.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  {pts.map((p) => <circle key={p.t} cx={p.x} cy={p.y} r={pickedDate && toTime(pickedDate) === p.t ? 4.5 : 3} fill="var(--surface)" stroke={s.color} strokeWidth="2" />)}
-                </g>
-              );
-            })}
+            <line
+              x1={0} x2={0} y1={padT} y2={baseY} stroke="var(--fg-muted)" strokeDasharray="3 3"
+              style={{ transform: `translateX(${pickedDate ? x(pickedDate) : padL}px)`, transition: "transform 140ms ease-out, opacity 120ms", opacity: pickedDate ? 1 : 0 }}
+            />
+            <g key={dataKey} className="chart-reveal">
+              {visible.map((s) => {
+                const pts = pointsOf(s);
+                const segments: Dot[][] = [];
+                pts.forEach((p, i) => {
+                  const prev = pts[i - 1];
+                  if (prev && (p.t - prev.t) / DAY_MS <= MAX_GAP_DAYS) segments[segments.length - 1]!.push(p);
+                  else segments.push([p]);
+                });
+                const area = segments
+                  .filter((seg) => seg.length > 1)
+                  .map((seg) => `${smooth(seg)} L ${seg[seg.length - 1]!.x} ${baseY} L ${seg[0]!.x} ${baseY} Z`)
+                  .join(" ");
+                return <path key={`a-${s.key}`} data-area={s.key} d={area} fill={`url(#env-${uid}-${s.key})`} />;
+              })}
+              {visible.map((s) => {
+                const pts = pointsOf(s);
+                const path = (() => {
+                  let d = "";
+                  let seg: Dot[] = [];
+                  const flush = () => { if (seg.length) d += `${d ? " " : ""}${smooth(seg)}`; seg = []; };
+                  pts.forEach((p, i) => {
+                    const prev = pts[i - 1];
+                    if (prev && (p.t - prev.t) / DAY_MS > MAX_GAP_DAYS) flush();
+                    seg.push(p);
+                  });
+                  flush();
+                  return d;
+                })();
+                const pickedT = pickedDate ? toTime(pickedDate) : null;
+                const dots = pts.filter((p) => pts.length <= MAX_DOTS || p.t === pickedT || flag(s.key, p.v) !== null);
+                return (
+                  <g key={s.key} data-series={s.key}>
+                    <path d={path} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    {dots.map((p) => {
+                      const out = flag(s.key, p.v);
+                      const active = pickedT === p.t;
+                      const color = out ? "var(--danger)" : s.color;
+                      return (
+                        <circle
+                          key={p.t} className="chart-dot" data-out={out ?? undefined}
+                          cx={p.x} cy={p.y} r={active ? 5 : out ? 4 : 3.25}
+                          fill={out ? color : "var(--surface)"} stroke={color} strokeWidth="2"
+                          style={{ animationDelay: `${Math.round(((p.x - padL) / innerW) * 900)}ms`, transition: "r 120ms ease-out" }}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </g>
           </svg>
         ) : (
           <div className="flex items-center justify-center rounded-xl border border-dashed border-border text-[13px] text-fg-muted" style={{ height }}>Keine Messwerte im Zeitraum</div>
