@@ -3,7 +3,7 @@
 Open work on **Grow|Obs**, by priority. Roadmap and decisions: `PLAN.md`; current state: `HANDOFF.md`; measured test status and release gates: `docs/TESTING.md`.
 Legend: `[ ]` open · `[~]` in progress. Finished items are removed here and recorded in `docs/CHANGELOG.md`; the old checklist (v0.1–B-62, mostly finished) is kept in `docs/archive/TODO-bis-B62.md`.
 
-The owner decides the order. Last update: B-93 (round 3b).
+The owner decides the order. Last update: B-94 (round 3c).
 
 ---
 
@@ -18,7 +18,7 @@ The owner decides the order. Last update: B-93 (round 3b).
 - [ ] **Vercel operation (B-66):** watch the pooler after `DB_POOL_MAX`/polling; optional presence for polling-only mode (a cheap `POST /presence` ping), a documented `docs/` deployment guide if Vercel becomes a supported target.
 - [ ] **Group chats (B-65 done):** follow-ups: group deletion by an admin, explicit admin promotion, per-topic message search, invitation links (deliberately not built), real-device check of the group push.
 - [ ] **Web push, follow-ups:** real-device acceptance (Android, iOS PWA), push for further triggers (task reminders, community invites), per-conversation mute.
-- [ ] **Owner TODO list, rounds 3c+ (rounds 1-3b = B-90..B-93 done; 3b = forum filters + comment sort; 3a = grow visibility, profile grows list + read-only view, image menu, forum/wiki activity):** chat select/reply (3c), what's-new window (3d); chat (avatar opens image, username opens profile, select + reply); automatic short "what's new" per app update with detailed changelog on demand; live status (24 h + permanent text, privacy) as its own round; report "Share"/"Template" buttons are stubs.
+- [ ] **Owner TODO list, round 3d + later (rounds 1-3c = B-90..B-94 done; 3c = chat select/reply/avatar/name clicks):** what's-new window (3d: one-time dialog with 3-5 bullets + link to the detailed changelog, permanent entry in settings); live status (24 h + permanent text, privacy) as its own round; report "Share"/"Template" buttons are stubs.
 - [ ] **Moderation follow-ups (B-89 done):** banned accounts still show in community member lists; assigning reports to individual moderators; e-mail notice to a banned member; production check of the community feed path once the `social` flag is on.
 - [ ] **Account deletion follow-ups (B-74 and B-89 done):** chat system lines ("X was added") keep the old name in their text; very large exports hit Vercel's 300 s limit (own hosting); concurrent grow-reminder runs can double-notify when readings and log are both missing.
 - [ ] **Weekly report (B-71 done):** follow-ups: per-user time zone and send time (today fixed Sunday ≈ 18:00 Berlin), a "send test report" button, an external-cron note for self-hosting in a deployment guide, real-device check of the push; **Telegram bot** setting was removed from the settings (it had no effect), re-add it only together with a real bot integration.

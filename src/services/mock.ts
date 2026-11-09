@@ -686,9 +686,11 @@ const chatService: ChatService = {
     const c = seedConversations.find((x) => x.id === conversationId);
     return c ? [...c.messages, ...(chatStore[conversationId] ?? [])] : [...(chatStore[conversationId] ?? [])];
   },
-  async sendMessage(conversationId, text, attachments) {
+  async sendMessage(conversationId, text, attachments, _topicId, replyTo) {
     await delay(140);
-    const msg: ChatMessage = { id: String(Date.now()), from: "me", text, image: attachments?.find((a) => a.kind === "image")?.path, attachments: attachments ?? [], time: "jetzt" };
+    const original = replyTo ? ([...(seedConversations.find((x) => x.id === conversationId)?.messages ?? []), ...(chatStore[conversationId] ?? [])] as ChatMessage[]).find((m) => m.id === replyTo) : undefined;
+    const quote = original ? { id: original.id, from: original.from, senderName: original.from === "me" ? "Du" : seedConversations.find((x) => x.id === conversationId)?.name ?? "", text: original.deleted ? "" : original.text.slice(0, 140), hasAttachment: !original.deleted && !!(original.image || original.attachments?.length), deleted: !!original.deleted } : null;
+    const msg: ChatMessage = { id: String(Date.now()), from: "me", text, image: attachments?.find((a) => a.kind === "image")?.path, attachments: attachments ?? [], time: "jetzt", replyTo: quote };
     (chatStore[conversationId] ??= []).push(msg);
     return msg;
   },

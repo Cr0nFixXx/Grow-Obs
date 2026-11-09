@@ -156,14 +156,37 @@ chat.post("/", rateLimit({ name: "chat-start", limit: 30, windowMs: 10 * 60_000,
   return c.json(item, created ? 201 : 200);
 });
 
+type Sender = { name: string | null; handle?: string | null; avatar?: string | null };
+/** Zitat einer beantworteten Nachricht (B-94): gekürzter Text, nie der Inhalt gelöschter Nachrichten. */
+interface ReplyDto { id: string; from: "me" | "them"; senderName: string; text: string; hasAttachment: boolean; deleted: boolean }
+const QUOTE_MAX = 140;
+
+async function loadReplies(rows: (typeof messages.$inferSelect)[], userId: string): Promise<Map<string, ReplyDto>> {
+  const ids = [...new Set(rows.map((m) => m.replyTo).filter((x): x is string => !!x))];
+  const out = new Map<string, ReplyDto>();
+  if (!ids.length) return out;
+  const found = await db.select({ m: messages, name: users.name }).from(messages).leftJoin(users, eq(users.id, messages.senderId)).where(inArray(messages.id, ids));
+  for (const r of found) {
+    const gone = !!r.m.deletedAt;
+    out.set(r.m.id, {
+      id: r.m.id, from: r.m.senderId === userId ? "me" : "them", senderName: r.name ?? "", deleted: gone,
+      text: gone ? "" : r.m.text.slice(0, QUOTE_MAX), hasAttachment: !gone && (r.m.attachments.length > 0 || !!r.m.imageUrl),
+    });
+  }
+  return out;
+}
+
 /** Nachricht für die Oberfläche; `senderName` zeigt die Gruppenansicht, `kind: "system"` sind Hinweiszeilen. */
-function messageDto(m: typeof messages.$inferSelect, userId: string, senderName: string | null, now = false) {
+function messageDto(m: typeof messages.$inferSelect, userId: string, sender: Sender | string | null, now = false, replies?: Map<string, ReplyDto>) {
+  const s: Sender = typeof sender === "string" || sender === null ? { name: sender } : sender;
+  const who = { senderId: m.senderId, senderName: s.name ?? "", senderHandle: s.handle ?? "", senderAvatar: s.avatar ?? "" };
+  const replyTo = m.replyTo ? replies?.get(m.replyTo) ?? null : null;
   // Gelöschte Nachricht (B-82): nur noch Platzhalter, nie Inhalt ausliefern.
   if (m.deletedAt) {
     return {
       id: m.id, from: m.senderId === userId ? "me" : "them", text: "", image: undefined, attachments: [] as MessageAttachment[], deleted: true,
       time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
-      senderId: m.senderId, senderName: senderName ?? "", kind: "user" as const, topicId: m.topicId,
+      ...who, kind: "user" as const, topicId: m.topicId, replyTo: null,
     };
   }
   // Ältere Nachrichten haben nur `image_url`: als einzelnes Bild-Anhang ausgeben.
@@ -171,7 +194,7 @@ function messageDto(m: typeof messages.$inferSelect, userId: string, senderName:
   return {
     id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined, attachments, deleted: false,
     time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
-    senderId: m.senderId, senderName: senderName ?? "", kind: m.kind === "system" ? "system" : "user", topicId: m.topicId,
+    ...who, kind: m.kind === "system" ? "system" : "user", topicId: m.topicId, replyTo,
   };
 }
 
@@ -188,9 +211,10 @@ chat.get("/:id/messages", async (c) => {
     conds.push(eq(messages.topicId, topic.id));
     if (!access.cv.historyVisible) conds.push(sql`${messages.createdAt} >= ${access.me.joinedAt.toISOString()}::timestamptz`);
   }
-  const rows = await db.select({ m: messages, senderName: users.name }).from(messages).leftJoin(users, eq(users.id, messages.senderId))
+  const rows = await db.select({ m: messages, senderName: users.name, senderHandle: users.handle, senderAvatar: users.avatarUrl }).from(messages).leftJoin(users, eq(users.id, messages.senderId))
     .where(and(...conds)).orderBy(desc(messages.createdAt)).limit(limit);
-  return c.json(rows.reverse().map((r) => messageDto(r.m, userId, r.senderName)));
+  const replies = await loadReplies(rows.map((r) => r.m), userId);
+  return c.json(rows.reverse().map((r) => messageDto(r.m, userId, { name: r.senderName, handle: r.senderHandle, avatar: r.senderAvatar }, false, replies)));
 });
 
 chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 60_000, keys: userKey }), async (c) => {
@@ -208,6 +232,8 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
     /** Eigene Uploads (`/media/<id>`), höchstens 10; Art, Name und Größe stammen aus der Datenbank, nicht vom Client. */
     attachments: z.array(z.string().regex(MEDIA_PATH)).max(10).optional(),
     topicId: z.string().uuid().optional(),
+    /** B-94: Nachricht, auf die geantwortet wird (gleiche Unterhaltung und, in Gruppen, gleiches Thema). */
+    replyTo: z.string().uuid().optional(),
   })
     .refine((v) => v.text.length > 0 || !!v.image || !!v.attachments?.length, "Text oder Anhang erforderlich")
     .safeParse(await c.req.json().catch(() => ({})));
@@ -229,9 +255,16 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
     topic = body.data.topicId ? await requireTopic(id, body.data.topicId, access) : await defaultTopic(id);
     if (!canWrite(topic, access.isAdmin)) return c.json({ error: topic.closed ? "Dieses Thema ist geschlossen" : "In diesem Thema dürfen nur Admins schreiben" }, 403);
   }
+  if (body.data.replyTo) {
+    const [target] = await db.select({ conversationId: messages.conversationId, topicId: messages.topicId, deletedAt: messages.deletedAt, kind: messages.kind })
+      .from(messages).where(eq(messages.id, body.data.replyTo)).limit(1);
+    if (!target || target.conversationId !== id || target.deletedAt || target.kind === "system" || (topic && target.topicId !== topic.id)) {
+      return c.json({ error: "Die Nachricht, auf die du antwortest, gibt es nicht mehr." }, 400);
+    }
+  }
   const [m] = await db
     .insert(messages)
-    .values({ conversationId: id, senderId: userId, text: body.data.text, imageUrl: body.data.image ?? attachments.find((a) => a.kind === "image")?.path ?? null, attachments, topicId: topic?.id ?? null })
+    .values({ conversationId: id, senderId: userId, replyTo: body.data.replyTo ?? null, text: body.data.text, imageUrl: body.data.image ?? attachments.find((a) => a.kind === "image")?.path ?? null, attachments, topicId: topic?.id ?? null })
     .returning();
   // Anhänge gehören ab jetzt zu dieser Unterhaltung: Abruf nur noch für Mitglieder (B-82).
   const mediaIds = [...new Set([...attachments.map((a) => a.path), ...(m!.imageUrl && MEDIA_PATH.test(m!.imageUrl) ? [m!.imageUrl] : [])])].map((p) => p.slice("/media/".length));
@@ -246,7 +279,7 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
   await publish({ users: audience }, { type: "chat.message", conversationId: id, ...(topic ? { topicId: topic.id } : {}), messageId: m!.id, senderId: userId });
   const group = topic ? { name: access.cv.name, topicId: topic.id, muted: await mutedUsers(topic.id) } : undefined;
   void pushChatMessage({ members: audience, senderId: userId, conversationId: id, text: m!.text, hasImage: !!m!.imageUrl, hasFile: attachments.some((a) => a.kind === "file"), group }).catch(() => undefined);
-  return c.json(messageDto(m!, userId, null, true), 201);
+  return c.json(messageDto(m!, userId, null, true, await loadReplies([m!], userId)), 201);
 });
 
 /**

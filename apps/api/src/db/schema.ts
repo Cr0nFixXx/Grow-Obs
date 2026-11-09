@@ -585,6 +585,8 @@ export const messages = pgTable("messages", {
   kind: text("kind").notNull().default("user"),
   /** Gelöschte Nachricht (B-82): Text und Anhänge sind geleert, die Zeile bleibt als Platzhalter („Nachricht gelöscht“). */
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  /** B-94: zitierte Nachricht (Antwort); leer, wenn es keine Antwort ist oder das Original endgültig entfernt wurde. */
+  replyTo: uuid("reply_to").references((): AnyPgColumn => messages.id, { onDelete: "set null" }),
 }, (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt), index("messages_topic_created_idx").on(t.topicId, t.createdAt)]);
 
 /* ----------------------------- Gruppen: Themen, Einladungen (B-65) ----------------------------- */

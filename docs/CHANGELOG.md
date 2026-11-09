@@ -11,6 +11,20 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-94 – TODO-Runde 3c: Chat-Auswahl, Antworten mit Zitat, Klick auf Bild und Namen
+
+**Neu:**
+- **Auswahl per langem Druck** (450 ms, Toleranz 10 px; mit Maus ebenso): Die Kopfzeile wird zur Auswahl-Leiste (X, Anzahl, Aktionen). Weitere Nachrichten werden per Antippen hinzugefügt oder abgewählt; Esc beendet die Auswahl. Systemzeilen und gelöschte Nachrichten sind nicht auswählbar.
+- **Aktionen:** eine Nachricht → **Antworten**, **Kopieren**, **Löschen** (nur eigene bzw. als Gruppen-Admin). Mehrere → **Kopieren** (chronologisch, „Name: Text“) und **Löschen**, nur wenn alle löschbar sind; die Bestätigung nennt die Anzahl. Antworten ist in gesperrten Themen ausgeblendet.
+- **Antworten mit Zitat:** Vorschau über dem Eingabefeld (abbrechbar), das Zitat steht in der Blase; Klick darauf springt zur Originalnachricht (kurz hervorgehoben, sonst Hinweis „Original nicht geladen“). Ist das Original gelöscht, steht „Nachricht gelöscht“. Beim Wiederholen einer fehlgeschlagenen Nachricht bleibt die Antwort erhalten.
+- **Profilbild und Name:** Klick auf das Bild im Kopf oder an einer Blase öffnet die Großansicht, Klick auf den Namen (Kopf im Direktchat, Gruppen-Absender) das Profil.
+- **Icons:** `Reply` und `Check` in der Icon-Registry (`Check` fiel bisher auf das Standard-Icon zurück).
+
+**Backend:** Migration `0028_chat_reply.sql` (`messages.reply_to`, FK `ON DELETE SET NULL`, Teil-Index). `POST /chat/:id/messages` nimmt `replyTo` (Ziel muss in derselben Unterhaltung liegen, nicht gelöscht, keine Systemzeile, in Gruppen gleiches Thema; sonst 400). `GET` liefert `senderHandle`, `senderAvatar` und `replyTo` (Zitat ≤ 140 Zeichen). **Migration 0028 muss vor dem Deploy in Produktion angewendet werden.**
+
+**Tests:** Vitest +6 (`chat-select`), API +4 (`chat-reply.integration`), E2E `chat-round.spec.ts` (langer Druck, Antwort mit Zitat live beim Absender, Esc, Mehrfach-Löschen, Zitat „Nachricht gelöscht“, Name → Profil); Regression `chat`, `chat-attachments`, `groups` (desktop) grün; Vitest gesamt 408, `eslint` und `tsc` sauber.
+**Nicht geprüft:** langer Druck auf echtem Touchgerät (Kontextmenü, Scrollabbruch); Sprung zu Originalen außerhalb der geladenen Nachrichten.
+
 ### B-93 – TODO-Runde 3b: Forum-Filter und Kommentar-Sortierung
 
 **Neu:**

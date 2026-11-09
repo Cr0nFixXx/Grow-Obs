@@ -391,10 +391,11 @@ export function useChat() {
   useEffect(() => { const timers = typingTimers.current; return () => { for (const t of timers.values()) clearTimeout(t); timers.clear(); }; }, []);
 
   const send = useCallback(
-    async (text: string, attachments?: ChatAttachment[]) => {
+    async (text: string, attachments?: ChatAttachment[], replyTo?: string) => {
       if (!activeId) return;
       const topicId = activeTopicRef.current;
-      await (topicId ? svc.chat.sendMessage(activeId, text, attachments, topicId) : svc.chat.sendMessage(activeId, text, attachments));
+      if (replyTo) await svc.chat.sendMessage(activeId, text, attachments, topicId ?? undefined, replyTo);
+      else await (topicId ? svc.chat.sendMessage(activeId, text, attachments, topicId) : svc.chat.sendMessage(activeId, text, attachments));
       await Promise.all([refreshMessages(), refreshList(), refreshGroup()]);
     },
     [svc, activeId, refreshMessages, refreshList, refreshGroup]

@@ -10,13 +10,15 @@ import { NewGroupModal } from "@/components/NewGroup";
 import { GroupInfoModal, type GroupTab } from "@/components/GroupInfo";
 import { InviteBanner } from "@/components/GroupInvites";
 import { TopicBar } from "@/components/TopicBar";
+import { ChatBubble, ReplyQuote } from "@/components/chat-message";
+import { canDeleteMessage, copyPayload, isSelectable, quoteOf, selectionActions, toggleId } from "@/lib/chat-select";
 import { inviteSummary, showSenderName, writeBlockReason } from "@/lib/chat-groups";
 import { config } from "@/lib/config";
 import { sendErrorText } from "@/lib/chat-errors";
 import { copyText } from "@/lib/clipboard";
 import { useMediaQuery } from "@/lib/hooks";
 import { EmojiPicker, insertAtCursor } from "@/components/media";
-import { AttachMenu, MessageAttachments, PendingTray, chatGallery, downloadHref, messageAttachments, useAttachmentTray } from "@/components/chat-attachments";
+import { AttachMenu, PendingTray, chatGallery, downloadHref, useAttachmentTray } from "@/components/chat-attachments";
 import type { ChatAttachment, ChatMessage } from "@/services/interfaces";
 import { useToast } from "@/components/Toast";
 import { useNav } from "@/lib/nav";
@@ -34,11 +36,15 @@ export default function Chat() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   // Letzter fehlgeschlagener Sendeversuch: bleibt sichtbar, bis erneut gesendet, verworfen oder die Unterhaltung gewechselt wird.
-  const [failed, setFailed] = useState<{ body: string; attachments: ChatAttachment[]; reason: string } | null>(null);
+  const [failed, setFailed] = useState<{ body: string; attachments: ChatAttachment[]; reason: string; replyTo?: string } | null>(null);
   const tray = useAttachmentTray();
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [pdf, setPdf] = useState<ChatAttachment | null>(null);
-  const [toDelete, setToDelete] = useState<ChatMessage | null>(null);
+  const [toDelete, setToDelete] = useState<ChatMessage[] | null>(null);
+  // Auswahl (langer Druck) und Antwort (B-94)
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [avatarView, setAvatarView] = useState<{ src: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -53,20 +59,30 @@ export default function Chat() {
     else el.scrollTop = el.scrollHeight;
   }, [messages, typing, activeId]);
 
-  const deliver = async (body: string, attachments: ChatAttachment[] = []) => {
+  // Esc beendet die Auswahl bzw. die Antwort.
+  const selectingNow = selected.size > 0;
+  useEffect(() => {
+    if (!selectingNow && !replyTo) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (selectingNow) setSelected(new Set()); else setReplyTo(null); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectingNow, replyTo]);
+
+  const deliver = async (body: string, attachments: ChatAttachment[] = [], replyId?: string) => {
     setSending(true);
     try {
-      await send(body, attachments);
+      await send(body, attachments, replyId);
       setFailed(null);
+      setReplyTo((cur) => (cur && cur.id === replyId ? null : cur));
       setText((cur) => (cur.trim() === body ? "" : cur));
       tray.clearSent();
     } catch (error) {
-      setFailed({ body, attachments, reason: sendErrorText(error) });
+      setFailed({ body, attachments, reason: sendErrorText(error), replyTo: replyId });
     } finally {
       setSending(false);
     }
   };
-  useEffect(() => { setFailed(null); tray.reset(); setLightbox(null); setPdf(null); setToDelete(null); }, [activeId, activeTopic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setFailed(null); tray.reset(); setLightbox(null); setPdf(null); setToDelete(null); setSelected(new Set()); setReplyTo(null); setAvatarView(null); }, [activeId, activeTopic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const copyMessage = async (value: string) => {
     const ok = await copyText(value);
     toast.push(ok ? { title: "Nachricht kopiert", tone: "leaf", icon: "Check" } : { title: "Kopieren nicht möglich", tone: "danger", icon: "AlertTriangle" });
@@ -74,18 +90,21 @@ export default function Chat() {
   const confirmDelete = async () => {
     if (!toDelete || deleting) return;
     setDeleting(true);
+    let done = 0;
     try {
-      await deleteMessage(toDelete.id);
+      for (const m of toDelete) { await deleteMessage(m.id); done += 1; }
       setToDelete(null);
+      setSelected(new Set());
     } catch (error) {
-      toast.push({ title: "Nachricht nicht gelöscht", desc: sendErrorText(error), tone: "danger", icon: "AlertTriangle" });
+      toast.push({ title: toDelete.length > 1 ? `${done} von ${toDelete.length} Nachrichten gelöscht` : "Nachricht nicht gelöscht", desc: sendErrorText(error), tone: "danger", icon: "AlertTriangle" });
+      if (done > 0) { setToDelete(null); setSelected(new Set()); }
     } finally {
       setDeleting(false);
     }
   };
   const handleSend = () => {
     if (sending || tray.busy || (!text.trim() && !tray.ready.length)) return;
-    void deliver(text.trim(), tray.ready);
+    void deliver(text.trim(), tray.ready, replyTo?.id);
   };
   // Einfügen (Strg+V) und Ziehen von Dateien in den Chat: Bilder als Foto, alles andere als Datei.
   const addDropped = (list: FileList | File[] | null | undefined) => {
@@ -103,24 +122,40 @@ export default function Chat() {
     requestAnimationFrame(() => { inputRef.current?.focus(); inputRef.current?.setSelectionRange(caret, caret); });
   };
 
+  const startSelect = (m: ChatMessage) => { if (isSelectable(m)) { setSelected(new Set([m.id])); try { navigator.vibrate?.(8); } catch { /* optional */ } } };
+  const toggleSelect = (m: ChatMessage) => setSelected((cur) => { const next = toggleId(cur, m.id); return next; });
+  const startReply = (m: ChatMessage) => { setSelected(new Set()); setReplyTo(m); requestAnimationFrame(() => inputRef.current?.focus()); };
+  const jumpTo = (id: string) => {
+    const el = logRef.current?.querySelector<HTMLElement>(`#msg-${CSS.escape(id)}`);
+    if (!el) { toast.push({ title: "Original nicht geladen", desc: "Die Nachricht liegt weiter oben im Verlauf.", tone: "info", icon: "Info" }); return; }
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.classList.add("bg-accent/20");
+    setTimeout(() => el.classList.remove("bg-accent/20"), 1400);
+  };
+
   if (loading) return <div className="space-y-3"><SkeletonCard /><SkeletonCard /></div>;
   if (error) return <EmptyState icon="AlertTriangle" title="Chat nicht geladen" desc={error} />;
 
   const conv = conversations.find((c) => c.id === activeId) ?? null;
   const blockReason = conv?.isGroup ? writeBlockReason(activeTopic) : null;
   const fullscreen = isMobile && !!conv;
+  const isGroupAdmin = !!conv?.isGroup && conv.role === "admin";
+  const selectedMessages = messages.filter((m) => selected.has(m.id));
+  const actions = selectionActions(selectedMessages, { groupAdmin: isGroupAdmin, canWrite: !blockReason });
+  const nameOf = (m: ChatMessage) => (m.from === "me" ? "Du" : m.senderName || conv?.name || "Unbekannt");
 
   const modals = (
     <>
-      <Modal open={toDelete !== null} onClose={() => setToDelete(null)} title="Nachricht löschen?" size="sm" footer={(
+      <Modal open={toDelete !== null} onClose={() => setToDelete(null)} title={toDelete && toDelete.length > 1 ? `${toDelete.length} Nachrichten löschen?` : "Nachricht löschen?"} size="sm" footer={(
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setToDelete(null)}>Abbrechen</Button>
           <Button variant="danger" loading={deleting} onClick={() => void confirmDelete()}>Für alle löschen</Button>
         </div>
       )}>
-        <p className="text-sm text-fg-muted">Die Nachricht wird für alle Teilnehmer gelöscht. Angehängte Bilder und Dateien werden vom Server entfernt. Das lässt sich nicht rückgängig machen.</p>
+        <p className="text-sm text-fg-muted">{toDelete && toDelete.length > 1 ? "Die Nachrichten werden" : "Die Nachricht wird"} für alle Teilnehmer gelöscht. Angehängte Bilder und Dateien werden vom Server entfernt. Das lässt sich nicht rückgängig machen.</p>
       </Modal>
       <PdfViewer open={pdf !== null} path={pdf?.path ?? ""} name={pdf?.name || "Dokument.pdf"} downloadUrl={pdf ? downloadHref(pdf.path) : ""} onClose={() => setPdf(null)} />
+      <SwipeLightbox open={avatarView !== null} images={avatarView ? [{ src: avatarView.src, alt: `Profilbild von ${avatarView.name}`, caption: avatarView.name }] : []} index={0} onIndexChange={() => undefined} onClose={() => setAvatarView(null)} />
       <SwipeLightbox open={lightbox !== null} images={gallery.images} index={lightbox ?? 0} onIndexChange={setLightbox} onClose={() => setLightbox(null)} />
       <NewGroupModal open={newGroup} onClose={() => setNewGroup(false)} onCreate={async (input) => {
         const created = await groupActions.create(input);
@@ -134,11 +169,24 @@ export default function Chat() {
     <div className={cn("flex min-h-0 min-w-0 flex-col", fullscreen ? "h-full flex-1" : !conv && "hidden lg:flex")}>
           {conv ? (
             <>
+              {selected.size > 0 ? (
+                <div className="flex items-center gap-2 border-b border-border bg-surface-2 p-3" data-testid="selection-bar" role="toolbar" aria-label="Auswahl">
+                  <button type="button" onClick={() => setSelected(new Set())} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-3" aria-label="Auswahl beenden"><Icon name="X" size={18} /></button>
+                  <div className="min-w-0 flex-1 text-sm font-semibold" aria-live="polite">{selected.size === 1 ? "1 ausgewählt" : `${selected.size} ausgewählt`}</div>
+                  {actions.reply && <button type="button" onClick={() => startReply(selectedMessages[0]!)} className="grid size-10 place-items-center rounded-lg text-fg hover:bg-surface-3" aria-label="Antworten" title="Antworten" data-testid="selection-reply"><Icon name="Reply" size={18} /></button>}
+                  {actions.copy && <button type="button" onClick={() => { void copyMessage(copyPayload(messages, selected, nameOf)); setSelected(new Set()); }} className="grid size-10 place-items-center rounded-lg text-fg hover:bg-surface-3" aria-label="Kopieren" title="Kopieren" data-testid="selection-copy"><Icon name="Copy" size={18} /></button>}
+                  {actions.remove && <button type="button" onClick={() => setToDelete(selectedMessages)} className="grid size-10 place-items-center rounded-lg text-danger hover:bg-danger/10" aria-label="Löschen" title="Löschen" data-testid="selection-delete"><Icon name="Trash2" size={18} /></button>}
+                </div>
+              ) : (
               <div className="flex items-center gap-3 border-b border-border p-3">
                 <button onClick={() => setActiveId(null)} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 lg:hidden" aria-label="Zurück"><ArrowLeft className="size-5" /></button>
-                <Avatar src={conv.avatar} name={conv.name} size={40} status={conv.isGroup ? undefined : conv.online ? "online" : "offline"} />
+                <button type="button" onClick={() => conv.avatar && setAvatarView({ src: conv.avatar, name: conv.name })} disabled={!conv.avatar} className="shrink-0 rounded-full disabled:cursor-default" aria-label={`Bild von ${conv.name} ansehen`} data-testid="header-avatar">
+                  <Avatar src={conv.avatar} name={conv.name} size={40} status={conv.isGroup ? undefined : conv.online ? "online" : "offline"} />
+                </button>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">{conv.name}</div>
+                  {conv.isGroup || !conv.partnerHandle
+                    ? <div className="truncate text-sm font-semibold">{conv.name}</div>
+                    : <button type="button" onClick={() => navigate("member", { handle: conv.partnerHandle! })} className="block max-w-full truncate text-left text-sm font-semibold hover:underline" data-testid="header-name">{conv.name}</button>}
                   {conv.isGroup
                     ? <div data-testid="chat-status" className={cn("text-xs", typing ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : memberLabel(conv.memberCount ?? group?.memberCount)}</div>
                     : <div data-testid="chat-status" className={cn("text-xs", typing || conv.online ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : conv.online ? "Online" : "Offline"}</div>}
@@ -147,6 +195,7 @@ export default function Chat() {
                   ? <button onClick={() => setInfo("general")} disabled={!group} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 disabled:opacity-50" aria-label="Gruppen-Info"><Icon name="Info" size={18} /></button>
                   : <button onClick={() => (conv.partnerHandle ? navigate("member", { handle: conv.partnerHandle }) : toast.push({ title: conv.name, desc: "Geteilter Grow & Status.", tone: "info", icon: "Info" }))} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2" aria-label={conv.partnerHandle ? "Mitgliedsprofil" : "Info"}><Icon name="Info" size={18} /></button>}
               </div>
+              )}
               {conv.isGroup && group && <TopicBar topics={group.topics} activeId={activeTopic?.id ?? null} onSelect={selectTopic} onManage={() => setInfo("topics")} />}
 
               <div ref={logRef} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files") && !blockReason) e.preventDefault(); }} onDrop={(e) => { if (blockReason || !e.dataTransfer.files.length) return; e.preventDefault(); addDropped(e.dataTransfer.files); }} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:p-4" role="log" aria-live="polite" aria-label="Chat-Verlauf">
@@ -154,49 +203,27 @@ export default function Chat() {
                 {conv.isGroup && !msgLoading && messages.length === 0 && <p className="py-6 text-center text-sm text-fg-subtle">In diesem Thema ist noch nichts geschrieben.</p>}
                 {messages.map((m, index) => m.kind === "system" ? (
                   <div key={m.id} data-testid="system-line" className="py-1 text-center text-xs text-fg-subtle">{m.text}</div>
-                ) : m.deleted ? (
-                  <div key={m.id} data-testid="message-deleted" className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
-                    <div className="max-w-[78%] rounded-2xl border border-dashed border-border px-3.5 py-2 text-sm italic text-fg-subtle">
-                      {conv.isGroup && showSenderName(messages, index) && <div className="mb-0.5 text-xs font-semibold not-italic">{m.senderName || "Unbekannt"}</div>}
-                      🚫 {m.from === "me" ? "Du hast diese Nachricht gelöscht" : "Diese Nachricht wurde gelöscht"}
-                      <div className="mt-0.5 text-[10px] not-italic">{m.time}</div>
-                    </div>
-                  </div>
                 ) : (
-                  <div key={m.id} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
-                    <div className={cn("group max-w-[78%] rounded-2xl px-3.5 py-2 text-sm [overflow-wrap:anywhere]", m.from === "me" ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-2 text-fg")}>
-                      {conv.isGroup && showSenderName(messages, index) && <div data-testid="sender-name" className="mb-0.5 text-xs font-semibold text-accent">{m.senderName || "Unbekannt"}</div>}
-                      <MessageAttachments attachments={messageAttachments(m)} mine={m.from === "me"} hasText={!!m.text} onOpenImage={(i) => setLightbox((gallery.firstIndex.get(m.id) ?? 0) + i)} onOpenPdf={setPdf} />
-                      {m.text}
-                      <div className={cn("mt-0.5 flex items-center justify-between gap-3 text-[10px]", m.from === "me" ? "text-accent-fg/70" : "text-fg-subtle")}>
-                        <span>{m.time}</span>
-                        <span className="flex items-center gap-1">
-                        {(m.from === "me" || (conv.isGroup && conv.role === "admin")) && (
-                          <button
-                            type="button"
-                            onClick={() => setToDelete(m)}
-                            aria-label="Nachricht löschen"
-                            title="Nachricht löschen"
-                            className="relative -my-1 grid size-6 place-items-center rounded-md opacity-0 transition-opacity before:absolute before:-inset-2 before:content-[''] hover:bg-black/10 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-70"
-                          >
-                            <Icon name="Trash2" size={13} />
-                          </button>
-                        )}
-                        {m.text && (
-                          <button
-                            type="button"
-                            onClick={() => void copyMessage(m.text)}
-                            aria-label="Nachricht kopieren"
-                            title="Nachricht kopieren"
-                            className="relative -my-1 grid size-6 place-items-center rounded-md opacity-0 transition-opacity before:absolute before:-inset-2 before:content-[''] hover:bg-black/10 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-70"
-                          >
-                            <Icon name="Copy" size={13} />
-                          </button>
-                        )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <ChatBubble
+                    key={m.id}
+                    m={m}
+                    group={!!conv.isGroup}
+                    showSender={showSenderName(messages, index)}
+                    canDelete={canDeleteMessage(m, isGroupAdmin)}
+                    selecting={selected.size > 0}
+                    selected={selected.has(m.id)}
+                    onSelectStart={startSelect}
+                    onToggle={toggleSelect}
+                    onReply={startReply}
+                    onCopy={(value) => void copyMessage(value)}
+                    onDelete={(msg) => setToDelete([msg])}
+                    onOpenImage={setLightbox}
+                    onOpenPdf={setPdf}
+                    onOpenQuote={jumpTo}
+                    onOpenProfile={(handle) => navigate("member", { handle })}
+                    onViewAvatar={(src, name) => setAvatarView({ src, name })}
+                    firstImage={gallery.firstIndex.get(m.id) ?? 0}
+                  />
                 ))}
                 {typing && <div className="flex justify-start" data-testid="typing-indicator" aria-live="polite"><div className="rounded-2xl rounded-bl-sm bg-surface-2 px-3.5 py-2 text-sm text-fg-muted">schreibt …</div></div>}
                 
@@ -213,10 +240,16 @@ export default function Chat() {
                     <div className="font-medium">Nicht gesendet</div>
                     <div className="text-xs [overflow-wrap:anywhere]">{failed.reason}</div>
                     <div className="mt-1.5 flex gap-2">
-                      <Button size="sm" variant="secondary" disabled={sending} onClick={() => void deliver(failed.body, failed.attachments)}>Erneut senden</Button>
+                      <Button size="sm" variant="secondary" disabled={sending} onClick={() => void deliver(failed.body, failed.attachments, failed.replyTo)}>Erneut senden</Button>
                       <Button size="sm" variant="ghost" onClick={() => setFailed(null)}>Verwerfen</Button>
                     </div>
                   </div>
+                </div>
+              )}
+              {replyTo && (
+                <div className="flex shrink-0 items-center gap-2 border-t border-border bg-surface-2/60 px-3 py-2" data-testid="reply-preview">
+                  <Icon name="Reply" size={16} className="shrink-0 text-accent" />
+                  <ReplyQuote className="min-w-0 flex-1" quote={quoteOf(replyTo, nameOf(replyTo))} onCancel={() => setReplyTo(null)} />
                 </div>
               )}
               <PendingTray tray={tray} />

@@ -72,6 +72,15 @@ export interface ChatAttachment {
   mime: string;
 }
 
+export interface ChatReplyQuote {
+  id: string;
+  from: "me" | "them";
+  senderName: string;
+  text: string;
+  hasAttachment: boolean;
+  deleted: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   from: "me" | "them";
@@ -86,6 +95,11 @@ export interface ChatMessage {
   /** Gruppen (B-65): Absender, Art (`system` = Hinweiszeile) und Thema. */
   senderId?: string | null;
   senderName?: string;
+  /** Benutzername und Bild des Absenders (API); Grundlage für „Name → Profil“ und „Bild → Großansicht“. */
+  senderHandle?: string;
+  senderAvatar?: string;
+  /** Antwort (B-94): zitierte Nachricht, gekürzt; `deleted` = Original gelöscht (kein Text). */
+  replyTo?: ChatReplyQuote | null;
   kind?: "user" | "system";
   topicId?: string | null;
   /** Gelöscht (B-82): Text und Anhänge sind weg, die Oberfläche zeigt „Nachricht gelöscht“. */
@@ -220,7 +234,7 @@ export interface ChatService {
   listConversations(): Promise<ConversationItem[]>;
   /** Gruppen: `topicId` wählt das Thema (ohne Angabe: „Allgemein“). */
   getMessages(conversationId: string, topicId?: string): Promise<ChatMessage[]>;
-  sendMessage(conversationId: string, text: string, attachments?: ChatAttachment[], topicId?: string): Promise<ChatMessage>;
+  sendMessage(conversationId: string, text: string, attachments?: ChatAttachment[], topicId?: string, replyTo?: string): Promise<ChatMessage>;
   /** Eigene Nachricht (in Gruppen als Admin jede) für alle löschen; Anhänge werden entfernt (B-82). */
   deleteMessage(conversationId: string, messageId: string): Promise<void>;
   /** Direktnachricht mit einer Person starten bzw. die bestehende öffnen. */
