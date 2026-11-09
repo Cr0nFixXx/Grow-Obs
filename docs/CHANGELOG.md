@@ -11,6 +11,15 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-93 – TODO-Runde 3b: Forum-Filter und Kommentar-Sortierung
+
+**Neu:**
+- **Forum-Liste:** Suche (Titel, Text, Autor, Bereich, Tag; ohne Groß-/Kleinschreibung und Akzente), Zeitraum **Alle Zeit / Heute / Woche / Monat**, **Nur meine**, **Ohne Antworten**, **Tag-Filter** (erscheint ab zwei vorhandenen Tags), Bereichs-Chips (`r/…`), Trefferzahl, „Zurücksetzen“ und ein Leerzustand „Keine passenden Threads“. Alle Bedingungen gelten gleichzeitig; gefiltert wird auf dem Gerät über die bereits geladene Liste (die API liefert die jüngsten 100 Threads). Sortierung Heiß/Top/Neu bleibt davon unabhängig. Logik: `src/lib/forum-filter.ts`.
+- **Kommentare im Thread:** Sortierung **Älteste** (Standard, wie bisher) / **Neu** / **Top**, auch innerhalb der Antworten. `GET /forum/threads/:id` liefert dafür `createdAt` je Kommentar.
+
+**Tests:** Vitest +12 (`forum-filter.test.ts`: Zeiträume, Nur meine, Ohne Antworten, Tag, Suche mit Akzenten, Kombination, Kommentar-Sortierung rekursiv); E2E `forum-filter.spec.ts` (Suche, Nur meine, Ohne Antworten, Leerzustand, Zurücksetzen, Kommentar-Reihenfolge).
+**Nicht geprüft:** Tag-Filter nur per Vitest (frische Datenbank hat nur einen Tag); Suche über mehr als die 100 jüngsten Threads.
+
 ### B-92 – TODO-Runde 3a: Grow-Sichtbarkeit, Grows im Profil, Bildmenü, Forum-/Wiki-Aktivität
 
 **Neu:**

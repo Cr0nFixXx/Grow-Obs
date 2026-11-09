@@ -61,6 +61,7 @@ async function commentToNode(id: string, viewerId?: string, depth = 0, mod = fal
     mine: !!viewerId && c.userId === viewerId,
     ...(c.hiddenAt ? { hidden: true } : {}),
     ago: ago(c.createdAt),
+    createdAt: c.createdAt.toISOString(),
     // Tiefe begrenzen (UI zeigt max. 4 Ebenen; schützt vor sehr tiefen Ketten).
     replies: depth >= 6 ? [] : await Promise.all(
       [...c.replies].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map((r) => commentToNode(r.id, viewerId, depth + 1, mod)),

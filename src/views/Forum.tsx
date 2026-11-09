@@ -20,6 +20,7 @@ import { ReportSheet } from "@/components/community/ReportSheet";
 import type { ReportKind } from "@/types";
 import type { ForumComment, ForumThreadBrief, ForumThreadDetail } from "@/services/interfaces";
 import { sortThreads, type ForumSort } from "@/lib/forum-sort";
+import { NO_FILTERS, activeFilterCount, filterThreads, sortComments, threadTags, type CommentSort, type ForumFilters, type ForumRange } from "@/lib/forum-filter";
 
 export default function Forum() {
   const { params } = useNav();
@@ -41,6 +42,8 @@ function ForumList() {
   const { subs } = useSubs();
   const [sub, setSub] = useState("Alle");
   const [sort, setSort] = useState<ForumSort>("hot");
+  const [filters, setFilters] = useState<ForumFilters>(NO_FILTERS);
+  const setFilter = <K extends keyof ForumFilters>(key: K, value: ForumFilters[K]) => setFilters((cur) => ({ ...cur, [key]: value }));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [chosenSub, setChosenSub] = useState("");
@@ -66,7 +69,10 @@ function ForumList() {
   if (loading) return <div className="grid gap-3"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
   if (error) return <EmptyState icon="AlertTriangle" title="Forum nicht geladen" desc={error} />;
 
-  const list = sortThreads(sub === "Alle" ? threads : threads.filter((t) => t.sub === sub), sort);
+  const inSub = sub === "Alle" ? threads : threads.filter((t) => t.sub === sub);
+  const list = sortThreads(filterThreads(inSub, filters), sort);
+  const activeFilters = activeFilterCount(filters) + (sub !== "Alle" ? 1 : 0);
+  const tags = threadTags(threads);
 
   return (
     <div className="space-y-6">
@@ -77,10 +83,33 @@ function ForumList() {
         <Card className="space-y-3 p-4">
           <div className="flex flex-wrap gap-2">
             <Chip active={sub === "Alle"} onClick={() => setSub("Alle")}>Alle</Chip>
+            {subs.map((s) => <Chip key={s} active={sub === s} onClick={() => setSub(s)}>{s}</Chip>)}
+          </div>
+          <div className="relative">
+            <Icon name="Search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+            <Input value={filters.query} onChange={(e) => setFilter("query", e.target.value)} placeholder="Threads durchsuchen …" aria-label="Threads durchsuchen" className="pl-9" data-testid="forum-search" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter">
+            <Segmented<ForumRange> value={filters.range} onChange={(v) => setFilter("range", v)} options={[{ value: "all", label: "Alle Zeit" }, { value: "today", label: "Heute" }, { value: "week", label: "Woche" }, { value: "month", label: "Monat" }]} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip active={filters.mine} onClick={() => setFilter("mine", !filters.mine)} aria-pressed={filters.mine}>Nur meine</Chip>
+            <Chip active={filters.unanswered} onClick={() => setFilter("unanswered", !filters.unanswered)} aria-pressed={filters.unanswered}>Ohne Antworten</Chip>
+            {tags.length > 1 && (
+              <Select value={filters.tag} onChange={(e) => setFilter("tag", e.target.value)} aria-label="Nach Tag filtern" className="w-auto min-w-36" data-testid="forum-tag">
+                <option value="">Alle Tags</option>
+                {tags.map((tg) => <option key={tg} value={tg}>{tg}</option>)}
+              </Select>
+            )}
+            {activeFilters > 0 && <Button size="sm" variant="ghost" onClick={() => { setFilters(NO_FILTERS); setSub("Alle"); }} data-testid="forum-filter-reset">Zurücksetzen</Button>}
           </div>
           <Segmented value={sort} onChange={setSort} options={[{ value: "hot", label: "Heiß" }, { value: "top", label: "Top" }, { value: "new", label: "Neu" }]} />
         </Card>
       </Reveal>
+      {activeFilters > 0 && <p className="text-sm text-fg-muted" role="status" data-testid="forum-result-count">{list.length === 1 ? "1 Thread" : `${list.length} Threads`} gefunden</p>}
+      {list.length === 0 && (
+        <EmptyState icon="Search" title={activeFilters > 0 ? "Keine passenden Threads" : "Noch keine Threads"} desc={activeFilters > 0 ? "Lockere die Filter oder suche nach etwas anderem." : "Starte die erste Diskussion mit „+ Thread“."} action={activeFilters > 0 ? <Button variant="secondary" onClick={() => { setFilters(NO_FILTERS); setSub("Alle"); }}>Filter zurücksetzen</Button> : undefined} />
+      )}
       <div className="space-y-3">
         {list.map((t, i) => (
           <Reveal key={t.id} delay={i * 0.04}>
@@ -268,6 +297,8 @@ function ThreadDetail({ t, onComment, onVote, onChanged }: { t: ForumThreadDetai
   const commentMod: CommentModeration = { moderator, report: (id) => setReporting({ kind: "forum_comment", id }), toggleHide: (c) => void setHidden("forum_comment", c.id, !c.hidden) };
   const [comment, setComment] = useState("");
   const [posting, setPosting] = useState(false);
+  const [commentSort, setCommentSort] = useState<CommentSort>("oldest");
+  const sortedComments = sortComments(t.commentsList, commentSort);
 
   const postComment = async () => {
     if (!comment.trim() || posting) return;
@@ -312,10 +343,13 @@ function ThreadDetail({ t, onComment, onVote, onChanged }: { t: ForumThreadDetai
       </Reveal>
       <Reveal>
         <Card className="p-5">
-          <h2 className="mb-4 text-sm font-semibold text-fg-muted">{countComments(t.commentsList)} Kommentare</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-fg-muted">{countComments(t.commentsList)} Kommentare</h2>
+            {t.commentsList.length > 1 && <Segmented<CommentSort> value={commentSort} onChange={setCommentSort} options={[{ value: "oldest", label: "Älteste" }, { value: "new", label: "Neu" }, { value: "top", label: "Top" }]} />}
+          </div>
           {t.commentsList.length === 0 && <p className="text-sm text-fg-muted">Noch keine Kommentare – schreib den ersten.</p>}
           <div className="space-y-4" role="list">
-            {t.commentsList.map((c) => <CommentNode key={c.id} c={c} onReply={(text, parentId) => onComment(text, parentId)} mod={commentMod} />)}
+            {sortedComments.map((c) => <CommentNode key={c.id} c={c} onReply={(text, parentId) => onComment(text, parentId)} mod={commentMod} />)}
           </div>
         </Card>
       </Reveal>

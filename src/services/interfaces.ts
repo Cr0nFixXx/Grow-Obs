@@ -29,6 +29,8 @@ export interface ForumComment {
   /** Eigener Vote (-1/0/1), nur wenn angemeldet. */
   myVote?: number;
   ago: string;
+  /** Erstellzeit (ISO, Server) – Grundlage der Sortierung „Neu“. */
+  createdAt?: string;
   replies?: ForumComment[];
   /** Eigener Kommentar (Server). */
   mine?: boolean;
