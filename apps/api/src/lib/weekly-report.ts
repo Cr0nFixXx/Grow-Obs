@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/client.ts";
 import { growLogs, grows, users } from "../db/schema.ts";
 import { createNotification } from "./notify.ts";
+import { todayIso } from "./grow-state.ts";
 
 export const REPORT_TIME_ZONE = "Europe/Berlin";
 const DAY_MS = 86_400_000;
@@ -53,7 +54,9 @@ export async function runWeeklyReports(now = new Date()): Promise<{ week: string
   const candidates = await db.select({ id: users.id }).from(users)
     .where(and(eq(users.weeklyReport, true), or(isNull(users.weeklyReportWeek), ne(users.weeklyReportWeek, week))));
   let sent = 0;
-  const since = new Date(now.getTime() - 7 * DAY_MS);
+  // Die letzten 7 Kalendertage (heute und die 6 davor, Europe/Berlin) nach dem Datum des Eintrags (`logged_on`, B-86b),
+  // nicht nach dem Anlegezeitpunkt: ein rückwirkend nachgetragener Eintrag zählt für den Tag, an dem er passiert ist.
+  const since = todayIso(new Date(now.getTime() - 6 * DAY_MS), REPORT_TIME_ZONE);
   for (const { id } of candidates) {
     const claimed = await db.update(users).set({ weeklyReportWeek: week })
       .where(and(eq(users.id, id), eq(users.weeklyReport, true), or(isNull(users.weeklyReportWeek), ne(users.weeklyReportWeek, week))))
@@ -62,7 +65,7 @@ export async function runWeeklyReports(now = new Date()): Promise<{ week: string
     const rows = await db.select().from(grows).where(and(eq(grows.userId, id), eq(grows.status, "active"), isNull(grows.archivedAt))).orderBy(grows.createdAt);
     if (rows.length === 0) continue;
     const counts = await db.select({ growId: growLogs.growId, n: sql<number>`count(*)::int` }).from(growLogs)
-      .where(and(inArray(growLogs.growId, rows.map((r) => r.id)), gte(growLogs.createdAt, since))).groupBy(growLogs.growId);
+      .where(and(inArray(growLogs.growId, rows.map((r) => r.id)), gte(growLogs.loggedOn, since))).groupBy(growLogs.growId);
     const byGrow = new Map(counts.map((c) => [c.growId, c.n]));
     const items = rows.map((r) => ({ name: r.name, day: daysSince(r.startDate, now), totalDays: r.totalDays, phase: r.phase, entries: byGrow.get(r.id) ?? 0 }));
     try {

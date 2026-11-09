@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-86b | Aufräumen: Wochenreport zählt nach Eintragsdatum; B-78 (keine Waisen) und B-79 (Latenz, 40 parallele Anfragen ok) in Produktion gemessen | API +0 (Test erweitert) |
 | B-86a | Diagramme: durchgehende Kurve über Lücken, Achse je Diagramm nach Datenlage, rundere Kurven | Vitest +1 |
 | B-86 | Grows Runde 3: weiche Diagramme (monotone Kurven, Einblend-Animation, Flächenverlauf; Messwerte, Dashboard, Report, Simulation, Verbrauch), Zielbereiche pH/EC je Grow (Band, rote Markierung, Hinweis); Migration 0022 | API 309, Vitest 317, E2E erweitert |
 | B-85 | Grows Runde 2: Log-Einträge mit echtem Datum (bearbeiten/löschen), Fotos (Bildunterschrift, Titelbild, löschen samt Datei), Messwerte je Tag (Temperatur, Luftfeuchte, EC, pH), VPD berechnet mit einstellbarem Blatt-Abzug, Diagramme (7/30/alles, VPD-Zielband); Migration 0021 | API 307, Vitest 305, E2E +1 |

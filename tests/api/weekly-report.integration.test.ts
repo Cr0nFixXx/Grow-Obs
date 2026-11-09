@@ -80,7 +80,11 @@ describe("Wochenreport – Versand", () => {
     const off = await makeUser("c@example.test", { weeklyReport: false });
     const [grow] = await db.insert(grows).values({ userId: withGrow, name: "Zelt 1", startDate: "2026-10-01", totalDays: 84, phase: "Vegetativ" }).returning({ id: grows.id });
     await db.insert(grows).values({ userId: off, name: "Aus", startDate: "2026-10-01" });
-    await db.insert(growLogs).values([{ growId: grow!.id, title: "Gegossen" }, { growId: grow!.id, title: "Foto" }]);
+    // Gezählt wird nach Eintragsdatum: 25.10. und 19.10. liegen in den 7 Tagen (19.–25.10.), 18.10. und ein heute nachgetragener Alt-Eintrag nicht.
+    await db.insert(growLogs).values([
+      { growId: grow!.id, title: "Gegossen", loggedOn: "2026-10-25" }, { growId: grow!.id, title: "Foto", loggedOn: "2026-10-19" },
+      { growId: grow!.id, title: "Zu alt", loggedOn: "2026-10-18" }, { growId: grow!.id, title: "Nachgetragen", loggedOn: "2026-09-01" },
+    ]);
     const now = new Date("2026-10-25T16:00:00Z");
 
     const first = await runWeeklyReports(now);
