@@ -43,7 +43,7 @@ beforeEach(async () => {
   await db.execute(sql`TRUNCATE TABLE users, communities, conversations, subs, moderation_log CASCADE`);
   const passwordHash = await hashPassword(PASSWORD);
   await db.insert(users).values(NAMES.map((n, i) => ({
-    id: ids[n], name: n, email: `${n}@example.test`, handle: n, passwordHash, role: (ROLES as Record<string, "admin">)[n] ?? "member" as const,
+    id: ids[n], name: n, email: `${n}@example.test`, handle: n, passwordHash, role: (ROLES as Record<string, "member" | "moderator" | "admin" | "platform_admin">)[n] ?? "member",
     createdAt: new Date(Date.now() - (10 - i) * 1000),
   })));
   const entries = await Promise.all(NAMES.map(async (n) => {
