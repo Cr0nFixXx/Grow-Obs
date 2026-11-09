@@ -1,0 +1,64 @@
+[
+  {
+    "id": "B-95",
+    "date": "2026-10-01",
+    "title": "„Was ist neu“ nach jedem Update",
+    "notes": [
+      "Nach einem Update zeigt ein Fenster die wichtigsten Neuerungen",
+      "Link zum ausführlichen Changelog",
+      "Dauerhaft in Profil → Einstellungen → „Updates & Was ist neu“"
+    ]
+  },
+  {
+    "id": "B-94",
+    "date": "2026-10-01",
+    "title": "Chat: auswählen, antworten, aufräumen",
+    "notes": [
+      "Nachricht lange drücken: Auswahl starten, weitere antippen",
+      "Antworten mit Zitat – ein Tipp auf das Zitat springt zum Original",
+      "Mehrere eigene Nachrichten auf einmal löschen oder kopieren",
+      "Profilbild öffnet das Bild, der Name das Profil"
+    ]
+  },
+  {
+    "id": "B-93",
+    "date": "2026-09-30",
+    "title": "Forum: Filter und Kommentar-Sortierung",
+    "notes": [
+      "Suche im Forum (Titel, Text, Autor, Bereich, Tag)",
+      "Filter für Zeitraum, „Nur meine“, „Ohne Antworten“ und Tags",
+      "Kommentare sortieren: Älteste, Neu oder Top"
+    ]
+  },
+  {
+    "id": "B-92",
+    "date": "2026-09-30",
+    "title": "Grows teilen und im Profil zeigen",
+    "notes": [
+      "Sichtbarkeit je Grow: Privat, Öffentlich oder Community",
+      "Öffentliche Grows anderer Mitglieder lesen – direkt im Profil",
+      "Profil- und Titelbild: ansehen, ändern oder entfernen",
+      "Forum- und Wiki-Beiträge erscheinen in der Profil-Aktivität"
+    ]
+  },
+  {
+    "id": "B-91",
+    "date": "2026-09-29",
+    "title": "Neuer Name und schnellere Wege",
+    "notes": [
+      "Die App heißt jetzt „Grow|Obs“",
+      "Ein Tipp auf die Marke führt zur Startseite",
+      "Kacheln und Aktivität auf der Startseite sind anklickbar"
+    ]
+  },
+  {
+    "id": "B-90",
+    "date": "2026-09-28",
+    "title": "Kleine Korrekturen",
+    "notes": [
+      "Forum-Sortierung stimmt wieder",
+      "Report lässt sich als Bild speichern",
+      "Menü springt beim Scrollen nicht mehr, Hinweise lassen sich wegwischen"
+    ]
+  }
+]

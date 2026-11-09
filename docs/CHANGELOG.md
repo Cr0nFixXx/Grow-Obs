@@ -11,6 +11,17 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-95 – TODO-Runde 3d: „Was ist neu“ nach jedem Update
+
+**Neu:**
+- **Einmaliges Fenster** nach dem Update mit den Stichpunkten (3–5 je Aufgabe, höchstens die drei neuesten ungesehenen; sonst Hinweis „… und N weitere im Changelog“) und dem Link **„Alle Änderungen im Changelog ansehen“** (`docs/CHANGELOG.md` im Repository). Es erscheint nur, wenn „Was ist neu anzeigen“ aktiv ist und kein Update mehr aussteht; „Verstanden“ oder Schließen merkt den Stand.
+- **Dauerhaft:** Profil → Einstellungen → **„Updates & Was ist neu“** → Knopf „Was ist neu“ zeigt die letzten fünf Aufgaben (manuell geöffnet).
+- **Pflege je Aufgabe:** Die Texte stehen in `src/data/whats-new.json` (neueste zuerst, `id` = B-Nummer). Ein Vitest-Test erzwingt 3–5 Stichpunkte, absteigende Reihenfolge und eine passende Überschrift `### B-nn –` in diesem Changelog. Admin-Releases (Tab „Updates“) laufen unverändert weiter und werden zusätzlich angezeigt.
+- **Wer was sieht:** Frische Installation sieht keine Altlasten (Stand wird beim ersten Start als gesehen gemerkt); Bestandsinstallationen (alte Update-Daten im Browser) sehen beim ersten Start nach dem Update die neuesten Einträge. Gemerkt wird je Gerät in `localStorage` (`go-whats-new-seen`).
+
+**Tests:** Vitest +7 (`whats-new.test.ts`: Pflegeregeln, Changelog-Überschriften, Unterschied gesehen/ungesehen, Startzustand); E2E `whats-new.spec.ts` (frisch: kein Fenster; Bestand: Fenster mit 3 Einträgen und Link, einmalig, danach dauerhaft in den Einstellungen mit 5 Einträgen).
+**Nicht geprüft:** Fenster nach einem echten Service-Worker-Update auf einem Gerät (Reload-Ablauf nur simuliert).
+
 ### B-94 – TODO-Runde 3c: Chat-Auswahl, Antworten mit Zitat, Klick auf Bild und Namen
 
 **Neu:**

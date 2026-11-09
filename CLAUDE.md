@@ -73,6 +73,7 @@ commands or explanations** – those live in the files linked in §5. Read first
 
 **After every completed task** update `docs/CHANGELOG.md` (entry incl. test numbers), `docs/PROGRESS.md` (one new row on top), `TODO.md`, `docs/TESTING.md` (status table, if numbers changed),
 `HANDOFF.md` (only if state or an invariant changed) and `apps/api/README.md` (endpoint changes).
+For every user-visible change also add an entry (3-5 short German bullets, newest first, `id` = B-number) to `src/data/whats-new.json`; the in-app "What's new" window is built from it and a unit test checks it against `docs/CHANGELOG.md`.
 Single source per fact: versions → `version.json`, test numbers → `docs/TESTING.md`, endpoints → `apps/api/README.md`, current state → `HANDOFF.md`.
 Living docs carry no agent signatures and no `v0.x` tags; history lives in `docs/CHANGELOG.md` and `docs/archive/`.
 Procedures: new document → skill `doc-create`; upkeep after a task → `doc-maintain`; versions and build number → `version-bump`. Check links with `npm run docs:check`.

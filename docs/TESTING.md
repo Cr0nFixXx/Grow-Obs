@@ -112,6 +112,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `grows-lifecycle.spec.ts` | grow lifecycle (B-84): create with past start date (day derived), phase, condition, edit, harvest with weights, reopen, archive filter, delete after confirmation; diary (B-85): log with past date, edit log, readings dialog with live VPD, one entry per day, charts, delete a day, photo caption/cover/delete; target ranges (B-86): out-of-range pH shows the hint, red point and arrow, widening the range clears it |
 | `chat-attachments.spec.ts` | chat attachments with two users: several images + PDF, preview with paging and save link, file download headers, rejected `.exe`, receiver live; phone view |
 | `chat-round.spec.ts` | chat round (B-94): long press selects, reply with quote (live at the sender), Esc, multi-delete with confirmation, quote shows "Nachricht gelöscht", header name opens profile |
+| `whats-new.spec.ts` | what's-new window (B-95): none on a fresh install, one-time window with 3 entries + changelog link on an existing install, permanent entry in settings (5 entries) |
 | `groups.spec.ts` | group chat with two users: create, invite, accept, topic, message with sender and unread counter, admins-only lock – live |
 | `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow; viewport/translate meta; list and open chat fit 360×600, 393×727, 740×360 (no page scroll, composer visible); `user-select`; no overflow at 360 px on settings/simulation/telegram, page titles, inputs ≥ 16 px |
 

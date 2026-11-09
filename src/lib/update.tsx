@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useServices } from "@/data/DataContext";
 import { APP_BUILD, APP_BUILT_AT } from "./app-version";
+import { WHATS_NEW, initialSeenId, unseenChanges, type WhatsNewEntry } from "./whats-new";
 import {
   computeUpdate, parsePrefs, unseenReleases, updateAction,
   type Release, type UpdatePrefs,
@@ -17,6 +18,7 @@ import {
  */
 const PREFS_KEY = "go-update-prefs";
 const SEEN_KEY = "go-releases-seen-at";
+const CHANGES_KEY = "go-whats-new-seen";
 const POLL_MS = 5 * 60_000;
 
 function load<T>(key: string, parse: (v: unknown) => T, fallback: T): T {
@@ -39,6 +41,9 @@ interface UpdateCtx {
   releases: Release[];
   latest: Release | null;
   unseen: Release[];
+  /** Gebündelte Änderungen je Aufgabe (neueste zuerst) und die davon noch nicht gesehenen. */
+  changes: WhatsNewEntry[];
+  unseenChanges: WhatsNewEntry[];
   /** Banner wurde für diese Sitzung verworfen („Später“). */
   snoozed: boolean;
   snooze: () => void;
@@ -56,6 +61,13 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   const { releases: releaseService } = useServices();
   const [prefs, setPrefsState] = useState<UpdatePrefs>(() => load(PREFS_KEY, parsePrefs, parsePrefs(null)));
   const [seenAt, setSeenAt] = useState<string | null>(() => load<string | null>(SEEN_KEY, (v) => (typeof v === "string" ? v : null), null));
+  // Kennung des zuletzt gesehenen Änderungseintrags (B-95). Frische Installation: aktueller Stand gilt als gesehen.
+  const [seenChangeId, setSeenChangeId] = useState<string | null>(() => {
+    const stored = load<string | null>(CHANGES_KEY, (v) => (typeof v === "string" ? v : null), null);
+    let existing = false;
+    try { existing = localStorage.getItem(SEEN_KEY) !== null || localStorage.getItem(PREFS_KEY) !== null; } catch { /* storage blocked */ }
+    return initialSeenId(stored, existing, WHATS_NEW);
+  });
   const [status, setStatus] = useState<CheckStatus>("idle");
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [server, setServer] = useState<{ build: string; version: string } | null>(null);
@@ -99,10 +111,17 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markSeen = useCallback(() => {
+    const newestChange = WHATS_NEW[0]?.id ?? null;
+    if (newestChange) { setSeenChangeId(newestChange); save(CHANGES_KEY, newestChange); }
     const newest = releases[0]?.publishedAt ?? new Date().toISOString();
     setSeenAt(newest);
     save(SEEN_KEY, newest);
   }, [releases]);
+
+  useEffect(() => {
+    // Frische Installation: Kennung festhalten, damit spätere Updates nur das Neue zeigen.
+    try { if (localStorage.getItem(CHANGES_KEY) === null && seenChangeId) save(CHANGES_KEY, seenChangeId); } catch { /* storage blocked */ }
+  }, [seenChangeId]);
 
   // Erststart: aktuellen Stand als „gesehen“ merken (keine alten Notes für neue Nutzer).
   useEffect(() => {
@@ -132,6 +151,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     [server, releases],
   );
   const unseen = useMemo(() => unseenReleases(releases, seenAt), [releases, seenAt]);
+  const newChanges = useMemo(() => unseenChanges(WHATS_NEW, seenChangeId), [seenChangeId]);
 
   // Auto-Modus: still anwenden, wenn sicher (Start oder App im Hintergrund).
   useEffect(() => {
@@ -145,18 +165,18 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
 
   // „Was ist neu“ automatisch zeigen (nicht während ein Update ansteht – das kommt nach dem Reload).
   useEffect(() => {
-    if (prefs.showWhatsNew && unseen.length && !computed.available) setWhatsNewOpen(true);
-  }, [prefs.showWhatsNew, unseen.length, computed.available]);
+    if (prefs.showWhatsNew && (unseen.length || newChanges.length) && !computed.available) setWhatsNewOpen(true);
+  }, [prefs.showWhatsNew, unseen.length, newChanges.length, computed.available]);
 
   const value = useMemo<UpdateCtx>(() => ({
     prefs, setPrefs, status, lastChecked,
     available: computed.available, mandatory: computed.mandatory,
     serverVersion: server?.version ?? null,
-    releases, latest: releases[0] ?? null, unseen,
+    releases, latest: releases[0] ?? null, unseen, changes: WHATS_NEW, unseenChanges: newChanges,
     snoozed, snooze: () => setSnoozed(true),
     check, apply, markSeen,
     whatsNewOpen, openWhatsNew: () => setWhatsNewOpen(true), closeWhatsNew: () => { setWhatsNewOpen(false); markSeen(); },
-  }), [prefs, setPrefs, status, lastChecked, computed, server, releases, unseen, snoozed, check, apply, markSeen, whatsNewOpen]);
+  }), [prefs, setPrefs, status, lastChecked, computed, server, releases, unseen, snoozed, check, apply, markSeen, whatsNewOpen, newChanges]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
