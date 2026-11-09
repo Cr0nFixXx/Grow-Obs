@@ -20,14 +20,15 @@ describe("EnvChart (B-85)", () => {
     expect(screen.getByRole("img", { name: "Klima" })).toBeTruthy();
   });
 
-  it("Linie reißt bei mehr als 7 Tagen Abstand ab (zwei Teilstücke), sonst nicht", () => {
+  it("Linie läuft auch über lange Lücken durch: ein Zug, weiche Kurvenstücke, kein Abriss", () => {
     const { container } = render(
       <EnvChart label="x" dates={dates} series={[{ key: "ph", label: "pH", unit: "", color: "red", axis: "left", values: [6, 6.1, 6.2, 6.3] }]} />,
     );
     const d = container.querySelector('[data-series="ph"] path')!.getAttribute("d")!;
-    expect(d.match(/M /g)).toHaveLength(2); // 01.–03.10. verbunden, 20.10. einzeln
-    expect(d.match(/ C /g)).toHaveLength(2); // weiche Kurve: zwei Kurvenstücke zwischen drei Punkten
+    expect(d.match(/M /g)).toHaveLength(1); // 01.–03.10. und 20.10. hängen zusammen (17 Tage Lücke)
+    expect(d.match(/ C /g)).toHaveLength(3); // drei Kurvenstücke zwischen vier Punkten
     expect(d).not.toContain(" L ");
+    expect(d).not.toContain("NaN");
   });
 
   it("Reihen ohne Werte fehlen in der Legende; ohne jede Messung steht ein Leerzustand da", () => {
@@ -105,5 +106,17 @@ describe("EnvChart (B-85)", () => {
     const { container } = render(<EnvChart label="x" dates={unique} series={[{ key: "t", label: "T", unit: "°C", color: "red", axis: "left", values: unique.map((_d, i) => 20 + (i % 5)) }]} />);
     expect(container.querySelector('[data-area="t"]')?.getAttribute("d")).toContain("Z");
     expect(container.querySelectorAll("circle")).toHaveLength(0);
+  });
+
+  it("Zeitraum „Alles“ (ohne from/to): die Achse endet beim letzten Wert dieses Diagramms, nicht beim letzten Tag aller Messwerte", () => {
+    const days = ["2026-10-22", "2026-10-23", "2026-10-25", "2026-11-05", "2026-11-09"];
+    const { container } = render(
+      <EnvChart label="pH" dates={days} series={[{ key: "ph", label: "pH", unit: "", color: "red", axis: "left", values: [6.7, 6.7, 6.4, null, null] }]} />,
+    );
+    expect(container.textContent).toContain("22.10.");
+    expect(container.textContent).toContain("25.10.");
+    expect(container.textContent).not.toContain("09.11.");
+    const xs = [...container.querySelectorAll('[data-series="ph"] circle')].map((c) => Number(c.getAttribute("cx")));
+    expect(Math.max(...xs)).toBeGreaterThan(280); // letzter Punkt sitzt rechts am Rand (Breite 320, rechter Rand 12)
   });
 });

@@ -7,6 +7,9 @@ interface Pt {
   y: number;
 }
 
+/** Anteil des x-Abstands, den die Bézier-Griffe lang sind (½ = breite, runde Gipfel). */
+const HANDLE = 0.5;
+
 /**
  * Weiche Kurve durch alle Punkte (monotone kubische Interpolation nach Fritsch–Carlson):
  * rund wie Catmull-Rom, schwingt aber nie über die Datenwerte hinaus – ein Tal bleibt ein Tal.
@@ -23,22 +26,23 @@ export function smooth(pts: Pt[]): string {
     if (i === n - 1) return slope[n - 2];
     return slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
   });
-  // Tangenten begrenzen, damit die Kurve zwischen zwei Punkten monoton bleibt.
+  // Tangenten begrenzen, damit die Kurve zwischen zwei Punkten monoton bleibt (Handlänge ½ des x-Abstands:
+  // die Kontroll-y-Werte bleiben geordnet, solange a + b ≤ 2). Die lange Hand macht Gipfel breit und rund.
   for (let i = 0; i < n - 1; i++) {
     if (slope[i] === 0) { tangent[i] = 0; tangent[i + 1] = 0; continue; }
     const a = tangent[i] / slope[i];
     const b = tangent[i + 1] / slope[i];
-    const h = Math.hypot(a, b);
-    if (h > 3) { tangent[i] = (3 * a * slope[i]) / h; tangent[i + 1] = (3 * b * slope[i]) / h; }
+    if (a + b > 2) { const f = 2 / (a + b); tangent[i] *= f; tangent[i + 1] *= f; }
   }
   let d = `M ${pts[0].x} ${pts[0].y}`;
   for (let i = 0; i < n - 1; i++) {
     const p1 = pts[i];
     const p2 = pts[i + 1];
-    const c1x = p1.x + dx[i] / 3;
-    const c1y = p1.y + (tangent[i] * dx[i]) / 3;
-    const c2x = p2.x - dx[i] / 3;
-    const c2y = p2.y - (tangent[i + 1] * dx[i]) / 3;
+    const h = dx[i] * HANDLE;
+    const c1x = p1.x + h;
+    const c1y = p1.y + tangent[i] * h;
+    const c2x = p2.x - h;
+    const c2y = p2.y - tangent[i + 1] * h;
     d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
   }
   return d;

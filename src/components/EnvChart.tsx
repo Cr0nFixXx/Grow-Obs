@@ -27,8 +27,6 @@ const shortDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
 const fmt = (v: number, digits = 1) => v.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 /** Bis zu dieser Zahl an Punkten je Reihe werden alle Punkte gezeichnet; darüber nur Werte außerhalb des Ziels und der gewählte. */
 const MAX_DOTS = 14;
-/** Linien reißen ab, wenn zwischen zwei Messwerten mehr als so viele Tage liegen. */
-const MAX_GAP_DAYS = 7;
 
 /** Rundet die Skala auf „schöne“ Grenzen. */
 function niceScale(min: number, max: number): { min: number; max: number; ticks: number[] } {
@@ -84,8 +82,11 @@ export function EnvChart({
 
   const visible = series.filter((s) => s.values.some((v) => v !== null));
   const activeBands = (bands ?? []).filter((b) => !b.seriesKey || visible.some((s) => s.key === b.seriesKey));
-  const t0 = toTime(from ?? dates[0] ?? "");
-  const t1Raw = toTime(to ?? dates[dates.length - 1] ?? "");
+  // Ohne feste Grenzen (Zeitraum „Alles“) reicht die Achse vom ersten bis zum letzten Tag, an dem DIESES Diagramm einen Wert hat –
+  // sonst bliebe z. B. ein pH/EC-Diagramm rechts leer, weil an späteren Tagen nur Temperatur gemessen wurde.
+  const valued = dates.filter((_d, i) => visible.some((s) => s.values[i] != null));
+  const t0 = toTime(from ?? valued[0] ?? "");
+  const t1Raw = toTime(to ?? valued[valued.length - 1] ?? "");
   const t1 = t1Raw > t0 ? t1Raw : t0 + DAY_MS;
 
   const hasRight = visible.some((s) => s.axis === "right");
@@ -218,32 +219,13 @@ export function EnvChart({
             <g key={dataKey} className="chart-reveal">
               {visible.map((s) => {
                 const pts = pointsOf(s);
-                const segments: Dot[][] = [];
-                pts.forEach((p, i) => {
-                  const prev = pts[i - 1];
-                  if (prev && (p.t - prev.t) / DAY_MS <= MAX_GAP_DAYS) segments[segments.length - 1]!.push(p);
-                  else segments.push([p]);
-                });
-                const area = segments
-                  .filter((seg) => seg.length > 1)
-                  .map((seg) => `${smooth(seg)} L ${seg[seg.length - 1]!.x} ${baseY} L ${seg[0]!.x} ${baseY} Z`)
-                  .join(" ");
+                // Fehlende Tage werden überbrückt: eine durchgehende Kurve durch alle Messpunkte (Punkte = echte Messungen).
+                const area = pts.length > 1 ? `${smooth(pts)} L ${pts[pts.length - 1]!.x} ${baseY} L ${pts[0]!.x} ${baseY} Z` : "";
                 return <path key={`a-${s.key}`} data-area={s.key} d={area} fill={`url(#env-${uid}-${s.key})`} />;
               })}
               {visible.map((s) => {
                 const pts = pointsOf(s);
-                const path = (() => {
-                  let d = "";
-                  let seg: Dot[] = [];
-                  const flush = () => { if (seg.length) d += `${d ? " " : ""}${smooth(seg)}`; seg = []; };
-                  pts.forEach((p, i) => {
-                    const prev = pts[i - 1];
-                    if (prev && (p.t - prev.t) / DAY_MS > MAX_GAP_DAYS) flush();
-                    seg.push(p);
-                  });
-                  flush();
-                  return d;
-                })();
+                const path = smooth(pts);
                 const pickedT = pickedDate ? toTime(pickedDate) : null;
                 const dots = pts.filter((p) => pts.length <= MAX_DOTS || p.t === pickedT || flag(s.key, p.v) !== null);
                 return (

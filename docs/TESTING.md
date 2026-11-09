@@ -12,7 +12,7 @@ Last full run: **B-76** for API and frontend (E2E: the profile spec ran in B-76,
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 317 / 317 (48 files, B-86) |
+| Frontend unit/component tests | `npm test` | ✅ 318 / 318 (48 files, B-86a) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
 | API integration tests | `npm run test:api` | ✅ 309 / 309 (25 files, B-86) |
 | Browser E2E (Playwright) | `npm run test:e2e` | ✅ 49 passed, 1 skipped, 1 timing flake (full run B-81, ≈ 8 min; `moderation.spec.ts` first test hit the 45 s limit at 46.8 s in the full run and passed alone in 28.8 s; desktop 45 incl. the skipped one + mobile 5); the skipped test needs a browser that may subscribe to a real push service (see §3) |
