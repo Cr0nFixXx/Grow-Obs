@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, lt, ne } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, ne } from "drizzle-orm";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { db } from "../db/client.ts";
@@ -112,7 +112,7 @@ export async function authenticateToken(token: string | undefined): Promise<Acti
     .select({ sessionId: sessions.id, userId: users.id, role: users.role, mustChangePassword: users.mustChangePassword, emailVerifiedAt: users.emailVerifiedAt, lastSeenAt: sessions.lastSeenAt })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.id, claims.sid), eq(sessions.userId, claims.sub), gt(sessions.expiresAt, new Date())))
+    .where(and(eq(sessions.id, claims.sid), eq(sessions.userId, claims.sub), gt(sessions.expiresAt, new Date()), isNull(users.bannedAt)))
     .limit(1);
   if (!row) return null;
   if (Date.now() - row.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) {

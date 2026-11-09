@@ -72,6 +72,30 @@ const CHOICE_ROWS: { key: keyof Omit<DeleteChoices, "media">; label: string; hin
   { key: "chat", label: "Chat-Nachrichten", hint: "in Direkt- und Gruppenchats" },
 ];
 
+/** Die fünf Schalter des Löschdialogs (Eigenlöschung B-74 und Löschung durch den Betreiber B-89). */
+export function DeleteChoiceList({ choices, onChange }: { choices: DeleteChoices; onChange: (next: DeleteChoices) => void }) {
+  return (
+    <ul className="space-y-2" data-testid="delete-choices">
+      {CHOICE_ROWS.map((row) => (
+        <li key={row.key} className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">{row.label}</div>
+            <div className="text-xs text-fg-subtle">{row.hint} · {choices[row.key] ? "werden gelöscht" : "bleiben anonym stehen"}</div>
+          </div>
+          <Toggle checked={choices[row.key]} onChange={(v) => onChange({ ...choices, [row.key]: v })} label={`${row.label} löschen`} />
+        </li>
+      ))}
+      <li className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">Bilder und Dateien</div>
+          <div className="text-xs text-fg-subtle">in stehen bleibenden Inhalten · {choices.media ? "werden entfernt" : "bleiben erhalten"}</div>
+        </div>
+        <Toggle checked={choices.media} onChange={(v) => onChange({ ...choices, media: v })} label="Bilder und Dateien entfernen" />
+      </li>
+    </ul>
+  );
+}
+
 /** Dialog „Konto endgültig löschen“: Blocker prüfen, Auswahl treffen, Passwort + Wort LÖSCHEN. */
 export function DeleteAccountDialog({ open, onClose, onDeleted }: { open: boolean; onClose: () => void; onDeleted: () => void }) {
   const [blockers, setBlockers] = useState<AccountBlockers | null>(null);
@@ -128,24 +152,7 @@ export function DeleteAccountDialog({ open, onClose, onDeleted }: { open: boolea
               Das Löschen ist <strong>sofort und endgültig</strong>. Deine Grows samt Fotos und Messwerten, dein Profil, Follower, Einstellungen und Benachrichtigungen werden immer gelöscht.
               Bei den folgenden Inhalten entscheidest du: <em>Löschen</em> oder <em>anonym stehen lassen</em>.
             </p>
-            <ul className="space-y-2">
-              {CHOICE_ROWS.map((row) => (
-                <li key={row.key} className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{row.label}</div>
-                    <div className="text-xs text-fg-subtle">{row.hint} · {choices[row.key] ? "werden gelöscht" : "bleiben anonym stehen"}</div>
-                  </div>
-                  <Toggle checked={choices[row.key]} onChange={(v) => setChoices((c) => ({ ...c, [row.key]: v }))} label={`${row.label} löschen`} />
-                </li>
-              ))}
-              <li className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">Bilder und Dateien</div>
-                  <div className="text-xs text-fg-subtle">in stehen bleibenden Inhalten · {choices.media ? "werden entfernt" : "bleiben erhalten"}</div>
-                </div>
-                <Toggle checked={choices.media} onChange={(v) => setChoices((c) => ({ ...c, media: v }))} label="Bilder und Dateien entfernen" />
-              </li>
-            </ul>
+            <DeleteChoiceList choices={choices} onChange={setChoices} />
             <p className="flex gap-2 rounded-xl bg-surface-2 p-3 text-xs text-fg-subtle">
               <Icon name="Info" size={16} className="mt-0.5 shrink-0" />
               <span>Was stehen bleibt, erscheint unter „Gelöschtes Mitglied“, ohne Profil und ohne Verknüpfung zu dir. Eigene Chat-Nachrichten, die gelöscht werden, bleiben als „Nachricht gelöscht“ sichtbar. Deine Daten kannst du vorher als ZIP herunterladen.</span>

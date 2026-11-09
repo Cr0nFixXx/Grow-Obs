@@ -15,11 +15,23 @@ import { EmojiPicker, ImagePickButton, insertAtCursor } from "@/components/media
 import { copyText, shareOrCopy } from "@/lib/share";
 import { shareUrl } from "@/lib/routes";
 import { CommentsSheet } from "@/components/CommentsSheet";
+import { ReportSheet } from "@/components/community/ReportSheet";
+import { useServices } from "@/data/DataContext";
+import { isPlatformModerator, moderationFor } from "@/lib/moderation-scope";
 
 export default function Social() {
   const currentUser = useCurrentUser();
   const toast = useToast();
-  const { posts, loading, error, createPost, toggleLike: likeOnService } = useSocialPosts();
+  const { posts, loading, error, createPost, toggleLike: likeOnService, refresh } = useSocialPosts();
+  const svc = useServices();
+  // Plattform-Moderation (B-89): Melden für alle, Ausblenden nur für Moderator/Admin/Betreiber (nur im API-Modus).
+  const moderator = isPlatformModerator(currentUser.role) && !config.useMock;
+  const [reporting, setReporting] = useState<{ kind: "post"; id: string } | null>(null);
+  const hidePost = (p: SocialPost) => {
+    moderationFor(svc, null).setHidden("post", p.id, !p.hidden)
+      .then(() => { toast.push({ title: p.hidden ? "Wieder eingeblendet" : "Ausgeblendet", tone: "leaf", icon: p.hidden ? "Eye" : "EyeOff" }); void refresh(); })
+      .catch((e: unknown) => toast.push({ title: "Aktion fehlgeschlagen", desc: e instanceof Error ? e.message : "", tone: "danger", icon: "AlertTriangle" }));
+  };
   const [compose, setCompose] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -142,6 +154,9 @@ export default function Social() {
                 liked={!!p.liked}
                 bookmarked={!!bookmarked[p.id]}
                 onLike={() => toggleLike(p.id)}
+                moderator={moderator}
+                onReport={() => setReporting({ kind: "post", id: p.id })}
+                onHide={() => hidePost(p)}
                 onBookmark={() => {
                   setBookmarked((b) => ({ ...b, [p.id]: !b[p.id] }));
                   toast.push({ title: bookmarked[p.id] ? "Aus Merkliste entfernt" : "Beitrag gemerkt", tone: "info", icon: "Bookmark" });
@@ -181,7 +196,9 @@ export default function Social() {
         </div>
       </div>
       <CommentsSheet kind="post" itemId={commentsFor?.id ?? null} title={commentsFor ? `Kommentare · ${commentsFor.author}` : undefined}
-        onClose={() => setCommentsFor(null)} onCountChange={(id, n) => setCommentCounts((c) => ({ ...c, [id]: n }))} />
+        onClose={() => setCommentsFor(null)} onCountChange={(id, n) => setCommentCounts((c) => ({ ...c, [id]: n }))}
+        community={config.useMock ? undefined : { id: null, canModerate: moderator }} />
+      <ReportSheet communityId={null} target={reporting} onClose={() => setReporting(null)} />
     </div>
   );
 }
@@ -189,14 +206,14 @@ export default function Social() {
 /** Deep-Link auf den Feed (Post-Anker). */
 const postLink = (id: string) => shareUrl(typeof window !== "undefined" ? window.location.origin : "", "social", null, config.pathRouting, `#post-${id}`);
 
-function PostCard({ p, liked, bookmarked, onLike, onBookmark, onComments }: { p: SocialPost; liked: boolean; bookmarked: boolean; onLike: () => void; onBookmark: () => void; onComments: () => void }) {
+function PostCard({ p, liked, bookmarked, moderator, onLike, onBookmark, onComments, onReport, onHide }: { p: SocialPost; liked: boolean; bookmarked: boolean; moderator: boolean; onLike: () => void; onBookmark: () => void; onComments: () => void; onReport: () => void; onHide: () => void }) {
   const toast = useToast();
   return (
-    <Card id={`post-${p.id}`} className="overflow-hidden p-0">
+    <Card id={`post-${p.id}`} className={cn("overflow-hidden p-0", p.hidden && "border-warning/40 bg-warning/5")} data-testid="feed-post">
       <div className="flex items-center gap-3 p-4 pb-3">
         <Avatar src={p.avatar} name={p.author} size={44} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5"><span className="font-semibold">{p.author}</span><Icon name="ShieldCheck" size={13} className="text-info-500" /></div>
+          <div className="flex items-center gap-1.5"><span className="font-semibold">{p.author}</span><Icon name="ShieldCheck" size={13} className="text-info-500" />{p.hidden && <Badge tone="warning">Ausgeblendet</Badge>}</div>
           <div className="text-xs text-fg-subtle">{p.handle} · {p.time}</div>
         </div>
         <Popover align="end" trigger={<Icon name="MoreHorizontal" size={18} />} triggerClassName="grid size-8 place-items-center rounded-lg text-fg-subtle transition hover:bg-surface-2">
@@ -204,7 +221,10 @@ function PostCard({ p, liked, bookmarked, onLike, onBookmark, onComments }: { p:
             <>
               <PopoverItem icon="Bookmark" onClick={() => { onBookmark(); close(); }}>{bookmarked ? "Nicht mehr merken" : "Merken"}</PopoverItem>
               <PopoverItem icon="Share2" onClick={() => { void copyText(postLink(p.id)).then((ok) => toast.push(ok ? { title: "Link kopiert", tone: "leaf", icon: "Share2" } : { title: "Kopieren nicht möglich", tone: "warning", icon: "AlertTriangle" })); close(); }}>Link kopieren</PopoverItem>
-              <PopoverItem icon="Flag" danger onClick={() => { toast.push({ title: "Gemeldet", desc: "Danke, wir prüfen es.", tone: "warning", icon: "Flag" }); close(); }}>Melden</PopoverItem>
+              {!p.mine && !p.hidden && <PopoverItem icon="Flag" danger onClick={() => { close(); onReport(); }}>Melden</PopoverItem>}
+              {moderator && (p.hidden
+                ? <PopoverItem icon="Eye" onClick={() => { close(); onHide(); }}>Wieder einblenden</PopoverItem>
+                : <PopoverItem icon="EyeOff" danger onClick={() => { close(); onHide(); }}>Beitrag ausblenden</PopoverItem>)}
             </>
           )}
         </Popover>

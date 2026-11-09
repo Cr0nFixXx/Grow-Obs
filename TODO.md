@@ -3,7 +3,7 @@
 Open work on **Grow|Observer**, by priority. Roadmap and decisions: `PLAN.md`; current state: `HANDOFF.md`; measured test status and release gates: `docs/TESTING.md`.
 Legend: `[ ]` open · `[~]` in progress. Finished items are removed here and recorded in `docs/CHANGELOG.md`; the old checklist (v0.1–B-62, mostly finished) is kept in `docs/archive/TODO-bis-B62.md`.
 
-The owner decides the order. Last update: B-74.
+The owner decides the order. Last update: B-89.
 
 ---
 
@@ -18,8 +18,8 @@ The owner decides the order. Last update: B-74.
 - [ ] **Vercel operation (B-66):** watch the pooler after `DB_POOL_MAX`/polling; optional presence for polling-only mode (a cheap `POST /presence` ping), a documented `docs/` deployment guide if Vercel becomes a supported target.
 - [ ] **Group chats (B-65 done):** follow-ups: group deletion by an admin, explicit admin promotion, per-topic message search, invitation links (deliberately not built), real-device check of the group push.
 - [ ] **Web push, follow-ups:** real-device acceptance (Android, iOS PWA), push for further triggers (task reminders, community invites), per-conversation mute.
-- [ ] **Account deletion follow-ups (B-74 done):** an admin deleting other accounts (moderation round); chat system lines ("X was added") keep the old name in their text; very large exports hit Vercel's 300 s limit (own hosting); concurrent grow-reminder runs can double-notify when readings and log are both missing.
-- [ ] **Moderation beyond communities:** global feed and forum (report, hide); **leave a community**; **paginate** the moderation queue (capped at 100); **live updates** of the community feed.
+- [ ] **Moderation follow-ups (B-89 done):** banned accounts still show in community member lists; assigning reports to individual moderators; e-mail notice to a banned member; production check of the community feed path once the `social` flag is on.
+- [ ] **Account deletion follow-ups (B-74 and B-89 done):** chat system lines ("X was added") keep the old name in their text; very large exports hit Vercel's 300 s limit (own hosting); concurrent grow-reminder runs can double-notify when readings and log are both missing.
 - [ ] **Weekly report (B-71 done):** follow-ups: per-user time zone and send time (today fixed Sunday ≈ 18:00 Berlin), a "send test report" button, an external-cron note for self-hosting in a deployment guide, real-device check of the push; **Telegram bot** setting was removed from the settings (it had no effect), re-add it only together with a real bot integration.
 - [ ] **Grow diary follow-ups (B-84 round 1, B-85 round 2 done; B-85 is live, migration 0021 applied):** the existing production grow has an empty strain name (never stored before B-84); the owner can edit it. Round 3 (B-86/B-86a: smooth charts, pH/EC target ranges) is live (migration 0022 applied). Ideas not built: target ranges per phase, photo comparison by day, CSV export of readings, reminders for missing readings.
 - [ ] **Detail URLs** for wiki, showcase and marketplace (`src/lib/routes.ts` + `public/sw-policy.js`).
@@ -50,7 +50,6 @@ The owner decides the order. Last update: B-74.
 - [ ] Hosting without WebSocket (serverless) works through SSE only; revisit if such hosting becomes a target.
 - [ ] `scripts/server.mjs` relies on the Next internal `didWebSocketSetup`; re-check on every Next upgrade. The 400 guard for malformed URLs exists only in this server.
 - [ ] Chat attachments follow-ups (B-81/B-82): voice messages; virus scan with ClamAV once self-hosted (not on Vercel); media access ignores history visibility and private topics (members see every attachment of the conversation); the signed bucket link (1 h) acts as a bearer link; with `COOKIE_SAMESITE=none` a partitioned cookie is needed for `<img>`; a delivered push cannot be recalled.
-- [ ] Re-run the full E2E suite with a longer timeout for `moderation.spec.ts` (first test hit 45 s once in a full run, passes alone in ≈ 29 s).
 
 ## 5. Later (north star, `docs/MILESTONES.md`)
 

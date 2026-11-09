@@ -34,6 +34,8 @@ export const defaultFeatures = {
   push: true,
   /** Betreiber-Konsole (nicht Community-Mod). */
   devAdmin: true,
+  /** Plattform-Moderation (B-89): Meldungen zu globalem Feed und Forum; nur Moderator/Admin/Betreiber. */
+  moderation: true,
 } as const;
 
 export type FeatureKey = keyof typeof defaultFeatures;
@@ -63,6 +65,7 @@ export const featureMeta: { key: FeatureKey; label: string; blurb: string; core?
   { key: "showcase", label: "Design-System", blurb: "Komponenten-Galerie" },
   { key: "push", label: "Web-Push", blurb: "Benachrichtigungen bei geschlossener App" },
   { key: "devAdmin", label: "Developer-Admin", blurb: "Betreiber: Flags, Health, User", core: true },
+  { key: "moderation", label: "Moderation", blurb: "Meldungen zu Feed und Forum (Plattform-Rollen)", core: true },
 ];
 
 /** View → Feature. auth bleibt erreichbar auch wenn Flag false (Logout-Pfad). */

@@ -24,7 +24,7 @@ import { dbGet, dbSet } from "@/lib/db";
 import { APP_VERSION } from "@/lib/app-version";
 import { GROW_PHASE_NAMES, dayDiff, todayLocal, vpdKpa } from "@/lib/grows";
 import type { EnvPoint, Grow, GrowLog, SocialPost, Strain, TargetKey, TargetRange, Task } from "@/types";
-import type { BannedMember, CommunityDetail, ReportGroup } from "@/types";
+import type { BannedMember, CommunityDetail, ReportGroup, ReportPage } from "@/types";
 import type {
   ActivityService,
   FollowRequest,
@@ -36,6 +36,8 @@ import type {
   AdminContentItem,
   AdminService,
   AdminUser,
+  ModerationLogEntry,
+  PlatformModerationService,
   BreederService,
   CommunityService,
   ChatMessage,
@@ -823,6 +825,11 @@ const banStore: Record<string, BannedMember[]> = {};
 const reportStore: Record<string, ReportGroup[]> = {};
 const countOpen = (communityId: string) => (reportStore[communityId] ?? []).filter((g) => g.status === "open").length;
 
+const MOCK_PAGE = 20;
+const pageOf = (groups: ReportGroup[], offset: number): ReportPage => ({
+  items: groups.slice(offset, offset + MOCK_PAGE).map((g) => structuredClone(g)), hasMore: groups.length > offset + MOCK_PAGE,
+});
+
 const communityService: CommunityService = {
   async list() { await delay(); return communityStore.map(({ membersList: _m, ...c }) => ({ ...c })); },
   async get(id) {
@@ -904,9 +911,9 @@ const communityService: CommunityService = {
     list.push({ kind: input.kind, targetId: input.targetId, status: "open", count: 1, preview, reports: [entry] });
     return { duplicate: false };
   },
-  async reports(communityId, status) {
+  async reports(communityId, status, offset = 0) {
     await delay(80);
-    return (reportStore[communityId] ?? []).filter((g) => (status === "open" ? g.status === "open" : g.status !== "open")).map((g) => structuredClone(g));
+    return pageOf((reportStore[communityId] ?? []).filter((g) => (status === "open" ? g.status === "open" : g.status !== "open")), offset);
   },
   async resolveReport(communityId, kind, targetId, action) {
     await delay(80);
@@ -916,6 +923,45 @@ const communityService: CommunityService = {
     group.status = action === "hide" ? "hidden" : "dismissed";
     group.resolvedBy = currentUser.name; group.resolvedAgo = "gerade eben";
   },
+  async leave(communityId) {
+    await delay(100);
+    const c = communityStore.find((x) => x.id === communityId);
+    if (!c || !c.joined) throw new Error("Du bist kein Mitglied dieser Community");
+    if (c.role === "admin" && c.membersList.filter((m) => m.role === "admin" && m.id !== "u-me").length === 0) {
+      throw new Error(c.members > 1 ? "Du bist der einzige Admin. Ernenne zuerst ein anderes Mitglied zum Admin." : "Du bist das letzte Mitglied – die Community kann so nicht verlassen werden.");
+    }
+    c.joined = false; c.role = undefined; c.members = Math.max(0, c.members - 1);
+    c.membersList = c.membersList.filter((m) => m.id !== "u-me");
+  },
+};
+
+/* ---------- Plattform-Moderation (Mock, lokal simuliert) ---------- */
+const globalReportStore: ReportGroup[] = [];
+const platformModerationService: PlatformModerationService = {
+  async report(input) {
+    await delay(100);
+    const entry = { id: `rp-${Date.now()}`, reporter: currentUser.name, reason: input.reason, details: input.details ?? "", ago: "gerade eben" };
+    const group = globalReportStore.find((g) => g.kind === input.kind && g.targetId === input.targetId && g.status === "open");
+    if (group) {
+      if (group.reports.some((r) => r.reporter === currentUser.name)) return { duplicate: true };
+      group.reports.push(entry); group.count += 1;
+      return { duplicate: false };
+    }
+    globalReportStore.push({ kind: input.kind, targetId: input.targetId, status: "open", count: 1, preview: null, reports: [entry] });
+    return { duplicate: false };
+  },
+  async queue(status, offset = 0) {
+    await delay(80);
+    return pageOf(globalReportStore.filter((g) => (status === "open" ? g.status === "open" : g.status !== "open")), offset);
+  },
+  async resolve(kind, targetId, action) {
+    await delay(80);
+    const group = globalReportStore.find((g) => g.kind === kind && g.targetId === targetId && g.status === "open");
+    if (!group) throw new Error("Keine offene Meldung");
+    group.status = action === "hide" ? "hidden" : "dismissed";
+    group.resolvedBy = currentUser.name; group.resolvedAgo = "gerade eben";
+  },
+  async setHidden() { await delay(60); },
 };
 
 /* ---------- Dev-Admin (Mock, lokal simuliert) ---------- */
@@ -933,6 +979,7 @@ const adminPosts: AdminContentItem[] = seedPosts.map((p) => ({
   id: p.id, type: "post" as const, text: p.text, createdAt: new Date().toISOString(),
 }));
 
+const mockLog: ModerationLogEntry[] = [];
 const adminService: AdminService = {
   async health() {
     await delay(200);
@@ -996,6 +1043,29 @@ const adminService: AdminService = {
     const i = adminPosts.findIndex((p) => p.id === id);
     if (i >= 0) adminPosts.splice(i, 1);
   },
+  async ban(userId, reason) {
+    await delay(140);
+    const i = adminUsers.findIndex((u) => u.id === userId);
+    if (i < 0 || adminUsers[i]!.role === "platform_admin") throw new Error("Betreiber-Konten können nicht gesperrt oder gelöscht werden");
+    adminUsers[i] = { ...adminUsers[i]!, status: "gesperrt", banReason: reason ?? null };
+    mockLog.unshift({ id: `log-${Date.now()}`, action: "ban", actor: currentUser.name, target: adminUsers[i]!.name, targetKind: null, reason: reason ?? null, details: null, createdAt: new Date().toISOString() });
+  },
+  async unban(userId) {
+    await delay(140);
+    const i = adminUsers.findIndex((u) => u.id === userId);
+    if (i >= 0) { adminUsers[i] = { ...adminUsers[i]!, status: "aktiv", banReason: null }; mockLog.unshift({ id: `log-${Date.now()}`, action: "unban", actor: currentUser.name, target: adminUsers[i]!.name, targetKind: null, reason: null, details: null, createdAt: new Date().toISOString() }); }
+  },
+  async deleteUser(userId) {
+    await delay(200);
+    const i = adminUsers.findIndex((u) => u.id === userId);
+    if (i < 0 || adminUsers[i]!.role === "platform_admin") throw new Error("Betreiber-Konten können nicht gesperrt oder gelöscht werden");
+    mockLog.unshift({ id: `log-${Date.now()}`, action: "delete_account", actor: currentUser.name, target: adminUsers[i]!.name, targetKind: null, reason: null, details: null, createdAt: new Date().toISOString() });
+    adminUsers.splice(i, 1);
+  },
+  async moderationLog(offset = 0) {
+    await delay(100);
+    return { items: mockLog.slice(offset, offset + 30), hasMore: mockLog.length > offset + 30 };
+  },
 };
 
 export const mockServices: Services = {
@@ -1016,6 +1086,7 @@ export const mockServices: Services = {
   hall: hallService,
   activity: activityService,
   communities: communityService,
+  moderation: platformModerationService,
   members: memberService,
   admin: adminService,
 };

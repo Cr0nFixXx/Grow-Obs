@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { db } from "../db/client.ts";
-import { communityBans, communityMembers, posts } from "../db/schema.ts";
+import { communityBans, communityMembers, posts, users } from "../db/schema.ts";
+import { publish } from "../realtime/hub.ts";
+import { isPlatformModerator } from "./platform-moderation.ts";
 
 export type CommunityRole = "member" | "moderator" | "admin";
 
@@ -27,10 +29,22 @@ export async function isBanned(communityId: string, userId: string): Promise<boo
 export async function loadPostForViewer(postId: string, viewerId: string) {
   const [post] = await db.select().from(posts).where(eq(posts.id, postId)).limit(1);
   if (!post) throw new HTTPException(404, { message: "Beitrag nicht gefunden" });
-  if (!post.communityId) return { post, role: null as CommunityRole | null, moderator: false };
+  if (!post.communityId) {
+    // Globaler Feed: Plattform-Moderation (B-89) sieht auch Ausgeblendetes, alle anderen nicht.
+    const [viewer] = await db.select({ role: users.role }).from(users).where(eq(users.id, viewerId)).limit(1);
+    const moderator = isPlatformModerator(viewer?.role);
+    if (post.hiddenAt && !moderator) throw new HTTPException(404, { message: "Beitrag nicht gefunden" });
+    return { post, role: null as CommunityRole | null, moderator };
+  }
   const role = await communityRole(post.communityId, viewerId);
   if (!role) throw new HTTPException(404, { message: "Beitrag nicht gefunden" });
   const moderator = isModerator(role);
   if (post.hiddenAt && !moderator) throw new HTTPException(404, { message: "Beitrag nicht gefunden" });
   return { post, role, moderator };
+}
+
+/** Live-Aktualisierung des Community-Feeds (B-89): nur die Community-ID, Inhalte lädt der Client über die autorisierte REST-API nach. */
+export async function publishCommunityFeed(communityId: string | null | undefined, change: "post" | "comment" | "moderation", postId?: string): Promise<void> {
+  if (!communityId) return;
+  await publish({ topic: `community:${communityId}` }, { type: "community.feed", communityId, change, ...(postId ? { postId } : {}) });
 }

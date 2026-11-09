@@ -2,12 +2,13 @@ import { Hono } from "hono";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { comments, subs, threadVotes, threads, commentVotes } from "../db/schema.ts";
+import { comments, subs, threadVotes, threads, commentVotes, users } from "../db/schema.ts";
 import { optionalAuth, requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { ago } from "../lib/time.ts";
 import { uuid } from "../lib/validation.ts";
 import { publish } from "../realtime/hub.ts";
 import { createNotification } from "../lib/notify.ts";
+import { isPlatformModerator } from "../lib/platform-moderation.ts";
 
 export const forum = new Hono<AuthEnv>();
 
@@ -30,38 +31,49 @@ async function notifyAboutComment(threadId: string, actorId: string, parentId?: 
   }
 }
 
+/** Plattform-Moderation (B-89) sieht auch ausgeblendete Threads/Kommentare. */
+async function viewerIsModerator(viewerId?: string): Promise<boolean> {
+  if (!viewerId) return false;
+  const [u] = await db.select({ role: users.role }).from(users).where(eq(users.id, viewerId)).limit(1);
+  return isPlatformModerator(u?.role);
+}
+
 type VoteRow = { userId: string; delta: number };
 const tally = (votes: VoteRow[], viewerId?: string) => ({
   votes: votes.reduce((s, v) => s + v.delta, 0),
   myVote: viewerId ? (votes.find((v) => v.userId === viewerId)?.delta ?? 0) : 0,
 });
 
-async function commentToNode(id: string, viewerId?: string, depth = 0): Promise<Record<string, unknown> | null> {
+async function commentToNode(id: string, viewerId?: string, depth = 0, mod = false): Promise<Record<string, unknown> | null> {
   const c = await db.query.comments.findFirst({
     where: eq(comments.id, id),
     with: { user: true, replies: true, votes: true },
   });
   if (!c) return null;
+  // Ausgeblendet (B-89): alle außer der Plattform-Moderation sehen nur einen Platzhalter – der Antwortbaum bleibt erhalten.
+  const placeholder = !!c.hiddenAt && !mod;
   return {
     id: c.id,
-    author: c.user.name,
-    avatar: c.user.avatarUrl ?? "",
-    body: c.body,
-    ...tally(c.votes, viewerId),
+    author: placeholder ? "" : c.user.name,
+    avatar: placeholder ? "" : c.user.avatarUrl ?? "",
+    body: placeholder ? "" : c.body,
+    ...(placeholder ? { votes: 0, myVote: 0 } : tally(c.votes, viewerId)),
+    mine: !!viewerId && c.userId === viewerId,
+    ...(c.hiddenAt ? { hidden: true } : {}),
     ago: ago(c.createdAt),
     // Tiefe begrenzen (UI zeigt max. 4 Ebenen; schützt vor sehr tiefen Ketten).
     replies: depth >= 6 ? [] : await Promise.all(
-      [...c.replies].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map((r) => commentToNode(r.id, viewerId, depth + 1)),
+      [...c.replies].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map((r) => commentToNode(r.id, viewerId, depth + 1, mod)),
     ),
   };
 }
 
-async function brief(id: string, viewerId?: string) {
+async function brief(id: string, viewerId?: string, mod = false) {
   const t = await db.query.threads.findFirst({
     where: eq(threads.id, id),
     with: { sub: true, user: true, votes: true, comments: true },
   });
-  if (!t) return null;
+  if (!t || (t.hiddenAt && !mod)) return null;
   return {
     id: t.id,
     title: t.title,
@@ -69,7 +81,9 @@ async function brief(id: string, viewerId?: string) {
     author: t.user.name,
     avatar: t.user.avatarUrl ?? "",
     ...tally(t.votes, viewerId),
-    comments: t.comments.length,
+    comments: (mod ? t.comments : t.comments.filter((x) => !x.hiddenAt)).length,
+    mine: !!viewerId && t.userId === viewerId,
+    ...(t.hiddenAt ? { hidden: true } : {}),
     ago: ago(t.createdAt),
     excerpt: t.body.slice(0, 140),
     body: t.body,
@@ -85,7 +99,9 @@ forum.get("/subs", async (c) => {
 
 forum.get("/threads", optionalAuth, async (c) => {
   const viewerId = c.get("userId") as string | undefined;
+  const mod = await viewerIsModerator(viewerId);
   const rows = await db.query.threads.findMany({
+    where: mod ? undefined : isNull(threads.hiddenAt),
     with: { sub: true, user: true, votes: true, comments: true },
     orderBy: [desc(threads.createdAt)],
     limit: 100,
@@ -98,7 +114,9 @@ forum.get("/threads", optionalAuth, async (c) => {
       author: t.user.name,
       avatar: t.user.avatarUrl ?? "",
       ...tally(t.votes, viewerId),
-      comments: t.comments.length,
+      comments: (mod ? t.comments : t.comments.filter((x) => !x.hiddenAt)).length,
+      mine: !!viewerId && t.userId === viewerId,
+      ...(t.hiddenAt ? { hidden: true } : {}),
       ago: ago(t.createdAt),
       excerpt: t.body.slice(0, 140),
       tag: t.tag,
@@ -110,14 +128,15 @@ forum.get("/threads", optionalAuth, async (c) => {
 forum.get("/threads/:id", optionalAuth, async (c) => {
   uuid(c.req.param("id"));
   const viewerId = c.get("userId") as string | undefined;
-  const b = await brief(c.req.param("id"), viewerId);
+  const mod = await viewerIsModerator(viewerId);
+  const b = await brief(c.req.param("id"), viewerId, mod);
   if (!b) return c.json({ error: "Nicht gefunden" }, 404);
   const roots = await db
     .select({ id: comments.id })
     .from(comments)
     .where(and(eq(comments.threadId, c.req.param("id")), isNull(comments.parentId)))
     .orderBy(asc(comments.createdAt));
-  const commentsList = await Promise.all(roots.map((r) => commentToNode(r.id, viewerId)));
+  const commentsList = await Promise.all(roots.map((r) => commentToNode(r.id, viewerId, 0, mod)));
   return c.json({ ...b, commentsList });
 });
 

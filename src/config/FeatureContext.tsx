@@ -10,6 +10,7 @@ import {
 } from "react";
 import { defaultFeatures, featureMeta, resolveFeatureFlags, type FeatureKey } from "./features";
 import { useAuth } from "@/lib/auth";
+import { isPlatformModerator } from "@/lib/moderation-scope";
 import { useServices } from "@/data/DataContext";
 import { FEATURES_STALE_EVENT } from "@/lib/api";
 
@@ -84,6 +85,7 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const isAdmin = user?.role === "platform_admin";
+  const isModerator = isPlatformModerator(user?.role);
 
   const setFlag = useCallback(async (key: FeatureKey, value: boolean) => {
     if (!isAdmin || featureMeta.find((feature) => feature.key === key)?.core) return;
@@ -103,7 +105,7 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
   }, [isAdmin, features, apply]);
 
   const isEnabled = useCallback((key: FeatureKey) =>
-    flags[key] === true && (key !== "devAdmin" || isAdmin), [flags, isAdmin]);
+    flags[key] === true && (key !== "devAdmin" || isAdmin) && (key !== "moderation" || isModerator), [flags, isAdmin, isModerator]);
 
   const value = useMemo(
     () => ({ flags, isEnabled, setFlag, reset, refresh, global: features.global }),

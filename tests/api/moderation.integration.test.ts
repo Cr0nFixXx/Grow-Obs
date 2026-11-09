@@ -179,7 +179,7 @@ describe("Meldungen und Warteschlange (B-61)", () => {
     await report("bob", "comment", c.id, "harassment");
     expect((await call(`/communities/${communityId}/reports`, "bob")).status).toBe(403);
     expect((await call(`/communities/${communityId}/reports`, "carol")).status).toBe(403);
-    const queue = await json<any[]>(await call(`/communities/${communityId}/reports`, "mod"));
+    const queue = (await json<{ items: any[] }>(await call(`/communities/${communityId}/reports`, "mod"))).items;
     expect(queue).toHaveLength(2);
     const group = queue.find((g) => g.kind === "post");
     expect(group).toMatchObject({ count: 2, status: "open", preview: { text: "Kaufe jetzt!!!", author: "alice", hidden: false } });
@@ -205,8 +205,8 @@ describe("Meldungen und Warteschlange (B-61)", () => {
     expect((await resolve("post", p1.id, "hide")).status).toBe(404); // nichts mehr offen
     expect(await json(await resolve("post", p2.id, "dismiss", "owner"))).toMatchObject({ resolved: 1 });
     expect((await feed("bob")).map((x) => x.id)).toContain(p2.id);
-    expect(await json<any[]>(await call(`/communities/${communityId}/reports`, "mod"))).toEqual([]);
-    const closed = await json<any[]>(await call(`/communities/${communityId}/reports?status=closed`, "mod"));
+    expect(await json(await call(`/communities/${communityId}/reports`, "mod"))).toEqual({ items: [], hasMore: false });
+    const closed = (await json<{ items: any[] }>(await call(`/communities/${communityId}/reports?status=closed`, "mod"))).items;
     expect(closed.map((g) => [g.targetId, g.status]).sort()).toEqual([[p1.id, "hidden"], [p2.id, "dismissed"]].sort());
     expect(closed.find((g) => g.targetId === p1.id)).toMatchObject({ resolvedBy: "mod", count: 2 });
     // einmal entschieden: dieselbe Person kann denselben Inhalt nicht erneut melden

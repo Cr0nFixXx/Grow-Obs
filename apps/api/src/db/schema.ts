@@ -66,6 +66,8 @@ export const users = pgTable("users", {
   onlineUntil: timestamp("online_until", { withTimezone: true }),
   /** Konto gelöscht (B-74): die Zeile bleibt nur als anonyme Hülle, wenn Inhalte anderer daran hängen; kein Login mehr möglich. */
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  bannedAt: timestamp("banned_at", { withTimezone: true }),
+  banReason: text("ban_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -446,9 +448,9 @@ export const reports = pgTable(
   "reports",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+    communityId: uuid("community_id").references(() => communities.id, { onDelete: "cascade" }),
     reporterId: uuid("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    kind: text("kind").$type<"post" | "comment">().notNull(),
+    kind: text("kind").$type<"post" | "comment" | "thread" | "forum_comment">().notNull(),
     targetId: uuid("target_id").notNull(),
     reason: text("reason").$type<"spam" | "harassment" | "illegal" | "offtopic" | "other">().notNull(),
     details: text("details").notNull().default(""),
@@ -488,6 +490,8 @@ export const threads = pgTable("threads", {
   tag: text("tag").notNull().default("Diskussion"),
   isTop: boolean("is_top").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+  hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
 });
 
 export const threadVotes = pgTable(
@@ -507,6 +511,8 @@ export const comments = pgTable("comments", {
   parentId: uuid("parent_id").references((): AnyPgColumn => comments.id),
   body: text("body").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+  hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
 });
 
 /** Votes auf Forum-Kommentare (0003). */
@@ -729,3 +735,18 @@ export const postLikesRelations = relations(postLikes, ({ one }) => ({
 export const postBookmarksRelations = relations(postBookmarks, ({ one }) => ({
   post: one(posts, { fields: [postBookmarks.postId], references: [posts.id] }),
 }));
+
+/** Protokoll der Moderationsaktionen (B-89). Namen als Momentaufnahme, bewusst ohne Fremdschlüssel. */
+export const moderationLog = pgTable("moderation_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actorId: uuid("actor_id"),
+  actorName: text("actor_name").notNull(),
+  action: text("action").notNull(),
+  targetUserId: uuid("target_user_id"),
+  targetName: text("target_name"),
+  targetKind: text("target_kind"),
+  targetId: uuid("target_id"),
+  reason: text("reason"),
+  details: jsonb("details").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -172,6 +172,9 @@ createNotification / POST /chat/:id/messages ─► lib/push.ts sendPushToUser(u
   (`hide` or `dismiss`). Affected users get a notification of type `system`.
 - Kick with optional ban (`community_bans`): banned users cannot join, not even with an invite code; only admins see and lift bans.
 - UI: `src/views/Communities.tsx` (tabs Feed/Mitglieder/Moderation), `src/components/community/*`, `CommentsSheet`.
+- **Platform moderation (B-89)** for the global feed and the forum (`lib/platform-moderation.ts`, `routes/platform-moderation.ts`, `lib/report-queue.ts`): reports with `community_id IS NULL`, kinds `post|comment|thread|forum_comment`; the platform roles `moderator`, `admin`, `platform_admin` (`users.role`) read the queue (`GET /moderation/reports`, paged with `offset`, 20 per page, response `{items,hasMore}`, shared with the community queue), decide (`hide`/`dismiss`) and hide/unhide (`/moderation/hide`). Rank: a role cannot hide content of an equal or higher role. Hidden forum threads answer 404, hidden forum comments reach non-moderators as placeholders. The frontend picks community or platform through `lib/moderation-scope.ts`; the view `Moderation` (feature `moderation`, platform roles only, listed in `FEATURE_KEYS` on both sides) shows the queue.
+- **Accounts (B-89):** `platform_admin` bans (`users.banned_at/ban_reason`: login answers 403 `account_banned` with the reason after a correct password, sessions are ended, `authenticateToken` rejects banned users), unbans and deletes other accounts (`DELETE /admin/users/:id`, same routine as self-deletion with the admin's password). Never oneself or another platform admin. Every action is written to `moderation_log` (names stored, no foreign keys); read through `GET /admin/moderation-log`.
+- **Leave and live feed:** `POST /communities/:id/leave` (no ban entry; blocked for the last member and a sole admin with other members). Topic `community:<id>` (members only, checked in `realtime/commands.ts`) carries `community.feed`; `useCommunityFeed` reloads silently.
 
 ---
 
@@ -263,6 +266,7 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0017 | media in object storage (B-76): `media.data` nullable, `media.storage_key`, check "bytes or key", `users.cover_url` |
 | 0021 | grow diary (B-85): `grows.leaf_offset`, `grow_logs.logged_on`, `grow_photos.caption`, `grow_env.ph/logged_on` (readings nullable, one row per grow and day, unique index), backfill of existing rows |
 | 0023 | e-mail auth (B-87): `users.email_verified_at` (existing accounts marked verified once, when the column is created), table `auth_tokens` (kind verify_email/reset_password/change_email, SHA-256 hash only, `expires_at`, `used_at`, `new_email`, RLS on) |
+| 0026 | moderation round (B-89): `users.banned_at/ban_reason`, `threads`/`comments.hidden_at/hidden_by`, `reports.community_id` nullable and kinds `thread`/`forum_comment`, partial index for the global queue, table `moderation_log` (RLS on) |
 | 0025 | account deletion (B-74): `users.deleted_at` (a deleted account that keeps content stays as an anonymous shell) |
 | 0024 | grows round 4 (B-88): `grows.targets` jsonb (overrides only, filled from the old pH/EC columns, which stay), `users.grow_reminder_days`, `grows.reminded_env_on/reminded_log_on` |
 | 0022 | grow target ranges (B-86): `grows.ph_min/ph_max/ec_min/ec_max` (defaults 5.8/6.5/1/2, `NULL` = no band) |

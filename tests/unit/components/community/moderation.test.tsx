@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReportGroup, SocialPost } from "@/types";
+import type { ReportGroup, ReportPage, SocialPost } from "@/types";
 import { ModerationPanel } from "@/components/community/ModerationPanel";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { ReportSheet } from "@/components/community/ReportSheet";
@@ -22,7 +22,8 @@ const post = (over: Partial<SocialPost> = {}): SocialPost => ({
   id: "p1", author: "Alice", handle: "@alice", avatar: "", time: "vor 1 Std.", text: "Hallo Community", likes: 1, comments: 0, shares: 0, tags: [], ...over,
 });
 
-const reports = vi.fn(async (_id: string, status: string): Promise<ReportGroup[]> => (status === "open" ? [group()] : []));
+const page = (items: ReportGroup[], hasMore = false): ReportPage => ({ items, hasMore });
+const reports = vi.fn(async (_id: string, status: string, _offset?: number): Promise<ReportPage> => page(status === "open" ? [group()] : []));
 const resolveReport = vi.fn(async () => undefined);
 const bans = vi.fn(async () => [{ id: "u9", name: "Troll", handle: "@troll", avatar: "", bannedAt: "2026-10-01T00:00:00Z" }]);
 const unban = vi.fn(async () => undefined);
@@ -40,7 +41,7 @@ vi.mock("@/data/DataContext", () => ({ useServices: () => services }));
 beforeEach(() => {
   window.matchMedia ??= ((query: string) => ({ matches: false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined, addListener: () => undefined, removeListener: () => undefined, onchange: null, dispatchEvent: () => false })) as unknown as typeof window.matchMedia;
   vi.clearAllMocks();
-  reports.mockImplementation(async (_id, status) => (status === "open" ? [group()] : []));
+  reports.mockImplementation(async (_id, status) => page(status === "open" ? [group()] : []));
   listPosts.mockResolvedValue([]);
 });
 afterEach(() => { cleanup(); });
@@ -72,7 +73,7 @@ describe("ModerationPanel (B-61)", () => {
   });
 
   it("Leerzustand, erledigte Ansicht und gelöschter Inhalt", async () => {
-    reports.mockImplementation(async (_id, status) => (status === "open" ? [] : [group({ status: "hidden", resolvedBy: "Lena", resolvedAgo: "vor 1 Std.", preview: null })]));
+    reports.mockImplementation(async (_id, status) => page(status === "open" ? [] : [group({ status: "hidden", resolvedBy: "Lena", resolvedAgo: "vor 1 Std.", preview: null })]));
     render(<ModerationPanel communityId="c1" isAdmin={false} />);
     expect(await screen.findByText("Keine offenen Meldungen")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Erledigt" }));

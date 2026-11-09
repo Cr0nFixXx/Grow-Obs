@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../db/client.ts";
 import { conversationMembers, conversationTopics } from "../db/schema.ts";
 import { topicAudience } from "../lib/chat-groups.ts";
+import { communityRole } from "../lib/moderation.ts";
 import { applyTopic, isValidTopic, publish, publishControl, type Connection } from "./hub.ts";
 
 /** Nachrichten Client → Server (identisch für WebSocket und die REST-Variante bei SSE). */
@@ -51,6 +52,8 @@ export async function handleClientMessage(userId: string, message: ClientMessage
     case "subscribe":
     case "unsubscribe":
       if (!isValidTopic(message.topic)) return;
+      // Community-Feeds: nur Mitglieder dürfen abonnieren (Abbestellen ist immer erlaubt).
+      if (message.type === "subscribe" && message.topic.startsWith("community:") && !await communityRole(message.topic.slice("community:".length), userId)) return;
       if (conn) applyTopic(conn, message.type, message.topic);
       else if (connId) await publishControl({ connId, userId, op: message.type, topic: message.topic });
       return;

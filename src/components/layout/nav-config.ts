@@ -55,6 +55,10 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: "Moderation",
+    items: [{ key: "moderation", label: "Meldungen", icon: "ShieldCheck" }],
+  },
+  {
     title: "Betreiber",
     items: [{ key: "devAdmin", label: "Developer-Admin", icon: "Cpu" }],
   },

@@ -99,10 +99,11 @@ function CommunityList() {
 type DetailTab = "feed" | "members" | "moderation";
 
 function CommunityDetail({ id }: { id: string }) {
-  const { back } = useNav();
+  const { back, navigate } = useNav();
   const toast = useToast();
   const me = useCurrentUser();
-  const { community, loading, error, refresh, createInvite, setRole, kick } = useCommunity(id);
+  const { community, loading, error, refresh, createInvite, setRole, kick, leave } = useCommunity(id);
+  const [leaving, setLeaving] = useState(false);
   const [invite, setInvite] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>("feed");
   const [kicking, setKicking] = useState<{ id: string; name: string } | null>(null);
@@ -123,6 +124,16 @@ function CommunityDetail({ id }: { id: string }) {
     } catch (e) { toast.push({ title: "Entfernen fehlgeschlagen", desc: e instanceof Error ? e.message : "", tone: "danger", icon: "AlertTriangle" }); }
     finally { setBusy(false); }
   };
+  const confirmLeave = async () => {
+    setBusy(true);
+    try {
+      await leave();
+      toast.push({ title: "Community verlassen", desc: community.name, tone: "leaf", icon: "Users" });
+      setLeaving(false);
+      navigate("communities");
+    } catch (e) { toast.push({ title: "Verlassen nicht möglich", desc: e instanceof Error ? e.message : "", tone: "danger", icon: "AlertTriangle" }); setLeaving(false); }
+    finally { setBusy(false); }
+  };
   const tabs: { value: DetailTab; label: string; count?: number }[] = [
     { value: "feed", label: "Feed" },
     { value: "members", label: `Mitglieder (${community.members})` },
@@ -132,7 +143,10 @@ function CommunityDetail({ id }: { id: string }) {
     <div className="mx-auto max-w-4xl space-y-6">
       <button onClick={back} className="flex items-center gap-1.5 text-sm text-fg-muted"><Icon name="ArrowLeft" size={16} /> Communities</button>
       <PageHeader title={community.name} subtitle={community.description} icon={community.isPrivate ? "Lock" : "Globe"}
-        actions={canAdmin ? <Button onClick={() => void createInvite().then((x) => { setInvite(x.code); toast.push({ title: "Einladung erstellt", desc: "24 Stunden gültig.", tone: "leaf", icon: "QrCode" }); })}><Icon name="QrCode" size={16} /> Einladen</Button> : undefined} />
+        actions={<>
+          {community.joined && <Button variant="secondary" onClick={() => setLeaving(true)} data-testid="leave-community"><Icon name="LogOut" size={16} /> Verlassen</Button>}
+          {canAdmin && <Button onClick={() => void createInvite().then((x) => { setInvite(x.code); toast.push({ title: "Einladung erstellt", desc: "24 Stunden gültig.", tone: "leaf", icon: "QrCode" }); })}><Icon name="QrCode" size={16} /> Einladen</Button>}
+        </>} />
       {invite && <Card className="border-accent/25 bg-accent/5 p-4"><div className="text-xs text-fg-subtle">Einmal-Code</div><div className="mt-1 flex items-center justify-between gap-3"><code className="truncate font-semibold text-accent">{invite}</code><Button size="sm" variant="ghost" onClick={() => void navigator.clipboard.writeText(invite)}>Kopieren</Button></div></Card>}
       <Tabs tabs={tabs} value={tab} onChange={setTab} />
 
@@ -158,6 +172,14 @@ function CommunityDetail({ id }: { id: string }) {
 
       {tab === "moderation" && canModerate && <ModerationPanel communityId={id} isAdmin={canAdmin} onChanged={() => void refresh()} />}
 
+      <Modal open={leaving} onClose={() => setLeaving(false)} title="Community verlassen?" size="sm"
+        footer={<><Button variant="ghost" onClick={() => setLeaving(false)}>Abbrechen</Button><Button variant="danger" loading={busy} onClick={() => void confirmLeave()}>Verlassen</Button></>}>
+        <div className="space-y-2 text-sm" data-testid="leave-dialog">
+          <p>Du verlierst den Zugriff auf Feed und Beiträge von „{community.name}“. Deine bisherigen Beiträge bleiben dort stehen.</p>
+          <p className="text-fg-muted">{community.isPrivate ? "Für eine private Community brauchst du danach einen neuen Einladungscode." : "Du kannst später wieder beitreten."}</p>
+          {canAdmin && <p className="text-fg-muted">Bist du der einzige Admin, ernenne vorher unter „Mitglieder“ jemand anderen zum Admin.</p>}
+        </div>
+      </Modal>
       <Modal open={!!kicking} onClose={() => setKicking(null)} title="Mitglied entfernen" size="sm"
         footer={<><Button variant="ghost" onClick={() => setKicking(null)}>Abbrechen</Button><Button variant="danger" loading={busy} onClick={() => void confirmKick()}>Entfernen</Button></>}>
         <div className="space-y-4" data-testid="kick-dialog">

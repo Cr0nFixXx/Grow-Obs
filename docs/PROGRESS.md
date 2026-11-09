@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-89 | Moderations-Runde: Betreiber sperrt/entsperrt/löscht fremde Konten (Grund, Protokoll), globaler Feed und Forum melden/ausblenden (Ansicht Moderation), Community verlassen, Warteschlange paginiert, Live-Updates im Community-Feed; Migration 0026 | API 370, Vitest 372 |
 | B-74 | Konto löschen (vier Schalter Forum/Feed/Kommentare/Chat + Bilder, anonyme Hülle „Gelöschtes Mitglied“, Blocker für letzten Plattform-/alleinigen Admin, Dateien sofort aus S3) und Datenexport als ZIP (JSON + alle Medien, Passwort + 2-Minuten-Link); Migration 0025 | API 357, Vitest 358 |
 | B-88 | Grows Runde 4: Zielbereiche je Phase (pH, EC, Temperatur, Luftfeuchte, VPD; Grow-Ziel überschreibt), CSV-Export (Messwerte, Tagebuch), Foto-Vergleich mit Schieberegler, In-App-Erinnerung bei fehlenden Einträgen (Cron täglich); Migration 0024 | API 344, Vitest 351 |
 | B-87 | E-Mail: Passwort-Reset per Link (1 h, danach alle Sitzungen weg), E-Mail-Bestätigung (Pflicht, sobald SMTP konfiguriert), Adresse ändern mit Passwort; SMTP-Adapter (nodemailer); Migration 0023 | API 335, Vitest 331, E2E +1 (echtes SMTP gegen Test-Mailserver) |

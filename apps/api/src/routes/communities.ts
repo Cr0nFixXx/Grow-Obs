@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { and, count, desc, eq, exists, gt, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, exists, gt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
 import { communities, communityBans, communityMembers, invites, reports, users } from "../db/schema.ts";
@@ -193,6 +193,29 @@ communitiesApi.delete("/:id/members/:userId", async (c) => {
     title: `Du wurdest aus „${name}“ entfernt`,
     body: ban ? "Du bist für diese Community gesperrt." : "Du kannst ihr gegebenenfalls erneut beitreten.",
   }).catch(() => undefined);
+  return c.json({ ok: true });
+});
+
+/**
+ * Community verlassen (B-89). Jedes Mitglied darf gehen. Der alleinige Admin muss erst einen weiteren Admin ernennen
+ * (409), das letzte Mitglied kann nicht gehen (409) – sonst bliebe eine Community ohne Admin zurück. Kein Eintrag in die Sperrliste.
+ */
+communitiesApi.post("/:id/leave", async (c) => {
+  const id = uuid(c.req.param("id"));
+  const userId = c.get("userId");
+  await db.transaction(async (tx) => {
+    await lockCommunity(tx, id);
+    const mine = and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId));
+    const [me] = await tx.select().from(communityMembers).where(mine);
+    if (!me) throw new HTTPException(404, { message: "Du bist kein Mitglied dieser Community" });
+    const others = await tx.select({ role: communityMembers.role }).from(communityMembers)
+      .where(and(eq(communityMembers.communityId, id), ne(communityMembers.userId, userId)));
+    if (others.length === 0) throw new HTTPException(409, { message: "Du bist das letzte Mitglied – die Community kann so nicht verlassen werden." });
+    if (me.role === "admin" && !others.some((o) => o.role === "admin")) {
+      throw new HTTPException(409, { message: "Du bist der einzige Admin. Ernenne zuerst ein anderes Mitglied zum Admin." });
+    }
+    await tx.delete(communityMembers).where(mine);
+  });
   return c.json({ ok: true });
 });
 

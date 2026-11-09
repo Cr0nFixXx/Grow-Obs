@@ -257,7 +257,7 @@ Alle Pfade unter `/communities` verlangen Auth.
 | GET `/communities/:id/bans`, DELETE `/communities/:id/bans/:userId` | Community-Admin: Sperrliste / Sperre aufheben |
 | POST `/communities/:id/(posts/:postId\|comments/:commentId)/(hide\|unhide)` | Moderator/Admin; Moderatoren dürfen keine Admin-Inhalte ausblenden; Ausgeblendetes sieht nur die Moderation |
 | POST `/communities/:id/reports` | Mitglied meldet Beitrag/Kommentar; eine Meldung je Person und Inhalt; 20/h |
-| GET `/communities/:id/reports?status=open\|closed`, POST `/communities/:id/reports/resolve` | Moderation: Warteschlange nach Inhalt gruppiert (höchstens 100) / Entscheidung `hide` oder `dismiss` |
+| GET `/communities/:id/reports?status=open\|closed&offset`, POST `/communities/:id/reports/resolve` | Moderation: Warteschlange nach Inhalt gruppiert, `{items, hasMore}` (20 pro Seite, älteste zuerst; B-89) / Entscheidung `hide` oder `dismiss` |
 
 ### Betreiber, Feature-Flags, Updates
 
@@ -265,6 +265,12 @@ Alle Pfade unter `/communities` verlangen Auth.
 | --- | --- |
 | GET `/admin/health`, `/admin/stats`, `/admin/users`, `/admin/content` | die aktuelle DB-Rolle muss `platform_admin` sein; `/admin/health` prüft Datenbank/Speicher |
 | PATCH `/admin/users/:id/role` | Betreiber; der letzte Plattform-Admin bleibt erhalten |
+| POST `/admin/users/:id/ban` `{reason?}` · POST `…/unban` | Betreiber (B-89); sperrt (Login 403 `account_banned` mit Grund nach richtigem Passwort, Sitzungen beendet) bzw. hebt auf; nie das eigene Konto oder einen Plattform-Admin; protokolliert |
+| DELETE `/admin/users/:id` `{password, confirm:"LÖSCHEN", options, reason?}` | Betreiber (B-89); löscht ein fremdes Konto wie `DELETE /auth/account` (dieselben Optionen), Betreiber-Passwort nötig; Antwort `{ok, mode}` |
+| GET `/admin/moderation-log?offset` | Betreiber; `{hasMore, items[{id, action, actor, target, targetKind, reason, details, createdAt}]}`, 50 pro Seite |
+| POST `/moderation/reports` `{kind, targetId, reason, details}` | jedes angemeldete Mitglied (B-89); `kind` `post\|comment\|thread\|forum_comment`; 20/h; 201, Duplikat `{duplicate:true}`, eigener Inhalt 400, unbekannt oder Community-Inhalt 404 |
+| GET `/moderation/reports?status=open\|closed&offset` · POST `…/resolve` `{kind, targetId, action}` · POST `/moderation/hide` `{kind, targetId, hidden}` | Plattform-Rolle Moderator/Admin/Betreiber (B-89); Warteschlange `{items, hasMore}` (20 pro Seite); Rangfolge wie bei Communities |
+| POST `/communities/:id/leave` | Mitglied verlässt die Community (B-89); 404 kein Mitglied, 409 letztes Mitglied oder Alleinadmin mit weiteren Mitgliedern; kein Sperrlisten-Eintrag |
 | DELETE `/admin/threads/:id`, `/admin/posts/:id` | transaktionales Löschen inklusive abhängiger Zeilen |
 | GET `/features` | öffentlich: `{ overrides }` (fehlender Key = an) |
 | PUT `/admin/features/:key`, DELETE `/admin/features` | Betreiber: Override setzen (`{ enabled }`, Kern-Feature → 409) / alle löschen |

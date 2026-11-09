@@ -183,7 +183,8 @@ export interface CommunityDetail extends Community {
 }
 
 /* ----- Moderation (B-61) ----- */
-export type ReportKind = "post" | "comment";
+/** `post`/`comment`: Feed (Community oder global). `thread`/`forum_comment`: Forum (nur global, B-89). */
+export type ReportKind = "post" | "comment" | "thread" | "forum_comment";
 export type ReportReason = "spam" | "harassment" | "illegal" | "offtopic" | "other";
 export type ReportAction = "hide" | "dismiss";
 
@@ -209,10 +210,16 @@ export interface ReportGroup {
   status: "open" | "hidden" | "dismissed";
   count: number;
   /** `null` = Inhalt inzwischen gelöscht. */
-  preview: { text: string; image: string | null; author: string; handle: string; hidden: boolean } | null;
+  preview: { text: string; image: string | null; author: string; handle: string; hidden: boolean; title?: string } | null;
   reports: ReportEntry[];
   resolvedBy?: string | null;
   resolvedAgo?: string | null;
+}
+
+/** Eine Seite der Warteschlange (B-89): `hasMore` = es gibt weitere Gruppen. */
+export interface ReportPage {
+  items: ReportGroup[];
+  hasMore: boolean;
 }
 
 export interface BannedMember {

@@ -4,6 +4,7 @@ import { useResource } from "./useResource";
 import { useRealtime, useRealtimeEvent, useRealtimeTopic } from "@/lib/realtime-context";
 import { resolveTopic } from "@/lib/chat-groups";
 import type { ChatAttachment, CreateGroupInput, TopicInput, TopicPatch } from "@/services/interfaces";
+import type { ReportAction, ReportGroup, ReportKind, ReportPage } from "@/types";
 
 /**
  * Invalidierung über Hook-Instanzen hinweg (z. B. Glocke, Drawer-Badge und Benachrichtigungsseite
@@ -194,13 +195,19 @@ export function useCommunity(id: string) {
   const kick = useCallback(async (userId: string, ban: boolean) => {
     await svc.communities.kick(id, userId, ban); await refresh();
   }, [svc, id, refresh]);
-  return { community: data, loading, error, refresh, createInvite, setRole, kick };
+  const leave = useCallback(async () => { await svc.communities.leave(id); }, [svc, id]);
+  return { community: data, loading, error, refresh, createInvite, setRole, kick, leave };
 }
 
 /** Feed einer Community (B-61): Beiträge, schreiben, liken, aus-/einblenden. */
 export function useCommunityFeed(id: string) {
   const svc = useServices();
-  const { data, loading, error, refresh } = useAsync(() => svc.social.listPosts(id), [svc, id]);
+  const { data, loading, error, refresh, silentRefresh } = useAsync(() => svc.social.listPosts(id), [svc, id]);
+  // Echtzeit (B-89): neue/ausgeblendete Beiträge und Kommentare erscheinen live; bei Wiederverbindung/Polling wird neu geladen.
+  useRealtimeTopic(`community:${id}`);
+  useRealtimeEvent(["community.feed", "resync", "poll"], (event) => {
+    if (event.type !== "community.feed" || event.communityId === id) void silentRefresh();
+  });
   const createPost = useCallback(async (text: string) => {
     const post = await svc.social.createPost({ text, communityId: id }); await refresh(); return post;
   }, [svc, id, refresh]);
@@ -211,19 +218,55 @@ export function useCommunityFeed(id: string) {
   return { posts: data ?? [], loading, error, refresh, createPost, toggleLike, setHidden };
 }
 
-/** Warteschlange der Moderation (offen/entschieden) und Sperrliste (nur Admins). */
-export function useModeration(id: string, status: "open" | "closed", withBans: boolean) {
+/** Sperrliste einer Community (nur Admins). */
+export function useCommunityBans(id: string, enabled: boolean) {
   const svc = useServices();
-  const queue = useAsync(() => svc.communities.reports(id, status), [svc, id, status]);
-  const banList = useAsync(() => (withBans ? svc.communities.bans(id) : Promise.resolve([])), [svc, id, withBans]);
-  const resolve = useCallback(async (kind: "post" | "comment", targetId: string, action: "hide" | "dismiss") => {
-    await svc.communities.resolveReport(id, kind, targetId, action); await queue.refresh();
-  }, [svc, id, queue]);
+  const banList = useAsync(() => (enabled ? svc.communities.bans(id) : Promise.resolve([])), [svc, id, enabled]);
   const unban = useCallback(async (userId: string) => { await svc.communities.unban(id, userId); await banList.refresh(); }, [svc, id, banList]);
-  return {
-    groups: queue.data ?? [], loading: queue.loading, error: queue.error, refresh: queue.refresh, resolve,
-    bans: banList.data ?? [], unban,
-  };
+  return { bans: banList.data ?? [], unban };
+}
+
+/**
+ * Warteschlange der Moderation (offen/entschieden), seitenweise (B-89): `loadMore` hängt die nächste Seite an.
+ * `load` und `act` kapseln Community bzw. Plattform; `scope` ändert sich nur, wenn die Quelle wechselt.
+ */
+export function useReportQueue(scope: string, status: "open" | "closed", load: (status: "open" | "closed", offset: number) => Promise<ReportPage>, act: (kind: ReportKind, targetId: string, action: ReportAction) => Promise<void>) {
+  const [groups, setGroups] = useState<ReportGroup[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const run = useRef(0);
+
+  const refresh = useCallback(async () => {
+    const mine = ++run.current;
+    setLoading(true);
+    try {
+      const page = await loadRef.current(status, 0);
+      if (mine !== run.current) return;
+      setGroups(page.items); setHasMore(page.hasMore); setError(null);
+    } catch (e) {
+      if (mine === run.current) setError(e instanceof Error ? e.message : "Fehler beim Laden");
+    } finally { if (mine === run.current) setLoading(false); }
+  }, [status]);
+  useEffect(() => { setGroups([]); void refresh(); }, [refresh, scope]);
+
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const page = await loadRef.current(status, groups.length);
+      setGroups((prev) => [...prev, ...page.items.filter((g) => !prev.some((p) => p.kind === g.kind && p.targetId === g.targetId && p.status === g.status))]);
+      setHasMore(page.hasMore);
+    } catch (e) { setError(e instanceof Error ? e.message : "Fehler beim Laden"); }
+    finally { setLoadingMore(false); }
+  }, [status, groups.length]);
+
+  const resolve = useCallback(async (kind: ReportKind, targetId: string, action: ReportAction) => {
+    await act(kind, targetId, action); await refresh();
+  }, [act, refresh]);
+  return { groups, hasMore, loading, loadingMore, error, refresh, loadMore, resolve };
 }
 
 export function useWikiCategories() {

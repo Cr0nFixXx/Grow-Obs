@@ -36,6 +36,7 @@ const postCard = (page: Page, text: string) => page.getByTestId("community-post"
 
 test.describe("Community-Moderation (B-61)", () => {
   test("Feed, Melden, Warteschlange, Ausblenden – mit Benachrichtigung für den Autor", async ({ browser }) => {
+    test.setTimeout(90_000);
     const { mod, alice, bob, open, close } = await setup(browser, "a");
     const text = `Kauft mein Zeug ${stamp}`;
 

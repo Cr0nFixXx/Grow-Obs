@@ -114,6 +114,10 @@ auth.post("/login", loginLimit, async (c) => {
     if (u) await recordLoginEvent(c, u.id, "login_failed"); // unbekannte E-Mails werden nicht gespeichert
     return c.json({ error: "Anmeldedaten ungültig" }, 401);
   }
+  // B-89: Gesperrte Konten (Betreiber) kommen nicht hinein; der Grund wird nur nach richtigem Passwort verraten.
+  if (u.bannedAt) {
+    return c.json({ error: `Dein Konto wurde gesperrt.${u.banReason ? ` Grund: ${u.banReason}` : ""}`, code: "account_banned", ...(u.banReason ? { reason: u.banReason } : {}) }, 403);
+  }
   const { token } = await startSession(c, u, body.data.remember ?? true);
   await recordLoginEvent(c, u.id, "login");
   return c.json({ user: await toUser(u.id), ...(token ? { token } : {}) });

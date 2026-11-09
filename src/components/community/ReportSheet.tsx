@@ -2,12 +2,16 @@ import { useState } from "react";
 import { BottomSheet, Button, Field, Textarea } from "@/components/ui";
 import { useServices } from "@/data/DataContext";
 import { useToast } from "@/components/Toast";
+import { moderationFor } from "@/lib/moderation-scope";
 import type { ReportKind, ReportReason } from "@/types";
-import { REPORT_REASONS } from "./moderation-labels";
+import { REPORT_REASONS, kindLabel } from "./moderation-labels";
 
-/** Inhalt der eigenen Community der Moderation melden (B-61). */
+/**
+ * Inhalt melden (B-61, B-89). `communityId` = Meldung an die Moderation der Community; `null` = an die Plattform-Moderation
+ * (globaler Feed, Forum).
+ */
 export function ReportSheet({ communityId, target, onClose }: {
-  communityId: string;
+  communityId: string | null;
   target: { kind: ReportKind; id: string } | null;
   onClose: () => void;
 }) {
@@ -22,7 +26,7 @@ export function ReportSheet({ communityId, target, onClose }: {
     if (!target || busy) return;
     setBusy(true);
     try {
-      const result = await svc.communities.report(communityId, { kind: target.kind, targetId: target.id, reason, details: details.trim() || undefined });
+      const result = await moderationFor(svc, communityId).report({ kind: target.kind, targetId: target.id, reason, details: details.trim() || undefined });
       toast.push(result.duplicate
         ? { title: "Bereits gemeldet", desc: "Die Moderation kennt diese Meldung schon.", tone: "info", icon: "Flag" }
         : { title: "Danke für die Meldung", desc: "Die Moderation schaut es sich an.", tone: "leaf", icon: "Flag" });
@@ -33,7 +37,7 @@ export function ReportSheet({ communityId, target, onClose }: {
   };
 
   return (
-    <BottomSheet open={!!target} onClose={close} title={target?.kind === "comment" ? "Kommentar melden" : "Beitrag melden"}>
+    <BottomSheet open={!!target} onClose={close} title={`${target ? kindLabel(target.kind) : "Inhalt"} melden`}>
       <div className="space-y-4" data-testid="report-sheet">
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-medium">Was stimmt nicht?</legend>

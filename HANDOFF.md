@@ -3,7 +3,7 @@
 **For:** coding agents and developers taking over **Grow|Observer** (cannabis-grow community PWA; UI language: German).
 Read this file first, then `CLAUDE.md` (rules). **Measured test status:** `docs/TESTING.md`. **Open work:** `TODO.md`, roadmap `PLAN.md`.
 
-**State: B-74 (delete account with four content choices + ZIP data export; live (commit `51c020f`, build 26110919); migration 0025 applied in production; B-87 e-mail is live but inactive until SMTP is configured)** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
+**State: B-89 (moderation round: operator bans/unbans/deletes accounts with a moderation log, global feed and forum report/hide, leave a community, paged report queue, live community feed; migration 0026; built locally, deployment pending) — B-74 is live (build 26110919, migration 0025); B-87 e-mail is live but inactive until SMTP is configured** · Frontend "Ruderalis" v0.1.2 · Backend v0.0.3 (see `version.json` for the build number). Branch `A` (pushed to `origin/A` only when the owner asks).
 Next.js 16 is the primary build (client-side SPA shell, embedded Hono API under `/api`, PostgreSQL); Vite is a legacy single-file build.
 Docker/MinIO and touch behavior on real devices have **never** been tested.
 
@@ -11,7 +11,7 @@ Docker/MinIO and touch behavior on real devices have **never** been tested.
 
 ## 1. What exists
 
-- **Frontend:** React 19, TypeScript, Tailwind v4, Framer Motion; 26 view files (dashboard, grows, strains, breeders, marketplace, wiki, forum, chat,
+- **Frontend:** React 19, TypeScript, Tailwind v4, Framer Motion; 28 view files (dashboard, grows, strains, breeders, marketplace, wiki, forum, chat,
   social feed, communities, hall of fame, calculators, AI assistant UI, notifications, profile/settings, developer admin …); mobile shell with
   bottom sheets and gestures; PWA (manifest, service worker with a public-shell allowlist); feature flags; update flow ("what's new").
 - **Backend (`apps/api`):** Hono + Drizzle + PostgreSQL, JWT + Argon2, cookie sessions, S3/MinIO presign (optional), realtime (WebSocket → SSE → polling over LISTEN/NOTIFY).

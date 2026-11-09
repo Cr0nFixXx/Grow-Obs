@@ -6,6 +6,7 @@ import { ReportSheet } from "@/components/community/ReportSheet";
 import { BottomSheet, Avatar, Button, Spinner, Textarea } from "@/components/ui";
 import { useServices } from "@/data/DataContext";
 import { useToast } from "@/components/Toast";
+import { moderationFor } from "@/lib/moderation-scope";
 import type { CommentKind, ItemComment } from "@/services/interfaces";
 
 /**
@@ -18,8 +19,11 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange, com
   title?: string;
   onClose: () => void;
   onCountChange?: (itemId: string, count: number) => void;
-  /** Kommentare unter einem Community-Beitrag (B-61): Melden für alle, Aus-/Einblenden für die Moderation. */
-  community?: { id: string; canModerate: boolean };
+  /**
+   * Moderation der Kommentare (B-61, B-89): Melden für alle, Aus-/Einblenden für die Moderation. `id` = Community; `null` =
+   * globaler Feed (Plattform-Moderation).
+   */
+  community?: { id: string | null; canModerate: boolean };
 }) {
   const svc = useServices();
   const toast = useToast();
@@ -44,7 +48,7 @@ export function CommentsSheet({ kind, itemId, title, onClose, onCountChange, com
   const toggleHidden = async (comment: ItemComment) => {
     if (!community) return;
     try {
-      await svc.communities.setHidden(community.id, "comment", comment.id, !comment.hidden);
+      await moderationFor(svc, community.id).setHidden("comment", comment.id, !comment.hidden);
       const next = items.map((c) => (c.id === comment.id ? { ...c, hidden: comment.hidden ? undefined : true } : c));
       setItems(next);
       if (itemId) onCountChange?.(itemId, next.filter((c) => !c.hidden).length);

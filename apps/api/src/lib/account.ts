@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { conversationMembers, conversations, users } from "../db/schema.ts";
+import { communityMembers, conversationMembers, conversations, users } from "../db/schema.ts";
 import { removeObjects, usedBy } from "./media-cleanup.ts";
 import { announceGroupChange, repairAfterDeparture } from "./chat-groups.ts";
 
@@ -190,4 +190,19 @@ export async function deleteAccount(userId: string, options: DeleteOptions): Pro
     }
   }
   return { mode, mediaDeleted: count };
+}
+
+/**
+ * Löschung durch den Betreiber (B-89): Wo das Konto alleiniger Admin einer Community mit weiteren Mitgliedern ist, wird vorher
+ * der dienstälteste Moderator (sonst das dienstälteste Mitglied) Admin. Gruppen repariert `deleteAccount` danach selbst.
+ */
+export async function handOverCommunities(userId: string): Promise<number> {
+  const { communities } = await accountBlockers(userId);
+  for (const community of communities) {
+    const [next] = await db.execute<{ user_id: string }>(sql`
+      select user_id from community_members where community_id = ${community.id} and user_id <> ${userId}
+      order by (role = 'moderator') desc, joined_at asc limit 1`);
+    if (next) await db.update(communityMembers).set({ role: "admin" }).where(and(eq(communityMembers.communityId, community.id), eq(communityMembers.userId, next.user_id)));
+  }
+  return communities.length;
 }

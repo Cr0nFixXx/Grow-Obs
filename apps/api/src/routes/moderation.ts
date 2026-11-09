@@ -1,15 +1,16 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { itemComments, posts, reports, users } from "../db/schema.ts";
+import { itemComments, posts, reports } from "../db/schema.ts";
 import type { AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { uuid } from "../lib/validation.ts";
-import { ago } from "../lib/time.ts";
+import { loadReportQueue, pageParams } from "../lib/report-queue.ts";
+import { logModeration } from "../lib/platform-moderation.ts";
 import { createNotification } from "../lib/notify.ts";
-import { communityRole, isModerator, type CommunityRole } from "../lib/moderation.ts";
+import { communityRole, isModerator, publishCommunityFeed, type CommunityRole } from "../lib/moderation.ts";
 
 /**
  * Community-Moderation (B-61). Wird in `communities.ts` unter `/communities` eingehängt (Auth dort).
@@ -74,6 +75,8 @@ for (const [segment, kind, param] of [["posts", "post", "postId"], ["comments", 
       if (target.hidden !== hide) {
         await setHidden(communityId, target, hide, c.get("userId"));
         if (hide) await notifyHidden(target, c.get("userId"));
+        await logModeration({ actorId: c.get("userId"), action: hide ? "hide" : "unhide", targetUserId: target.authorId, targetKind: kind, targetId, details: { scope: "community", communityId } });
+        await publishCommunityFeed(communityId, "moderation", target.postId);
       }
       return c.json({ ok: true, hidden: hide });
     });
@@ -101,46 +104,12 @@ moderationApi.post("/:id/reports", rateLimit({ name: "report", limit: 20, window
   return c.json({ ok: true, duplicate: inserted.length === 0 }, inserted.length ? 201 : 200);
 });
 
-/** Warteschlange gruppiert nach gemeldetem Inhalt. `status=open` (Standard) oder `closed` (zuletzt entschieden, höchstens 50 Inhalte). */
+/** Warteschlange gruppiert nach gemeldetem Inhalt, seitenweise (`offset`, Antwort `{items, hasMore}`). `status=open` (Standard) oder `closed`. */
 moderationApi.get("/:id/reports", async (c) => {
   const communityId = uuid(c.req.param("id"));
   await requireModerator(communityId, c.get("userId"));
-  const open = c.req.query("status") !== "closed";
-  const rows = await db
-    .select({ r: reports, reporter: users.name })
-    .from(reports).innerJoin(users, eq(users.id, reports.reporterId))
-    .where(and(eq(reports.communityId, communityId), open ? eq(reports.status, "open") : ne(reports.status, "open")))
-    .orderBy(open ? reports.createdAt : desc(reports.resolvedAt)).limit(open ? 500 : 200);
-
-  const groups = new Map<string, { kind: "post" | "comment"; targetId: string; status: string; first: Date; resolvedAt: Date | null; resolvedBy: string | null; items: typeof rows }>();
-  for (const row of rows) {
-    const key = `${row.r.kind}:${row.r.targetId}:${row.r.status}`;
-    const g = groups.get(key) ?? { kind: row.r.kind, targetId: row.r.targetId, status: row.r.status, first: row.r.createdAt, resolvedAt: row.r.resolvedAt, resolvedBy: row.r.resolvedBy, items: [] };
-    g.items.push(row);
-    groups.set(key, g);
-  }
-  const list = [...groups.values()].slice(0, open ? 100 : 50);
-
-  const postIds = list.filter((g) => g.kind === "post").map((g) => g.targetId);
-  const commentIds = list.filter((g) => g.kind === "comment").map((g) => g.targetId);
-  const postRows = postIds.length ? await db.select({ p: posts, name: users.name, handle: users.handle }).from(posts).innerJoin(users, eq(users.id, posts.userId)).where(inArray(posts.id, postIds)) : [];
-  const commentRows = commentIds.length ? await db.select({ c: itemComments, name: users.name, handle: users.handle }).from(itemComments).innerJoin(users, eq(users.id, itemComments.userId)).where(inArray(itemComments.id, commentIds)) : [];
-  const resolverIds = [...new Set(list.map((g) => g.resolvedBy).filter((x): x is string => !!x))];
-  const resolvers = resolverIds.length ? await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, resolverIds)) : [];
-
-  return c.json(list.map((g) => {
-    const post = postRows.find((x) => x.p.id === g.targetId);
-    const comment = commentRows.find((x) => x.c.id === g.targetId);
-    const preview = g.kind === "post" && post
-      ? { text: post.p.text, image: post.p.imageUrl, author: post.name, handle: post.handle, hidden: !!post.p.hiddenAt }
-      : comment ? { text: comment.c.body, image: null, author: comment.name, handle: comment.handle, hidden: !!comment.c.hiddenAt }
-      : null; // Inhalt inzwischen gelöscht
-    return {
-      kind: g.kind, targetId: g.targetId, status: g.status, count: g.items.length, preview,
-      reports: g.items.map(({ r, reporter }) => ({ id: r.id, reporter, reason: r.reason, details: r.details, ago: ago(r.createdAt) })),
-      ...(g.status !== "open" ? { resolvedBy: resolvers.find((x) => x.id === g.resolvedBy)?.name ?? null, resolvedAgo: g.resolvedAt ? ago(g.resolvedAt) : null } : {}),
-    };
-  }));
+  const { offset, status } = pageParams(c);
+  return c.json(await loadReportQueue({ communityId }, status, offset));
 });
 
 const resolveSchema = z.object({ kind: z.enum(["post", "comment"]), targetId: z.string().uuid(), action: z.enum(["hide", "dismiss"]) });
@@ -170,6 +139,8 @@ moderationApi.post("/:id/reports/resolve", async (c) => {
     return tx.update(reports).set({ status: action === "hide" ? "hidden" : "dismissed", resolvedBy: actorId, resolvedAt: new Date() }).where(open).returning({ id: reports.id });
   });
   if (target && !target.hidden) await notifyHidden(target, actorId);
+  await logModeration({ actorId, action: action === "hide" ? "report_hide" : "report_dismiss", targetUserId: target?.authorId, targetKind: kind, targetId, details: { scope: "community", communityId, reports: resolved.length } });
+  await publishCommunityFeed(communityId, "moderation", target?.postId);
   return c.json({ ok: true, resolved: resolved.length });
 });
 

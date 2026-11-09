@@ -1,7 +1,7 @@
 import { http } from "@/lib/api";
 import type {
   ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CreateCommunityInput, CreateThreadInput, EnvPoint, Grow, GrowLog, HallEntry, Product, SeedOffer,
-  ReportGroup, SocialPost, Strain, Task,
+  ReportPage, SocialPost, Strain, Task,
 } from "@/types";
 import type {
   ActivityService,
@@ -17,6 +17,8 @@ import type {
   AdminService,
   AdminStats,
   AdminUser,
+  ModerationLogEntry,
+  PlatformModerationService,
   BreederService,
   CommunityService,
   ChatMessage,
@@ -208,8 +210,16 @@ const communityService: CommunityService = {
   setHidden: (communityId, kind, targetId, hidden) =>
     http.post<void>(`/communities/${communityId}/${kind === "post" ? "posts" : "comments"}/${targetId}/${hidden ? "hide" : "unhide"}`),
   report: (communityId, input) => http.post<{ duplicate: boolean }>(`/communities/${communityId}/reports`, input),
-  reports: (communityId, status) => http.get<ReportGroup[]>(`/communities/${communityId}/reports?status=${status}`),
+  reports: (communityId, status, offset = 0) => http.get<ReportPage>(`/communities/${communityId}/reports?status=${status}&offset=${offset}`),
   resolveReport: (communityId, kind, targetId, action) => http.post<void>(`/communities/${communityId}/reports/resolve`, { kind, targetId, action }),
+  leave: async (communityId) => { await http.post<unknown>(`/communities/${communityId}/leave`, {}); },
+};
+
+const platformModerationService: PlatformModerationService = {
+  report: (input) => http.post<{ duplicate: boolean }>("/moderation/reports", input),
+  queue: (status, offset = 0) => http.get<ReportPage>(`/moderation/reports?status=${status}&offset=${offset}`),
+  resolve: async (kind, targetId, action) => { await http.post<unknown>("/moderation/reports/resolve", { kind, targetId, action }); },
+  setHidden: async (kind, targetId, hidden) => { await http.post<unknown>("/moderation/hide", { kind, targetId, hidden }); },
 };
 
 const adminService: AdminService = {
@@ -221,6 +231,10 @@ const adminService: AdminService = {
   content: () => http.get<AdminContentItem[]>("/admin/content"),
   deleteThread: (id) => http.delete<void>(`/admin/threads/${id}`),
   deletePost: (id) => http.delete<void>(`/admin/posts/${id}`),
+  ban: async (userId, reason) => { await http.post<unknown>(`/admin/users/${userId}/ban`, { ...(reason ? { reason } : {}) }); },
+  unban: async (userId) => { await http.post<unknown>(`/admin/users/${userId}/unban`, {}); },
+  deleteUser: async (userId, input) => { await http.delete<unknown>(`/admin/users/${userId}`, undefined, { ...input, confirm: "LÖSCHEN" }); },
+  moderationLog: (offset = 0) => http.get<{ items: ModerationLogEntry[]; hasMore: boolean }>(`/admin/moderation-log?offset=${offset}`),
 };
 
 const memberService: MemberService = {
@@ -253,6 +267,7 @@ export const apiServices: Services = {
   hall: hallService,
   activity: activityService,
   communities: communityService,
+  moderation: platformModerationService,
   members: memberService,
   admin: adminService,
 };

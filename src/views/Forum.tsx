@@ -14,6 +14,10 @@ import type { VoteResult } from "@/services/interfaces";
 import { shareOrCopy } from "@/lib/share";
 import { shareUrl } from "@/lib/routes";
 import { config } from "@/lib/config";
+import { useCurrentUser } from "@/lib/auth";
+import { isPlatformModerator, moderationFor } from "@/lib/moderation-scope";
+import { ReportSheet } from "@/components/community/ReportSheet";
+import type { ReportKind } from "@/types";
 import type { ForumComment, ForumThreadBrief, ForumThreadDetail } from "@/services/interfaces";
 
 export default function Forum() {
@@ -23,10 +27,10 @@ export default function Forum() {
 }
 
 function ThreadDetailWrapper({ threadId }: { threadId: string }) {
-  const { thread, loading, error, addComment, vote } = useThread(threadId);
+  const { thread, loading, error, addComment, vote, refresh } = useThread(threadId);
   if (loading) return <SkeletonCard className="mx-auto max-w-3xl" />;
   if (error || !thread) return <EmptyState icon="AlertTriangle" title="Thread nicht gefunden" desc={error ?? "Kein Inhalt."} />;
-  return <ThreadDetail t={thread} onComment={addComment} onVote={vote} />;
+  return <ThreadDetail t={thread} onComment={addComment} onVote={vote} onChanged={() => void refresh()} />;
 }
 
 function ForumList() {
@@ -166,6 +170,7 @@ function ThreadCard({ t, onOpen }: { t: ForumThreadBrief; onOpen: () => void }) 
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="font-semibold">{t.title}</span>
             {t.top && <Badge tone="warning"><Icon name="Trophy" size={11} /> Top</Badge>}
+            {t.hidden && <Badge tone="warning">Ausgeblendet</Badge>}
           </div>
           <p className="mt-1 line-clamp-2 text-sm text-fg-muted">{t.excerpt}</p>
         </button>
@@ -179,7 +184,10 @@ function ThreadCard({ t, onOpen }: { t: ForumThreadBrief; onOpen: () => void }) 
   );
 }
 
-function CommentNode({ c, depth = 0, onReply }: { c: ForumComment; depth?: number; onReply: (text: string, parentId: string) => Promise<void> }) {
+/** Moderation im Forum (B-89): Melden für alle (außer Eigenes), Ausblenden nur für die Plattform-Moderation. */
+interface CommentModeration { moderator: boolean; report: (id: string) => void; toggleHide: (c: ForumComment) => void }
+
+function CommentNode({ c, depth = 0, onReply, mod }: { c: ForumComment; depth?: number; onReply: (text: string, parentId: string) => Promise<void>; mod: CommentModeration }) {
   const svc = useServices();
   const toast = useToast();
   const [replying, setReplying] = useState(false);
@@ -199,18 +207,28 @@ function CommentNode({ c, depth = 0, onReply }: { c: ForumComment; depth?: numbe
       setBusy(false);
     }
   };
+  const placeholder = !!c.hidden && !c.body;
   return (
-    <div className={cn("flex gap-3", depth > 0 && "mt-3 border-l border-border pl-3")} role="listitem">
-      <Avatar src={c.avatar} name={c.author} size={depth > 0 ? 26 : 32} />
+    <div className={cn("flex gap-3", depth > 0 && "mt-3 border-l border-border pl-3")} role="listitem" data-testid="forum-comment">
+      <Avatar src={c.avatar} name={placeholder ? "?" : c.author} size={depth > 0 ? 26 : 32} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-xs">
-          <span className="font-medium text-fg">{c.author}</span>
+          {!placeholder && <span className="font-medium text-fg">{c.author}</span>}
           <span className="text-fg-subtle">{c.ago}</span>
+          {c.hidden && !placeholder && <Badge tone="warning">Ausgeblendet</Badge>}
+          {!placeholder && (!c.mine || mod.moderator) && !config.useMock && (
+            <span className="ml-auto flex gap-1">
+              {!c.mine && !c.hidden && <button type="button" onClick={() => mod.report(c.id)} aria-label="Kommentar melden" className="grid size-8 place-items-center rounded-lg text-fg-subtle hover:bg-surface-2"><Icon name="Flag" size={14} /></button>}
+              {mod.moderator && <button type="button" onClick={() => mod.toggleHide(c)} aria-label={c.hidden ? "Kommentar wieder einblenden" : "Kommentar ausblenden"} className="grid size-8 place-items-center rounded-lg text-fg-subtle hover:bg-surface-2"><Icon name={c.hidden ? "Eye" : "EyeOff"} size={14} /></button>}
+            </span>
+          )}
         </div>
-        <p className="mt-0.5 whitespace-pre-line break-words text-sm text-fg/90">{c.body}</p>
+        {placeholder
+          ? <p className="mt-0.5 text-sm italic text-fg-subtle">[von der Moderation ausgeblendet]</p>
+          : <p className="mt-0.5 whitespace-pre-line break-words text-sm text-fg/90">{c.body}</p>}
         <div className="mt-1 flex items-center gap-1 text-xs text-fg-subtle">
-          <VoteControl votes={c.votes} myVote={c.myVote} onVote={(d) => svc.forum.voteComment(c.id, d)} layout="horizontal" size="sm" />
-          {depth < 4 && (
+          {!placeholder && <VoteControl votes={c.votes} myVote={c.myVote} onVote={(d) => svc.forum.voteComment(c.id, d)} layout="horizontal" size="sm" />}
+          {depth < 4 && !placeholder && (
             <button onClick={() => setReplying((v) => !v)} aria-expanded={replying} className="flex min-h-8 items-center gap-1 rounded-lg px-2 hover:bg-surface-2 hover:text-fg">
               <Icon name="MessageCircle" size={13} /> Antworten
             </button>
@@ -225,7 +243,7 @@ function CommentNode({ c, depth = 0, onReply }: { c: ForumComment; depth?: numbe
             </div>
           </div>
         )}
-        {c.replies?.map((r) => <CommentNode key={r.id} c={r} depth={depth + 1} onReply={onReply} />)}
+        {c.replies?.map((r) => <CommentNode key={r.id} c={r} depth={depth + 1} onReply={onReply} mod={mod} />)}
       </div>
     </div>
   );
@@ -233,9 +251,22 @@ function CommentNode({ c, depth = 0, onReply }: { c: ForumComment; depth?: numbe
 
 const countComments = (list: ForumComment[]): number => list.reduce((n, c) => n + 1 + countComments(c.replies ?? []), 0);
 
-function ThreadDetail({ t, onComment, onVote }: { t: ForumThreadDetail; onComment: (text: string, parentId?: string) => Promise<void>; onVote: (delta: 1 | -1 | 0) => Promise<VoteResult> }) {
+function ThreadDetail({ t, onComment, onVote, onChanged }: { t: ForumThreadDetail; onComment: (text: string, parentId?: string) => Promise<void>; onVote: (delta: 1 | -1 | 0) => Promise<VoteResult>; onChanged: () => void }) {
   const { back } = useNav();
   const toast = useToast();
+  const svc = useServices();
+  const moderator = isPlatformModerator(useCurrentUser()?.role) && !config.useMock;
+  const [reporting, setReporting] = useState<{ kind: ReportKind; id: string } | null>(null);
+  const setHidden = async (kind: ReportKind, id: string, hidden: boolean) => {
+    try {
+      await moderationFor(svc, null).setHidden(kind, id, hidden);
+      toast.push({ title: hidden ? "Ausgeblendet" : "Wieder eingeblendet", tone: "leaf", icon: hidden ? "EyeOff" : "Eye" });
+      onChanged();
+    } catch (e) {
+      toast.push({ title: "Aktion fehlgeschlagen", desc: e instanceof Error ? e.message : "", tone: "danger", icon: "AlertTriangle" });
+    }
+  };
+  const commentMod: CommentModeration = { moderator, report: (id) => setReporting({ kind: "forum_comment", id }), toggleHide: (c) => void setHidden("forum_comment", c.id, !c.hidden) };
   const [comment, setComment] = useState("");
   const [posting, setPosting] = useState(false);
 
@@ -259,7 +290,7 @@ function ThreadDetail({ t, onComment, onVote }: { t: ForumThreadDetail; onCommen
       <Reveal>
         <Card className="p-5">
           <div className="flex items-center gap-2 text-xs text-fg-subtle"><Avatar src={t.avatar} name={t.author} size={24} /> {t.author} · <span className="text-accent">{t.sub}</span> · {t.ago} {t.top && <Badge tone="warning" className="ml-1">Top</Badge>}</div>
-          <h1 className="mt-2 text-2xl font-bold">{t.title}</h1>
+          <h1 className="mt-2 text-2xl font-bold">{t.title}{t.hidden && <Badge tone="warning" className="ml-2 align-middle">Ausgeblendet</Badge>}</h1>
           <p className="mt-2 whitespace-pre-line text-[15px] text-fg-muted">{t.body || t.excerpt}</p>
           <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-sm text-fg-subtle">
             <VoteControl votes={t.votes} myVote={t.myVote} onVote={onVote} layout="horizontal" />
@@ -270,7 +301,10 @@ function ThreadDetail({ t, onComment, onVote }: { t: ForumThreadDetail; onCommen
                 <>
                   <PopoverItem icon="Share2" onClick={() => { close(); void copyText(threadLink(t.id)).then((ok) => toast.push(ok ? { title: "Link kopiert", tone: "leaf", icon: "Share2" } : { title: "Kopieren nicht möglich", tone: "warning", icon: "AlertTriangle" })); }}>Link kopieren</PopoverItem>
                   <PopoverItem icon="Bookmark" onClick={() => { close(); toast.push({ title: "Thread gemerkt", tone: "info", icon: "Bookmark" }); }}>Merken</PopoverItem>
-                  <PopoverItem icon="Flag" danger onClick={() => { close(); toast.push({ title: "Gemeldet", desc: "Danke, wir prüfen es.", tone: "warning", icon: "Flag" }); }}>Melden</PopoverItem>
+                  {!t.mine && !t.hidden && <PopoverItem icon="Flag" danger onClick={() => { close(); setReporting({ kind: "thread", id: t.id }); }}>Melden</PopoverItem>}
+                  {moderator && (t.hidden
+                    ? <PopoverItem icon="Eye" onClick={() => { close(); void setHidden("thread", t.id, false); }}>Thread wieder einblenden</PopoverItem>
+                    : <PopoverItem icon="EyeOff" danger onClick={() => { close(); void setHidden("thread", t.id, true); }}>Thread ausblenden</PopoverItem>)}
                 </>
               )}
             </Popover>
@@ -282,7 +316,7 @@ function ThreadDetail({ t, onComment, onVote }: { t: ForumThreadDetail; onCommen
           <h2 className="mb-4 text-sm font-semibold text-fg-muted">{countComments(t.commentsList)} Kommentare</h2>
           {t.commentsList.length === 0 && <p className="text-sm text-fg-muted">Noch keine Kommentare – schreib den ersten.</p>}
           <div className="space-y-4" role="list">
-            {t.commentsList.map((c) => <CommentNode key={c.id} c={c} onReply={(text, parentId) => onComment(text, parentId)} />)}
+            {t.commentsList.map((c) => <CommentNode key={c.id} c={c} onReply={(text, parentId) => onComment(text, parentId)} mod={commentMod} />)}
           </div>
         </Card>
       </Reveal>
@@ -292,6 +326,7 @@ function ThreadDetail({ t, onComment, onVote }: { t: ForumThreadDetail; onCommen
           <div className="mt-2 flex justify-end"><Button size="sm" onClick={postComment} loading={posting} disabled={!comment.trim()}>Antworten</Button></div>
         </Card>
       </Reveal>
+      <ReportSheet communityId={null} target={reporting} onClose={() => setReporting(null)} />
     </div>
   );
 }

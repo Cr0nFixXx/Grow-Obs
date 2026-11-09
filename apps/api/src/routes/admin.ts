@@ -5,6 +5,8 @@ import { z } from "zod";
 import { db } from "../db/client.ts";
 import {
   comments,
+  moderationLog,
+  sessions,
   grows,
   hallEntries,
   itemComments,
@@ -21,6 +23,10 @@ import {
   wikiArticles,
 } from "../db/schema.ts";
 import { requireAuth, requirePlatformAdmin, type AuthEnv } from "../middleware/auth.ts";
+import { logModeration } from "../lib/platform-moderation.ts";
+import { deleteAccount, deleteOptionsSchema, DELETE_CONFIRM_WORD, handOverCommunities } from "../lib/account.ts";
+import { rateLimit, userKey } from "../middleware/rate-limit.ts";
+import { verifyPassword } from "../lib/password.ts";
 import { systemHealth } from "../lib/health.ts";
 import { uuid } from "../lib/validation.ts";
 
@@ -62,6 +68,7 @@ admin.get("/users", async (c) => {
     .select({
       id: users.id, name: users.name, handle: users.handle, email: users.email,
       role: users.role, level: users.level, createdAt: users.createdAt, emailVerifiedAt: users.emailVerifiedAt,
+      bannedAt: users.bannedAt, banReason: users.banReason,
     })
     .from(users)
     .where(where)
@@ -69,7 +76,7 @@ admin.get("/users", async (c) => {
   return c.json(
     await Promise.all(rows.map(async (u) => {
       const [g] = await db.select({ n: count() }).from(grows).where(eq(grows.userId, u.id));
-      return { id: u.id, name: u.name, handle: u.handle, email: u.email, role: u.role, level: u.level, createdAt: u.createdAt, emailVerified: u.emailVerifiedAt !== null, grows: g.n, status: "aktiv" };
+      return { id: u.id, name: u.name, handle: u.handle, email: u.email, role: u.role, level: u.level, createdAt: u.createdAt, emailVerified: u.emailVerifiedAt !== null, grows: g.n, status: u.bannedAt ? "gesperrt" : "aktiv", banReason: u.banReason };
     }))
   );
 });
@@ -140,4 +147,73 @@ admin.delete("/posts/:id", async (c) => {
     await tx.delete(posts).where(eq(posts.id, id));
   });
   return c.json({ ok: true });
+});
+
+/* ----------------------------- Konten verwalten (B-89) ----------------------------- */
+
+/** Ziel einer Kontoaktion: muss existieren, nicht gelöscht sein, nicht man selbst und kein anderer Betreiber. */
+async function manageableUser(actorId: string, targetId: string) {
+  if (actorId === targetId) throw new HTTPException(400, { message: "Das eigene Konto kannst du hier nicht verwalten" });
+  const [target] = await db.select().from(users).where(and(eq(users.id, targetId), isNull(users.deletedAt))).limit(1);
+  if (!target) throw new HTTPException(404, { message: "Konto nicht gefunden" });
+  if (target.role === "platform_admin") throw new HTTPException(403, { message: "Betreiber-Konten können nicht gesperrt oder gelöscht werden" });
+  return target;
+}
+
+const banSchema = z.object({ reason: z.string().trim().max(300).optional() });
+/** Sperren: Login aus, alle Sitzungen beendet; Inhalte bleiben. Umkehrbar. Der Grund wird dem Mitglied beim Anmelden gezeigt. */
+admin.post("/users/:id/ban", async (c) => {
+  const actorId = c.get("userId");
+  const body = banSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: "Ungültige Daten" }, 400);
+  const target = await manageableUser(actorId, uuid(c.req.param("id")));
+  const reason = body.data.reason || null;
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ bannedAt: new Date(), banReason: reason, onlineUntil: null }).where(eq(users.id, target.id));
+    await tx.delete(sessions).where(eq(sessions.userId, target.id));
+  });
+  await logModeration({ actorId, action: "ban", targetUserId: target.id, reason });
+  return c.json({ ok: true });
+});
+
+admin.post("/users/:id/unban", async (c) => {
+  const actorId = c.get("userId");
+  const [target] = await db.select().from(users).where(and(eq(users.id, uuid(c.req.param("id"))), isNull(users.deletedAt))).limit(1);
+  if (!target) throw new HTTPException(404, { message: "Konto nicht gefunden" });
+  if (target.bannedAt) {
+    await db.update(users).set({ bannedAt: null, banReason: null }).where(eq(users.id, target.id));
+    await logModeration({ actorId, action: "unban", targetUserId: target.id });
+  }
+  return c.json({ ok: true });
+});
+
+const deleteUserSchema = z.object({ password: z.string().min(1).max(128), confirm: z.literal(DELETE_CONFIRM_WORD), options: deleteOptionsSchema, reason: z.string().trim().max(300).optional() });
+/**
+ * Fremdes Konto endgültig löschen – mit denselben Schaltern wie beim Selbstlöschen, bestätigt mit dem Passwort des Betreibers.
+ * Community-Alleinadmins werden vorher durch das dienstälteste Mitglied ersetzt, Gruppen repariert die Löschung selbst.
+ */
+admin.delete("/users/:id", rateLimit({ name: "admin-account-delete", limit: 10, windowMs: 15 * 60 * 1000, keys: userKey }), async (c) => {
+  const actorId = c.get("userId");
+  const body = deleteUserSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ error: "Bitte Passwort, „LÖSCHEN“ und die Auswahl angeben" }, 400);
+  const [actor] = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, actorId)).limit(1);
+  if (!actor || !(await verifyPassword(body.data.password, actor.passwordHash))) return c.json({ error: "Passwort falsch" }, 403);
+  const target = await manageableUser(actorId, uuid(c.req.param("id")));
+  await handOverCommunities(target.id);
+  await logModeration({ actorId, action: "delete_account", targetUserId: target.id, targetName: target.name, reason: body.data.reason, details: { options: body.data.options } });
+  const result = await deleteAccount(target.id, body.data.options);
+  return c.json({ ok: true, ...result });
+});
+
+/** Protokoll der Moderationsaktionen (neueste zuerst), seitenweise. */
+admin.get("/moderation-log", async (c) => {
+  const offset = Math.max(0, Number.parseInt(c.req.query("offset") ?? "0", 10) || 0);
+  const rows = await db.select().from(moderationLog).orderBy(desc(moderationLog.createdAt)).limit(31).offset(offset);
+  return c.json({
+    hasMore: rows.length > 30,
+    items: rows.slice(0, 30).map((r) => ({
+      id: r.id, action: r.action, actor: r.actorName, target: r.targetName, targetKind: r.targetKind, reason: r.reason,
+      details: r.details, createdAt: r.createdAt.toISOString(),
+    })),
+  });
 });

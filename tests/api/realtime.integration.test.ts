@@ -7,7 +7,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import WebSocket from "ws";
 import { app } from "../../apps/api/src/app.ts";
 import { client, db } from "../../apps/api/src/db/client.ts";
-import { notifications, sessions, subs, threads, users } from "../../apps/api/src/db/schema.ts";
+import { communities, communityMembers, notifications, sessions, subs, threads, users } from "../../apps/api/src/db/schema.ts";
 import { signToken } from "../../apps/api/src/lib/jwt.ts";
 import { hashPassword } from "../../apps/api/src/lib/password.ts";
 import { SESSION_COOKIE } from "../../apps/api/src/lib/session.ts";
@@ -156,6 +156,26 @@ describe("SSE-Transport", () => {
   it("Konten mit offenem Passwortwechsel werden abgewiesen (403)", async () => {
     const a = await person("Anna", { mustChangePassword: true });
     expect((await call(a, "/realtime/stream")).status).toBe(403);
+  });
+
+  it("Community-Feed (B-89): nur Mitglieder dürfen das Thema abonnieren und erhalten community.feed bei Beitrag, Kommentar und Moderation", async () => {
+    const [alice, bob, mod] = [await person("Alice"), await person("Bob"), await person("Mona")];
+    const [community] = await db.insert(communities).values({ name: "Live", createdBy: alice.id }).returning();
+    await db.insert(communityMembers).values([{ communityId: community!.id, userId: alice.id, role: "admin" }, { communityId: community!.id, userId: mod.id, role: "moderator" }]);
+    const topic = `community:${community!.id}`;
+    const sa = await openSse(alice); const sb = await openSse(bob); const sm = await openSse(mod);
+    const subscribe = (p: Person, s: { connId: string }) => call(p, "/realtime/command", { method: "POST", data: { connId: s.connId, message: { type: "subscribe", topic } } });
+    await subscribe(alice, sa); await subscribe(bob, sb); await subscribe(mod, sm);
+    await sleep(200);
+    const created = await json<{ id: string }>(await call(mod, "/social/posts", { method: "POST", data: { text: "Hallo Live", communityId: community!.id } }));
+    await sa.inbox.wait("community.feed", (e) => e.change === "post" && e.postId === created.id);
+    await call(alice, `/social/posts/${created.id}/comments`, { method: "POST", data: { text: "Antwort" } });
+    await sm.inbox.wait("community.feed", (e) => e.change === "comment" && e.postId === created.id);
+    await call(mod, `/communities/${community!.id}/posts/${created.id}/hide`, { method: "POST" });
+    await sa.inbox.wait("community.feed", (e) => e.change === "moderation");
+    await sleep(150);
+    expect(sb.inbox.find("community.feed")).toBeUndefined(); // Außenstehender: Abo wurde verweigert
+    sa.close(); sb.close(); sm.close();
   });
 
   it("Forum-Kommentar: Abonnenten erhalten thread.comment, der Autor eine Benachrichtigung (live)", async () => {

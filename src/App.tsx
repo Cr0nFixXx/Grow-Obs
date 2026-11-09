@@ -3,6 +3,7 @@
 import { Suspense, lazy, useEffect, useState, type ComponentType } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider } from "@/lib/theme";
+import { isPlatformModerator } from "@/lib/moderation-scope";
 import { useAuth } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth";
@@ -29,6 +30,7 @@ import NotFound from "@/views/NotFound";
 
 /* Views werden einzeln nachgeladen (Code-Splitting). Shell-kritische Views bleiben eager. */
 const Dashboard = lazy(() => import("@/views/Dashboard"));
+const Moderation = lazy(() => import("@/views/Moderation"));
 const MemberProfile = lazy(() => import("@/views/MemberProfile"));
 const Grows = lazy(() => import("@/views/Grows"));
 const Strains = lazy(() => import("@/views/Strains"));
@@ -88,6 +90,7 @@ const views: Record<ViewKey, ComponentType> = {
   telegram: Telegram,
   auth: Auth,
   devAdmin: DevAdmin,
+  moderation: Moderation,
   create: Create,
   notFound: NotFound,
 };
@@ -97,7 +100,7 @@ const TITLES: Record<ViewKey, string> = {
   dashboard: "Dashboard", grows: "Grows", strains: "Sorten", ai: "KI-Assistent", planner: "Planer", breeders: "Breeder", marketplace: "Marktplatz",
   wiki: "Wiki", forum: "Forum", hallOfFame: "Hall of Fame", social: "Community-Feed", communities: "Communities", showcase: "Showcase",
   calculator: "Rechner", consumption: "Verbrauch", simulation: "Simulation", report: "Report", chat: "Chat", notifications: "Benachrichtigungen",
-  profile: "Profil", member: "Mitglied", telegram: "Telegram", auth: "Anmelden", devAdmin: "Betrieb", create: "Erstellen", notFound: "Nicht gefunden",
+  profile: "Profil", member: "Mitglied", telegram: "Telegram", auth: "Anmelden", devAdmin: "Betrieb", moderation: "Moderation", create: "Erstellen", notFound: "Nicht gefunden",
 };
 
 function Router() {
@@ -129,6 +132,9 @@ function AsyncPage({ view }: { view: ViewKey }) {
   if (!ready) return <PageSkeleton />;
   if (view === "devAdmin" && user?.role !== "platform_admin") {
     return <EmptyState icon="Lock" title="Kein Betreiberzugang" desc="Dieser Bereich ist Plattform-Admins vorbehalten." action={<Button onClick={() => navigate("dashboard")}>Zum Dashboard</Button>} />;
+  }
+  if (view === "moderation" && !isPlatformModerator(user?.role)) {
+    return <EmptyState icon="Lock" title="Kein Moderationszugang" desc="Dieser Bereich ist den Plattform-Rollen Moderator, Admin und Betreiber vorbehalten." action={<Button onClick={() => navigate("dashboard")}>Zum Dashboard</Button>} />;
   }
   if (view !== "auth" && !isEnabled(feat)) {
     return (

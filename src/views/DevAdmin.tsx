@@ -15,12 +15,13 @@ import { BACKEND_VERSION, FRONTEND_VERSION, versionLabel } from "@/lib/app-versi
 import type { Release } from "@/lib/update-logic";
 import { Badge, Button, Card, Chip, EmptyState, Field, Modal, PageHeader, SearchInput, Select, SkeletonCard, Tabs, Input, Textarea, Segmented } from "@/components/ui";
 import type { AdminRole, AdminUser } from "@/services/interfaces";
+import { BanDialog, DeleteUserDialog, ModerationLog } from "@/components/AdminAccounts";
 
-type Tab = "overview" | "flags" | "updates" | "users" | "logs" | "diagnostics";
+type Tab = "overview" | "flags" | "updates" | "users" | "moderation" | "logs" | "diagnostics";
 type LogEntry = { id: string; time: string; action: string };
 const tabs: { value: Tab; label: string }[] = [
   { value: "overview", label: "Übersicht" }, { value: "flags", label: "Feature-Flags" }, { value: "updates", label: "Updates" },
-  { value: "users", label: "Benutzer" }, { value: "logs", label: "Sitzungsprotokoll" },
+  { value: "users", label: "Benutzer" }, { value: "moderation", label: "Moderationsprotokoll" }, { value: "logs", label: "Sitzungsprotokoll" },
   { value: "diagnostics", label: "Diagnose" },
 ];
 
@@ -48,6 +49,7 @@ export default function DevAdmin() {
       {tab === "flags" && <Flags record={record} />}
       {tab === "updates" && <Updates record={record} />}
       {tab === "users" && <Users record={record} />}
+      {tab === "moderation" && <ModerationLog />}
       {tab === "diagnostics" && <Diagnostics />}
       {tab === "logs" && <Card className="p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg">Sitzungsprotokoll</h2><Button size="sm" variant="ghost" onClick={() => setLog([])}>Leeren</Button></div>
@@ -248,6 +250,8 @@ function Users({ record }: { record: (action: string) => void }) {
   const [target, setTarget] = useState<AdminUser | null>(null);
   const [role, setRole] = useState<AdminRole>("member");
   const [saving, setSaving] = useState(false);
+  const [banning, setBanning] = useState<AdminUser | null>(null);
+  const [deleting, setDeleting] = useState<AdminUser | null>(null);
   const inFlight = useRef(false);
   useEffect(() => { const timer = setTimeout(() => setSearch(q.trim()), 250); return () => clearTimeout(timer); }, [q]);
   const load = useCallback(() => admin.users(search), [admin, search]);
@@ -263,6 +267,15 @@ function Users({ record }: { record: (action: string) => void }) {
     } catch (error) { toast.push({ title: "Rolle nicht geändert", desc: error instanceof Error ? error.message : "Anfrage fehlgeschlagen", tone: "danger" }); }
     finally { setSaving(false); inFlight.current = false; }
   };
+  const unban = async (user: AdminUser) => {
+    try {
+      await admin.unban(user.id);
+      record("Konto entsperrt");
+      toast.push({ title: "Sperre aufgehoben", desc: user.name, tone: "leaf" });
+      await query.refresh();
+    } catch (error) { toast.push({ title: "Nicht entsperrt", desc: error instanceof Error ? error.message : "Anfrage fehlgeschlagen", tone: "danger" }); }
+  };
+  const manageable = (user: AdminUser) => user.id !== me?.id && user.role !== "platform_admin";
   const verify = async (user: AdminUser) => {
     try {
       await admin.verifyEmail(user.id);
@@ -276,13 +289,15 @@ function Users({ record }: { record: (action: string) => void }) {
     {query.error && <p role="alert" className="text-sm text-danger">{query.error}</p>}
     {query.loading && !query.data && <SkeletonCard />}
     {query.data?.length === 0 && <EmptyState icon="Users" title="Keine Treffer" desc="Passe den Suchbegriff an." />}
-    <ul className="divide-y divide-border" aria-busy={query.loading}>{query.data?.map((user) => <li key={user.id} className="flex min-w-0 flex-wrap items-center gap-3 py-4"><div className="min-w-0 flex-1 basis-36"><p className="break-words text-sm font-semibold">{user.name}</p><p className="break-all text-xs text-fg-muted">{user.email}</p></div><Badge tone={user.role === "platform_admin" ? "leaf" : "info"}>{user.role}</Badge>{user.emailVerified === false && <><Badge tone="warning">E-Mail unbestätigt</Badge><Button variant="ghost" size="sm" onClick={() => void verify(user)}>E-Mail bestätigen</Button></>}<Button variant="secondary" size="sm" disabled={user.id === me?.id} onClick={() => { setTarget(user); setRole(user.role); }}>{user.id === me?.id ? "Dein Konto" : "Rolle ändern"}</Button></li>)}</ul>
+    <ul className="divide-y divide-border" aria-busy={query.loading}>{query.data?.map((user) => <li key={user.id} className="flex min-w-0 flex-wrap items-center gap-3 py-4"><div className="min-w-0 flex-1 basis-36"><p className="break-words text-sm font-semibold">{user.name}</p><p className="break-all text-xs text-fg-muted">{user.email}</p></div><Badge tone={user.role === "platform_admin" ? "leaf" : "info"}>{user.role}</Badge>{user.status === "gesperrt" && <Badge tone="danger">Gesperrt{user.banReason ? `: ${user.banReason}` : ""}</Badge>}{user.emailVerified === false && <><Badge tone="warning">E-Mail unbestätigt</Badge><Button variant="ghost" size="sm" onClick={() => void verify(user)}>E-Mail bestätigen</Button></>}<Button variant="secondary" size="sm" disabled={user.id === me?.id} onClick={() => { setTarget(user); setRole(user.role); }}>{user.id === me?.id ? "Dein Konto" : "Rolle ändern"}</Button>{manageable(user) && <>{user.status === "gesperrt" ? <Button variant="secondary" size="sm" onClick={() => void unban(user)}>Entsperren</Button> : <Button variant="secondary" size="sm" onClick={() => setBanning(user)}>Sperren</Button>}<Button variant="danger" size="sm" onClick={() => setDeleting(user)}>Löschen</Button></>}</li>)}</ul>
     <Modal open={!!target} onClose={() => { if (!saving) setTarget(null); }} title="Rollenänderung bestätigen">
       <p className="mb-4 text-sm text-fg-muted">{target?.name}: Die Änderung wirkt beim nächsten API-Zugriff. Community-Rollen sind davon unabhängig.</p>
       <Field label="Plattformrolle"><Select value={role} disabled={saving} onChange={(event) => setRole(event.target.value as AdminRole)}>{["member", "moderator", "admin", "platform_admin"].map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field>
       <div className="mt-5 flex flex-wrap justify-end gap-2"><Button variant="ghost" disabled={saving} onClick={() => setTarget(null)}>Abbrechen</Button><Button loading={saving} disabled={role === target?.role} onClick={() => void save()}>Bestätigen</Button></div>
     </Modal>
-    <p className="text-xs text-fg-muted">Es gibt noch keine echte Kontosperre. Die letzte Plattform-Admin-Rolle kann serverseitig nicht entfernt werden.</p>
+    <BanDialog user={banning} onClose={() => setBanning(null)} onDone={() => { record("Konto gesperrt"); setBanning(null); void query.refresh(); }} />
+    <DeleteUserDialog user={deleting} onClose={() => setDeleting(null)} onDone={() => { record("Konto gelöscht"); setDeleting(null); void query.refresh(); }} />
+    <p className="text-xs text-fg-muted">Sperren ist umkehrbar (Login aus, Sitzungen beendet, Inhalte bleiben), Löschen endgültig. Beides gilt nie für dich selbst oder andere Betreiber-Konten. Jede Aktion steht im Moderationsprotokoll. Die letzte Plattform-Admin-Rolle kann serverseitig nicht entfernt werden.</p>
   </section>;
 }
 

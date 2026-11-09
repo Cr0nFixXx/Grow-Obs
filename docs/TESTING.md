@@ -12,10 +12,10 @@ Last full run: **B-76** for API and frontend (E2E: the profile spec ran in B-76,
 | Route types | `npx next typegen` | ✅ |
 | Typecheck (frontend) | `npm run typecheck` | ✅ |
 | Lint | `npm run lint` | ✅ |
-| Frontend unit/component tests | `npm test` | ✅ 358 / 358 (52 files, B-74) |
+| Frontend unit/component tests | `npm test` | ✅ 372 / 372 (56 files, B-89) |
 | API typecheck | `npm run typecheck --prefix apps/api` + `npx tsc -p tsconfig.tools.json` (in `apps/api`) | ✅ |
-| API integration tests | `npm run test:api` | ✅ 357 / 357 (29 files, B-74) |
-| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 55 passed, 1 skipped, 1 timing flake (full run B-74: `moderation` feed test failed under load, green on rerun) |
+| API integration tests | `npm run test:api` | ✅ 370 / 370 (30 files, B-89) |
+| Browser E2E (Playwright) | `npm run test:e2e` | ✅ 56 passed, 1 skipped (full run B-89; the `moderation` feed test timed out under load once, green alone in ≈ 30 s, its timeout is now 90 s) |
 | Next.js build | `npm run build` | ✅ |
 | Vite legacy build | `npm run build:vite` | ✅ (B-63; not re-run for B-65) |
 | Version consistency | `npm run version:check` | ✅ |
@@ -61,7 +61,7 @@ against PostgreSQL) and E2E (Playwright).
 (executes `public/sw-policy.js`: APIs, signed URLs, external media and private/error responses never enter the cache; route list in sync with `routes.ts`),
 auth provider (fail-closed restore, late responses cannot undo logout, marker instead of token, 401 event), `useResource` (last request wins, refresh keeps data),
 feature flags (key parity with the API, malformed overrides), routing (`routes.ts`, `nav.tsx`), realtime transport and context, version/build number,
-update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, chat attachments (grid, file cards, PDF cards, gallery, tray, limits, SD/HD), PDF viewer (pdf.js mocked: pages, zoom limits, errors, cleanup), file helpers, community moderation UI, mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
+update logic, gestures and touch hooks, charts, formatting, UI primitives, account security forms, new-chat dialog, chat attachments (grid, file cards, PDF cards, gallery, tray, limits, SD/HD), PDF viewer (pdf.js mocked: pages, zoom limits, errors, cleanup), file helpers, community moderation UI (report queue paging, admin ban/delete dialogs, moderation log, scope routing, live community feed), mock services, web push (service-worker message parsing and safe URLs by executing `public/sw-push.js`, push helpers with a stubbed `PushManager`, settings card, server targets ↔ app routes).
 
 **API integration (`tests/api`, real PostgreSQL via `app.request()`)**
 
@@ -84,7 +84,8 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `operator.integration.test.ts` | `admin:create` (new, `--promote`, `--reset-password`, errors, idempotency) |
 | `rate-limit.test.ts` | shared counter: atomicity, two module instances, window expiry, hashed keys, DB-failure fallback |
 | `realtime.integration.test.ts` | LISTEN/NOTIFY delivery, SSE and WebSocket auth/limits, chat API, typing, presence, notifications |
-| `moderation.integration.test.ts` | community feed scope, hide/unhide, reports and queue, kick/ban matrix, role assignment |
+| `moderation.integration.test.ts` | community feed scope, hide/unhide, reports and queue (paged `{items,hasMore}`), kick/ban matrix, role assignment, leave |
+| `moderation-round.integration.test.ts` | moderation round (B-89): global reports and hide for feed and forum, platform role ranking, hidden forum comment placeholders, admin ban/unban/delete, login block with reason, moderation log, migration 0026 idempotent |
 | `media-storage.integration.test.ts` | images in object storage (B-76, storage faked in memory): upload, signed redirect, format check, 502, delete, cover image and its visibility |
 | `members.integration.test.ts` | profiles and follows (B-73): visibility cut-off, follow/pending/accept/decline, handle cooldown, lists, notifications |
 | `push-core.test.ts` | web push pure logic: categories, quiet hours (overnight window, DST, timezone fallback), neutral/preview payload, endpoint allow-list (SSRF) |
@@ -102,6 +103,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `routing.spec.ts` | address follows view, reload/back/forward, grow detail, deep link after login, profile tab, legacy `?view=`, `/api` untouched, HTTP 404/400, strain URL |
 | `realtime.spec.ts` | chat live (WebSocket), SSE fallback, forum comments and bell live |
 | `moderation.spec.ts` | community feed, report, queue, hide, kick with ban, unban |
+| `moderation-round.spec.ts` | moderation round (B-89): operator bans with a reason, the member sees the reason at login, unban, delete with password and word, entries in the moderation log |
 | `push.spec.ts` | push settings card: categories, preview, quiet hours persist across reload; enabling a device only runs where the browser may subscribe (otherwise skipped) |
 | `mail-flow.spec.ts` | e-mail flow (B-87, own project `mail` and second server with real SMTP to `tests/e2e/support/mail-sink.mjs`): register → gate page → link → app → link used up → forgot password → reset link → old password fails, new one works |
 | `account-deletion.spec.ts` | account and data (B-74): wrong password rejected, export ZIP downloaded and unzipped (`daten.json` without password hash), delete dialog locked until password and word match, login afterwards impossible, e-mail free again |

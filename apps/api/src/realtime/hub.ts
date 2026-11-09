@@ -63,7 +63,8 @@ const offlineGraceMs = () => Number(process.env.REALTIME_OFFLINE_GRACE_MS ?? OFF
 /** NOTIFY erlaubt < 8000 Byte. */
 const MAX_PAYLOAD = 7500;
 
-const TOPIC_PATTERN = /^thread:[0-9a-f-]{36}$/i;
+/** `thread:<id>` (Forum, öffentlich) und `community:<id>` (Feed, nur Mitglieder – geprüft beim Abonnieren, siehe commands.ts). */
+const TOPIC_PATTERN = /^(thread|community):[0-9a-f-]{36}$/i;
 export const isValidTopic = (topic: unknown): topic is string => typeof topic === "string" && TOPIC_PATTERN.test(topic);
 
 /* ----------------------------- Zustellung (lokal) ----------------------------- */

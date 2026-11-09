@@ -3,13 +3,14 @@ import { HTTPException } from "hono/http-exception";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { postLikes, posts } from "../db/schema.ts";
+import { postLikes, posts, users } from "../db/schema.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { ago } from "../lib/time.ts";
 import { uuid } from "../lib/validation.ts";
+import { isPlatformModerator } from "../lib/platform-moderation.ts";
 import { imageRef } from "../lib/media-ref.ts";
 import { addItemComment, countItemComments, itemCommentSchema, listItemComments } from "../lib/item-comments.ts";
-import { communityRole, isModerator, loadPostForViewer } from "../lib/moderation.ts";
+import { communityRole, isModerator, loadPostForViewer, publishCommunityFeed } from "../lib/moderation.ts";
 
 export const social = new Hono<AuthEnv>();
 
@@ -58,7 +59,9 @@ social.get("/posts", requireAuth, async (c) => {
     if (!role) throw new HTTPException(404, { message: "Community nicht gefunden" });
     where = isModerator(role) ? eq(posts.communityId, communityId) : and(eq(posts.communityId, communityId), isNull(posts.hiddenAt));
   } else {
-    where = isNull(posts.communityId);
+    // Globaler Feed: Ausgeblendetes (B-89) sieht nur die Plattform-Moderation.
+    const [viewer] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    where = isPlatformModerator(viewer?.role) ? isNull(posts.communityId) : and(isNull(posts.communityId), isNull(posts.hiddenAt));
   }
   const rows = await db.query.posts.findMany({
     where,
@@ -92,6 +95,7 @@ social.post("/posts", requireAuth, async (c) => {
       communityId: body.data.communityId ?? null,
     })
     .returning();
+  await publishCommunityFeed(p.communityId, "post", p.id);
   return c.json(await toPost(p.id, c.get("userId")), 201);
 });
 
@@ -105,8 +109,10 @@ social.post("/posts/:id/comments", requireAuth, async (c) => {
   const id = uuid(c.req.param("id"));
   const body = itemCommentSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  await loadPostForViewer(id, c.get("userId"));
-  return c.json(await addItemComment("post", id, c.get("userId"), body.data.text), 201);
+  const { post } = await loadPostForViewer(id, c.get("userId"));
+  const created = await addItemComment("post", id, c.get("userId"), body.data.text);
+  await publishCommunityFeed(post.communityId, "comment", id);
+  return c.json(created, 201);
 });
 
 social.post("/posts/:id/like", requireAuth, async (c) => {

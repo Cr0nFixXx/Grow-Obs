@@ -1,7 +1,7 @@
 import type {
   ActivityItem, BannedMember, Breeder, Community, CommunityDetail, CommunityRole, CreateCommunityInput,
   AddLogInput, CreateGrowInput, EnvInput, FinishGrowInput, UpdateLogInput, UpdateGrowInput, CreatePostInput, CreateStrainInput, CreateTaskInput, CreateThreadInput, CreateWikiInput, Task,
-  EnvPoint, Grow, GrowLog, HallEntry, Product, ReportAction, ReportGroup, ReportInput, ReportKind, SeedOffer, SocialPost, Strain,
+  EnvPoint, Grow, GrowLog, HallEntry, Product, ReportAction, ReportInput, ReportKind, ReportPage, SeedOffer, SocialPost, Strain,
 } from "@/types";
 
 export interface WikiArticleBrief {
@@ -30,6 +30,10 @@ export interface ForumComment {
   myVote?: number;
   ago: string;
   replies?: ForumComment[];
+  /** Eigener Kommentar (Server). */
+  mine?: boolean;
+  /** Ausgeblendet (B-89): Moderation sieht den Text, alle anderen nur einen Platzhalter (leerer `body`). */
+  hidden?: boolean;
 }
 
 export interface VoteResult {
@@ -198,6 +202,10 @@ export interface ForumThreadBrief {
   body?: string;
   tag: string;
   top?: boolean;
+  /** Eigener Thread (Server). */
+  mine?: boolean;
+  /** Ausgeblendet (B-89) – nur für die Plattform-Moderation sichtbar. */
+  hidden?: boolean;
 }
 
 export interface ForumThreadDetail extends ForumThreadBrief {
@@ -439,9 +447,19 @@ export interface CommunityService {
   /** Inhalt melden (Mitglied). Liefert `duplicate: true`, wenn man ihn schon gemeldet hatte. */
   report(communityId: string, input: ReportInput): Promise<{ duplicate: boolean }>;
   /** Warteschlange der Moderation: offen oder zuletzt entschieden. */
-  reports(communityId: string, status: "open" | "closed"): Promise<ReportGroup[]>;
+  reports(communityId: string, status: "open" | "closed", offset?: number): Promise<ReportPage>;
   /** Alle offenen Meldungen zu einem Inhalt entscheiden: ausblenden oder „kein Verstoß“. */
   resolveReport(communityId: string, kind: ReportKind, targetId: string, action: ReportAction): Promise<void>;
+  /** Community verlassen (B-89). Der alleinige Admin muss vorher übergeben (Fehler 409), das letzte Mitglied kann nicht gehen. */
+  leave(communityId: string): Promise<void>;
+}
+
+/** Plattform-Moderation (B-89): globaler Feed und Forum. Melden darf jede angemeldete Person, den Rest die Plattformrollen Moderator/Admin/Betreiber. */
+export interface PlatformModerationService {
+  report(input: ReportInput): Promise<{ duplicate: boolean }>;
+  queue(status: "open" | "closed", offset?: number): Promise<ReportPage>;
+  resolve(kind: ReportKind, targetId: string, action: ReportAction): Promise<void>;
+  setHidden(kind: ReportKind, targetId: string, hidden: boolean): Promise<void>;
 }
 
 /* ----------------------------- Dev-Admin (Betreiber) ----------------------------- */
@@ -492,6 +510,27 @@ export interface AdminUser {
   status: string;
   /** B-87: Adresse bestätigt (Betreiber kann sie von Hand bestätigen). */
   emailVerified?: boolean;
+  /** B-89: Grund der Sperre (Status „gesperrt“). */
+  banReason?: string | null;
+}
+
+/** Auswahl beim Löschen eines fremden Kontos (B-89) – dieselben Schalter wie beim Selbstlöschen. */
+export interface AdminDeleteInput {
+  password: string;
+  options: { forum: "delete" | "keep"; feed: "delete" | "keep"; comments: "delete" | "keep"; chat: "delete" | "keep"; media: "remove" | "keep" };
+  reason?: string;
+}
+
+/** Eintrag im Moderationsprotokoll (B-89). */
+export interface ModerationLogEntry {
+  id: string;
+  action: string;
+  actor: string;
+  target: string | null;
+  targetKind: string | null;
+  reason: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 export interface AdminContentItem {
@@ -512,6 +551,12 @@ export interface AdminService {
   content(): Promise<AdminContentItem[]>;
   deleteThread(id: string): Promise<void>;
   deletePost(id: string): Promise<void>;
+  /** Konto sperren (umkehrbar; Sitzungen enden, Grund wird beim Login gezeigt) bzw. wieder freigeben (B-89). */
+  ban(userId: string, reason?: string): Promise<void>;
+  unban(userId: string): Promise<void>;
+  /** Fremdes Konto endgültig löschen (B-89). */
+  deleteUser(userId: string, input: AdminDeleteInput): Promise<void>;
+  moderationLog(offset?: number): Promise<{ items: ModerationLogEntry[]; hasMore: boolean }>;
 }
 
 /** Die gesamte Service-Registry (Dependency-Container). */
@@ -533,6 +578,7 @@ export interface Services {
   hall: HallService;
   activity: ActivityService;
   communities: CommunityService;
+  moderation: PlatformModerationService;
   members: MemberService;
   admin: AdminService;
 }
