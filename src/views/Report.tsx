@@ -62,7 +62,7 @@ export default function Report() {
         `<h1>Grow-Report</h1><div class="sub">${g.name} · ${g.strain} · ${g.breeder} · ${g.medium} · Start ${new Date(g.startDate).toLocaleDateString("de-DE")}</div>` +
         `<div class="grid"><div class="stat"><div class="l">Dauer</div><div class="v">${g.day} Tage</div></div><div class="stat"><div class="l">Zustand</div><div class="v">${conditionLabel[g.condition]}</div></div><div class="stat"><div class="l">Erwartet</div><div class="v">${g.expectedYield}</div></div><div class="stat"><div class="l">Phase</div><div class="v">${g.phase}</div></div></div>` +
         `<h2>Phasen-Verlauf</h2><ul>${phases}</ul><h2>Fazit</h2><p>Stand: Tag ${g.day} von ${g.totalDays}, Phase ${g.phase}, Zustand ${conditionLabel[g.condition]}.${g.harvest ? ` Ernte: nass ${formatGrams(g.harvest.wetG)}, trocken ${formatGrams(g.harvest.dryG)}.` : ""}</p>` +
-        `<div class="foot">Grow|Observer · generiert am ${new Date().toLocaleString("de-DE")}</div></body></html>`
+        `<div class="foot">Grow|Obs · generiert am ${new Date().toLocaleString("de-DE")}</div></body></html>`
     );
     win.document.close();
     win.focus();

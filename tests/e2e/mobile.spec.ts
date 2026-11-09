@@ -86,7 +86,7 @@ test("Mobil 360 px: Einstellungen, Simulation und Telegram laufen nicht über de
   await page.setViewportSize({ width: 360, height: 640 });
   for (const [path, title] of [["/profile/settings", "Profil"], ["/simulation", "Simulation"], ["/telegram", "Telegram"], ["/strains", "Sorten"]] as const) {
     await page.goto(path);
-    await expect(page).toHaveTitle(`${title} · Grow|Observer`);
+    await expect(page).toHaveTitle(`${title} · Grow|Obs`);
     await page.waitForTimeout(600); // Einblend-Animation der Ansicht
     await expectFitsScreen(page, false);
   }

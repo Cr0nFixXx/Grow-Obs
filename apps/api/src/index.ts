@@ -5,7 +5,7 @@ import { client } from "./db/client.ts";
 import { handleUpgrade, shutdownRealtime } from "./realtime/index.ts";
 
 const server = serve({ fetch: app.fetch, port: env.PORT, hostname: "0.0.0.0" }, (info) => {
-  console.log(`Grow|Observer API listening on port ${info.port}`);
+  console.log(`Grow|Obs API listening on port ${info.port}`);
 });
 
 // WebSocket-Echtzeit (B-59): Upgrades auf /realtime/ws; alles andere wird abgewiesen.

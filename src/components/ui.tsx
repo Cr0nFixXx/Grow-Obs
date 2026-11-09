@@ -587,6 +587,7 @@ export function StatCard({
   icon,
   tone = "leaf",
   className,
+  onClick,
 }: {
   label: string;
   value: ReactNode;
@@ -595,9 +596,15 @@ export function StatCard({
   icon: string;
   tone?: Tone;
   className?: string;
+  /** Macht die Kachel antippbar (öffnet den zugehörigen Bereich). */
+  onClick?: () => void;
 }) {
   return (
-    <Card className={cn("p-4 sm:p-5", className)}>
+    <Card
+      className={cn("p-4 sm:p-5", onClick && "focus-visible:ring-2 focus-visible:ring-accent", className)}
+      interactive={!!onClick}
+      {...(onClick ? { role: "button", tabIndex: 0, onClick, onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } } : {})}
+    >
       <div className="flex items-start justify-between">
         <div className={cn("grid size-10 place-items-center rounded-xl", toneSoft[tone])}>
           <Icon name={icon} size={18} />

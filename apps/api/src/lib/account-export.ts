@@ -46,7 +46,7 @@ export async function collectExport(userId: string) {
   return {
     json: {
       exportedAt: new Date().toISOString(),
-      hinweis: "Alle Daten deines Grow|Observer-Kontos. Dateien liegen im Ordner medien/ (Name = Kennung der Datei).",
+      hinweis: "Alle Daten deines Grow|Obs-Kontos. Dateien liegen im Ordner medien/ (Name = Kennung der Datei).",
       konto: account,
       pushEinstellungen: prefs ?? null,
       sitzungen: sessionRows,

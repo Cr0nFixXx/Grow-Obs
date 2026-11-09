@@ -69,7 +69,7 @@ export default function Onboarding({ open, onClose }: { open: boolean; onClose: 
                 {step === 0 ? (
                   <div className="mt-5 sm:mt-6">
                     <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl">
-                      Willkommen bei <span className="bg-gradient-to-r from-leaf-300 to-leaf-500 bg-clip-text text-transparent">Grow|Observer</span>
+                      Willkommen bei <span className="bg-gradient-to-r from-leaf-300 to-leaf-500 bg-clip-text text-transparent">Grow|Obs</span>
                     </h1>
                     <p className="mt-2 text-sm text-white/70 sm:text-base">Dein community-getriebenes Grow-Dashboard – jetzt noch smarter.</p>
                     <div className="mt-5 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-3">
@@ -90,7 +90,7 @@ export default function Onboarding({ open, onClose }: { open: boolean; onClose: 
                       <Icon name="Download" size={26} />
                     </div>
                     <h1 className="mt-4 font-display text-2xl font-bold sm:text-3xl">Als App installieren</h1>
-                    <p className="mt-2 text-sm text-white/70 sm:text-base">Installiere Grow|Observer für das beste Erlebnis – offline, schnell und mit Push.</p>
+                    <p className="mt-2 text-sm text-white/70 sm:text-base">Installiere Grow|Obs für das beste Erlebnis – offline, schnell und mit Push.</p>
                     <div className="mt-5 space-y-2">
                       {pwa.map((p) => (
                         <div key={p.title} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">

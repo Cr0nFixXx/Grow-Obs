@@ -11,6 +11,7 @@ import { Avatar, Badge, Button, Card, Chip, CollapsibleCard, EmptyState, Progres
 import { Donut, Gauge, Sparkline } from "@/components/charts";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/motion";
 import { climate, consumptionSeries, quickStats } from "@/mocks/data";
+import { activityTarget } from "@/lib/activity-target";
 import { useActivity, useGrows, useSeedOffers, useTasks } from "@/data/hooks";
 import { useServices } from "@/data/DataContext";
 import { eur, n, pct } from "@/lib/format";
@@ -68,6 +69,12 @@ export default function Dashboard() {
         { id: "q2", label: "Offene Tasks", value: <CountUp value={openTasks} />, icon: "ListChecks", color: "warning" },
         { id: "q4", label: "Brauchen Aufmerksamkeit", value: <CountUp value={needAttention} />, icon: "HeartPulse", color: needAttention ? "warning" : "leaf" },
       ];
+  // Kacheln öffnen den zugehörigen Bereich (B-90): Grows → Grow-Liste, Tasks → Aufgabenliste weiter unten.
+  const statAction = (id: string): (() => void) | undefined => {
+    if (id === "q1" || id === "q4") return () => navigate("grows");
+    if (id === "q2") return () => document.getElementById("dashboard-tasks")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return undefined;
+  };
   // Klima: im API-Modus der letzte erfasste Messpunkt des ersten aktiven Grows mit Klimadaten.
   const lastClimate = (g: { env: EnvPoint[] }) => [...g.env].reverse().find((e) => e.temp !== null || e.rh !== null);
   const climateGrow = activeGrows.find((g) => lastClimate(g));
@@ -127,7 +134,7 @@ export default function Dashboard() {
       <StaggerGroup className={cn("grid grid-cols-2 gap-3 [&>:last-child:nth-child(odd)]:col-span-2 lg:[&>:last-child:nth-child(odd)]:col-span-1", stats.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
         {stats.map((s) => (
           <StaggerItem key={s.id}>
-            <StatCard label={s.label} value={s.value} delta={s.delta} trend={s.trend} icon={s.icon} tone={s.color as never} />
+            <StatCard label={s.label} value={s.value} delta={s.delta} trend={s.trend} icon={s.icon} tone={s.color as never} onClick={statAction(s.id)} />
           </StaggerItem>
         ))}
       </StaggerGroup>
@@ -237,7 +244,7 @@ export default function Dashboard() {
 
           {/* Tasks */}
           <Reveal>
-            <Card className="p-4 sm:p-5">
+            <Card id="dashboard-tasks" className="scroll-mt-20 p-4 sm:p-5">
               <SectionHead title="Nächste Tasks" icon="ListChecks" action={<Chip onClick={() => navigate("create", { kind: "task" })}>+ Task</Chip>} />
               {tasks.length === 0 && <p className="py-3 text-center text-sm text-fg-muted">Keine offenen Tasks. Mit „+ Task“ legst du eine neue an.</p>}
               <div className="space-y-2">
@@ -267,7 +274,7 @@ export default function Dashboard() {
               {activity.length === 0 && <p className="py-3 text-center text-sm text-fg-muted">Noch keine Aktivität.</p>}
               <div className="space-y-1" role="list">
                 {activity.map((a) => (
-                  <div key={a.id} role="listitem" className="flex items-start gap-3 rounded-xl p-2.5 transition hover:bg-surface-2">
+                  <button type="button" key={a.id} role="listitem" onClick={() => { const t = activityTarget(a); navigate(t.view, t.params); }} className="flex w-full items-start gap-3 rounded-xl p-2.5 text-left transition hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent">
                     <Avatar src={a.avatar} name={a.who} size={36} />
                     <div className="min-w-0 flex-1 text-sm">
                       <span className="text-fg-muted">{a.who} {a.action} </span>
@@ -277,7 +284,7 @@ export default function Dashboard() {
                     <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", a.color === "leaf" ? "bg-leaf-500/12 text-leaf-500 dark:text-leaf-400" : a.color === "soil" ? "bg-soil-500/12 text-soil-600 dark:text-soil-300" : a.color === "info" ? "bg-info-500/12 text-info-500 dark:text-info-400" : "bg-warning-500/12 text-warning-500 dark:text-warning-400")}>
                       <Icon name={a.icon} size={15} />
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </CollapsibleCard>

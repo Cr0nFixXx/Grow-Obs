@@ -7,7 +7,7 @@
 
 
 **Für:** Claude Code, OpenCode, Codex, Hermes  
-**Projekt:** Grow|Observer  
+**Projekt:** Grow|Obs  
 **Lies zuerst:** `HANDOFF.md` · Produkt-Nordstern: `MILESTONES.md`
 
 Dieses Dokument ist der **ausführbare Plan**. Arbeite Phasen in Reihenfolge. Eine Phase gilt erst als done, wenn ihre Acceptance Criteria erfüllt sind. Nicht mehrere Phasen parallel „ungefähr“ anschneiden.

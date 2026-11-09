@@ -4,21 +4,21 @@ import "../src/index.css";
 export const metadata: Metadata = {
   // Öffentliche Basis-URL für OG-/Twitter-Bilder; in Produktion NEXT_PUBLIC_SITE_URL setzen.
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
-  title: "Grow|Observer — Community Grow Dashboard",
+  title: "Grow|Obs — Community Grow Dashboard",
   description:
     "Community-getriebenes Cannabis-Grow-Dashboard mit persönlichem Tagebuch, Kostenoptimierung und KI-Assistenz.",
   manifest: "/manifest.webmanifest",
   // Die Oberfläche ist deutsch; Chrome soll keine Übersetzung anbieten (Leiste/Menü beim Markieren, bricht außerdem React-DOM).
   other: { google: "notranslate" },
-  applicationName: "Grow Observer",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Grow Observer" },
+  applicationName: "Grow|Obs",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Grow|Obs" },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/icon-192.png", sizes: "192x192" }, { url: "/icon-512.png", sizes: "512x512" }],
   },
   openGraph: {
     type: "website",
-    title: "Grow|Observer — Community Grow Dashboard",
+    title: "Grow|Obs — Community Grow Dashboard",
     description: "Community-getriebenes Cannabis-Grow-Dashboard mit Tagebuch, Kostenoptimierung und KI-Assistenz.",
     images: ["/images/og.jpg"],
   },

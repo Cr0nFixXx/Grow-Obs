@@ -18,7 +18,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     // In Prod an Observability melden (Sentry etc.).
-    console.error("Grow|Observer crashed:", error, info.componentStack);
+    console.error("Grow|Obs crashed:", error, info.componentStack);
   }
 
   reset = () => this.setState({ hasError: false, message: undefined });

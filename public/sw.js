@@ -69,7 +69,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetchAndStore(request).catch(async () => {
       const cache = await caches.open(CACHE);
       // Next.js liefert die Shell unter "/", der Vite-Legacy-Build unter "/index.html".
-      return await cache.match("/") || await cache.match("/index.html") || new Response("Grow|Observer ist offline. Bitte einmal online oeffnen.", {
+      return await cache.match("/") || await cache.match("/index.html") || new Response("Grow|Obs ist offline. Bitte einmal online oeffnen.", {
         status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" },
       });
     }));

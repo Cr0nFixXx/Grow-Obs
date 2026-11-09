@@ -1,7 +1,7 @@
 # HANDOFF.md
 
 **Für:** Claude Code, OpenCode, Codex, Hermes und andere Coding-Agents  
-**Projekt:** Grow|Observer  
+**Projekt:** Grow|Obs  
 **Stand:** B-62 (Arena Agent). **Next.js 16 ist der primäre Runtime-Build** (SPA-Hülle, eingebettete
 API unter `/api`); Vite bleibt als Legacy-Single-File-Build. **Gemessen (Node 22, PostgreSQL 17):**
 typecheck ✅ · lint ✅ · 181 Frontend-Tests ✅ · 155 API-Integrationstests ✅ · 37 Browser-E2E-Tests (Playwright) ✅ ·

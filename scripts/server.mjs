@@ -54,7 +54,7 @@ server.on("upgrade", onUpgrade);
 // Sicherheitsnetz: fremde Upgrade-Listener (andere Next-Versionen) entfernen, damit nur `onUpgrade` entscheidet.
 server.on("request", () => { for (const listener of server.listeners("upgrade")) if (listener !== onUpgrade) server.removeListener("upgrade", listener); });
 server.listen(port, hostname, () => {
-  console.log(`▲ Grow|Observer-Server auf http://${hostname}:${port} (HTTP + WebSocket)`);
+  console.log(`▲ Grow|Obs-Server auf http://${hostname}:${port} (HTTP + WebSocket)`);
   void warmUp();
 });
 for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => { server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 3000).unref(); });

@@ -1,6 +1,6 @@
 # CHANGELOG.md
 
-Alle nennenswerten Änderungen an **Grow|Observer**, je Aufgabe (B-Nummer) mit den **gemessenen** Prüfergebnissen („Geprüft“, „Tests“, „Nicht geprüft“).
+Alle nennenswerten Änderungen an **Grow|Obs**, je Aufgabe (B-Nummer) mit den **gemessenen** Prüfergebnissen („Geprüft“, „Tests“, „Nicht geprüft“).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/). Die Ein-Zeilen-Übersicht je Aufgabe steht in [`PROGRESS.md`](PROGRESS.md)
 (das vollständige alte Protokoll mit Bundle-Größen: `archive/PROGRESS-bis-B62.md`).
 
@@ -10,6 +10,16 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 ---
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
+
+### B-91 – TODO-Runde 2: Name „Grow|Obs“, Marke → Startseite, klickbare Startseite
+
+**Neu:**
+- **Name „Grow|Obs“ überall:** Titelleiste/Seitenleiste/Menü, Browser-Titel, `manifest.webmanifest` (`name`, `short_name`), Meta-Tags, Mails, Push-Texte, Export, Demo-Bot, Skripte, Skills und alle Doku-Dateien (auch Archiv). **Bewusst unverändert:** technische Kennungen (`grow-observer…` in Dateinamen/Speicherschlüsseln, Datenbanknamen `growobserver…`), damit Sitzungen, Exporte und Datenbanken weiterlaufen; der historische Promo-Dateiname `GrowObserver-Promo.mp4`; `promo-kit/` und `promo/` (ausgeblendet, nicht angefasst).
+- **Marke → Startseite:** Antippen von „Grow|Obs“ in der mobilen Titelleiste, der Seitenleiste und im Menü öffnet die Startseite (`Brand` mit `onClick`, Tastatur-bedienbar).
+- **Startseite:** „Aktive Grows“ und „Brauchen Aufmerksamkeit“ öffnen die Grow-Liste, „Offene Tasks“ scrollt zur Task-Liste; jeder Aktivitäts-Eintrag öffnet seinen Bereich (Grows, Forum, Wiki, Marktplatz, …; sonst Benachrichtigungen). `GET /activity` liefert dafür zusätzlich `type`. Logik: `src/lib/activity-target.ts`.
+
+**Tests:** Vitest 382; E2E `home-navigation.spec.ts` (Marke, drei Kacheln, Scroll zur Task-Liste), `mobile.spec.ts` (Seitentitel „… · Grow|Obs“) und `report-image.spec.ts` grün.
+**Nicht geprüft:** „Brauchen Aufmerksamkeit“ öffnet nur die Liste, filtert aber (noch) nicht auf betroffene Grows; Darstellung des neuen Namens in installierter PWA/Home-Bildschirm-Symbol (der Name wird erst nach Neuinstallation aktualisiert).
 
 ### B-90 – Fehlerbehebungen aus der TODO-Liste (Runde 1)
 
@@ -290,7 +300,7 @@ Versionen unverändert (Eigner vergibt), nur die Build-Nummer wurde aktualisiert
   - **Bewertungssterne:** reine Anzeige ist jetzt `role="img"` mit Text („4,5 von 5 Sternen“) statt fünf deaktivierter Schaltflächen; bedienbar nur mit `onChange`, dort über die ganze Breite (vorher nur über dem gefüllten Teil, also bei Wert 0 nicht klickbar) und mit ≥ 44 px Trefferfläche.
   - **Touch-Ziele:** Filter-Chips mind. 40 px hoch auf dem Telefon (vorher 30 px), Schalter (`Toggle`) und die Links „Alle“/„Details“ im Dashboard mit größerer Trefferfläche.
   - **Avatar-Ring:** `ring-*` am Profilbild lag auf einem eckigen Rahmen (dunkles Quadrat hinter dem Kreis); der Rahmen ist jetzt rund.
-  - **Seitentitel:** jede Ansicht setzt `document.title` („Chat · Grow|Observer“); vorher überall derselbe Titel.
+  - **Seitentitel:** jede Ansicht setzt `document.title` („Chat · Grow|Obs“); vorher überall derselbe Titel.
 - **Geprüft:** typecheck ✅ · lint ✅ · Vitest 226/226 (ein Lauf mit einem fehlgeschlagenen Test, zwei Wiederholungen grün; welcher Test, wurde nicht ermittelt) · Build ✅ · E2E 41 bestanden, 1 übersprungen (Desktop 38, mobil 3; neuer Test: Überlauf bei 360 px, Seitentitel, Eingabeschrift). Nicht ausgeführt: API-Tests.
 - **Nicht behoben / offen:** Toggle-Höhe visuell weiterhin 24 px (nur die Trefferfläche wuchs); Dashboard/Planer/Showcase u. a. sind auf dem Telefon lang (kein Fehler); Ansicht „Report“ ohne Grow hat keine `h1`; Sterne im Showcase nur dort bedienbar. Keine Tests auf echten Geräten, kein Kontrast-/Tastaturtest, keine Lasttests.
 

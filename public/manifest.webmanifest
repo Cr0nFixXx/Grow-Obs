@@ -1,6 +1,6 @@
 {
-  "name": "Grow|Observer",
-  "short_name": "GrowObserver",
+  "name": "Grow|Obs",
+  "short_name": "Grow|Obs",
   "description": "Community-getriebenes Cannabis-Grow-Dashboard mit Tagebuch, Kostenoptimierung und KI-Assistenz.",
   "start_url": "/",
   "scope": "/",

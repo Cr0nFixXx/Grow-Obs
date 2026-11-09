@@ -1,9 +1,9 @@
 ---
 name: doc-maintain
-description: Keep the Grow|Observer documentation correct after a task is finished. Use after every completed task (code or docs), when numbers, endpoints, architecture, state or phase status changed, or when the owner asks for a doc check or cleanup. Gives the update matrix, entry formats, a staleness sweep and the finishing steps.
+description: Keep the Grow|Obs documentation correct after a task is finished. Use after every completed task (code or docs), when numbers, endpoints, architecture, state or phase status changed, or when the owner asks for a doc check or cleanup. Gives the update matrix, entry formats, a staleness sweep and the finishing steps.
 ---
 
-# doc-maintain (Grow|Observer)
+# doc-maintain (Grow|Obs)
 
 Standing owner rule: **docs are maintained after every completed task and must show the measured state.**
 Generic, project-independent version: `docs/skills/doc-maintain/SKILL.md`.

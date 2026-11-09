@@ -1,6 +1,6 @@
 /* Web-Push-Helfer des Service Workers (B-63). Reine Funktionen → in Tests ohne Browser ladbar (node:vm). */
 (function () {
-  const NEUTRAL = { title: "Neue Benachrichtigung", body: "Öffne Grow|Observer für Details.", url: "/notifications", tag: "go-push" };
+  const NEUTRAL = { title: "Neue Benachrichtigung", body: "Öffne Grow|Obs für Details.", url: "/notifications", tag: "go-push" };
 
   /** Nur Pfade der eigenen App: nie fremde Hosts, nie „//host“, nie javascript:. */
   const safePath = (value) => (typeof value === "string" && /^\/(?!\/)[A-Za-z0-9._~\-\/%?=&#]*$/.test(value) && value.length <= 200 ? value : NEUTRAL.url);

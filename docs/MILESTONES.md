@@ -1,7 +1,7 @@
 # MILESTONES.md
 
 **Für:** Claude Code, OpenCode, Codex, Hermes, Product  
-**Projekt:** Grow|Observer  
+**Projekt:** Grow|Obs  
 **Lies zuerst:** `HANDOFF.md` → `PLAN.md` → **dieses File** (Produkt-Nordstern)
 
 `PLAN.md` = Roadmap und verbindliche Entscheidungen (Phasen P0–P14), `ARCHITECTURE.md` = *wie* der Code gebaut ist.

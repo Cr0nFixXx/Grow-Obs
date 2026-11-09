@@ -51,7 +51,7 @@ function VerifyEmail({ token, onDone }: { token: string; onDone: () => void }) {
         {state.phase === "working" && <p role="status" className="text-sm text-fg-muted">Link wird geprüft…</p>}
         {state.phase === "ok" && (
           <p role="status" className="text-sm text-fg-muted" data-testid="verify-ok">
-            {state.kind === "change_email" ? "Deine neue Adresse ist bestätigt und jetzt die Adresse deines Kontos." : "Deine Adresse ist bestätigt. Willkommen bei Grow|Observer!"}
+            {state.kind === "change_email" ? "Deine neue Adresse ist bestätigt und jetzt die Adresse deines Kontos." : "Deine Adresse ist bestätigt. Willkommen bei Grow|Obs!"}
           </p>
         )}
         {state.phase === "error" && <p role="alert" className="text-sm text-danger" data-testid="verify-error">{state.message}</p>}
@@ -239,7 +239,7 @@ export function EmailVerificationGate() {
         <div className="grid size-12 place-items-center rounded-2xl bg-accent/15 text-accent"><Icon name="Mail" size={24} /></div>
         <h1 className="text-2xl font-bold">Bitte bestätige deine E-Mail-Adresse</h1>
         <p className="text-sm text-fg-muted">
-          Wir haben einen Link an <strong className="break-all" data-testid="gate-email">{user?.email ?? "deine Adresse"}</strong> geschickt. Öffne ihn, dann kannst du Grow|Observer nutzen.
+          Wir haben einen Link an <strong className="break-all" data-testid="gate-email">{user?.email ?? "deine Adresse"}</strong> geschickt. Öffne ihn, dann kannst du Grow|Obs nutzen.
         </p>
       </div>
       {info && <p role="status" className="rounded-xl bg-surface-2 p-3 text-sm" data-testid="gate-info">{info}</p>}

@@ -6,7 +6,7 @@ description: Manage versions and build numbers safely in any project - keep one 
 # version-bump (generic)
 
 A project-independent skill. Fill in the **project bindings** (or discover them) before acting.
-A Grow|Observer-specific version lives in `.claude/skills/version-bump/SKILL.md`.
+A Grow|Obs-specific version lives in `.claude/skills/version-bump/SKILL.md`.
 
 ## Project bindings
 | Binding | Meaning | Example |

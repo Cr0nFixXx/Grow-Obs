@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Binding rules for AI agents and developers working on **Grow|Observer**. This file contains **rules, not status,
+Binding rules for AI agents and developers working on **Grow|Obs**. This file contains **rules, not status,
 commands or explanations** – those live in the files linked in §5. Read first: `HANDOFF.md` (current state).
 
 ---

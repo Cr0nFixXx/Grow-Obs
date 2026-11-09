@@ -1,5 +1,5 @@
 /* =========================================================================
- *  Grow|Observer — Zentrale Mock-Daten (rein statisch, keine Backend-Logik)
+ *  Grow|Obs — Zentrale Mock-Daten (rein statisch, keine Backend-Logik)
  *  Alle Inhalte sind fiktiv, aber realistisch modelliert.
  * ========================================================================= */
 import type {

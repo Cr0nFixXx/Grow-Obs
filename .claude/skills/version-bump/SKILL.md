@@ -1,9 +1,9 @@
 ---
 name: version-bump
-description: Handle versions and build numbers in Grow|Observer. Use after every completed task to refresh the build number (npm run version:build), and when the owner explicitly assigns a new frontend or backend version. Explains version.json, derived files, commands, checks and what an agent must never do.
+description: Handle versions and build numbers in Grow|Obs. Use after every completed task to refresh the build number (npm run version:build), and when the owner explicitly assigns a new frontend or backend version. Explains version.json, derived files, commands, checks and what an agent must never do.
 ---
 
-# version-bump (Grow|Observer)
+# version-bump (Grow|Obs)
 
 Generic, project-independent version: `docs/skills/version-bump/SKILL.md`.
 

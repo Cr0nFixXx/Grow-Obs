@@ -6,7 +6,7 @@ description: Create a new documentation file in any software project - decide wh
 # doc-create (generic)
 
 A project-independent skill. Fill in the **project bindings** once (or let the agent discover them from the repo), then follow the steps.
-A Grow|Observer-specific version lives in `.claude/skills/doc-create/SKILL.md`.
+A Grow|Obs-specific version lives in `.claude/skills/doc-create/SKILL.md`.
 
 ## Project bindings (fill in or discover)
 | Binding | Meaning | Example |

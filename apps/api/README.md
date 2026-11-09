@@ -1,4 +1,4 @@
-# Grow|Observer API
+# Grow|Obs API
 
 Selbst hostbare API mit Hono, PostgreSQL und Drizzle; MinIO/S3 ist optional. Sie läuft **eingebettet** in Next.js unter `/api` (Standard) oder als eigener Dienst (`node dist/index.js`, Docker).
 Dieses Paket hat eigene Laufzeit, eigenen Typecheck und eigene Tests. Das ist kein Nachweis für Produktionsreife: Der Docker-Stack wurde noch nie ausgeführt

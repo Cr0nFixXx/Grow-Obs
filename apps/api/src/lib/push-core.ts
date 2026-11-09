@@ -59,10 +59,10 @@ export function inQuietHours(prefs: Pick<PushPrefs, "quietEnabled" | "quietStart
 }
 
 const GENERIC: Record<PushCategory, { title: string; body: string }> = {
-  messages: { title: "Neue Nachricht", body: "Öffne Grow|Observer, um sie zu lesen." },
-  community: { title: "Neue Aktivität in der Community", body: "Öffne Grow|Observer für Details." },
-  grows: { title: "Neues zu deinem Grow", body: "Öffne Grow|Observer für Details." },
-  other: { title: "Neue Benachrichtigung", body: "Öffne Grow|Observer für Details." },
+  messages: { title: "Neue Nachricht", body: "Öffne Grow|Obs, um sie zu lesen." },
+  community: { title: "Neue Aktivität in der Community", body: "Öffne Grow|Obs für Details." },
+  grows: { title: "Neues zu deinem Grow", body: "Öffne Grow|Obs für Details." },
+  other: { title: "Neue Benachrichtigung", body: "Öffne Grow|Obs für Details." },
 };
 
 export type PushMessage = { title: string; body: string; url: string; tag: string; category: PushCategory };

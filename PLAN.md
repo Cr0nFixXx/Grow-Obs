@@ -1,6 +1,6 @@
 # PLAN.md
 
-Roadmap and binding decisions for **Grow|Observer**: *what* is built in *which order*. Open items in detail: `TODO.md` · current state: `HANDOFF.md` ·
+Roadmap and binding decisions for **Grow|Obs**: *what* is built in *which order*. Open items in detail: `TODO.md` · current state: `HANDOFF.md` ·
 how the code is built: `ARCHITECTURE.md` · product north star: `docs/MILESTONES.md`.
 
 The owner decides the order of work. A phase counts as done only when its acceptance criteria are met **and measured** (`docs/TESTING.md`); code that exists is not the same as verified operation.

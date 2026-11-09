@@ -153,6 +153,8 @@ export interface ActivityItem {
   time: string;
   icon: string;
   color: string;
+  /** Art der zugrunde liegenden Benachrichtigung (grow, task, forum, shop, ai, system) – bestimmt das Ziel beim Antippen. */
+  type?: string;
 }
 
 export type CommunityRole = "member" | "moderator" | "admin";

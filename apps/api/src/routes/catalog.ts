@@ -247,6 +247,7 @@ activity.get("/", requireAuth, async (c) => {
       time: ago(n.createdAt),
       icon: iconMap[n.type] ?? "Info",
       color: colorMap[n.type] ?? "info",
+      type: n.type,
     }))
   );
 });

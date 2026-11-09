@@ -13,7 +13,7 @@ const data = (value: unknown) => ({ json: () => value });
 
 describe("Service Worker: Push-Nachricht", () => {
   it("übernimmt Titel, Text, Ziel und Gruppe aus der Server-Nutzlast", () => {
-    expect(lib.parse(data({ title: "Neue Nachricht", body: "Öffne Grow|Observer", url: "/chat", tag: "go-chat-ab12" }))).toEqual({ title: "Neue Nachricht", body: "Öffne Grow|Observer", url: "/chat", tag: "go-chat-ab12" });
+    expect(lib.parse(data({ title: "Neue Nachricht", body: "Öffne Grow|Obs", url: "/chat", tag: "go-chat-ab12" }))).toEqual({ title: "Neue Nachricht", body: "Öffne Grow|Obs", url: "/chat", tag: "go-chat-ab12" });
   });
   it("zeigt bei fehlenden oder kaputten Daten trotzdem eine neutrale Meldung (iOS verlangt eine Anzeige je Push)", () => {
     for (const d of [null, data(null), data("text"), data(42), data({}), { json: () => { throw new Error("kein JSON"); } }]) {

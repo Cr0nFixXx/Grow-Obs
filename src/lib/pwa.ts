@@ -64,7 +64,7 @@ export async function promptInstall(): Promise<"accepted" | "dismissed" | "unava
 /** Anleitung, falls kein nativer Dialog verfügbar ist. */
 export function installHint(state: InstallState): string {
   if (state === "ios") return "In Safari unten auf „Teilen“ tippen und „Zum Home-Bildschirm“ wählen.";
-  if (state === "installed") return "Grow|Observer ist bereits installiert.";
+  if (state === "installed") return "Grow|Obs ist bereits installiert.";
   return "Im Browser-Menü (⋮) „App installieren“ bzw. „Zum Startbildschirm hinzufügen“ wählen. Tipp: Die Seite einmal kurz nutzen – danach bietet der Browser die Installation an.";
 }
 

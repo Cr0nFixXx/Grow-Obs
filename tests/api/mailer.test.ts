@@ -39,7 +39,7 @@ describe("Mail-Transport", () => {
   it("verschickt über SMTP an den konfigurierten Server (Absender, Empfänger, Betreff, Text, HTML)", async () => {
     const sink = await startSmtpSink();
     try {
-      Object.assign(process.env, { SMTP_HOST: "127.0.0.1", SMTP_PORT: String(sink.port), SMTP_FROM: "Grow|Observer <noreply@example.invalid>" });
+      Object.assign(process.env, { SMTP_HOST: "127.0.0.1", SMTP_PORT: String(sink.port), SMTP_FROM: "Grow|Obs <noreply@example.invalid>" });
       const mailer = await load();
       expect(mailer.mailMode()).toBe("smtp");
       expect(mailer.emailVerificationRequired()).toBe(true);

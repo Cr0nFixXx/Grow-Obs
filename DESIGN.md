@@ -1,6 +1,6 @@
 # DESIGN.md
 
-Design system of **Grow|Observer**: aesthetics, tokens, components, motion, responsive and touch patterns, plus the styling conventions and layout pitfalls.
+Design system of **Grow|Obs**: aesthetics, tokens, components, motion, responsive and touch patterns, plus the styling conventions and layout pitfalls.
 Statements about security or test results live in `docs/TESTING.md`; architecture in `ARCHITECTURE.md`.
 
 ---

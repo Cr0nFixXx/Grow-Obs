@@ -1,9 +1,9 @@
 ---
 name: doc-create
-description: Create a new documentation file for Grow|Observer (new doc, new topic, new feature guide). Use when the owner asks for a document, a README for a folder, a guide or a spec, or when a topic has no home in the existing docs. Covers placement, language, structure, verification against the code and registration in the doc map.
+description: Create a new documentation file for Grow|Obs (new doc, new topic, new feature guide). Use when the owner asks for a document, a README for a folder, a guide or a spec, or when a topic has no home in the existing docs. Covers placement, language, structure, verification against the code and registration in the doc map.
 ---
 
-# doc-create (Grow|Observer)
+# doc-create (Grow|Obs)
 
 Create a document that fits the existing doc system instead of adding a loose file.
 A generic, project-independent version of this skill lives in `docs/skills/doc-create/SKILL.md`.

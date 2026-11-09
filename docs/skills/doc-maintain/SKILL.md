@@ -6,7 +6,7 @@ description: Keep project documentation true after every finished task - update 
 # doc-maintain (generic)
 
 A project-independent skill. Fill in the **project bindings** (or discover them), then run the procedure after each task.
-A Grow|Observer-specific version lives in `.claude/skills/doc-maintain/SKILL.md`.
+A Grow|Obs-specific version lives in `.claude/skills/doc-maintain/SKILL.md`.
 
 ## Project bindings
 | Binding | Meaning |

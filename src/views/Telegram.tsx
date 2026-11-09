@@ -22,7 +22,7 @@ export default function Telegram() {
               <div className="flex items-center gap-3">
                 <span className="grid size-12 place-items-center rounded-xl bg-[#2AABEE] text-white"><span className="text-xl font-bold">T</span></span>
                 <div>
-                  <div className="font-semibold">@GrowObserverBot</div>
+                  <div className="font-semibold">@GrowObsBot</div>
                   <div className="text-xs text-fg-subtle">Offizieller Community-Bot</div>
                 </div>
               </div>

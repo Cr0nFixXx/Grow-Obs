@@ -38,7 +38,7 @@ export default function Auth() {
     const run = mode === "login" ? login(email, password, remember) : register(name, email, password);
     run
       .then(() => {
-        toast.push({ title: mode === "login" ? "Angemeldet" : "Konto erstellt", desc: "Willkommen bei Grow|Observer 🌿", tone: "leaf", icon: "Sprout" });
+        toast.push({ title: mode === "login" ? "Angemeldet" : "Konto erstellt", desc: "Willkommen bei Grow|Obs 🌿", tone: "leaf", icon: "Sprout" });
         // Tiefer Link im abgemeldeten Zustand: nach der Anmeldung zum gemerkten Ziel; nur von der Anmeldeseite selbst → Dashboard.
         if (view === "auth") navigate("dashboard");
       })
@@ -164,7 +164,7 @@ export default function Auth() {
             </p>
             </>)}
           </Card>
-          {config.useMock && <p className="mt-4 text-center text-xs text-fg-subtle">Schon {n(12400)} Grower vertrauen Grow|Observer.</p>}
+          {config.useMock && <p className="mt-4 text-center text-xs text-fg-subtle">Schon {n(12400)} Grower vertrauen Grow|Obs.</p>}
           <p className="mt-1 text-center text-[11px] text-fg-subtle tnum" data-testid="app-version">{versionLabel()}</p>
         </motion.div>
       </div>

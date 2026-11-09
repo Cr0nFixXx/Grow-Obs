@@ -36,9 +36,9 @@ import { useCurrentUser } from "@/lib/auth";
 import { toneSoft } from "@/lib/tokens";
 
 /* ----------------------------- Brand ----------------------------- */
-export function Brand({ compact }: { compact?: boolean }) {
-  return (
-    <div className="flex items-center gap-2.5">
+export function Brand({ compact, onClick }: { compact?: boolean; onClick?: () => void }) {
+  const body = (
+    <>
       <div className="relative grid size-9 place-items-center rounded-xl bg-gradient-to-br from-leaf-400 to-leaf-700 text-white shadow-[0_10px_26px_-8px_var(--accent)]">
         <Leaf size={18} strokeWidth={2.4} />
         <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-leaf-300 ring-2 ring-bg" />
@@ -46,11 +46,16 @@ export function Brand({ compact }: { compact?: boolean }) {
       {!compact && (
         <span className="font-display text-[15px] font-bold tracking-tight min-[400px]:text-[17px]">
           Grow<span className="text-fg-subtle">|</span>
-          <span className="gradient-text">Observer</span>
+          <span className="gradient-text">Obs</span>
         </span>
       )}
-    </div>
+    </>
   );
+  // Mit `onClick` (Titelleiste, Seitenleiste, Menü) führt die Marke zur Startseite.
+  if (onClick) {
+    return <button type="button" onClick={onClick} aria-label="Grow|Obs – zur Startseite" className="flex items-center gap-2.5 rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">{body}</button>;
+  }
+  return <div className="flex items-center gap-2.5">{body}</div>;
 }
 
 /* ----------------------------- Nav link ----------------------------- */
@@ -136,7 +141,7 @@ function Sidebar() {
       style={{ width: sidebarCollapsed ? 80 : 272, transition: "width .3s var(--ease-spring)" }}
     >
       <div className="flex h-16 items-center px-4">
-        <Brand compact={sidebarCollapsed} />
+        <Brand compact={sidebarCollapsed} onClick={() => navigate("dashboard")} />
       </div>
       <NavList lid="side" collapsed={sidebarCollapsed} />
       <div className="border-t border-border p-3">
@@ -280,7 +285,7 @@ function TopBar() {
         </button>
         {/* Brand on mobile */}
         <div className="lg:hidden">
-          <Brand />
+          <Brand onClick={() => navigate("dashboard")} />
         </div>
 
         <div className="flex-1" />
@@ -568,7 +573,7 @@ function MobileDrawer() {
   return (
     <Drawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} side="left" width={300} title="">
       <div className="-mt-2 mb-3 flex items-center justify-between">
-        <Brand />
+        <Brand onClick={() => { setMobileNavOpen(false); navigate("dashboard"); }} />
         <button
           onClick={toggle}
           className="grid size-11 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg sm:hidden"

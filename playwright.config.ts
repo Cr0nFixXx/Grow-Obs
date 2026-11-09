@@ -63,7 +63,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
       // Gleiche Datenbank; das Schema legt der erste Server an (Reihenfolge der webServer), daher keine zweite Migration.
-      env: { ...baseEnv, SKIP_MIGRATIONS: "true", SMTP_HOST: "127.0.0.1", SMTP_PORT: "2525", SMTP_FROM: "Grow|Observer <noreply@example.test>", APP_URL: `http://127.0.0.1:${mailPort}` },
+      env: { ...baseEnv, SKIP_MIGRATIONS: "true", SMTP_HOST: "127.0.0.1", SMTP_PORT: "2525", SMTP_FROM: "Grow|Obs <noreply@example.test>", APP_URL: `http://127.0.0.1:${mailPort}` },
     },
   ],
 });

@@ -1,4 +1,4 @@
-# 🌿 Grow|Observer
+# 🌿 Grow|Obs
 
 Community-Grow-PWA: Grow-Tagebuch, Sorten- und Wissensdatenbank, Social-Feed, Forum, Chat und Communities mit Moderation –
 als mobile-first Progressive Web App mit selbst gehostetem Backend.

@@ -158,7 +158,7 @@ async function main() {
   ]);
 
   const [publicCommunity] = await db.insert(communities).values({
-    name: "Grow|Observer Public",
+    name: "Grow|Obs Public",
     description: "Öffentliche Community für Grow-Tagebücher, Wissen und Austausch.",
     isPrivate: false,
     createdBy: admin.id,

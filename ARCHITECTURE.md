@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-How Grow|Observer is built: layers, modes, auth, realtime, moderation, routing, versioning, data.
+How Grow|Obs is built: layers, modes, auth, realtime, moderation, routing, versioning, data.
 Current state: [`HANDOFF.md`](./HANDOFF.md) · Endpoint contract: [`apps/api/README.md`](./apps/api/README.md) · Rules: [`CLAUDE.md`](./CLAUDE.md).
 
 ---

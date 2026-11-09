@@ -17,7 +17,7 @@ const App = dynamic(() => import("@/App"), {
   ssr: false,
   loading: () => (
     <div className="grid min-h-dvh place-items-center text-sm text-fg-muted" role="status">
-      Grow|Observer lädt …
+      Grow|Obs lädt …
     </div>
   ),
 });

@@ -1,6 +1,6 @@
 # TODO.md
 
-Offene Punkte für **Grow|Observer**.
+Offene Punkte für **Grow|Obs**.
 Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt.
 
 - **Template-Scope (UI)** ist vollständig `[x]`.

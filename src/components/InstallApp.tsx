@@ -16,7 +16,7 @@ export function useInstallApp() {
       try {
         const outcome = await promptInstall();
         if (outcome === "accepted") {
-          toast.push({ title: "App wird installiert", desc: "Du findest Grow|Observer gleich auf dem Startbildschirm.", tone: "leaf", icon: "Download" });
+          toast.push({ title: "App wird installiert", desc: "Du findest Grow|Obs gleich auf dem Startbildschirm.", tone: "leaf", icon: "Download" });
           return true;
         }
         return false;

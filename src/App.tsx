@@ -105,7 +105,7 @@ const TITLES: Record<ViewKey, string> = {
 
 function Router() {
   const { view } = useNav();
-  useEffect(() => { document.title = `${TITLES[view]} · Grow|Observer`; }, [view]);
+  useEffect(() => { document.title = `${TITLES[view]} · Grow|Obs`; }, [view]);
   return (
     <AnimatePresence mode="wait">
       <motion.div

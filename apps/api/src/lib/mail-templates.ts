@@ -5,18 +5,18 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (ch) => ({ "&": 
 const link = (kind: "verify" | "reset", token: string) => `${appUrl()}/#${kind}=${token}`;
 
 function layout(name: string, lines: string[], url: string | null, action: string, footer: string): Pick<MailMessage, "text" | "html"> {
-  const text = [`Hallo ${name},`, "", ...lines, ...(url ? ["", `${action}: ${url}`] : []), "", footer, "", "Grow|Observer"].join("\n");
+  const text = [`Hallo ${name},`, "", ...lines, ...(url ? ["", `${action}: ${url}`] : []), "", footer, "", "Grow|Obs"].join("\n");
   const html = `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1b2a1d">`
     + `<p>Hallo ${escapeHtml(name)},</p>${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}`
     + (url ? `<p style="margin:24px 0"><a href="${escapeHtml(url)}" style="background:#3f8f3a;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;display:inline-block">${escapeHtml(action)}</a></p><p style="font-size:12px;color:#5a6b5c;word-break:break-all">Funktioniert der Knopf nicht? Kopiere diesen Link in den Browser:<br>${escapeHtml(url)}</p>` : "")
-    + `<p style="font-size:12px;color:#5a6b5c">${escapeHtml(footer)}</p><p style="font-size:12px;color:#5a6b5c">Grow|Observer</p></div>`;
+    + `<p style="font-size:12px;color:#5a6b5c">${escapeHtml(footer)}</p><p style="font-size:12px;color:#5a6b5c">Grow|Obs</p></div>`;
   return { text, html };
 }
 
 export function verifyEmailMail(to: string, name: string, token: string): MailMessage {
   return {
     to, subject: "Bitte bestätige deine E-Mail-Adresse",
-    ...layout(name, ["bitte bestätige deine E-Mail-Adresse, damit du Grow|Observer nutzen kannst. Der Link gilt 24 Stunden und nur einmal."], link("verify", token), "Adresse bestätigen",
+    ...layout(name, ["bitte bestätige deine E-Mail-Adresse, damit du Grow|Obs nutzen kannst. Der Link gilt 24 Stunden und nur einmal."], link("verify", token), "Adresse bestätigen",
       "Du hast dich nicht angemeldet? Dann ignoriere diese Nachricht, es passiert nichts."),
   };
 }

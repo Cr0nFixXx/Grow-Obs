@@ -1,6 +1,6 @@
 # PROGRESS.md
 
-Chronologisches Protokoll der **Code-Änderungen, Bugfixes und Fortschritte** an Grow|Observer.
+Chronologisches Protokoll der **Code-Änderungen, Bugfixes und Fortschritte** an Grow|Obs.
 Wird nach jedem erfolgreichen Build aktualisiert.
 
 Historische Einträge: `claude-grow-dev`. Aktuelle Stabilisierung: Codex (OpenAI).
