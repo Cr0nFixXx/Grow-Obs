@@ -1,4 +1,4 @@
-import type { EnvPoint, Grow, GrowCondition, GrowStatus, GrowTargets } from "@/types";
+import type { EffectiveTargets, Grow, GrowCondition, GrowStatus, GrowTargets, TargetKey, TargetRange } from "@/types";
 import type { Tone } from "@/lib/tokens";
 
 /** Phasen eines Grows in Reihenfolge (B-84); die Phase wechselt der Nutzer selbst. */
@@ -48,8 +48,61 @@ const svp = (c: number) => 0.6108 * Math.exp((17.27 * c) / (c + 237.3));
 export const vpdKpa = (tempC: number, rhPercent: number, leafOffsetC = 2) =>
   Math.max(0, Math.round((svp(tempC - leafOffsetC) - svp(tempC) * (rhPercent / 100)) * 100) / 100);
 
-/** Zielband fürs VPD (kPa). */
-export const VPD_BAND = { min: 0.8, max: 1.2 } as const;
+/** Beschriftung, Einheit und erlaubte Grenzen je Größe mit Zielbereich. */
+export const TARGET_META: Record<TargetKey, { label: string; unit: string; digits: number; lo: number; hi: number }> = {
+  ph: { label: "pH", unit: "", digits: 2, lo: 0, hi: 14 },
+  ec: { label: "EC", unit: "mS", digits: 2, lo: 0, hi: 10 },
+  temp: { label: "Temperatur", unit: "°C", digits: 1, lo: 0, hi: 50 },
+  rh: { label: "Luftfeuchte", unit: "%", digits: 0, lo: 0, hi: 100 },
+  vpd: { label: "VPD", unit: "kPa", digits: 2, lo: 0, hi: 5 },
+};
+export const TARGET_KEYS = Object.keys(TARGET_META) as TargetKey[];
+
+/**
+ * Richtwerte je Phase (B-88) – übliche Spannen im Anbau, keine Garantie; je Grow überschreibbar.
+ * Beim Trocknen und Curing wird nicht gedüngt (kein pH/EC-Ziel) und das VPD ist nicht maßgeblich.
+ */
+export const PHASE_TARGETS: Record<(typeof GROW_PHASE_NAMES)[number], EffectiveTargets> = {
+  Keimung: { ph: { min: 5.8, max: 6.5 }, ec: { min: 0.4, max: 0.8 }, temp: { min: 22, max: 26 }, rh: { min: 65, max: 80 }, vpd: { min: 0.4, max: 0.8 } },
+  Vegetativ: { ph: { min: 5.8, max: 6.5 }, ec: { min: 0.8, max: 1.6 }, temp: { min: 22, max: 28 }, rh: { min: 50, max: 70 }, vpd: { min: 0.8, max: 1.2 } },
+  Blüte: { ph: { min: 5.8, max: 6.5 }, ec: { min: 1.2, max: 2 }, temp: { min: 20, max: 26 }, rh: { min: 40, max: 55 }, vpd: { min: 1, max: 1.5 } },
+  Trocknen: { ph: null, ec: null, temp: { min: 16, max: 22 }, rh: { min: 55, max: 65 }, vpd: null },
+  Curing: { ph: null, ec: null, temp: { min: 16, max: 21 }, rh: { min: 58, max: 65 }, vpd: null },
+};
+
+/** Wirksame Zielbereiche: Überschreibung des Grows vor dem Richtwert der Phase. */
+export function effectiveTargets(phase: string, overrides: GrowTargets): EffectiveTargets {
+  const base = PHASE_TARGETS[phase as keyof typeof PHASE_TARGETS] ?? PHASE_TARGETS.Vegetativ;
+  const out = { ...base };
+  for (const key of TARGET_KEYS) if (overrides[key] !== undefined) out[key] = overrides[key] ?? null;
+  return out;
+}
+
+/** Phase, in der der Grow an einem Tag war (nach den gemerkten Phasenstarts); vor dem ersten Eintrag gilt die erste Phase. */
+export function phaseAtDate(grow: Pick<Grow, "phases">, date: string): string {
+  // Ohne gemerkte Phasenstarts (Demo-Daten) gilt die aktuelle Phase für alle Tage.
+  if (!grow.phases.some((p) => p.startedOn)) return grow.phases.find((p) => p.active)?.label ?? grow.phases[grow.phases.length - 1]?.label ?? GROW_PHASE_NAMES[0];
+  let found: string = GROW_PHASE_NAMES[0];
+  for (const p of grow.phases) if (p.startedOn && p.startedOn.slice(0, 10) <= date) found = p.label;
+  return found;
+}
+
+/** Wirksame Zielbereiche des Grows an einem Tag. */
+export const targetsOn = (grow: Pick<Grow, "phases" | "targets">, date: string): EffectiveTargets => effectiveTargets(phaseAtDate(grow, date), grow.targets);
+
+/** Zielband einer Größe als Folge von Phasen-Abschnitten (für das Diagramm); `null`, wenn nirgends ein Ziel gilt. */
+export function targetSteps(grow: Pick<Grow, "phases" | "targets" | "phase">, key: TargetKey): { from: string; range: TargetRange | null }[] | null {
+  const steps: { from: string; range: TargetRange | null }[] = [];
+  for (const p of grow.phases) {
+    if (!p.startedOn) continue;
+    const range = effectiveTargets(p.label, grow.targets)[key];
+    const last = steps[steps.length - 1];
+    if (last && last.range?.min === range?.min && last.range?.max === range?.max) continue;
+    steps.push({ from: p.startedOn.slice(0, 10), range });
+  }
+  if (!steps.length) steps.push({ from: "0000-01-01", range: effectiveTargets(grow.phase, grow.targets)[key] });
+  return steps.some((s) => s.range) ? steps : null;
+}
 
 /** Liegt der Wert unter/über dem Zielbereich? `null` = im Bereich, ohne Wert oder ohne Bereich. */
 export const outsideRange = (value: number | null | undefined, range: { min: number; max: number } | null | undefined): "low" | "high" | null => {
@@ -61,22 +114,19 @@ const de = (v: number) => v.toLocaleString("de-DE", { maximumFractionDigits: 2 }
 /** „5,8–6,5“ (mit Einheit, falls angegeben). */
 export const formatRange = (range: { min: number; max: number }, unit = "") => `${de(range.min)}–${de(range.max)}${unit ? ` ${unit}` : ""}`;
 
-export interface RangeAlert { key: "ph" | "ec" | "vpd"; label: string; unit: string; value: number; date: string; direction: "low" | "high"; range: { min: number; max: number }; digits: number }
+export interface RangeAlert { key: TargetKey; label: string; unit: string; value: number; date: string; direction: "low" | "high"; range: TargetRange; digits: number; phase: string }
 
-/** Letzter Messwert je Größe, der außerhalb seines Zielbereichs liegt (pH, EC, VPD). */
-export function rangeAlerts(env: EnvPoint[], targets: GrowTargets): RangeAlert[] {
-  const sorted = [...env].sort((a, b) => b.date.localeCompare(a.date));
-  const defs = [
-    { key: "ph", label: "pH", unit: "", range: targets.ph, digits: 2 },
-    { key: "ec", label: "EC", unit: "mS", range: targets.ec, digits: 2 },
-    { key: "vpd", label: "VPD", unit: "kPa", range: VPD_BAND, digits: 2 },
-  ] as const;
+/** Letzter Messwert je Größe, der außerhalb seines Zielbereichs liegt – gemessen am Bereich der Phase, in der er aufgenommen wurde. */
+export function rangeAlerts(grow: Pick<Grow, "env" | "phases" | "targets">): RangeAlert[] {
+  const sorted = [...grow.env].sort((a, b) => b.date.localeCompare(a.date));
   const out: RangeAlert[] = [];
-  for (const d of defs) {
-    const latest = sorted.find((e) => e[d.key] != null);
-    const value = latest?.[d.key];
-    const direction = outsideRange(value, d.range);
-    if (latest && value != null && direction && d.range) out.push({ key: d.key, label: d.label, unit: d.unit, value, date: latest.date, direction, range: d.range, digits: d.digits });
+  for (const key of TARGET_KEYS) {
+    const latest = sorted.find((e) => e[key] != null);
+    const value = latest?.[key];
+    if (!latest || value == null) continue;
+    const range = targetsOn(grow, latest.date)[key];
+    const direction = outsideRange(value, range);
+    if (direction && range) out.push({ key, label: TARGET_META[key].label, unit: TARGET_META[key].unit, value, date: latest.date, direction, range, digits: TARGET_META[key].digits, phase: phaseAtDate(grow, latest.date) });
   }
   return out;
 }

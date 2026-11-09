@@ -84,6 +84,7 @@ Schema und Regeln: `src/config/environment.ts`. Vorlage: `.env.example`.
 | `MEDIA_STORAGE` | `database` (Standard) oder `s3`: wo `POST /media` die Bilder ablegt. `s3` braucht `S3_*`; `GET /media/:id` leitet dann auf einen signierten Link (1 h) um, der Bucket bleibt privat. Zugangsdaten allein schalten nie um |
 | `API_EMBEDDED` | `true` im eingebetteten Betrieb: S3 optional, CORS-HTTPS-Regel entfällt |
 | `TRUST_PROXY`, `RATE_LIMIT_DISABLED` | Rate-Limit: `TRUST_PROXY=false` ignoriert `X-Forwarded-For`; `RATE_LIMIT_DISABLED=true` schaltet ab (nur E2E) |
+| `GET /cron/grow-reminders` | Cron (Bearer `CRON_SECRET`, sonst 404, B-88): erinnert Konten mit eingeschalteter Erinnerung (1–5 Tage) einmal je Lücke an fehlende Messwerte/Logs; eine gebündelte In-App-Meldung, kein Push |
 | `GET /cron/media-cleanup` | Cron (Bearer `CRON_SECRET`, sonst 404): löscht ungenutzte Bilder älter als 24 h aus Datenbank und Bucket |
 | `DB_POOL_MAX` | Obergrenze der Datenbankverbindungen je Instanz (Standard 10, 1–50). Auf Serverless/gepoolten Anbietern (Vercel + Supabase/Neon) klein setzen: bei Supabase Session-Pooler (Pool ca. 15) `1`, sonst z. B. `3` |
 | `SKIP_MIGRATIONS` | `true` überspringt die Migrationen beim Start der eingebetteten API (spart Zeit und Verbindungen bei jedem Kaltstart). Erst setzen, wenn das Schema aktuell ist; nach einem Update mit neuer Migration wieder entfernen und einmal starten |

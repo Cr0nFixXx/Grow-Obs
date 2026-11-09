@@ -3,9 +3,9 @@ import { Icon } from "@/components/Icon";
 import { Button, Field, Input, Modal, Segmented, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { useServices } from "@/data/DataContext";
-import { GROW_MEDIUMS, GROW_TYPES, conditionLabel, dayDiff, formatDay, todayLocal, vpdKpa } from "@/lib/grows";
+import { GROW_MEDIUMS, GROW_TYPES, TARGET_KEYS, TARGET_META, conditionLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
 import { resolveMedia } from "@/lib/media";
-import type { EnvPoint, FinishGrowInput, Grow, GrowCondition, GrowLog, GrowPhoto, UpdateGrowInput } from "@/types";
+import type { EnvPoint, FinishGrowInput, Grow, GrowCondition, GrowLog, GrowPhoto, TargetKey, TargetRange, UpdateGrowInput } from "@/types";
 
 /** Gemeinsamer Fehlerton für alle Grow-Dialoge. */
 function useGrowAction(onDone: (grow?: Grow) => void) {
@@ -41,7 +41,7 @@ export function parseGrams(text: string): number | null {
   return Number.isFinite(value) && value >= 0 ? Math.round(value) : Number.NaN;
 }
 
-/** Zielbereich aus zwei Textfeldern: beide leer = aus (`null`), sonst `{min, max}`; `string` = Fehlertext. */
+/** Zielbereich aus zwei Textfeldern: beide leer = `null`, sonst `{min, max}`; `string` = Fehlertext. */
 export function parseTargetRange(minText: string, maxText: string, label: string, lo: number, hi: number): { min: number; max: number } | null | string {
   const a = minText.trim().replace(",", ".");
   const b = maxText.trim().replace(",", ".");
@@ -54,6 +54,20 @@ export function parseTargetRange(minText: string, maxText: string, label: string
   return { min, max };
 }
 const toField = (v: number | undefined) => (v === undefined ? "" : String(v).replace(".", ","));
+
+/** Zielbereich je Größe im Formular (B-88): Richtwert der Phase, eigener Bereich oder kein Ziel. */
+type TargetMode = "default" | "custom" | "off";
+interface TargetFieldState { mode: TargetMode; min: string; max: string }
+const targetFieldOf = (v: TargetRange | null | undefined): TargetFieldState =>
+  v === undefined ? { mode: "default", min: "", max: "" } : v === null ? { mode: "off", min: "", max: "" } : { mode: "custom", min: toField(v.min), max: toField(v.max) };
+/** `"default"`, `null`, `{min, max}` oder ein Fehlertext. */
+function targetPatchOf(key: TargetKey, f: TargetFieldState): TargetRange | null | "default" | string {
+  if (f.mode === "default") return "default";
+  if (f.mode === "off") return null;
+  const { label, lo, hi } = TARGET_META[key];
+  const parsed = parseTargetRange(f.min, f.max, label, lo, hi);
+  return parsed === null ? `${label}: bitte Minimum und Maximum angeben.` : parsed;
+}
 
 /* ------------------------------ Bearbeiten ------------------------------ */
 
@@ -68,15 +82,14 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
   const [totalDays, setTotalDays] = useState(String(grow.totalDays));
   const [expectedYield, setExpectedYield] = useState(grow.expectedYield === "—" ? "" : grow.expectedYield);
   const [leafOffset, setLeafOffset] = useState(String(grow.leafOffset).replace(".", ","));
-  const [phMin, setPhMin] = useState(toField(grow.targets.ph?.min));
-  const [phMax, setPhMax] = useState(toField(grow.targets.ph?.max));
-  const [ecMin, setEcMin] = useState(toField(grow.targets.ec?.min));
-  const [ecMax, setEcMax] = useState(toField(grow.targets.ec?.max));
+  const [targetFields, setTargetFields] = useState<Record<TargetKey, TargetFieldState>>(() => Object.fromEntries(TARGET_KEYS.map((k) => [k, targetFieldOf(grow.targets[k])])) as Record<TargetKey, TargetFieldState>);
+  const setTargetField = (key: TargetKey, patch: Partial<TargetFieldState>) => setTargetFields((cur) => ({ ...cur, [key]: { ...cur[key], ...patch } }));
+  const phaseDefaults = effectiveTargets(grow.phase, {});
   const { busy, error, run } = useGrowAction((g) => g && onSaved(g));
   const [touched, setTouched] = useState(false);
 
-  const phRange = parseTargetRange(phMin, phMax, "pH", 0, 14);
-  const ecRange = parseTargetRange(ecMin, ecMax, "EC", 0, 10);
+  const targetPatches = Object.fromEntries(TARGET_KEYS.map((k) => [k, targetPatchOf(k, targetFields[k])])) as Record<TargetKey, ReturnType<typeof targetPatchOf>>;
+  const targetProblem = TARGET_KEYS.map((k) => targetPatches[k]).find((v): v is string => typeof v === "string" && v !== "default") ?? "";
   const days = Number(totalDays);
   const offset = Number(leafOffset.trim().replace(",", ".") || Number.NaN);
   const problems = {
@@ -85,8 +98,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
     startDate: startDate && startDate <= todayLocal() ? "" : "Startdatum darf nicht in der Zukunft liegen.",
     totalDays: Number.isInteger(days) && days >= 14 && days <= 400 ? "" : "Zwischen 14 und 400 Tagen.",
     leafOffset: Number.isFinite(offset) && offset >= 0 && offset <= 6 ? "" : "Blatt-Abzug zwischen 0 und 6 °C.",
-    ph: typeof phRange === "string" ? phRange : "",
-    ec: typeof ecRange === "string" ? ecRange : "",
+    targets: targetProblem,
   };
   const valid = Object.values(problems).every((p) => !p);
 
@@ -97,7 +109,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
     const patch: UpdateGrowInput = {
       name: name.trim(), strain: strain.trim(), breeder: breeder.trim(), type, medium, startDate, totalDays: days,
       expectedYield: expectedYield.trim() || "—", leafOffset: offset,
-      targets: { ph: phRange as { min: number; max: number } | null, ec: ecRange as { min: number; max: number } | null },
+      targets: targetPatches as UpdateGrowInput["targets"],
     };
     void run(() => svc.grows.update(grow.id, patch), { title: "Grow gespeichert", desc: patch.name, icon: "Save" });
   };
@@ -140,14 +152,34 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
         {touched && <ErrorLine error={problems.leafOffset} />}
         <fieldset className="space-y-3 rounded-xl border border-border p-3" data-testid="target-fields">
           <legend className="px-1 text-[13px] font-semibold">Zielbereiche in den Diagrammen</legend>
-          <p className="text-xs text-fg-subtle">Als Band hinterlegt; Werte außerhalb werden markiert. Beide Felder leer lassen = kein Band.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="pH von"><Input inputMode="decimal" aria-label="pH Minimum" value={phMin} onChange={(e) => setPhMin(e.target.value)} placeholder="5,8" aria-invalid={touched && !!problems.ph} /></Field>
-            <Field label="pH bis"><Input inputMode="decimal" aria-label="pH Maximum" value={phMax} onChange={(e) => setPhMax(e.target.value)} placeholder="6,5" aria-invalid={touched && !!problems.ph} /></Field>
-            <Field label="EC von (mS)"><Input inputMode="decimal" aria-label="EC Minimum" value={ecMin} onChange={(e) => setEcMin(e.target.value)} placeholder="1,0" aria-invalid={touched && !!problems.ec} /></Field>
-            <Field label="EC bis (mS)"><Input inputMode="decimal" aria-label="EC Maximum" value={ecMax} onChange={(e) => setEcMax(e.target.value)} placeholder="2,0" aria-invalid={touched && !!problems.ec} /></Field>
-          </div>
-          {touched && <ErrorLine error={problems.ph || problems.ec} />}
+          <p className="text-xs text-fg-subtle">Standardmäßig gelten Richtwerte je Phase (Keimung, Vegetativ, Blüte …). Hier kannst du jede Größe für den ganzen Grow überschreiben oder abschalten. Werte außerhalb werden markiert.</p>
+          {TARGET_KEYS.map((key) => {
+            const meta = TARGET_META[key];
+            const f = targetFields[key];
+            const base = phaseDefaults[key];
+            return (
+              <div key={key} className="space-y-2 rounded-lg bg-surface-2/60 p-2.5" data-testid={`target-row-${key}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{meta.label}{meta.unit ? ` (${meta.unit})` : ""}</span>
+                  <div className="w-52">
+                    <Select value={f.mode} onChange={(e) => setTargetField(key, { mode: e.target.value as TargetMode })} aria-label={`${meta.label}: Zielbereich`}>
+                      <option value="default">Richtwert der Phase</option>
+                      <option value="custom">Eigener Bereich</option>
+                      <option value="off">Kein Ziel</option>
+                    </Select>
+                  </div>
+                </div>
+                {f.mode === "default" && <p className="text-xs text-fg-subtle">{base ? `Jetzt (${grow.phase}): ${formatRange(base, meta.unit)}` : `In der Phase ${grow.phase} gibt es dafür keinen Richtwert.`}</p>}
+                {f.mode === "custom" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input inputMode="decimal" aria-label={`${meta.label} Minimum`} value={f.min} onChange={(e) => setTargetField(key, { min: e.target.value })} placeholder={base ? toField(base.min) : "von"} aria-invalid={touched && !!problems.targets} />
+                    <Input inputMode="decimal" aria-label={`${meta.label} Maximum`} value={f.max} onChange={(e) => setTargetField(key, { max: e.target.value })} placeholder={base ? toField(base.max) : "bis"} aria-invalid={touched && !!problems.targets} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {touched && <ErrorLine error={problems.targets} />}
         </fieldset>
         <ErrorLine error={error} />
         <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">

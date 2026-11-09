@@ -23,7 +23,7 @@ import {
 import { dbGet, dbSet } from "@/lib/db";
 import { APP_VERSION } from "@/lib/app-version";
 import { GROW_PHASE_NAMES, dayDiff, todayLocal, vpdKpa } from "@/lib/grows";
-import type { EnvPoint, Grow, GrowLog, SocialPost, Strain, Task } from "@/types";
+import type { EnvPoint, Grow, GrowLog, SocialPost, Strain, TargetKey, TargetRange, Task } from "@/types";
 import type { BannedMember, CommunityDetail, ReportGroup } from "@/types";
 import type {
   ActivityService,
@@ -222,7 +222,7 @@ const growService: GrowService = {
       cover: seedGrows[0].cover,
       photos: [],
       leafOffset: 2,
-      targets: { ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } },
+      targets: {},
       expectedYield: "—",
       phases: mockPhases(0, "active"),
       env: [],
@@ -237,7 +237,14 @@ const growService: GrowService = {
     const grow = mockGrow(growId);
     const { targets, ...fields } = patch;
     Object.assign(grow, fields);
-    if (targets) grow.targets = { ...grow.targets, ...targets };
+    if (targets) {
+      const next = { ...grow.targets };
+      for (const [key, value] of Object.entries(targets) as [TargetKey, TargetRange | null | "default"][]) {
+        if (value === "default") delete next[key];
+        else next[key] = value;
+      }
+      grow.targets = next;
+    }
     mockRecount(grow);
     if (patch.leafOffset !== undefined) grow.env = grow.env.map((e) => withVpd(e, grow.leafOffset));
     return { ...grow };
@@ -288,7 +295,7 @@ const growService: GrowService = {
   async addPhoto(growId, url) {
     await delay(150);
     const grow = mockGrow(growId);
-    grow.photos = [...grow.photos, { id: `p-${Date.now()}-${grow.photos.length}`, url, caption: "", cover: grow.photos.length === 0 }];
+    grow.photos = [...grow.photos, { id: `p-${Date.now()}-${grow.photos.length}`, url, caption: "", cover: grow.photos.length === 0, date: todayLocal(), day: dayDiff(grow.startDate, todayLocal()) }];
     mockCover(grow);
     return { ...grow };
   },

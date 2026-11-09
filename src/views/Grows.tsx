@@ -5,6 +5,8 @@ import { useNav } from "@/lib/nav";
 import { Icon } from "@/components/Icon";
 import { Badge, Button, Card, EmptyState, PageHeader, Popover, PopoverItem, ProgressBar, Segmented, SkeletonCard, SmartImage, SwipeLightbox } from "@/components/ui";
 import { GrowMeasurements } from "@/components/GrowMeasurements";
+import { PhotoCompareModal } from "@/components/PhotoCompare";
+import { downloadCsv, logsCsv } from "@/lib/grow-csv";
 import { DeleteGrowModal, EditGrowModal, EditLogModal, FinishGrowModal, PhotoModal } from "@/components/GrowDialogs";
 import { GROW_PHASE_NAMES, conditionIcon, conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow, statusLabel } from "@/lib/grows";
 import { Reveal } from "@/components/motion";
@@ -179,6 +181,11 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
   const [dialog, setDialog] = useState<null | "edit" | "harvest" | "abort" | "delete">(null);
   const [editLog, setEditLog] = useState<GrowLog | null>(null);
   const [editPhotoId, setEditPhotoId] = useState<string | null>(null);
+  const [comparing, setComparing] = useState(false);
+  const exportLogs = () => {
+    if (grow.logs.length === 0) { toast.push({ title: "Keine Einträge zum Exportieren", desc: "Schreibe zuerst einen Log-Eintrag.", tone: "warning", icon: "Info" }); return; }
+    downloadCsv(grow, "tagebuch", logsCsv(grow));
+  };
   const [busy, setBusy] = useState(false);
   const active = grow.status === "active";
 
@@ -322,7 +329,10 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="NotebookPen" size={16} /> Log-Einträge</h2>
-                <Button size="sm" variant="ghost" onClick={() => navigate("create", { kind: "log", growId: grow.id })}>+ Eintrag</Button>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="ghost" onClick={exportLogs} data-testid="export-logs" aria-label="Tagebuch als CSV exportieren"><Icon name="Download" size={15} /> CSV</Button>
+                  <Button size="sm" variant="ghost" onClick={() => navigate("create", { kind: "log", growId: grow.id })}>+ Eintrag</Button>
+                </div>
               </div>
               {grow.logs.length === 0 && <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Einträge. Halte Gießen, Düngen, Training und Beobachtungen fest.</p>}
               <div className="space-y-1">
@@ -353,9 +363,14 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Image" size={16} /> Galerie <span className="text-fg-subtle">({grow.photos.length})</span></h2>
+                <div className="flex items-center gap-1">
+                {grow.photos.length >= 2 && (
+                  <Button size="sm" variant="ghost" onClick={() => setComparing(true)} data-testid="compare-photos"><Icon name="Layers" size={15} /> Vergleichen</Button>
+                )}
                 <ImagePickButton onUploaded={addPhoto} className="flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-accent transition hover:bg-accent/10">
                   <Icon name="Camera" size={16} /> Foto hinzufügen
                 </ImagePickButton>
+                </div>
               </div>
               {grow.photos.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Fotos. Dokumentiere deinen Grow – das erste Foto wird zum Titelbild.</p>
@@ -418,6 +433,7 @@ function GrowDetail({ grow, onChanged }: { grow: Grow; onChanged: () => Promise<
         onClose={() => setLightbox(null)}
       />
 
+      {comparing && grow.photos.length >= 2 && <PhotoCompareModal grow={grow} open onClose={() => setComparing(false)} />}
       {editLog && <EditLogModal key={editLog.id} grow={grow} log={editLog} open onClose={() => setEditLog(null)} onSaved={() => { setEditLog(null); void saved(); }} />}
       {editPhotoId && grow.photos.find((p) => p.id === editPhotoId) && (
         <PhotoModal key={editPhotoId} grow={grow} photo={grow.photos.find((p) => p.id === editPhotoId)!} open onClose={() => setEditPhotoId(null)} onSaved={() => { setEditPhotoId(null); void saved(); }} />

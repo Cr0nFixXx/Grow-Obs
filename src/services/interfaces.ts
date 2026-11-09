@@ -330,6 +330,7 @@ export interface ProfileUpdate {
   title?: string;
   avatar?: string;
   weeklyReport?: boolean;
+  growReminderDays?: number | null;
   /** Titelbild; leer entfernt es. */
   cover?: string;
   bio?: string;

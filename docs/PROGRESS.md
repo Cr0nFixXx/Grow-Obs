@@ -11,6 +11,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 
 | # | Stand | Ergebnis |
 |---|-------|----------|
+| B-88 | Grows Runde 4: Zielbereiche je Phase (pH, EC, Temperatur, Luftfeuchte, VPD; Grow-Ziel überschreibt), CSV-Export (Messwerte, Tagebuch), Foto-Vergleich mit Schieberegler, In-App-Erinnerung bei fehlenden Einträgen (Cron täglich); Migration 0024 | API 344, Vitest 351 |
 | B-87 | E-Mail: Passwort-Reset per Link (1 h, danach alle Sitzungen weg), E-Mail-Bestätigung (Pflicht, sobald SMTP konfiguriert), Adresse ändern mit Passwort; SMTP-Adapter (nodemailer); Migration 0023 | API 335, Vitest 331, E2E +1 (echtes SMTP gegen Test-Mailserver) |
 | B-86b | Aufräumen: Wochenreport zählt nach Eintragsdatum; B-78 (keine Waisen) und B-79 (Latenz, 40 parallele Anfragen ok) in Produktion gemessen | API +0 (Test erweitert) |
 | B-86a | Diagramme: durchgehende Kurve über Lücken, Achse je Diagramm nach Datenlage, rundere Kurven | Vitest +1 |

@@ -14,6 +14,8 @@ export interface User {
   telegram: boolean;
   /** Wochenreport per Meldung (Opt-in, Server-Einstellung; B-71). */
   weeklyReport?: boolean;
+  /** Erinnerung bei fehlenden Messwerten/Logs nach N Tagen (1–5); `null` = aus (B-88). */
+  growReminderDays?: number | null;
   /** Profilfelder und Sichtbarkeit (B-73); im Demo-Modus teils leer. */
   /** Titelbild (`/media/<id>` oder HTTPS-URL), leer = Farbverlauf. */
   cover?: string;
@@ -83,8 +85,8 @@ export interface UpdateGrowInput {
   condition?: import("./domain").GrowCondition;
   /** Blatt-Abzug fürs VPD, 0–6 °C (B-85). */
   leafOffset?: number;
-  /** Zielbereiche pH/EC (B-86); fehlender Schlüssel = unverändert, `null` = aus. */
-  targets?: { ph?: import("./domain").TargetRange | null; ec?: import("./domain").TargetRange | null };
+  /** Zielbereiche (B-86/B-88); fehlender Schlüssel = unverändert, `null` = kein Ziel, `"default"` = Richtwert der Phase. */
+  targets?: Partial<Record<import("./domain").TargetKey, import("./domain").TargetRange | null | "default">>;
 }
 
 export interface FinishGrowInput {

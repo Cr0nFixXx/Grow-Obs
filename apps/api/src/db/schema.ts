@@ -45,6 +45,8 @@ export const users = pgTable("users", {
   weeklyReport: boolean("weekly_report").notNull().default(false),
   /** ISO-Woche (Europe/Berlin) des letzten Reports, z. B. "2026-W43" – verhindert Doppelversand. */
   weeklyReportWeek: text("weekly_report_week"),
+  /** Erinnerung bei fehlenden Messwerten/Logs nach N Tagen (1–5, B-88); `null` = aus. */
+  growReminderDays: smallint("grow_reminder_days"),
   /** Profilfelder (B-73). */
   bio: text("bio").notNull().default(""),
   location: text("location").notNull().default(""),
@@ -324,11 +326,14 @@ export const grows = pgTable("grows", {
   harvestNote: text("harvest_note").notNull().default(""),
   /** B-85: Blatttemperatur = Lufttemperatur minus dieser Wert (für den VPD). */
   leafOffset: doublePrecision("leaf_offset").notNull().default(2),
-  /** B-86: Zielbereiche für pH und EC (mS); `null` = kein Zielbereich (Band ausgeblendet). */
-  phMin: doublePrecision("ph_min").default(5.8),
-  phMax: doublePrecision("ph_max").default(6.5),
-  ecMin: doublePrecision("ec_min").default(1),
-  ecMax: doublePrecision("ec_max").default(2),
+  /**
+   * B-88: Überschreibungen der Zielbereiche je Größe (ph, ec, temp, rh, vpd). Schlüssel fehlt = Standard der Phase (liegt im Frontend),
+   * `null` = kein Ziel, `{min, max}` = eigener Bereich. (Die alten Spalten ph_min … ec_max aus B-86 bleiben ungenutzt in der Tabelle.)
+   */
+  targets: jsonb("targets").$type<Record<string, { min: number; max: number } | null>>().notNull().default({}),
+  /** B-88: Datum (Europe/Berlin) der letzten Erinnerung – je Lücke ohne Eintrag wird nur einmal erinnert. */
+  remindedEnvOn: date("reminded_env_on"),
+  remindedLogOn: date("reminded_log_on"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

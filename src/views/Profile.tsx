@@ -9,7 +9,7 @@ import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, Button, Card, Chip, CollapsibleCard, Field, Input, Modal, PageHeader, Segmented, Textarea, Toggle } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Chip, CollapsibleCard, Field, Input, Modal, PageHeader, Segmented, Select, Textarea, Toggle } from "@/components/ui";
 import { ImagePickButton } from "@/components/media";
 import { UpdateSettingsCard } from "@/components/UpdateUI";
 import { AccountSecurity } from "@/components/AccountSecurity";
@@ -49,6 +49,18 @@ export default function Profile() {
       toast.push({ title: "Nicht gespeichert", desc: error instanceof Error ? error.message : "Bitte noch einmal versuchen.", tone: "danger", icon: "AlertTriangle" });
     } finally {
       setWeeklySaving(false);
+    }
+  };
+
+  const [reminderSaving, setReminderSaving] = useState(false);
+  const setReminder = async (days: number | null) => {
+    setReminderSaving(true);
+    try {
+      await updateProfile({ growReminderDays: days });
+    } catch (error) {
+      toast.push({ title: "Nicht gespeichert", desc: error instanceof Error ? error.message : "Bitte noch einmal versuchen.", tone: "danger", icon: "AlertTriangle" });
+    } finally {
+      setReminderSaving(false);
     }
   };
 
@@ -156,6 +168,20 @@ export default function Profile() {
                 disabled={isGuest || config.useMock || weeklySaving}
                 onChange={(v) => void setWeekly(v)}
               />
+              <ToggleRow
+                label="Erinnerung an Messwerte und Logs"
+                desc={config.useMock ? "Im Demo-Modus nicht verfügbar (braucht einen Server)." : "Eine Meldung, wenn bei einem laufenden Grow zu lange kein Messwert oder Log-Eintrag steht."}
+                checked={me.growReminderDays != null}
+                disabled={isGuest || config.useMock || reminderSaving}
+                onChange={(v) => void setReminder(v ? 2 : null)}
+              />
+              {me.growReminderDays != null && (
+                <Field label="Erinnern nach" hint="Tage ohne Eintrag; je Lücke nur einmal.">
+                  <Select value={String(me.growReminderDays)} disabled={reminderSaving} onChange={(e) => void setReminder(Number(e.target.value))} aria-label="Erinnerung nach Tagen ohne Eintrag" data-testid="reminder-days">
+                    {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n === 1 ? "1 Tag" : `${n} Tagen`}</option>)}
+                  </Select>
+                </Field>
+              )}
             </CollapsibleCard>
           </Reveal>
           <Reveal delay={0.07}><PushCard /></Reveal>

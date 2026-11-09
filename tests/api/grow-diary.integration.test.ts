@@ -25,9 +25,9 @@ const call = (who: Who | null, path: string, method = "GET", body?: unknown) =>
 
 interface Log { id: string; day: number; date: string; title: string; text: string; tag: string }
 interface Env { day: number; date: string; temp: number | null; rh: number | null; vpd: number | null; ec: number | null; ph: number | null }
-interface Photo { id: string; url: string; caption: string; cover: boolean }
+interface Photo { id: string; url: string; caption: string; cover: boolean; date: string; day: number }
 interface Range { min: number; max: number }
-interface GrowDto { id: string; cover: string; leafOffset: number; targets: { ph: Range | null; ec: Range | null }; logs: Log[]; env: Env[]; photos: Photo[]; gallery: string[] }
+interface GrowDto { id: string; cover: string; leafOffset: number; targets: Partial<Record<"ph" | "ec" | "temp" | "rh" | "vpd", Range | null>>; logs: Log[]; env: Env[]; photos: Photo[]; gallery: string[] }
 const daysAgo = (n: number) => { const d = new Date(`${todayIso()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
 const create = async (who: Who, body: Record<string, unknown> = {}) => {
   const res = await call(who, "/grows", "POST", { name: "Haze Run", strain: "Eigene Kreuzung", medium: "Erde", startDate: daysAgo(20), ...body });
@@ -228,26 +228,41 @@ describe("Grows: Messwerte je Tag (B-85)", () => {
     expect((await call(anna, `/grows/${grow.id}`, "PATCH", { leafOffset: -1 })).status).toBe(400);
   });
 
-  it("Zielbereiche pH/EC: Standard, ändern, einzeln abschalten, ungültige Werte abgelehnt (B-86)", async () => {
+  it("Zielbereiche: Standard der Phase = keine Überschreibung; ändern, abschalten, zurücksetzen, ungültige Werte abgelehnt (B-88)", async () => {
     const anna = await makeUser("anna");
     const bob = await makeUser("bob");
     const grow = await create(anna);
-    expect(grow.targets).toEqual({ ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } });
+    expect(grow.targets).toEqual({}); // keine Überschreibung: Standard der Phase (liegt im Frontend)
     const set = async (targets: unknown) => call(anna, `/grows/${grow.id}`, "PATCH", { targets });
     const changed = (await (await set({ ph: { min: 6, max: 7 } })).json()) as GrowDto;
-    expect(changed.targets).toEqual({ ph: { min: 6, max: 7 }, ec: { min: 1, max: 2 } }); // EC unberührt
-    const off = (await (await set({ ec: null })).json()) as GrowDto;
-    expect(off.targets).toEqual({ ph: { min: 6, max: 7 }, ec: null });
+    expect(changed.targets).toEqual({ ph: { min: 6, max: 7 } });
+    const more = (await (await set({ ec: null, temp: { min: 20, max: 26 }, rh: { min: 40, max: 60 }, vpd: { min: 0.9, max: 1.3 } })).json()) as GrowDto;
+    expect(more.targets).toEqual({ ph: { min: 6, max: 7 }, ec: null, temp: { min: 20, max: 26 }, rh: { min: 40, max: 60 }, vpd: { min: 0.9, max: 1.3 } });
     expect((await get(anna, grow.id)).targets.ec).toBeNull();
+    const reset = (await (await set({ ph: "default", ec: "default" })).json()) as GrowDto;
+    expect(reset.targets).toEqual({ temp: { min: 20, max: 26 }, rh: { min: 40, max: 60 }, vpd: { min: 0.9, max: 1.3 } });
     expect((await set({ ph: { min: 7, max: 6 } })).status).toBe(400);
     expect((await set({ ph: { min: 6, max: 6 } })).status).toBe(400);
     expect((await set({ ph: { min: -1, max: 6 } })).status).toBe(400);
     expect((await set({ ph: { min: 5, max: 15 } })).status).toBe(400);
     expect((await set({ ec: { min: 1, max: 11 } })).status).toBe(400);
+    expect((await set({ rh: { min: 40, max: 101 } })).status).toBe(400);
+    expect((await set({ temp: { min: 20, max: 60 } })).status).toBe(400);
     expect((await set({ ph: { min: 5 } })).status).toBe(400);
-    expect((await set({ vpd: null })).status).toBe(400);
-    expect((await get(anna, grow.id)).targets.ph).toEqual({ min: 6, max: 7 });
+    expect((await set({ ph: "auto" })).status).toBe(400);
+    expect((await set({ light: null })).status).toBe(400);
+    expect((await get(anna, grow.id)).targets).toEqual(reset.targets);
     expect((await call(bob, `/grows/${grow.id}`, "PATCH", { targets: { ph: null } })).status).toBe(404);
+  });
+
+  it("Fotos liefern Datum und Tag der Aufnahme (B-88)", async () => {
+    const anna = await makeUser("anna");
+    const grow = await create(anna, { startDate: daysAgo(10) });
+    const media = await upload(anna);
+    expect((await call(anna, `/grows/${grow.id}/photos`, "POST", { url: media.path })).status).toBeLessThan(300);
+    const photo = (await get(anna, grow.id)).photos[0]!;
+    expect(photo.date).toBe(todayIso());
+    expect(photo.day).toBe(10);
   });
 
   it("Grow löschen entfernt Einträge, Messwerte und Fotos mit", async () => {
@@ -285,14 +300,25 @@ describe("Migration 0021: Bestand wird übernommen", () => {
   });
 });
 
-describe("Migration 0022: Zielbereiche (B-86)", () => {
-  it("ist idempotent und gibt Bestands-Grows die Standardbereiche", async () => {
+describe("Migration 0024: Zielbereiche je Phase und Erinnerungen (B-88)", () => {
+  it("übernimmt Bestandswerte als Überschreibungen, ist wiederholbar und überschreibt spätere Änderungen nicht", async () => {
     const anna = await makeUser("anna");
-    const grow = await create(anna);
-    await db.execute(sql`ALTER TABLE grows DROP COLUMN ph_min, DROP COLUMN ph_max, DROP COLUMN ec_min, DROP COLUMN ec_max`);
+    const standard = await create(anna, { name: "Standard" });
+    const custom = await create(anna, { name: "Eigen" });
+    const off = await create(anna, { name: "Aus" });
+    await db.execute(sql`UPDATE grows SET ph_min = 6, ph_max = 7 WHERE id = ${custom.id}`);
+    await db.execute(sql`UPDATE grows SET ph_min = NULL, ph_max = NULL, ec_min = NULL, ec_max = NULL WHERE id = ${off.id}`);
+    await db.execute(sql`ALTER TABLE grows DROP COLUMN targets, DROP COLUMN reminded_env_on, DROP COLUMN reminded_log_on`);
+    await db.execute(sql`ALTER TABLE users DROP COLUMN grow_reminder_days`);
     const fs = await import("node:fs/promises");
-    const file = await fs.readFile(fileURLToPath(new URL("../../apps/api/drizzle/0022_grows_targets.sql", import.meta.url)), "utf8");
-    for (let i = 0; i < 2; i++) await db.execute(sql.raw(file));
-    expect((await get(anna, grow.id)).targets).toEqual({ ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } });
+    const file = await fs.readFile(fileURLToPath(new URL("../../apps/api/drizzle/0024_grows_round4.sql", import.meta.url)), "utf8");
+    await db.execute(sql.raw(file));
+    expect((await get(anna, standard.id)).targets).toEqual({});
+    expect((await get(anna, custom.id)).targets).toEqual({ ph: { min: 6, max: 7 } });
+    expect((await get(anna, off.id)).targets).toEqual({ ph: null, ec: null });
+    // Wiederholung: eine spätere Änderung bleibt erhalten (Daten werden nur beim Anlegen der Spalte übernommen).
+    await call(anna, `/grows/${standard.id}`, "PATCH", { targets: { vpd: { min: 1, max: 1.4 } } });
+    await db.execute(sql.raw(file));
+    expect((await get(anna, standard.id)).targets).toEqual({ vpd: { min: 1, max: 1.4 } });
   });
 });

@@ -3,7 +3,7 @@
 Open work on **Grow|Observer**, by priority. Roadmap and decisions: `PLAN.md`; current state: `HANDOFF.md`; measured test status and release gates: `docs/TESTING.md`.
 Legend: `[ ]` open · `[~]` in progress. Finished items are removed here and recorded in `docs/CHANGELOG.md`; the old checklist (v0.1–B-62, mostly finished) is kept in `docs/archive/TODO-bis-B62.md`.
 
-The owner decides the order. Last update: B-62.
+The owner decides the order. Last update: B-88.
 
 ---
 

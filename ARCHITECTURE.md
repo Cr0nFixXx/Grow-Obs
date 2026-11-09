@@ -186,6 +186,14 @@ createNotification / POST /chat/:id/messages ─► lib/push.ts sendPushToUser(u
 
 ---
 
+### Grow reminders and phase targets (B-88)
+
+- **Targets:** `src/lib/grows.ts` holds the per-phase defaults (`PHASE_TARGETS`); `grows.targets` (jsonb) stores only per-grow overrides (`{ph?,ec?,temp?,rh?,vpd?}`, missing key = phase default, `null` = no target, `{min,max}` = own range). The frontend merges (`effectiveTargets`, `targetsOn`, `targetSteps` for chart bands, `rangeAlerts(grow)`); the API only validates and stores.
+- **Reminders:** opt-in `users.grow_reminder_days` (1–5). `GET /api/cron/grow-reminders` (`routes/cron.ts`, `lib/grow-reminders.ts`, Bearer `CRON_SECRET`, 404 without it, `vercel.json` `0 16 * * *`) looks at active, non-archived grows; gap = today (Europe/Berlin) − max(last entry, start date) ≥ N, separately for measurements and logs. One reminder per gap through an atomic claim on `grows.reminded_env_on/reminded_log_on`; one bundled in-app notification per account (`type: "grow"`, no push).
+- **CSV and photo compare** are browser-only (`src/lib/grow-csv.ts`, `src/components/PhotoCompare.tsx`).
+
+---
+
 ### Weekly report (B-71)
 
 - Opt-in per account (`users.weekly_report`, set through `PATCH /auth/me { weeklyReport }`). `GET /api/cron/weekly-report` (`apps/api/src/routes/cron.ts`) runs `runWeeklyReports` (`apps/api/src/lib/weekly-report.ts`): for every opted-in account whose `weekly_report_week` differs from the current ISO week (Europe/Berlin) it claims the week atomically (`UPDATE … RETURNING`), then creates one `grow` notification (+ web push in category `grows`, with the user's push preferences) listing each grow: day since `start_date`, phase, log entries of the last 7 days. Accounts without a grow get nothing.
@@ -254,6 +262,7 @@ existing database. Schema: `apps/api/src/db/schema.ts` (every `many()` relation 
 | 0017 | media in object storage (B-76): `media.data` nullable, `media.storage_key`, check "bytes or key", `users.cover_url` |
 | 0021 | grow diary (B-85): `grows.leaf_offset`, `grow_logs.logged_on`, `grow_photos.caption`, `grow_env.ph/logged_on` (readings nullable, one row per grow and day, unique index), backfill of existing rows |
 | 0023 | e-mail auth (B-87): `users.email_verified_at` (existing accounts marked verified once, when the column is created), table `auth_tokens` (kind verify_email/reset_password/change_email, SHA-256 hash only, `expires_at`, `used_at`, `new_email`, RLS on) |
+| 0024 | grows round 4 (B-88): `grows.targets` jsonb (overrides only, filled from the old pH/EC columns, which stay), `users.grow_reminder_days`, `grows.reminded_env_on/reminded_log_on` |
 | 0022 | grow target ranges (B-86): `grows.ph_min/ph_max/ec_min/ec_max` (defaults 5.8/6.5/1/2, `NULL` = no band) |
 | 0020 | grow lifecycle (B-84): `grows.strain_name/status/condition/archived_at/ended_on/phase_dates/wet_weight_g/dry_weight_g`, backfill of existing grows |
 | 0016 | profiles and follows (B-73): `users.bio/location/grow_since/medium/interests/profile_visibility/handle_changed_at`, table `follows` (pending/accepted, no self-follow, RLS on) |

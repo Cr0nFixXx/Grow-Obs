@@ -153,8 +153,15 @@ export interface EnvPoint {
 
 export interface TargetRange { min: number; max: number }
 
-/** Zielbereiche eines Grows; `null` blendet das Band im Diagramm aus. */
-export interface GrowTargets { ph: TargetRange | null; ec: TargetRange | null }
+/** Größen mit Zielbereich (B-88). */
+export type TargetKey = "ph" | "ec" | "temp" | "rh" | "vpd";
+/**
+ * Überschreibungen der Zielbereiche eines Grows. Fehlender Schlüssel = Richtwert der jeweiligen Phase (`PHASE_TARGETS`),
+ * `null` = kein Ziel (Band ausgeblendet), `{min, max}` = eigener Bereich für alle Phasen.
+ */
+export type GrowTargets = Partial<Record<TargetKey, TargetRange | null>>;
+/** Wirksame Zielbereiche zu einem Zeitpunkt (Phase + Überschreibung). */
+export type EffectiveTargets = Record<TargetKey, TargetRange | null>;
 
 export interface GrowPhoto {
   id: string;
@@ -162,6 +169,9 @@ export interface GrowPhoto {
   caption: string;
   /** Aktuelles Titelbild des Grows. */
   cover: boolean;
+  /** Aufnahmedatum (JJJJ-MM-TT, Europe/Berlin) und Tag des Grows (B-88). */
+  date?: string;
+  day?: number;
 }
 
 export interface GrowLog {
@@ -196,7 +206,7 @@ export interface Grow {
   photos: GrowPhoto[];
   /** Abzug von der Lufttemperatur für die Blatttemperatur (°C) beim VPD, Standard 2. */
   leafOffset: number;
-  /** Zielbereiche für pH und EC (mS); `null` = kein Zielbereich (B-86). */
+  /** Überschreibungen der Zielbereiche (B-86/B-88); der Rest folgt den Richtwerten der Phase. */
   targets: GrowTargets;
   phases: GrowPhase[];
   env: EnvPoint[];

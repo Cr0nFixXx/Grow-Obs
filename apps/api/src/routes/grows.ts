@@ -13,8 +13,29 @@ export const growsApi = new Hono<AuthEnv>();
 
 type GrowRow = typeof grows.$inferSelect;
 
-/** Zielbereich aus zwei nullable Spalten; unvollständig = kein Zielbereich. */
-const range = (min: number | null, max: number | null) => (min !== null && max !== null ? { min, max } : null);
+/** Größen mit Zielbereich (Standard je Phase im Frontend; hier nur die Überschreibungen, B-88). */
+const TARGET_KEYS = ["ph", "ec", "temp", "rh", "vpd"] as const;
+const TARGET_LIMITS: Record<(typeof TARGET_KEYS)[number], { label: string; lo: number; hi: number }> = {
+  ph: { label: "pH", lo: 0, hi: 14 },
+  ec: { label: "EC", lo: 0, hi: 10 },
+  temp: { label: "Temperatur", lo: 0, hi: 50 },
+  rh: { label: "Luftfeuchte", lo: 0, hi: 100 },
+  vpd: { label: "VPD", lo: 0, hi: 5 },
+};
+
+/** Gespeicherte Überschreibungen für die Antwort: nur bekannte Schlüssel mit gültigem Wert. */
+function cleanTargets(raw: unknown): Record<string, { min: number; max: number } | null> {
+  const out: Record<string, { min: number; max: number } | null> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const key of TARGET_KEYS) {
+    const v = (raw as Record<string, unknown>)[key];
+    if (v === null) out[key] = null;
+    else if (v && typeof v === "object" && typeof (v as { min?: unknown }).min === "number" && typeof (v as { max?: unknown }).max === "number") {
+      out[key] = { min: (v as { min: number }).min, max: (v as { max: number }).max };
+    }
+  }
+  return out;
+}
 
 /** Mappt eine Grow-Row auf den vollen Frontend-`Grow`-Shape. */
 async function toGrow(row: GrowRow) {
@@ -47,12 +68,9 @@ async function toGrow(row: GrowRow) {
       : null,
     cover: row.coverUrl ?? "",
     gallery: photos.map((p) => p.url),
-    photos: photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, cover: p.url === row.coverUrl })),
+    photos: photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, cover: p.url === row.coverUrl, date: todayIso(p.takenAt), day: dayDiff(row.startDate, todayIso(p.takenAt)) })),
     leafOffset: row.leafOffset,
-    targets: {
-      ph: range(row.phMin, row.phMax),
-      ec: range(row.ecMin, row.ecMax),
-    },
+    targets: cleanTargets(row.targets),
     expectedYield: row.expectedYield,
     phases: state.phases,
     env: env.map((e) => toEnv(e, row)),
@@ -167,12 +185,16 @@ growsApi.post("/", requireAuth, async (c) => {
   return c.json(await toGrow(row), 201);
 });
 
-/** Zielbereich im Request: `{min, max}` oder `null` (Band aus). */
-const targetRange = (label: string, lo: number, hi: number) =>
-  z.object({
-    min: z.number().min(lo, `${label} zwischen ${lo} und ${hi}`).max(hi, `${label} zwischen ${lo} und ${hi}`),
-    max: z.number().min(lo, `${label} zwischen ${lo} und ${hi}`).max(hi, `${label} zwischen ${lo} und ${hi}`),
-  }).strict().refine((r) => r.min < r.max, `${label}: Minimum muss kleiner als das Maximum sein`).nullable();
+/** Zielbereich im Request: `{min, max}`, `null` (kein Ziel) oder `"default"` (zurück auf den Standard der Phase). */
+const targetRange = (key: keyof typeof TARGET_LIMITS) => {
+  const { label, lo, hi } = TARGET_LIMITS[key];
+  const bound = z.number().min(lo, `${label} zwischen ${lo} und ${hi}`).max(hi, `${label} zwischen ${lo} und ${hi}`);
+  return z.union([
+    z.object({ min: bound, max: bound }).strict().refine((r) => r.min < r.max, `${label}: Minimum muss kleiner als das Maximum sein`),
+    z.null(),
+    z.literal("default"),
+  ]);
+};
 
 const patchGrowSchema = z.object({
   name: growFields.name,
@@ -185,7 +207,7 @@ const patchGrowSchema = z.object({
   expectedYield: growFields.expectedYield,
   condition: z.enum(GROW_CONDITIONS),
   leafOffset: z.number().min(0, "Abzug zwischen 0 und 6 °C").max(6, "Abzug zwischen 0 und 6 °C"),
-  targets: z.object({ ph: targetRange("pH", 0, 14).optional(), ec: targetRange("EC", 0, 10).optional() }).strict(),
+  targets: z.object({ ph: targetRange("ph").optional(), ec: targetRange("ec").optional(), temp: targetRange("temp").optional(), rh: targetRange("rh").optional(), vpd: targetRange("vpd").optional() }).strict(),
 }).partial().strict();
 
 growsApi.patch("/:id", requireAuth, async (c) => {
@@ -195,8 +217,16 @@ growsApi.patch("/:id", requireAuth, async (c) => {
   if (!row) return c.json({ error: "Nicht gefunden" }, 404);
   const { strain, targets, ...rest } = body.data;
   const patch: Partial<typeof grows.$inferInsert> = { ...rest, updatedAt: new Date() };
-  if (targets?.ph !== undefined) { patch.phMin = targets.ph?.min ?? null; patch.phMax = targets.ph?.max ?? null; }
-  if (targets?.ec !== undefined) { patch.ecMin = targets.ec?.min ?? null; patch.ecMax = targets.ec?.max ?? null; }
+  if (targets) {
+    const next = cleanTargets(row.targets);
+    for (const key of TARGET_KEYS) {
+      const v = targets[key];
+      if (v === undefined) continue;
+      if (v === "default") delete next[key];
+      else next[key] = v;
+    }
+    patch.targets = next;
+  }
   if (strain !== undefined) {
     const strainRow = await findStrain(strain);
     patch.strainName = strain;

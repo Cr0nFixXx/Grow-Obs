@@ -22,7 +22,7 @@ function grow(over: Partial<Grow> = {}): Grow {
   return {
     id: "g1", name: "Run 1", strain: "Haze", breeder: "X", type: "Hybrid", medium: "Erde (Bio)", startDate: "2026-09-01", day: 30, totalDays: 84,
     phase: "Vegetativ", phaseIndex: 1, progress: 35, status: "active", condition: "gesund", archived: false, endedOn: null, harvest: null,
-    cover: "/media/a", photos: [{ id: "p1", url: "/media/a", caption: "", cover: true }, { id: "p2", url: "/media/b", caption: "Tag 3", cover: false }], leafOffset: 2, targets: { ph: { min: 5.8, max: 6.5 }, ec: { min: 1, max: 2 } }, expectedYield: "—", phases: [], env: [], logs: [],
+    cover: "/media/a", photos: [{ id: "p1", url: "/media/a", caption: "", cover: true }, { id: "p2", url: "/media/b", caption: "Tag 3", cover: false }], leafOffset: 2, targets: {}, expectedYield: "—", phases: [], env: [], logs: [],
     ...over,
   } as Grow;
 }
@@ -109,23 +109,34 @@ describe("Grow-Dialoge (B-84)", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("Der Grow ist abgeschlossen");
   });
 
-  it("Bearbeiten: Zielbereiche vorbelegt, änderbar, leer = aus, unvollständig/ungültig abgelehnt (B-86)", async () => {
+  it("Bearbeiten: Zielbereiche – Richtwert der Phase, eigener Bereich, kein Ziel; unvollständig/ungültig abgelehnt (B-88)", async () => {
     render(<EditGrowModal grow={grow()} open onClose={() => undefined} onSaved={() => undefined} />);
-    expect((screen.getByLabelText("pH Minimum") as HTMLInputElement).value).toBe("5,8");
-    expect((screen.getByLabelText("EC Maximum") as HTMLInputElement).value).toBe("2");
-    fireEvent.change(screen.getByLabelText("pH Maximum"), { target: { value: "" } });
+    const mode = (label: string) => screen.getByLabelText(`${label}: Zielbereich`) as HTMLSelectElement;
+    expect(mode("pH").value).toBe("default");
+    expect(screen.getByTestId("target-row-ec").textContent).toContain("Jetzt (Vegetativ): 0,8–1,6 mS");
+    expect(screen.queryByLabelText("pH Minimum")).toBeNull();
+    fireEvent.change(mode("pH"), { target: { value: "custom" } });
+    expect((screen.getByLabelText("pH Minimum") as HTMLInputElement).placeholder).toBe("5,8");
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
     expect(await screen.findByText(/pH: bitte Minimum und Maximum angeben/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("pH Minimum"), { target: { value: "6" } });
     fireEvent.change(screen.getByLabelText("pH Maximum"), { target: { value: "5" } });
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
     expect(await screen.findByText(/pH: Minimum muss kleiner als das Maximum sein/)).toBeTruthy();
     expect(grows.update).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText("pH Minimum"), { target: { value: "6,0" } });
     fireEvent.change(screen.getByLabelText("pH Maximum"), { target: { value: "7" } });
-    fireEvent.change(screen.getByLabelText("EC Minimum"), { target: { value: "" } });
-    fireEvent.change(screen.getByLabelText("EC Maximum"), { target: { value: "" } });
+    fireEvent.change(mode("EC"), { target: { value: "off" } });
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
-    await waitFor(() => expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ targets: { ph: { min: 6, max: 7 }, ec: null } })));
+    await waitFor(() => expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ targets: { ph: { min: 6, max: 7 }, ec: null, temp: "default", rh: "default", vpd: "default" } })));
+  });
+
+  it("Bearbeiten: vorhandene Überschreibungen sind vorbelegt; Phase ohne Richtwert wird erklärt", () => {
+    render(<EditGrowModal grow={grow({ phase: "Trocknen", targets: { ph: { min: 6, max: 7 }, ec: null } })} open onClose={() => undefined} onSaved={() => undefined} />);
+    expect((screen.getByLabelText("pH: Zielbereich") as HTMLSelectElement).value).toBe("custom");
+    expect((screen.getByLabelText("pH Minimum") as HTMLInputElement).value).toBe("6");
+    expect((screen.getByLabelText("EC: Zielbereich") as HTMLSelectElement).value).toBe("off");
+    expect(screen.getByTestId("target-row-vpd").textContent).toContain("In der Phase Trocknen gibt es dafür keinen Richtwert");
   });
 
   it("Bearbeiten: Blatt-Abzug wird mitgesendet und auf 0–6 °C geprüft", async () => {

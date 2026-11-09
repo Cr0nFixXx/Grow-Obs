@@ -119,4 +119,21 @@ describe("EnvChart (B-85)", () => {
     const xs = [...container.querySelectorAll('[data-series="ph"] circle')].map((c) => Number(c.getAttribute("cx")));
     expect(Math.max(...xs)).toBeGreaterThan(280); // letzter Punkt sitzt rechts am Rand (Breite 320, rechter Rand 12)
   });
+
+  it("Band mit Phasen-Abschnitten: je Abschnitt ein Streifen, null-Abschnitt ohne Streifen, Markierung nach dem Bereich des jeweiligen Tages (B-88)", () => {
+    const series = [{ key: "ec", label: "EC", unit: "mS", color: "red", axis: "left" as const, values: [0.6, 1.5, 1.5, 1.5] }];
+    const band = { min: 1, max: 2, label: "EC-Ziel je Phase", seriesKey: "ec", steps: [
+      { from: "2026-10-01", range: { min: 0.4, max: 0.8 } },
+      { from: "2026-10-02", range: { min: 1, max: 2 } },
+      { from: "2026-10-10", range: null },
+    ] };
+    const { container } = render(<EnvChart label="x" testId="c" dates={dates} series={series} bands={[band]} />);
+    expect(container.querySelectorAll('rect[data-band="ec"]')).toHaveLength(2); // der dritte Abschnitt hat kein Ziel
+    // 0,6 liegt im Keimlings-Bereich (0,4–0,8) → nicht markiert; 1,5 am 02./03. im zweiten Bereich → nicht markiert; am 20. kein Ziel → nicht markiert
+    expect(container.querySelectorAll("circle[data-out]")).toHaveLength(0);
+    cleanup();
+    // dieselben Werte, aber überall der Keimlings-Bereich → 1,5 ist dreimal zu hoch
+    const flat = render(<EnvChart label="x" dates={dates} series={series} bands={[{ ...band, steps: [{ from: "2026-10-01", range: { min: 0.4, max: 0.8 } }] }]} />);
+    expect(flat.container.querySelectorAll('circle[data-out="high"]')).toHaveLength(3);
+  });
 });

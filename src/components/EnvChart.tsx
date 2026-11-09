@@ -15,8 +15,11 @@ export interface EnvSeries {
   digits?: number;
 }
 
-/** Zielband; `seriesKey` markiert Punkte dieser Reihe außerhalb des Bands. */
-export interface EnvBand { min: number; max: number; label: string; axis?: "left" | "right"; seriesKey?: string }
+/**
+ * Zielband; `seriesKey` markiert Punkte dieser Reihe außerhalb des Bands.
+ * Mit `steps` ändert sich der Bereich je Phase: ab dem Datum `from` gilt `range` (`null` = in diesem Abschnitt kein Band); `min`/`max` dienen dann nur als Rückfall.
+ */
+export interface EnvBand { min: number; max: number; label: string; axis?: "left" | "right"; seriesKey?: string; steps?: { from: string; range: { min: number; max: number } | null }[] }
 
 const DAY_MS = 86_400_000;
 const toTime = (iso: string) => {
@@ -25,6 +28,13 @@ const toTime = (iso: string) => {
 };
 const shortDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
 const fmt = (v: number, digits = 1) => v.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: digits });
+/** Bereich des Bands an einem Tag (nach Zeit `t`); mit Abschnitten der des letzten Abschnitts, der begonnen hat. */
+function bandRangeAt(b: EnvBand, t: number): { min: number; max: number } | null {
+  if (!b.steps?.length) return { min: b.min, max: b.max };
+  let hit = b.steps[0]!;
+  for (const step of b.steps) if (toTime(step.from) <= t) hit = step;
+  return hit.range;
+}
 /** Bis zu dieser Zahl an Punkten je Reihe werden alle Punkte gezeichnet; darüber nur Werte außerhalb des Ziels und der gewählte. */
 const MAX_DOTS = 14;
 
@@ -101,7 +111,7 @@ export function EnvChart({
   const scaleFor = (axis: "left" | "right") => {
     const group = visible.filter((s) => s.axis === axis);
     const vals = group.flatMap((s) => s.values.filter((v): v is number => v !== null));
-    for (const b of activeBands) if ((b.axis ?? "left") === axis) vals.push(b.min, b.max);
+    for (const b of activeBands) if ((b.axis ?? "left") === axis) for (const r of b.steps?.length ? b.steps.map((st) => st.range) : [{ min: b.min, max: b.max }]) if (r) vals.push(r.min, r.max);
     if (!vals.length) return null;
     return niceScale(Math.min(...vals), Math.max(...vals));
   };
@@ -113,9 +123,10 @@ export function EnvChart({
   const baseY = padT + innerH;
 
   const bandFor = (key: string) => activeBands.find((b) => b.seriesKey === key);
-  const flag = (key: string, v: number): "low" | "high" | null => {
+  const flag = (key: string, v: number, t: number): "low" | "high" | null => {
     const b = bandFor(key);
-    return !b ? null : v < b.min ? "low" : v > b.max ? "high" : null;
+    const r = b ? bandRangeAt(b, t) : null;
+    return !r ? null : v < r.min ? "low" : v > r.max ? "high" : null;
   };
 
   type Dot = { x: number; y: number; t: number; v: number };
@@ -142,7 +153,7 @@ export function EnvChart({
 
   const pickedDate = picked !== null ? dates[picked] : undefined;
   const pickedValues: { s: EnvSeries; v: number; flag: "low" | "high" | null }[] = [];
-  if (picked !== null) for (const s of visible) { const v = s.values[picked]; if (v !== null && v !== undefined) pickedValues.push({ s, v, flag: flag(s.key, v) }); }
+  if (picked !== null) for (const s of visible) { const v = s.values[picked]; if (v !== null && v !== undefined) pickedValues.push({ s, v, flag: flag(s.key, v, toTime(dates[picked]!)) }); }
 
   /** Ändert sich der Datenstand, läuft die Einblend-Animation neu (nicht bei Größenänderung oder Antippen). */
   const dataKey = `${from ?? ""}|${to ?? ""}|${dates.join(",")}|${visible.map((s) => s.values.join(",")).join(";")}`;
@@ -197,7 +208,19 @@ export function EnvChart({
               const axis = b.axis ?? "left";
               if (!scales[axis]) return null;
               const color = visible.find((s) => s.key === b.seriesKey)?.color ?? "var(--accent)";
-              return <rect key={b.label} data-band={b.seriesKey ?? "band"} x={padL} width={innerW} y={y(axis, b.max)} height={Math.max(0, y(axis, b.min) - y(axis, b.max))} rx="4" fill={color} opacity="0.14" />;
+              const parts = b.steps?.length
+                ? b.steps.map((st, i) => ({ from: Math.max(t0, toTime(st.from)), to: Math.min(t1, i + 1 < b.steps!.length ? toTime(b.steps![i + 1]!.from) : t1), range: st.range }))
+                : [{ from: t0, to: t1, range: { min: b.min, max: b.max } }];
+              return (
+                <g key={b.label}>
+                  {parts.filter((part) => part.range && part.to > part.from).map((part) => {
+                    const r = part.range!;
+                    const xa = padL + ((part.from - t0) / (t1 - t0)) * innerW;
+                    const xb = padL + ((part.to - t0) / (t1 - t0)) * innerW;
+                    return <rect key={`${part.from}`} data-band={b.seriesKey ?? "band"} x={xa} width={Math.max(0, xb - xa)} y={y(axis, r.max)} height={Math.max(0, y(axis, r.min) - y(axis, r.max))} rx="4" fill={color} opacity="0.14" />;
+                  })}
+                </g>
+              );
             })}
             {primary.ticks.map((t) => {
               const yy = padT + innerH - ((t - primary.min) / (primary.max - primary.min)) * innerH;
@@ -227,12 +250,12 @@ export function EnvChart({
                 const pts = pointsOf(s);
                 const path = smooth(pts);
                 const pickedT = pickedDate ? toTime(pickedDate) : null;
-                const dots = pts.filter((p) => pts.length <= MAX_DOTS || p.t === pickedT || flag(s.key, p.v) !== null);
+                const dots = pts.filter((p) => pts.length <= MAX_DOTS || p.t === pickedT || flag(s.key, p.v, p.t) !== null);
                 return (
                   <g key={s.key} data-series={s.key}>
                     <path d={path} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     {dots.map((p) => {
-                      const out = flag(s.key, p.v);
+                      const out = flag(s.key, p.v, p.t);
                       const active = pickedT === p.t;
                       const color = out ? "var(--danger)" : s.color;
                       return (

@@ -44,6 +44,7 @@ async function toUser(id: string) {
     mustChangePassword: u.mustChangePassword,
     telegram: u.telegram,
     weeklyReport: u.weeklyReport,
+    growReminderDays: u.growReminderDays,
     bio: u.bio,
     location: u.location,
     growSince: u.growSince ?? null,
@@ -121,6 +122,7 @@ const updateMeSchema = z.object({
   avatar: z.union([imageRef, z.literal("")]).optional(),
   cover: z.union([imageRef, z.literal("")]).optional(),
   weeklyReport: z.boolean().optional(),
+  growReminderDays: z.number().int().min(1, "Erinnerung: 1 bis 5 Tage").max(5, "Erinnerung: 1 bis 5 Tage").nullable().optional(),
   bio: z.string().trim().max(BIO_MAX, `Bio: höchstens ${BIO_MAX} Zeichen`).optional(),
   location: z.string().trim().max(LOCATION_MAX, `Ort: höchstens ${LOCATION_MAX} Zeichen`).optional(),
   growSince: z.number().int().min(GROW_SINCE_MIN, "Jahr unplausibel").max(new Date().getFullYear(), "Jahr liegt in der Zukunft").nullable().optional(),
@@ -134,7 +136,7 @@ const updateMeSchema = z.object({
 auth.patch("/me", requireAuth, async (c) => {
   const body = updateMeSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  const { name, title, avatar, cover, weeklyReport, bio, location, growSince, medium, interests, profileVisibility, handle } = body.data;
+  const { name, title, avatar, cover, weeklyReport, growReminderDays, bio, location, growSince, medium, interests, profileVisibility, handle } = body.data;
   const userId = c.get("userId");
   const set: Partial<typeof users.$inferInsert> = {
     ...(name !== undefined ? { name } : {}),
@@ -142,6 +144,7 @@ auth.patch("/me", requireAuth, async (c) => {
     ...(avatar !== undefined ? { avatarUrl: avatar || null } : {}),
     ...(cover !== undefined ? { coverUrl: cover || null } : {}),
     ...(weeklyReport !== undefined ? { weeklyReport } : {}),
+    ...(growReminderDays !== undefined ? { growReminderDays } : {}),
     ...(bio !== undefined ? { bio } : {}),
     ...(location !== undefined ? { location } : {}),
     ...(growSince !== undefined ? { growSince } : {}),

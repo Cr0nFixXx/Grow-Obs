@@ -141,11 +141,13 @@ test("Grow-Tagebuch: Log mit Datum bearbeiten, Messwerte, Diagramme, Fotos", asy
   await env.getByRole("button", { name: "Speichern" }).click();
   const alerts = page.getByTestId("range-alerts");
   await expect(alerts).toContainText("pH 7,4");
-  await expect(alerts).toContainText("über dem Zielbereich (5,8–6,5)");
+  await expect(alerts).toContainText("über dem Zielbereich (5,8–6,5, Keimung)");
   await expect(page.getByTestId("chart-feed").locator('[data-series="ph"] circle[data-out="high"]')).toHaveCount(1);
   await expect(page.getByTestId("env-row").first()).toContainText("pH 7,4 ↑");
   await page.getByRole("button", { name: "Weitere Aktionen" }).click();
   await page.getByRole("menuitem", { name: "Bearbeiten" }).click();
+  await page.getByLabel("pH: Zielbereich").selectOption("custom");
+  await page.getByLabel("pH Minimum").fill("5,8");
   await page.getByLabel("pH Maximum").fill("8");
   await page.getByTestId("edit-grow-form").getByRole("button", { name: "Speichern" }).click();
   await expect(page.locator('[data-alert="ph"]')).toHaveCount(0); // (VPD 22 °C/60 % liegt unter dem Ziel – bleibt als Hinweis)
