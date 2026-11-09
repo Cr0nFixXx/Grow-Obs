@@ -31,3 +31,6 @@ test-results/
 playwright-report/
 .cache/
 .local/
+
+# Diagnose-Exporte (Logs) gehören nicht ins Repo
+uploads/

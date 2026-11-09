@@ -107,3 +107,11 @@ Full list with priorities: `TODO.md`. Release gates (audit, uploads, Docker …)
 - Routing: no SSR/file-based routing per view (the shell is client-side); wiki/showcase/marketplace details partly have no own URL; a 404 behind a reverse proxy with its own error page is untested;
   PWA offline deep links (incl. `/strains/<id>`) and the legacy Vite build are not browser-tested.
 - Hosting: serverless platforms have no WebSocket (SSE only); realtime behind nginx/Traefik and with several real instances is untested.
+
+## Workspace budget (sandbox)
+
+The agent sandbox snapshot is capped at about 128 MB / 10,000 files. To stay below it:
+- `promo-kit/` and `promo/` (about 70 MB, committed on `A`/`main`) are hidden locally with `git sparse-checkout` (`/*`, `!/promo-kit/`, `!/promo/`). Nothing changes in the repo; show them again with `git sparse-checkout disable`. While hidden, `npm run docs:check` reports the promo-kit links as broken (CI has the full checkout).
+- `.git` is a blobless clone (`--filter=blob:none`): history and branches are complete, large files are fetched from GitHub on demand.
+- Test logs, `test-results/`, build output and downloaded Vercel/Supabase exports stay out of `/home/user` (use `~/.cache/pm/`); `uploads/` is git-ignored.
+- `.archive/` (git-ignored) holds `docs-umbau/` and the packed old leftovers `archiv-rest.tar.xz`.
