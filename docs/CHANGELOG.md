@@ -11,6 +11,15 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-96 – Scroll-Sprung beim Schließen von Menü und Fenstern (endgültig)
+
+**Behoben:** Beim Schließen von Menü, Fenstern und Vorschauen sprang die Seite kurz nach oben und glitt dann wieder nach unten. Die Korrektur aus B-90 (`behavior: "auto"`) war unwirksam: „auto“ **folgt** dem CSS, und `html` hat `scroll-behavior: smooth`. Entfernt die Scroll-Sperre `position: fixed`, steht die Seite sofort oben, und das weiche Scrollen gleitet erst von dort zurück.
+- Neu `restoreScroll()` (`src/lib/hooks.ts`): schaltet die CSS-Animation für den Aufruf aus und springt mit `behavior: "instant"`.
+- **Seitenwechsel bei offenem Menü:** `navigate()` verwirft jetzt die gemerkte Position (`scrollToTopAfterUnlock()`), sonst sprang die neue Seite beim Entsperren auf die alte Position zurück.
+
+**Tests:** E2E `scroll-lock.spec.ts` schreibt jeden Frame die Scrollposition mit; **schlägt ohne die Korrektur fehl** (Position fällt auf 0) und läuft damit grün. Vitest +2 (`scroll-restore.test.ts`).
+**Nicht geprüft:** echtes iOS-/Android-Gerät (Adressleiste, Gummiband-Scrollen).
+
 ### B-95 – TODO-Runde 3d: „Was ist neu“ nach jedem Update
 
 **Neu:**

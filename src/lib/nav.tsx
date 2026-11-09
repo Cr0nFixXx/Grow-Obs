@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { config } from "@/lib/config";
+import { scrollToTopAfterUnlock } from "@/lib/hooks";
 import { parseLegacyQuery, parsePath, pathFor } from "@/lib/routes";
 
 /** All available top-level views (used by sidebar / bottom-nav / router). */
@@ -148,7 +149,7 @@ export function NavProvider({ children }: { children: ReactNode }) {
         apply(next, p, nextIdx);
       }
       closeOverlays();
-      window.scrollTo({ top: 0, behavior: "auto" });
+      scrollToTopAfterUnlock();
       document.getElementById("app-scroll")?.scrollTo({ top: 0, behavior: "auto" });
     },
     [apply, closeOverlays]

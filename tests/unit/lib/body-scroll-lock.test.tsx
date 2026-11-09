@@ -15,6 +15,6 @@ describe("useBodyScrollLock (B-90)", () => {
     expect(document.body.style.top).toBe("-420px");
     unmount();
     expect(document.body.style.position).toBe("");
-    expect(scrollTo).toHaveBeenCalledWith({ top: 420, left: 0, behavior: "auto" });
+    expect(scrollTo).toHaveBeenCalledWith({ top: 420, left: 0, behavior: "instant" });
   });
 });

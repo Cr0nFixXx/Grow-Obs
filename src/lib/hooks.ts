@@ -29,6 +29,25 @@ let bodyScrollY = 0;
 let bodyStyleSnapshot: Partial<Record<"overflow" | "position" | "top" | "width" | "paddingRight", string>> = {};
 
 /**
+ * Stellt die Scrollposition sofort wieder her. „behavior: auto“ folgt dem CSS (`html { scroll-behavior: smooth }`) und würde
+ * nach dem Entfernen von `position: fixed` (Seite steht dann kurz oben) erst nach unten gleiten – das war der sichtbare
+ * Sprung nach oben und zurück. Darum für diesen Aufruf die CSS-Animation abschalten und sofort springen.
+ */
+export function restoreScroll(top: number) {
+  const root = document.documentElement;
+  const previous = root.style.scrollBehavior;
+  root.style.scrollBehavior = "auto";
+  window.scrollTo({ top, left: 0, behavior: "instant" as ScrollBehavior });
+  root.style.scrollBehavior = previous;
+}
+
+/** Seitenwechsel bei geöffnetem Overlay (z. B. Menü): Die gemerkte Position verwerfen, sonst springt die neue Seite beim Entsperren zurück. */
+export function scrollToTopAfterUnlock() {
+  if (bodyLockCount > 0) { bodyScrollY = 0; document.body.style.top = "0px"; }
+  restoreScroll(0);
+}
+
+/**
  * Ref-counted, iOS-safe body scroll lock. Multiple stacked overlays no longer
  * unlock each other; the exact page position is restored after the final close.
  */
@@ -63,7 +82,7 @@ export function useBodyScrollLock(locked: boolean) {
       body.style.width = bodyStyleSnapshot.width ?? "";
       body.style.paddingRight = bodyStyleSnapshot.paddingRight ?? "";
       delete body.dataset.scrollLock;
-      window.scrollTo({ top: bodyScrollY, left: 0, behavior: "auto" }); // html hat scroll-behavior: smooth – ohne „auto“ springt die Seite erst nach oben und gleitet dann zurück
+      restoreScroll(bodyScrollY);
     };
   }, [locked]);
 }

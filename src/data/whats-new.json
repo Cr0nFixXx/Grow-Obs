@@ -1,5 +1,15 @@
 [
   {
+    "id": "B-96",
+    "date": "2026-10-01",
+    "title": "Kein Scroll-Sprung mehr",
+    "notes": [
+      "Menü, Fenster und Vorschauen schließen ohne Sprung nach oben",
+      "Seitenwechsel aus dem Menü landet oben auf der neuen Seite",
+      "Die Scrollposition bleibt dort, wo du warst"
+    ]
+  },
+  {
     "id": "B-95",
     "date": "2026-10-01",
     "title": "„Was ist neu“ nach jedem Update",

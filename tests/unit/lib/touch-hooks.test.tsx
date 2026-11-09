@@ -23,7 +23,7 @@ describe("touch overlay infrastructure", () => {
     second.unmount();
     expect(document.body.dataset.scrollLock).toBeUndefined();
     expect(document.body.style.position).toBe("");
-    expect(window.scrollTo).toHaveBeenCalledWith({ top: 240, left: 0, behavior: "auto" });
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 240, left: 0, behavior: "instant" });
   });
 
   it("cancels long-press when the pointer turns into a scroll gesture", () => {
