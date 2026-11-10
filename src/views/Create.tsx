@@ -9,7 +9,9 @@ import { useServices } from "@/data/DataContext";
 import { invalidate, useGrows, useWikiCategories } from "@/data/hooks";
 import { useFeatures } from "@/config/FeatureContext";
 import { createKinds, type CreateKind } from "@/config/create-kinds";
-import type { CreateStrainInput, GrowLog, TaskPriority } from "@/types";
+import type { CreateStrainInput, GrowLog, GrowStrain, TaskPriority } from "@/types";
+import { StrainListEditor } from "@/components/StrainListEditor";
+import { cleanStrains, emptyStrain, strainListError } from "@/lib/grow-strains";
 import { toneSoft } from "@/lib/tokens";
 import { GROW_MEDIUMS, GROW_TYPES, todayLocal } from "@/lib/grows";
 
@@ -122,13 +124,12 @@ function GrowForm() {
   const { navigate } = useNav();
   const { busy, run } = useSubmit();
   const [name, setName] = useState("");
-  const [strain, setStrain] = useState("");
-  const [breeder, setBreeder] = useState("");
+  const [strainList, setStrainList] = useState<GrowStrain[]>([emptyStrain()]);
   const [medium, setMedium] = useState(mediums[0]);
   const [type, setType] = useState<(typeof GROW_TYPES)[number]>("Hybrid");
   const [startDate, setStartDate] = useState(todayLocal());
   const [touched, setTouched] = useState(false);
-  const errors = { name: !name.trim() ? "Bitte einen Namen angeben." : "", strain: !strain.trim() ? "Bitte eine Sorte angeben." : "" };
+  const errors = { name: !name.trim() ? "Bitte einen Namen angeben." : "", strain: strainListError(strainList) };
   const valid = !errors.name && !errors.strain;
 
   return (
@@ -136,20 +137,14 @@ function GrowForm() {
       setTouched(true);
       if (!valid) return;
       void run(async () => {
-        const grow = await svc.grows.create({ name: name.trim(), strain: strain.trim(), breeder: breeder.trim() || "Unbekannt", medium, type, startDate: startDate || undefined });
+        const grow = await svc.grows.create({ name: name.trim(), strains: cleanStrains(strainList), medium, type, startDate: startDate || undefined });
         invalidate("grows");
         done(toast, navigate, "Grow angelegt", grow.name, "Sprout", "grows", { growId: grow.id });
       });
     }}>
       <Field label="Name des Grows"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Northern Haze · Run 04" autoFocus aria-invalid={touched && !!errors.name} /></Field>
       {touched && <ErrorText>{errors.name}</ErrorText>}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Field label="Sorte"><Input value={strain} onChange={(e) => setStrain(e.target.value)} placeholder="z. B. Gorilla Glue #4" aria-invalid={touched && !!errors.strain} /></Field>
-          {touched && <ErrorText>{errors.strain}</ErrorText>}
-        </div>
-        <Field label="Breeder" hint="optional"><Input value={breeder} onChange={(e) => setBreeder(e.target.value)} placeholder="z. B. Dutch Passion" /></Field>
-      </div>
+      <StrainListEditor value={strainList} onChange={setStrainList} error={touched ? errors.strain : undefined} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Medium">
           <Select value={medium} onChange={(e) => setMedium(e.target.value)}>{mediums.map((m) => <option key={m}>{m}</option>)}</Select>

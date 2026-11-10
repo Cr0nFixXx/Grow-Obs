@@ -1,4 +1,5 @@
 import type { Grow } from "@/types";
+import { growStrains, strainSummary } from "@/lib/grow-strains";
 import { average, conditionLabel, formatDay, formatGrams } from "@/lib/grows";
 
 /** Daten der Report-Grafik („Grow-Report als Bild“, B-90) – getrennt vom Zeichnen, damit sie testbar sind. */
@@ -19,13 +20,13 @@ const avgText = (values: (number | null)[], unit: string, digits: number) => {
   return avg === null ? "–" : `${avg.toLocaleString("de-DE", { maximumFractionDigits: digits })}${unit ? ` ${unit}` : ""}`;
 };
 
-type ReportGrow = Pick<Grow, "name" | "strain" | "breeder" | "medium" | "startDate" | "day" | "totalDays" | "phase" | "condition" | "expectedYield" | "phases" | "progress" | "env" | "harvest">;
+type ReportGrow = Pick<Grow, "name" | "strain" | "strains" | "breeder" | "medium" | "startDate" | "day" | "totalDays" | "phase" | "condition" | "expectedYield" | "phases" | "progress" | "env" | "harvest">;
 
 export function buildReportImageModel(g: ReportGrow, now = new Date()): ReportImageModel {
   const climate = [...g.env].filter((e) => e.temp !== null && e.rh !== null).sort((a, b) => a.day - b.day);
   return {
     title: "Grow-Report",
-    subtitle: [g.name, g.strain, g.breeder && g.breeder !== "Unbekannt" ? g.breeder : "", g.medium].filter(Boolean).join(" · ") + ` · Start ${new Date(g.startDate).toLocaleDateString("de-DE")}`,
+    subtitle: [g.name, strainSummary(growStrains(g).map((x) => x.name)), g.breeder && g.breeder !== "Unbekannt" ? g.breeder : "", g.medium].filter(Boolean).join(" · ") + ` · Start ${new Date(g.startDate).toLocaleDateString("de-DE")}`,
     metrics: [
       { label: "Dauer", value: `${g.day} Tage` },
       { label: "Zustand", value: conditionLabel[g.condition] },

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { growStrains, strainSummary } from "@/lib/grow-strains";
 import type { EnvPoint } from "@/types";
 import { conditionLabel, conditionTone, formatDay, isActiveGrow, statusLabel } from "@/lib/grows";
 import { useCurrentUser } from "@/lib/auth";
@@ -219,7 +220,7 @@ export default function Dashboard() {
                           <span className="truncate text-sm font-semibold">{g.name}</span>
                           <Badge tone={g.status === "harvested" ? "leaf" : g.phase === "Blüte" ? "soil" : "info"}>{g.status === "active" ? g.phase : statusLabel[g.status]}</Badge>
                         </div>
-                        <div className="truncate text-xs text-fg-subtle">{g.strain} · {g.medium}</div>
+                        <div className="truncate text-xs text-fg-subtle">{strainSummary(growStrains(g).map((x) => x.name))} · {g.medium}</div>
                         <div className="mt-2">
                           <div className="mb-1 flex justify-between text-[11px] text-fg-subtle">
                             <span>Tag {g.day}/{g.totalDays}</span>

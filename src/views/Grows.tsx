@@ -16,6 +16,7 @@ import { useToast } from "@/components/Toast";
 import { useServices } from "@/data/DataContext";
 import { ImagePickButton } from "@/components/media";
 import { resolveMedia } from "@/lib/media";
+import { growStrains, strainSummary, totalPlants } from "@/lib/grow-strains";
 import { toneSoft, type Tone } from "@/lib/tokens";
 
 const logTone: Record<string, Tone> = {
@@ -107,7 +108,7 @@ function GrowCard({ g, onOpen }: { g: Grow; onOpen: () => void }) {
         <div className="absolute inset-x-3 bottom-2 flex items-end justify-between text-white">
           <div>
             <div className="text-sm font-semibold">{g.name}</div>
-            <div className="text-xs text-white/80">{g.strain}</div>
+            <div className="text-xs text-white/80" title={g.strain} data-testid="grow-strain">{strainSummary(growStrains(g).map((x) => x.name))}</div>
           </div>
           <Badge tone={g.status === "harvested" ? "leaf" : g.status === "aborted" ? "danger" : g.phase === "Blüte" ? "soil" : "info"}>{g.status === "active" ? g.phase : statusLabel[g.status]}</Badge>
         </div>
@@ -188,6 +189,8 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
   };
   const [busy, setBusy] = useState(false);
   const active = grow.status === "active";
+  const strainRows = growStrains(grow);
+  const plantTotal = totalPlants(strainRows);
 
   /** Aktion ausführen, Liste neu laden, Fehler als Toast zeigen. */
   const act = async (fn: () => Promise<unknown>, success?: { title: string; desc?: string; icon: string }) => {
@@ -221,7 +224,7 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
       <PageHeader
         breadcrumb={[readOnly ? (ownerName ?? "Mitglied") : "Grows", grow.name]}
         title={grow.name}
-        subtitle={`${grow.strain} · ${grow.breeder} · ${grow.medium}`}
+        subtitle={[strainSummary(growStrains(grow).map((x) => x.name)), grow.breeder && grow.breeder !== "Unbekannt" ? grow.breeder : "", grow.medium].filter(Boolean).join(" · ")}
         icon="Sprout"
         actions={readOnly ? <Button variant="secondary" onClick={back}>Zurück</Button> : 
           <>
@@ -276,6 +279,23 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
         <Card className="flex flex-wrap items-center justify-between gap-3 border-dashed p-4 text-sm" data-testid="grow-archived-banner">
           <span className="flex items-center gap-2 text-fg-muted"><Icon name="Archive" size={16} /> Dieser Grow ist archiviert und erscheint nicht in der Liste der aktiven Grows.</span>
           <Button size="sm" variant="secondary" loading={busy} onClick={() => void act(() => svc.grows.archive(grow.id, false), { title: "Aus dem Archiv geholt", desc: grow.name, icon: "ArchiveRestore" })}>Zurückholen</Button>
+        </Card>
+      )}
+
+      {strainRows.length > 1 && (
+        <Card className="space-y-3 p-5" data-testid="grow-strains">
+          <h2 className="text-sm font-semibold text-fg-muted">Sorten ({strainRows.length}){plantTotal != null ? ` · ${plantTotal} Pflanzen` : ""}</h2>
+          <ul className="divide-y divide-border">
+            {strainRows.map((x, i) => (
+              <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2 text-sm" data-testid="grow-strain-row">
+                <span className="min-w-0"><span className="font-medium">{x.name}</span>{x.breeder && <span className="text-fg-subtle"> · {x.breeder}</span>}</span>
+                <span className="text-xs text-fg-muted tnum">
+                  {x.plants != null ? `${x.plants} ${x.plants === 1 ? "Pflanze" : "Pflanzen"}` : ""}
+                  {grow.status === "harvested" && (x.wetG != null || x.dryG != null) ? `${x.plants != null ? " · " : ""}nass ${formatGrams(x.wetG)} · trocken ${formatGrams(x.dryG)}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
 

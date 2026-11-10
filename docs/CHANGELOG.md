@@ -11,6 +11,20 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-100 – Mehrere Sorten pro Grow
+
+**Neu:**
+- **Sortenliste:** Ein Grow enthält eine bis 20 Sorten. Je Sorte: Name (Vorschläge aus dem Sortenkatalog, Freitext bleibt möglich), Breeder (optional) und Pflanzenzahl (optional, 1–999). Eine Katalogsorte füllt einen leeren Breeder. Doppelte Sorten (gleicher Name und Breeder, Schreibweise egal) werden abgelehnt.
+- **Eingabe:** `StrainListEditor` (Zeilen mit „Sorte hinzufügen“ und Entfernen) beim Anlegen und im Dialog „Grow bearbeiten“; der alte Einzelfeld-Breeder entfällt.
+- **Anzeige:** Karten, Dashboard, Profil und Report-Bild zeigen die erste Sorte plus „und N weitere“; die Detailansicht bekommt die Karte „Sorten (N) · M Pflanzen“ mit Breeder, Pflanzen und – nach der Ernte – Gewichten je Sorte; das Druck-Report nennt alle Sorten.
+- **Ernte:** Bei mehreren Sorten trägt man Nass- und Trockengewicht **je Sorte** ein (Trocken ≤ Nass je Sorte); die Summen bilden das Gesamtgewicht des Grows (Anzeige, Profil, Report, Export bleiben unverändert). Gab es bisher nur Gesamtgewichte, bleiben sie bestehen, solange man nichts je Sorte einträgt. Ein Abbruch löscht alle Gewichte.
+
+**Backend:** Migration `0030_grow_strains.sql` (additiv, idempotent): `grows.strain_list jsonb` (Name, Breeder, Pflanzen, wetG, dryG); bestehende Grows erhalten ihre eine Sorte als erste Sorte der Liste. `strain_name` und `breeder` bleiben als kommagetrennter Anzeigetext erhalten (alte Leser, Export, Mitgliedsliste). `POST /grows` und `PATCH /grows/:id` nehmen `strains: [...]` (hat Vorrang), die alten Felder `strain`/`breeder` ergeben weiter genau eine Sorte; `POST /grows/:id/finish` nimmt `strainWeights` in Reihenfolge der Liste. Der Server prüft Grenzen, Doppelte und die Länge der Gewichtsliste (`apps/api/src/lib/grow-strains.ts`). `GET /members/:handle/grows` liefert zusätzlich `strains` (Namen).
+
+**Tests:** API-Integration `grow-strains.integration.test.ts` (11 Fälle: Liste, alter Weg, Grenzen, Bearbeiten, fremder Grow, Ernte je Sorte, Fehlerfälle, Einzelsorte, Gesamtgewichte, Migration wiederholbar, Mitgliedsliste), Vitest `grow-strains.test.ts` (6) und ein Mock-Fall, E2E `grow-strains.spec.ts`.
+
+**Grenzen:** Keine eigene Auswertung je Sorte (Tagebuch, Fotos, Messwerte gelten für den ganzen Grow); Hall-of-Fame und Marktplatz unverändert; Gewichte je Sorte nur über den Ernte-Dialog (nicht in der Bearbeiten-Maske).
+
 ### B-99 – Status in eigener Schublade
 
 **Geändert:** Die große Status-Karte ist von der Profilseite verschwunden. Im Profilkopf steht stattdessen unter dem Namen ein kleiner Knopf (aktueller Status oder „Status setzen“, plus Hinweis „24h-Status · noch …“ solange einer läuft). Ein Klick öffnet die Schublade „Mein Status“ mit Textstatus, 24h-Status und Sichtbarkeit (`StatusButton` in `src/components/status.tsx`, `StatusEditor` unverändert im Inhalt). Gäste sehen weiter nur die Statuszeile. Keine Änderung an API und Daten.

@@ -1,5 +1,17 @@
 [
   {
+    "id": "B-100",
+    "date": "2026-10-01",
+    "title": "Mehrere Sorten pro Grow",
+    "notes": [
+      "Ein Grow kann bis zu 20 Sorten enthalten, je mit Breeder und Pflanzenzahl",
+      "Vorschläge aus dem Sortenkatalog beim Tippen, eigene Namen bleiben möglich",
+      "Karten zeigen die erste Sorte und „und 2 weitere“, die Details alle",
+      "Bei der Ernte trägst du Nass- und Trockengewicht je Sorte ein",
+      "Bestehende Grows behalten ihre Sorte automatisch"
+    ]
+  },
+  {
     "id": "B-97",
     "date": "2026-10-01",
     "title": "Livestatus: Status und 24h-Status",

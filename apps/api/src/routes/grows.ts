@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { growEnv, growLogs, growPhotos, grows, strains } from "../db/schema.ts";
+import { growEnv, growLogs, growPhotos, grows, strains, type GrowStrainRow } from "../db/schema.ts";
+import { duplicateStrain, growStrainsSchema, strainTexts, strainsOf, weightTotals } from "../lib/grow-strains.ts";
 import { GROW_CONDITIONS, GROW_PHASES, dayDiff, growState, isIsoDate, todayIso, vpdKpa, type GrowCondition, type GrowStatus } from "../lib/grow-state.ts";
 import { releaseMedia } from "../lib/media-cleanup.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
@@ -53,6 +54,7 @@ export async function toGrow(row: GrowRow) {
     id: row.id,
     name: row.name,
     strain: row.strainName || strain?.name || "Unbekannt",
+    strains: strainsOf(row),
     breeder: row.breeder,
     type: row.type,
     medium: row.medium,
@@ -152,6 +154,8 @@ const growFields = {
 const createGrowSchema = z.object({
   name: growFields.name,
   strain: growFields.strain.optional(),
+  /** B-100: mehrere Sorten; hat Vorrang vor `strain`/`breeder`. */
+  strains: growStrainsSchema.optional(),
   breeder: growFields.breeder.default(""),
   type: growFields.type.default("Hybrid"),
   medium: growFields.medium.default(""),
@@ -168,8 +172,14 @@ async function findStrain(name: string | undefined) {
 growsApi.post("/", requireAuth, async (c) => {
   const body = createGrowSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  const { name, strain, breeder, type, medium } = body.data;
-  const strainRow = await findStrain(strain);
+  const { name, type, medium } = body.data;
+  // Sortenliste: `strains` hat Vorrang; die alten Felder `strain`/`breeder` ergeben genau eine Sorte.
+  const list: GrowStrainRow[] = body.data.strains ?? (body.data.strain ? [{ name: body.data.strain, breeder: body.data.breeder === "Unbekannt" ? "" : body.data.breeder, plants: null, wetG: null, dryG: null }] : []);
+  const dup = duplicateStrain(list);
+  if (dup) return c.json({ error: dup }, 400);
+  const texts = strainTexts(list);
+  const breeder = body.data.strains ? texts.breeder : body.data.breeder;
+  const strainRow = await findStrain(list[0]?.name);
   const startDate = body.data.startDate ?? todayIso();
   const [row] = await db
     .insert(grows)
@@ -180,7 +190,8 @@ growsApi.post("/", requireAuth, async (c) => {
       type,
       medium,
       strainId: strainRow?.id ?? null,
-      strainName: strain ?? "",
+      strainName: texts.strainName,
+      strainList: list,
       startDate,
       ...(body.data.totalDays ? { totalDays: body.data.totalDays } : {}),
       phaseDates: { [GROW_PHASES[0]]: startDate },
@@ -203,6 +214,7 @@ const targetRange = (key: keyof typeof TARGET_LIMITS) => {
 const patchGrowSchema = z.object({
   name: growFields.name,
   strain: growFields.strain,
+  strains: growStrainsSchema,
   breeder: growFields.breeder,
   type: growFields.type,
   medium: growFields.medium,
@@ -220,7 +232,7 @@ growsApi.patch("/:id", requireAuth, async (c) => {
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
   const row = await getOwnedRow(c.req.param("id"), c.get("userId"));
   if (!row) return c.json({ error: "Nicht gefunden" }, 404);
-  const { strain, targets, ...rest } = body.data;
+  const { strain, strains: strainsIn, targets, ...rest } = body.data;
   const patch: Partial<typeof grows.$inferInsert> = { ...rest, updatedAt: new Date() };
   if (targets) {
     const next = cleanTargets(row.targets);
@@ -232,10 +244,29 @@ growsApi.patch("/:id", requireAuth, async (c) => {
     }
     patch.targets = next;
   }
-  if (strain !== undefined) {
+  if (strainsIn !== undefined) {
+    const dup = duplicateStrain(strainsIn);
+    if (dup) return c.json({ error: dup }, 400);
+    const texts = strainTexts(strainsIn);
+    const strainRow = await findStrain(strainsIn[0]?.name);
+    patch.strainList = strainsIn;
+    patch.strainName = texts.strainName;
+    patch.breeder = texts.breeder;
+    patch.strainId = strainRow?.id ?? null;
+    // Stehen Gewichte je Sorte in der Liste, bilden ihre Summen die Gesamtgewichte des Grows.
+    if (strainsIn.some((x) => x.wetG !== null || x.dryG !== null)) {
+      const totals = weightTotals(strainsIn);
+      patch.wetWeightG = totals.wetG;
+      patch.dryWeightG = totals.dryG;
+    }
+  } else if (strain !== undefined) {
+    // Alter Weg: ein Sortenname ersetzt die Liste durch genau diese Sorte (Breeder bleibt, falls vorhanden).
     const strainRow = await findStrain(strain);
+    const current = strainsOf(row);
+    const breederText = (rest.breeder ?? row.breeder) === "Unbekannt" ? "" : (rest.breeder ?? row.breeder);
     patch.strainName = strain;
     patch.strainId = strainRow?.id ?? null;
+    patch.strainList = strain ? [{ name: strain, breeder: breederText, plants: current.length === 1 ? current[0].plants : null, wetG: current.length === 1 ? current[0].wetG : null, dryG: current.length === 1 ? current[0].dryG : null }] : [];
   }
   const startDate = rest.startDate ?? row.startDate;
   if (row.endedOn && startDate > row.endedOn) return c.json({ error: "Startdatum liegt nach dem Ende des Grows" }, 400);
@@ -265,6 +296,8 @@ const finishSchema = z.object({
   wetG: z.number().int().min(0).max(1_000_000).nullable().optional(),
   dryG: z.number().int().min(0).max(1_000_000).nullable().optional(),
   note: z.string().trim().max(2000).optional(),
+  /** B-100: Gewichte je Sorte, in der Reihenfolge der Sortenliste (gleiche Länge). */
+  strainWeights: z.array(z.object({ wetG: z.number().int().min(0).max(1_000_000).nullable(), dryG: z.number().int().min(0).max(1_000_000).nullable() }).strict()).max(20).optional(),
 }).strict();
 
 growsApi.post("/:id/finish", requireAuth, async (c) => {
@@ -277,11 +310,29 @@ growsApi.post("/:id/finish", requireAuth, async (c) => {
   if (endedOn < row.startDate) return c.json({ error: "Das Datum liegt vor dem Start des Grows" }, 400);
   if (wetG != null && dryG != null && dryG > wetG) return c.json({ error: "Trockengewicht kann nicht größer als das Nassgewicht sein" }, 400);
   const harvested = outcome === "harvested";
+  let list = strainsOf(row);
+  let wetOut = wetG !== undefined ? wetG : row.wetWeightG;
+  let dryOut = dryG !== undefined ? dryG : row.dryWeightG;
+  const weights = body.data.strainWeights;
+  if (weights !== undefined) {
+    if (weights.length !== list.length) return c.json({ error: "Die Gewichte passen nicht zur Sortenliste" }, 400);
+    const bad = weights.findIndex((w) => w.wetG !== null && w.dryG !== null && w.dryG > w.wetG);
+    if (bad >= 0) return c.json({ error: `${list[bad].name}: Trockengewicht kann nicht größer als das Nassgewicht sein` }, 400);
+    list = list.map((s, i) => ({ ...s, wetG: harvested ? weights[i].wetG : null, dryG: harvested ? weights[i].dryG : null }));
+    const totals = weightTotals(list);
+    wetOut = totals.wetG;
+    dryOut = totals.dryG;
+  } else if (list.length === 1 && (wetG !== undefined || dryG !== undefined)) {
+    // Eine Sorte: die Gesamtgewichte gelten für sie.
+    list = [{ ...list[0], wetG: harvested ? wetOut : null, dryG: harvested ? dryOut : null }];
+  }
+  if (!harvested) list = list.map((s) => ({ ...s, wetG: null, dryG: null }));
   const [updated] = await db.update(grows).set({
     status: outcome,
     endedOn,
-    wetWeightG: harvested ? (wetG !== undefined ? wetG : row.wetWeightG) : null,
-    dryWeightG: harvested ? (dryG !== undefined ? dryG : row.dryWeightG) : null,
+    wetWeightG: harvested ? wetOut : null,
+    dryWeightG: harvested ? dryOut : null,
+    strainList: list.length ? list : row.strainList,
     harvestNote: note ?? row.harvestNote,
     updatedAt: new Date(),
   }).where(eq(grows.id, row.id)).returning();

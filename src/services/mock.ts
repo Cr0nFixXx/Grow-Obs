@@ -23,7 +23,7 @@ import {
 import { dbGet, dbSet } from "@/lib/db";
 import { APP_VERSION } from "@/lib/app-version";
 import { GROW_PHASE_NAMES, dayDiff, todayLocal, vpdKpa } from "@/lib/grows";
-import type { EnvPoint, Grow, GrowLog, SocialPost, Strain, TargetKey, TargetRange, Task } from "@/types";
+import type { EnvPoint, Grow, GrowLog, GrowStrain, SocialPost, Strain, TargetKey, TargetRange, Task } from "@/types";
 import type { BannedMember, CommunityDetail, ReportGroup, ReportPage } from "@/types";
 import type {
   ActivityService,
@@ -141,6 +141,8 @@ const socialService: SocialService = {
 };
 
 /** Session-Store: neue Grows/Logs bleiben bis zum Reload sichtbar. */
+const sumGrams = (values: (number | null)[]) => { const v = values.filter((n): n is number => n !== null); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
+const strainTexts = (list: GrowStrain[]) => ({ strainName: list.map((x) => x.name).join(", "), breeder: [...new Set(list.map((x) => x.breeder).filter(Boolean))].join(", ") });
 const growStore: Grow[] = seedGrows.map((g) => ({ ...g, logs: [...g.logs], env: [...g.env], photos: [...g.photos] }));
 
 function mockGrow(id: string): Grow {
@@ -203,11 +205,13 @@ const growService: GrowService = {
   },
   async create(input) {
     await delay();
+    const newStrains: GrowStrain[] = input.strains?.length ? input.strains : input.strain ? [{ name: input.strain, breeder: input.breeder && input.breeder !== "Unbekannt" ? input.breeder : "", plants: null, wetG: null, dryG: null }] : [];
     const grow = {
       id: `g-${Date.now()}`,
       name: input.name,
-      strain: input.strain,
-      breeder: input.breeder,
+      strain: strainTexts(newStrains).strainName,
+      strains: newStrains,
+      breeder: strainTexts(newStrains).breeder,
       type: input.type ?? "Hybrid",
       medium: input.medium,
       startDate: input.startDate ?? todayLocal(),
@@ -238,8 +242,15 @@ const growService: GrowService = {
   async update(growId, patch) {
     await delay(150);
     const grow = mockGrow(growId);
-    const { targets, ...fields } = patch;
+    const { targets, strains: strainsIn, ...fields } = patch;
     Object.assign(grow, fields);
+    if (strainsIn) {
+      grow.strains = strainsIn;
+      Object.assign(grow, { strain: strainTexts(strainsIn).strainName, breeder: strainTexts(strainsIn).breeder });
+      if (strainsIn.some((x) => x.wetG !== null || x.dryG !== null) && grow.harvest) grow.harvest = { ...grow.harvest, wetG: sumGrams(strainsIn.map((x) => x.wetG)), dryG: sumGrams(strainsIn.map((x) => x.dryG)) };
+    } else if (fields.strain !== undefined) {
+      grow.strains = fields.strain ? [{ name: fields.strain, breeder: grow.breeder === "Unbekannt" ? "" : grow.breeder, plants: grow.strains.length === 1 ? grow.strains[0].plants : null, wetG: null, dryG: null }] : [];
+    }
     if (targets) {
       const next = { ...grow.targets };
       for (const [key, value] of Object.entries(targets) as [TargetKey, TargetRange | null | "default"][]) {
@@ -269,6 +280,13 @@ const growService: GrowService = {
     const harvested = input.outcome === "harvested";
     grow.status = input.outcome;
     grow.endedOn = input.date ?? grow.endedOn ?? todayLocal();
+    if (input.strainWeights) {
+      if (input.strainWeights.length !== grow.strains.length) throw new Error("Die Gewichte passen nicht zur Sortenliste");
+      grow.strains = grow.strains.map((x, i) => ({ ...x, wetG: harvested ? input.strainWeights![i].wetG : null, dryG: harvested ? input.strainWeights![i].dryG : null }));
+      input = { ...input, wetG: sumGrams(grow.strains.map((x) => x.wetG)), dryG: sumGrams(grow.strains.map((x) => x.dryG)) };
+    } else if (!harvested) {
+      grow.strains = grow.strains.map((x) => ({ ...x, wetG: null, dryG: null }));
+    }
     grow.harvest = { wetG: harvested ? (input.wetG !== undefined ? input.wetG : (grow.harvest?.wetG ?? null)) : null, dryG: harvested ? (input.dryG !== undefined ? input.dryG : (grow.harvest?.dryG ?? null)) : null, note: input.note ?? grow.harvest?.note ?? "" };
     grow.phases = mockPhases(grow.phaseIndex, harvested ? "harvested" : "aborted", grow.phases);
     mockRecount(grow);

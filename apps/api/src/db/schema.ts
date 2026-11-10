@@ -306,6 +306,7 @@ export const tasks = pgTable("tasks", {
 });
 
 /* ----------------------------- Grows ----------------------------- */
+export interface GrowStrainRow { name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null }
 export const grows = pgTable("grows", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id),
@@ -325,6 +326,8 @@ export const grows = pgTable("grows", {
   expectedYield: text("expected_yield").notNull().default("—"),
   /** B-84: freier Sortenname (auch ohne Eintrag im Sortenkatalog). */
   strainName: text("strain_name").notNull().default(""),
+  /** B-100: alle Sorten des Grows (Name, Breeder, Pflanzenzahl, Erntegewichte je Sorte). `strainName`/`breeder` bleiben als Anzeigetext. */
+  strainList: jsonb("strain_list").$type<GrowStrainRow[]>().notNull().default([]),
   /** `active` | `harvested` | `aborted`. */
   status: text("status").notNull().default("active"),
   /** B-92: `private` (Standard) | `public` | `community` – wer den Grow auf dem Profil sieht. */

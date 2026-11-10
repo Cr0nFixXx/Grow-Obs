@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { strainSummary } from "@/lib/grow-strains";
 import { Badge, Button, Modal, SwipeLightbox, SmartImage } from "@/components/ui";
 import { ImagePickButton } from "@/components/media";
 import { Icon } from "@/components/Icon";
@@ -108,7 +109,7 @@ export function MemberGrowsModal({ handle, name, mine, onClose, onOpen }: { hand
                   <SmartImage src={g.cover} alt="" className="size-14 shrink-0 rounded-lg" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{g.name}</span>
-                    <span className="block truncate text-xs text-fg-subtle">{g.strain} · {g.status === "active" ? `${g.phase}, Tag ${g.day}/${g.totalDays}` : statusLabel[g.status]}</span>
+                    <span className="block truncate text-xs text-fg-subtle">{strainSummary(g.strains?.length ? g.strains : [g.strain])} · {g.status === "active" ? `${g.phase}, Tag ${g.day}/${g.totalDays}` : statusLabel[g.status]}</span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     <Badge tone={conditionTone[g.condition]}>{conditionLabel[g.condition]}</Badge>

@@ -15,7 +15,8 @@ const grows = {
   saveEnv: vi.fn(async () => ({}) as never),
   deleteEnv: vi.fn(async () => undefined),
 };
-vi.mock("@/data/DataContext", () => ({ useServices: () => ({ grows }) }));
+const strains = { catalog: vi.fn(async () => [{ id: "s1", name: "Gorilla Glue", breeder: "Dutch Passion" }]) };
+vi.mock("@/data/DataContext", () => ({ useServices: () => ({ grows, strains }) }));
 vi.mock("@/components/Toast", () => ({ useToast: () => ({ push: () => undefined }) }));
 
 function grow(over: Partial<Grow> = {}): Grow {
@@ -45,7 +46,48 @@ describe("Grow-Dialoge (B-84)", () => {
     fireEvent.change(screen.getByLabelText(/Geplante Dauer/), { target: { value: "90" } });
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "Run 2", totalDays: 90, startDate: "2026-09-01", strain: "Haze" }));
+    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "Run 2", totalDays: 90, startDate: "2026-09-01", strains: [{ name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }] }));
+  });
+
+  it("Bearbeiten: mehrere Sorten (B-100) – hinzufügen, Doppelte und leere Namen werden abgelehnt, Liste wird gesendet", async () => {
+    const onSaved = vi.fn();
+    render(<EditGrowModal grow={grow()} open onClose={() => undefined} onSaved={onSaved} />);
+    expect(screen.getAllByTestId("strain-row")).toHaveLength(1);
+    expect(screen.queryByTestId("strain-remove")).toBeNull(); // die letzte Sorte lässt sich nicht entfernen
+    fireEvent.click(screen.getByTestId("strain-add"));
+    fireEvent.submit(screen.getByTestId("edit-grow-form"));
+    expect(await screen.findByText("Bitte bei jeder Sorte einen Namen angeben.")).toBeTruthy();
+    expect(grows.update).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Sorte 2"), { target: { value: "haze" } });
+    fireEvent.change(screen.getByLabelText("Breeder zu Sorte 2"), { target: { value: "x" } });
+    fireEvent.submit(screen.getByTestId("edit-grow-form"));
+    expect(await screen.findByText(/ist doppelt eingetragen/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Sorte 2"), { target: { value: "Gorilla Glue" } });
+    fireEvent.change(screen.getByLabelText("Breeder zu Sorte 2"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Pflanzen von Sorte 2"), { target: { value: "3" } });
+    fireEvent.submit(screen.getByTestId("edit-grow-form"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ strains: [{ name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }, { name: "Gorilla Glue", breeder: "", plants: 3, wetG: null, dryG: null }] }));
+  });
+
+  it("Ernte: bei mehreren Sorten Gewichte je Sorte mit Summe (B-100)", async () => {
+    const onSaved = vi.fn();
+    const multi = grow({ strains: [{ name: "A", breeder: "", plants: null, wetG: null, dryG: null }, { name: "B", breeder: "", plants: null, wetG: null, dryG: null }] });
+    render(<FinishGrowModal grow={multi} open initialOutcome="harvested" onClose={() => undefined} onSaved={onSaved} />);
+    expect(screen.getAllByTestId("strain-weight-row")).toHaveLength(2);
+    expect(screen.queryByLabelText(/^Nassgewicht \(g\)/)).toBeNull();
+    fireEvent.change(screen.getByLabelText("Nassgewicht A"), { target: { value: "300" } });
+    fireEvent.change(screen.getByLabelText("Trockengewicht A"), { target: { value: "70" } });
+    fireEvent.change(screen.getByLabelText("Nassgewicht B"), { target: { value: "100" } });
+    expect(screen.getByTestId("strain-weights-total").textContent).toContain("nass 400 g, trocken 70 g");
+    fireEvent.change(screen.getByLabelText("Trockengewicht B"), { target: { value: "150" } });
+    fireEvent.submit(screen.getByTestId("finish-grow-form"));
+    expect(await screen.findByText(/B: Das Trockengewicht kann nicht größer/)).toBeTruthy();
+    expect(grows.finish).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Trockengewicht B"), { target: { value: "30" } });
+    fireEvent.submit(screen.getByTestId("finish-grow-form"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(grows.finish).toHaveBeenCalledWith("g1", expect.objectContaining({ outcome: "harvested", strainWeights: [{ wetG: 300, dryG: 70 }, { wetG: 100, dryG: 30 }] }));
   });
 
   it("Bearbeiten: Sichtbarkeit (B-92) – Standard „Nur ich“, Wechsel wird mitgesendet", async () => {

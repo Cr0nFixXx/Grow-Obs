@@ -46,8 +46,11 @@ export interface User {
 /** Eingaben für neue Entitäten (Subset der Pflichtfelder). */
 export interface CreateGrowInput {
   name: string;
-  strain: string;
-  breeder: string;
+  /** Eine Sorte (alter Weg); `strains` hat Vorrang. */
+  strain?: string;
+  breeder?: string;
+  /** B-100: eine oder mehrere Sorten. */
+  strains?: import("./domain").GrowStrain[];
   medium: string;
   type?: "Sativa" | "Indica" | "Hybrid";
   /** JJJJ-MM-TT; ohne Angabe: heute. */
@@ -79,6 +82,8 @@ export interface EnvInput {
 export interface UpdateGrowInput {
   name?: string;
   strain?: string;
+  /** B-100: ersetzt die ganze Sortenliste (Gewichte je Sorte werden unverändert zurückgegeben). */
+  strains?: import("./domain").GrowStrain[];
   breeder?: string;
   type?: "Sativa" | "Indica" | "Hybrid";
   medium?: string;
@@ -98,6 +103,8 @@ export interface FinishGrowInput {
   date?: string;
   wetG?: number | null;
   dryG?: number | null;
+  /** B-100: Gewichte je Sorte in Reihenfolge der Sortenliste; die Summe ergibt die Gesamtgewichte. */
+  strainWeights?: { wetG: number | null; dryG: number | null }[];
   note?: string;
 }
 

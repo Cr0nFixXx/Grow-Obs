@@ -3,9 +3,11 @@ import { Icon } from "@/components/Icon";
 import { Button, Field, Input, Modal, Segmented, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { useServices } from "@/data/DataContext";
-import { GROW_MEDIUMS, GROW_TYPES, GROW_VISIBILITIES, TARGET_KEYS, TARGET_META, conditionLabel, visibilityHint, visibilityLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
+import { StrainListEditor } from "@/components/StrainListEditor";
+import { cleanStrains, emptyStrain, growStrains, strainListError } from "@/lib/grow-strains";
+import { GROW_MEDIUMS, GROW_TYPES, formatGrams, GROW_VISIBILITIES, TARGET_KEYS, TARGET_META, conditionLabel, visibilityHint, visibilityLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
 import { resolveMedia } from "@/lib/media";
-import type { EnvPoint, FinishGrowInput, Grow, GrowCondition, GrowLog, GrowPhoto, GrowVisibility, TargetKey, TargetRange, UpdateGrowInput } from "@/types";
+import type { EnvPoint, FinishGrowInput, Grow, GrowCondition, GrowLog, GrowPhoto, GrowStrain, GrowVisibility, TargetKey, TargetRange, UpdateGrowInput } from "@/types";
 
 /** Gemeinsamer Fehlerton für alle Grow-Dialoge. */
 function useGrowAction(onDone: (grow?: Grow) => void) {
@@ -74,8 +76,7 @@ function targetPatchOf(key: TargetKey, f: TargetFieldState): TargetRange | null 
 export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; open: boolean; onClose: () => void; onSaved: (grow: Grow) => void }) {
   const svc = useServices();
   const [name, setName] = useState(grow.name);
-  const [strain, setStrain] = useState(grow.strain);
-  const [breeder, setBreeder] = useState(grow.breeder);
+  const [strainList, setStrainList] = useState<GrowStrain[]>(() => { const l = growStrains(grow); return l.length ? l : [emptyStrain()]; });
   const [type, setType] = useState(grow.type);
   const [medium, setMedium] = useState(grow.medium);
   const [startDate, setStartDate] = useState(grow.startDate.slice(0, 10));
@@ -95,7 +96,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
   const offset = Number(leafOffset.trim().replace(",", ".") || Number.NaN);
   const problems = {
     name: name.trim() ? "" : "Bitte einen Namen angeben.",
-    strain: strain.trim() ? "" : "Bitte eine Sorte angeben.",
+    strain: strainListError(strainList),
     startDate: startDate && startDate <= todayLocal() ? "" : "Startdatum darf nicht in der Zukunft liegen.",
     totalDays: Number.isInteger(days) && days >= 14 && days <= 400 ? "" : "Zwischen 14 und 400 Tagen.",
     leafOffset: Number.isFinite(offset) && offset >= 0 && offset <= 6 ? "" : "Blatt-Abzug zwischen 0 und 6 °C.",
@@ -108,7 +109,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
     setTouched(true);
     if (!valid) return;
     const patch: UpdateGrowInput = {
-      name: name.trim(), strain: strain.trim(), breeder: breeder.trim(), type, medium, startDate, totalDays: days,
+      name: name.trim(), strains: cleanStrains(strainList), type, medium, startDate, totalDays: days,
       expectedYield: expectedYield.trim() || "—", leafOffset: offset, visibility,
       targets: targetPatches as UpdateGrowInput["targets"],
     };
@@ -120,11 +121,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
       <form noValidate onSubmit={submit} className="space-y-4" data-testid="edit-grow-form">
         <Field label="Name des Grows"><Input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={touched && !!problems.name} /></Field>
         {touched && <ErrorLine error={problems.name} />}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Sorte"><Input value={strain} onChange={(e) => setStrain(e.target.value)} aria-invalid={touched && !!problems.strain} /></Field>
-          <Field label="Breeder"><Input value={breeder} onChange={(e) => setBreeder(e.target.value)} /></Field>
-        </div>
-        {touched && <ErrorLine error={problems.strain} />}
+        <StrainListEditor value={strainList} onChange={setStrainList} error={touched ? problems.strain : undefined} />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Typ">
             <Select value={type} onChange={(e) => setType(e.target.value as Grow["type"])}>{GROW_TYPES.map((t) => <option key={t}>{t}</option>)}</Select>
@@ -223,20 +220,36 @@ export function FinishGrowModal({
   const editing = grow.status !== "active";
   const harvested = outcome === "harvested";
 
+  // B-100: bei mehreren Sorten gibt man die Gewichte je Sorte ein, die Summe bildet das Gesamtgewicht.
+  const strainList = growStrains(grow);
+  const multi = strainList.length > 1;
+  const [perStrain, setPerStrain] = useState(() => strainList.map((x) => ({ wet: x.wetG != null ? String(x.wetG) : "", dry: x.dryG != null ? String(x.dryG) : "" })));
+  const setPer = (i: number, patch: Partial<{ wet: string; dry: string }>) => setPerStrain((cur) => cur.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const parsedPer = perStrain.map((x) => ({ wetG: parseGrams(x.wet), dryG: parseGrams(x.dry) }));
+  const perBad = multi && parsedPer.some((x) => Number.isNaN(x.wetG) || Number.isNaN(x.dryG));
+  const perOrder = multi && parsedPer.findIndex((x) => x.wetG != null && x.dryG != null && x.dryG > x.wetG);
+  const sumOf = (pick: (x: { wetG: number | null; dryG: number | null }) => number | null) => { const v = parsedPer.map(pick).filter((n): n is number => n !== null && !Number.isNaN(n)); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
+  const perAnyFilled = perStrain.some((x) => x.wet.trim() || x.dry.trim());
+  const legacyTotals = grow.harvest != null && (grow.harvest.wetG != null || grow.harvest.dryG != null) && !strainList.some((x) => x.wetG != null || x.dryG != null);
+
   const wetG = parseGrams(wet);
   const dryG = parseGrams(dry);
   const problem =
     !date ? "Bitte ein Datum angeben." :
     date > todayLocal() ? "Das Datum liegt in der Zukunft." :
     date < grow.startDate.slice(0, 10) ? "Das Datum liegt vor dem Start des Grows." :
-    harvested && (Number.isNaN(wetG) || Number.isNaN(dryG)) ? "Gewichte bitte als Zahl in Gramm angeben." :
-    harvested && wetG != null && dryG != null && dryG > wetG ? "Das Trockengewicht kann nicht größer als das Nassgewicht sein." : "";
+    harvested && !multi && (Number.isNaN(wetG) || Number.isNaN(dryG)) ? "Gewichte bitte als Zahl in Gramm angeben." :
+    harvested && !multi && wetG != null && dryG != null && dryG > wetG ? "Das Trockengewicht kann nicht größer als das Nassgewicht sein." :
+    harvested && perBad ? "Gewichte bitte als Zahl in Gramm angeben." :
+    harvested && typeof perOrder === "number" && perOrder >= 0 ? `${strainList[perOrder].name}: Das Trockengewicht kann nicht größer als das Nassgewicht sein.` : "";
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setTouched(true);
     if (problem) return;
-    const input: FinishGrowInput = { outcome, date, note: note.trim(), ...(harvested ? { wetG, dryG } : {}) };
+    const input: FinishGrowInput = { outcome, date, note: note.trim(), ...(harvested && !multi ? { wetG, dryG } : {}) };
+    // Mehrere Sorten: Gewichte je Sorte; sind alle Felder leer und es gibt nur alte Gesamtgewichte, bleiben diese unverändert.
+    if (multi && (harvested ? perAnyFilled || !legacyTotals : true)) input.strainWeights = parsedPer.map((x) => ({ wetG: x.wetG, dryG: x.dryG }));
     void run(() => svc.grows.finish(grow.id, input), harvested ? { title: editing ? "Ernte aktualisiert" : "Ernte abgeschlossen", desc: grow.name, icon: "Scissors" } : { title: "Grow abgebrochen", desc: grow.name, icon: "Flag" });
   };
 
@@ -256,7 +269,21 @@ export function FinishGrowModal({
         <Field label={harvested ? "Erntedatum" : "Abbruchdatum"}>
           <Input type="date" value={date} min={grow.startDate.slice(0, 10)} max={todayLocal()} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        {harvested && (
+        {harvested && multi && (
+          <div className="space-y-3" data-testid="strain-weights">
+            <div className="text-sm font-medium text-fg">Gewichte je Sorte <span className="font-normal text-fg-subtle">(optional)</span></div>
+            {legacyTotals && !perAnyFilled && <p className="text-xs text-fg-subtle">Bisher nur Gesamtgewichte (nass {formatGrams(grow.harvest?.wetG)}, trocken {formatGrams(grow.harvest?.dryG)}). Trägst du Gewichte je Sorte ein, ersetzen ihre Summen die Gesamtgewichte.</p>}
+            {strainList.map((x, i) => (
+              <div key={i} className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem] items-center gap-2" data-testid="strain-weight-row">
+                <span className="min-w-0 truncate text-sm" title={x.name}>{x.name}</span>
+                <Input inputMode="numeric" value={perStrain[i]?.wet ?? ""} onChange={(e) => setPer(i, { wet: e.target.value })} placeholder="nass g" aria-label={`Nassgewicht ${x.name}`} />
+                <Input inputMode="numeric" value={perStrain[i]?.dry ?? ""} onChange={(e) => setPer(i, { dry: e.target.value })} placeholder="trocken g" aria-label={`Trockengewicht ${x.name}`} />
+              </div>
+            ))}
+            <p className="text-xs text-fg-muted" data-testid="strain-weights-total">Gesamt: nass {formatGrams(sumOf((x) => x.wetG))}, trocken {formatGrams(sumOf((x) => x.dryG))}</p>
+          </div>
+        )}
+        {harvested && !multi && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nassgewicht (g)" hint="optional"><Input inputMode="numeric" value={wet} onChange={(e) => setWet(e.target.value)} placeholder="z. B. 450" /></Field>
             <Field label="Trockengewicht (g)" hint="optional, auch später nachtragbar"><Input inputMode="numeric" value={dry} onChange={(e) => setDry(e.target.value)} placeholder="z. B. 110" /></Field>

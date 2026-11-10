@@ -134,9 +134,13 @@ export type GrowStatus = "active" | "harvested" | "aborted";
 export type GrowCondition = "gesund" | "beobachten" | "problem";
 /** Wer einen Grow auf dem Profil sieht (B-92): nur ich (Standard), jedes Mitglied oder nur gemeinsame Communities. */
 export type GrowVisibility = "private" | "public" | "community";
+/** Eine Sorte eines Grows (B-100). Gewichte nur nach der Ernte. */
+export interface GrowStrain {
+  name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null;
+}
 /** Kurzform eines Grows in der Liste auf einem fremden Profil. */
 export interface MemberGrowBrief {
-  id: string; name: string; strain: string; type: string; medium: string; startDate: string; day: number; totalDays: number;
+  id: string; name: string; strain: string; strains?: string[]; type: string; medium: string; startDate: string; day: number; totalDays: number;
   phase: string; progress: number; status: GrowStatus; condition: GrowCondition; cover: string; visibility: GrowVisibility; archived: boolean;
 }
 /** Öffentliche Aktivität eines Mitglieds: Forum-Thread, Forum-Kommentar oder Wiki-Artikel. */
@@ -197,7 +201,10 @@ export interface GrowLog {
 export interface Grow {
   id: string;
   name: string;
+  /** Alle Sortennamen, kommagetrennt (Anzeigetext); die Liste steht in `strains`. */
   strain: string;
+  /** B-100: alle Sorten des Grows. */
+  strains: GrowStrain[];
   breeder: string;
   type: Type;
   medium: string;

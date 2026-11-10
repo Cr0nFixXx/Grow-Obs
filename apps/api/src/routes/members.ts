@@ -9,6 +9,7 @@ import { ago } from "../lib/time.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
 import { rateLimit, userKey } from "../middleware/rate-limit.ts";
 import { createNotification } from "../lib/notify.ts";
+import { strainsOf } from "../lib/grow-strains.ts";
 
 /**
  * Mitgliedsprofile und Folgen (B-73).
@@ -106,7 +107,7 @@ membersApi.get("/:handle/grows", async (c) => {
   return c.json(rows.map((r) => {
     const state = growState(r);
     return {
-      id: r.id, name: r.name, strain: r.strainName || "Unbekannt", type: r.type, medium: r.medium, startDate: r.startDate,
+      id: r.id, name: r.name, strain: r.strainName || "Unbekannt", strains: strainsOf(r).map((x) => x.name), type: r.type, medium: r.medium, startDate: r.startDate,
       day: state.day, totalDays: r.totalDays, phase: state.phase, progress: state.progress, status: r.status, condition: r.condition,
       cover: r.coverUrl ?? "", visibility: r.visibility, archived: r.archivedAt !== null,
     };

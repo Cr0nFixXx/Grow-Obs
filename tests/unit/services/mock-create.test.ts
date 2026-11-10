@@ -136,4 +136,19 @@ describe("mock create flows", () => {
     expect(rest.cover).toBe("blob:a");
     expect((await svc.grows.deletePhoto(grow.id, a.id)).cover).toBe("");
   });
+
+  it("mehrere Sorten: anlegen, bearbeiten, Ernte-Gewichte je Sorte mit Summe (B-100)", async () => {
+    const e = (name: string, breeder = "", plants: number | null = null) => ({ name, breeder, plants, wetG: null, dryG: null });
+    const grow = await svc.grows.create({ name: "Mix", medium: "Erde (Bio)", strains: [e("A", "X", 2), e("B")] });
+    expect(grow.strains.map((x) => x.name)).toEqual(["A", "B"]);
+    expect(grow).toMatchObject({ strain: "A, B", breeder: "X" });
+    const edited = await svc.grows.update(grow.id, { strains: [e("A", "X", 2), e("B"), e("C")] });
+    expect(edited.strain).toBe("A, B, C");
+    const done = await svc.grows.finish(grow.id, { outcome: "harvested", strainWeights: [{ wetG: 100, dryG: 20 }, { wetG: 50, dryG: null }, { wetG: null, dryG: null }] });
+    expect(done.harvest).toMatchObject({ wetG: 150, dryG: 20 });
+    expect(done.strains.map((x) => x.wetG)).toEqual([100, 50, null]);
+    await expect(svc.grows.finish(grow.id, { outcome: "harvested", strainWeights: [{ wetG: 1, dryG: 1 }] })).rejects.toThrow();
+    const aborted = await svc.grows.finish(grow.id, { outcome: "aborted" });
+    expect(aborted.strains.every((x) => x.wetG === null)).toBe(true);
+  });
 });

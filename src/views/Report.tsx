@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { growStrains } from "@/lib/grow-strains";
 import { cn } from "@/utils/cn";
 import { average, conditionLabel, conditionTone, formatDay, formatGrams, isActiveGrow } from "@/lib/grows";
 import { useToast } from "@/components/Toast";
@@ -57,11 +58,16 @@ export default function Report() {
     const phases = g.phases
       .map((p) => `<li><strong>${p.label}</strong> ${p.startedOn ? `(ab ${formatDay(p.startedOn)}, Tag ${p.startDay ?? 0}) — ` : "— "}${p.done ? "abgeschlossen" : p.active ? "läuft" : "offen"}</li>`)
       .join("");
+    const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch] ?? ch);
+    const strainRows = growStrains(g);
+    const strainSection = strainRows.length > 1
+      ? `<h2>Sorten (${strainRows.length})</h2><ul>${strainRows.map((x) => `<li><strong>${esc(x.name)}</strong>${x.breeder ? ` · ${esc(x.breeder)}` : ""}${x.plants != null ? ` · ${x.plants} Pflanzen` : ""}${x.wetG != null || x.dryG != null ? ` · nass ${formatGrams(x.wetG)}, trocken ${formatGrams(x.dryG)}` : ""}</li>`).join("")}</ul>`
+      : "";
     win.document.write(
       `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Grow-Report – ${g.name}</title><style>*{font-family:-apple-system,system-ui,'Segoe UI',sans-serif;box-sizing:border-box}body{margin:40px;color:#15241a}h1{color:#1c6930;margin:0 0 4px;font-size:28px}.sub{color:#6b7264;margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{border:1px solid #e2e6db;border-radius:10px;padding:12px}.stat .l{font-size:11px;color:#8a9082;text-transform:uppercase;letter-spacing:.04em}.stat .v{font-size:18px;font-weight:700;margin-top:2px}h2{color:#1c6930;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin:28px 0 8px}ul{margin:0;padding-left:18px}li{margin:4px 0}p{line-height:1.6;margin:8px 0}.foot{margin-top:40px;border-top:1px solid #e2e6db;padding-top:12px;font-size:11px;color:#8a9082}</style></head><body>` +
         `<h1>Grow-Report</h1><div class="sub">${g.name} · ${g.strain} · ${g.breeder} · ${g.medium} · Start ${new Date(g.startDate).toLocaleDateString("de-DE")}</div>` +
         `<div class="grid"><div class="stat"><div class="l">Dauer</div><div class="v">${g.day} Tage</div></div><div class="stat"><div class="l">Zustand</div><div class="v">${conditionLabel[g.condition]}</div></div><div class="stat"><div class="l">Erwartet</div><div class="v">${g.expectedYield}</div></div><div class="stat"><div class="l">Phase</div><div class="v">${g.phase}</div></div></div>` +
-        `<h2>Phasen-Verlauf</h2><ul>${phases}</ul><h2>Fazit</h2><p>Stand: Tag ${g.day} von ${g.totalDays}, Phase ${g.phase}, Zustand ${conditionLabel[g.condition]}.${g.harvest ? ` Ernte: nass ${formatGrams(g.harvest.wetG)}, trocken ${formatGrams(g.harvest.dryG)}.` : ""}</p>` +
+        `${strainSection}<h2>Phasen-Verlauf</h2><ul>${phases}</ul><h2>Fazit</h2><p>Stand: Tag ${g.day} von ${g.totalDays}, Phase ${g.phase}, Zustand ${conditionLabel[g.condition]}.${g.harvest ? ` Ernte: nass ${formatGrams(g.harvest.wetG)}, trocken ${formatGrams(g.harvest.dryG)}.` : ""}</p>` +
         `<div class="foot">Grow|Obs · generiert am ${new Date().toLocaleString("de-DE")}</div></body></html>`
     );
     win.document.close();
