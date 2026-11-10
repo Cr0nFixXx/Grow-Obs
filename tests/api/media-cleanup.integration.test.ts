@@ -129,7 +129,7 @@ describe("Verwaiste Bilder (B-78)", () => {
       expect((await app.request("/cron/media-cleanup", { headers: { Authorization: "Bearer falsch" } })).status).toBe(401);
       const ok = await app.request("/cron/media-cleanup", { headers: { Authorization: `Bearer ${SECRET}` } });
       expect(ok.status).toBe(200);
-      expect(await ok.json()).toEqual({ deleted: 1 });
+      expect(await ok.json()).toEqual({ deleted: 1, liveExpired: 0 });
     } finally { delete process.env.CRON_SECRET; }
   });
 

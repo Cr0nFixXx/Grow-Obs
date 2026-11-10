@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { sweepOrphanMedia } from "../lib/media-cleanup.ts";
+import { expireLiveStatuses } from "../lib/status.ts";
 import { runGrowReminders } from "../lib/grow-reminders.ts";
 import { runWeeklyReports } from "../lib/weekly-report.ts";
 
@@ -28,7 +29,8 @@ cronApi.get("/media-cleanup", async (c) => {
   const secret = process.env.CRON_SECRET;
   if (!secret) return c.json({ error: "Nicht gefunden" }, 404);
   if (!authorized(c.req.header("authorization"), secret)) return c.json({ error: "Nicht erlaubt" }, 401);
-  return c.json(await sweepOrphanMedia());
+  const live = await expireLiveStatuses();
+  return c.json({ ...(await sweepOrphanMedia()), liveExpired: live.expired });
 });
 
 /** Erinnerungen bei fehlenden Messwerten/Logs (B-88), einmal täglich. Gleiche Absicherung; je Lücke wird nur einmal erinnert. */

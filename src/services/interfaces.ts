@@ -72,6 +72,13 @@ export interface ChatAttachment {
   mime: string;
 }
 
+/** Livestatus (B-97): dauerhafter Textstatus (eine Zeile mit Emoji) und 24h-Status (Text, optional Foto). */
+export type StatusVisibility = "all" | "followers" | "nobody";
+export interface StatusLine { emoji: string; text: string }
+export interface LiveStatus { text: string; image: string; expiresAt: string; visibility: StatusVisibility }
+export const STATUS_TEXT_MAX = 80;
+export const LIVE_TEXT_MAX = 140;
+
 export interface ChatReplyQuote {
   id: string;
   from: "me" | "them";
@@ -100,6 +107,8 @@ export interface ChatMessage {
   senderAvatar?: string;
   /** Antwort (B-94): zitierte Nachricht, gekürzt; `deleted` = Original gelöscht (kein Text). */
   replyTo?: ChatReplyQuote | null;
+  /** Antwort auf einen 24h-Status (B-97): Schnappschuss des Statustexts. */
+  statusQuote?: string | null;
   kind?: "user" | "system";
   topicId?: string | null;
   /** Gelöscht (B-82): Text und Anhänge sind weg, die Oberfläche zeigt „Nachricht gelöscht“. */
@@ -120,6 +129,9 @@ export interface ConversationItem {
   partnerId?: string | null;
   /** Benutzername der Gegenstelle (ohne „@“), für den Sprung zum Profil. */
   partnerHandle?: string | null;
+  /** Status der Gegenstelle (B-97), soweit sichtbar. */
+  partnerStatus?: StatusLine | null;
+  partnerLive?: LiveStatus | null;
   /** Gruppen (B-65): eigene Rolle und Mitgliederzahl. */
   role?: "admin" | "moderator" | "member" | null;
   memberCount?: number;
@@ -234,7 +246,7 @@ export interface ChatService {
   listConversations(): Promise<ConversationItem[]>;
   /** Gruppen: `topicId` wählt das Thema (ohne Angabe: „Allgemein“). */
   getMessages(conversationId: string, topicId?: string): Promise<ChatMessage[]>;
-  sendMessage(conversationId: string, text: string, attachments?: ChatAttachment[], topicId?: string, replyTo?: string): Promise<ChatMessage>;
+  sendMessage(conversationId: string, text: string, attachments?: ChatAttachment[], topicId?: string, replyTo?: string, statusReply?: boolean): Promise<ChatMessage>;
   /** Eigene Nachricht (in Gruppen als Admin jede) für alle löschen; Anhänge werden entfernt (B-82). */
   deleteMessage(conversationId: string, messageId: string): Promise<void>;
   /** Direktnachricht mit einer Person starten bzw. die bestehende öffnen. */
@@ -367,12 +379,18 @@ export interface ProfileUpdate {
   profileVisibility?: ProfileVisibility;
   /** Benutzername ohne „@“; höchstens 1x je 30 Tage. */
   handle?: string;
+  /** Livestatus (B-97). */
+  statusEmoji?: string;
+  statusText?: string;
+  statusVisibility?: StatusVisibility;
+  /** 24h-Status setzen (läuft nach 24 h ab) oder mit `null` entfernen. */
+  live?: { text: string; image?: string; visibility: StatusVisibility } | null;
 }
 
 /** Mitgliedsprofile und Folgen (B-73). */
 export type ProfileVisibility = "all" | "followers" | "nobody";
 export type FollowState = "none" | "pending" | "accepted";
-export interface MemberPerson { id: string; name: string; handle: string; avatar: string; title: string }
+export interface MemberPerson { id: string; name: string; handle: string; avatar: string; title: string; /** Textstatus (B-97), soweit sichtbar. */ status?: StatusLine | null }
 export interface MemberProfile extends MemberPerson {
   isMe: boolean;
   /** `true`: nur Name/Bild/Titel sichtbar (Sichtbarkeit des Profils schränkt ein). */
@@ -386,6 +404,8 @@ export interface MemberProfile extends MemberPerson {
   growSince?: number | null;
   medium?: string | null;
   interests?: string[];
+  status?: StatusLine | null;
+  live?: LiveStatus | null;
   memberSince?: string;
   stats?: { grows: number; harvests: number; followers: number; following: number };
 }

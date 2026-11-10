@@ -25,6 +25,9 @@ export interface User {
   medium?: string | null;
   interests?: string[];
   profileVisibility?: "all" | "followers" | "nobody";
+  /** Eigener Livestatus (B-97): Textstatus mit Einstellung und aktiver 24h-Status. */
+  status?: { emoji: string; text: string; visibility: "all" | "followers" | "nobody" };
+  live?: { text: string; image: string; expiresAt: string; visibility: "all" | "followers" | "nobody" } | null;
   /** Frühestens wieder möglich 30 Tage nach diesem Zeitpunkt. */
   handleChangedAt?: string | null;
   following?: number;

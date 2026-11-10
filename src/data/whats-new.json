@@ -1,5 +1,17 @@
 [
   {
+    "id": "B-97",
+    "date": "2026-10-01",
+    "title": "Livestatus: Status und 24h-Status",
+    "notes": [
+      "Eine Statuszeile mit Emoji unter deinem Namen, bleibt bis du sie änderst",
+      "24h-Status mit Text und optionalem Foto, verschwindet nach 24 Stunden",
+      "Pro Status einstellbar: Alle, nur Follower oder niemand",
+      "Zu sehen im Profil, im Chat und in den Follower-Listen",
+      "„Antworten“ öffnet den Direktchat und zitiert den Status"
+    ]
+  },
+  {
     "id": "B-96",
     "date": "2026-10-01",
     "title": "Kein Scroll-Sprung mehr",

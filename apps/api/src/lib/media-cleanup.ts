@@ -8,7 +8,7 @@ import { deleteObject } from "./s3.ts";
  * eingetragen werden, sonst räumt die Bereinigung das Bild ab (der Test `media-cleanup.integration.test.ts` prüft das gegen das Schema).
  */
 export const MEDIA_REFERENCES = [
-  ["users", "avatar_url"], ["users", "cover_url"], ["breeders", "avatar_url"],
+  ["users", "avatar_url"], ["users", "cover_url"], ["users", "live_image_url"], ["breeders", "avatar_url"],
   ["hall_entries", "avatar_url"], ["hall_entries", "image_url"], ["grows", "cover_url"], ["grow_photos", "url"],
   ["posts", "image_url"], ["conversations", "avatar_url"], ["messages", "image_url"], ["messages", "attachments"],
 ] as const;

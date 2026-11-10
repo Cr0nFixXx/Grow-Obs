@@ -55,6 +55,14 @@ export const users = pgTable("users", {
   interests: text("interests").array().notNull().default(sql`'{}'::text[]`),
   /** Wer das Profil sehen darf: all | followers | nobody (CHECK in der Migration). */
   profileVisibility: text("profile_visibility").notNull().default("all"),
+  /** Livestatus (B-97): Textstatus (dauerhaft) und 24h-Status; Sichtbarkeit je Status all | followers | nobody. */
+  statusEmoji: text("status_emoji").notNull().default(""),
+  statusText: text("status_text").notNull().default(""),
+  statusVisibility: text("status_visibility").notNull().default("all"),
+  liveText: text("live_text").notNull().default(""),
+  liveImage: text("live_image_url"),
+  liveVisibility: text("live_visibility").notNull().default("all"),
+  liveExpiresAt: timestamp("live_expires_at", { withTimezone: true }),
   /** Letzter Wechsel des Benutzernamens (höchstens 1x je 30 Tage). */
   handleChangedAt: timestamp("handle_changed_at", { withTimezone: true }),
   role: roleEnum("role").notNull().default("member"),
@@ -586,6 +594,8 @@ export const messages = pgTable("messages", {
   /** Gelöschte Nachricht (B-82): Text und Anhänge sind geleert, die Zeile bleibt als Platzhalter („Nachricht gelöscht“). */
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   /** B-94: zitierte Nachricht (Antwort); leer, wenn es keine Antwort ist oder das Original endgültig entfernt wurde. */
+  /** Antwort auf einen 24h-Status (B-97): Schnappschuss des Statustexts. */
+  statusQuote: text("status_quote"),
   replyTo: uuid("reply_to").references((): AnyPgColumn => messages.id, { onDelete: "set null" }),
 }, (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt), index("messages_topic_created_idx").on(t.topicId, t.createdAt)]);
 

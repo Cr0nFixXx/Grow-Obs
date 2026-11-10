@@ -1,3 +1,4 @@
+import { StatusLine } from "@/components/status";
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, Badge, Button, Card, Modal } from "@/components/ui";
 import { resolveMedia } from "@/lib/media";
@@ -48,7 +49,7 @@ function PersonRow({ person, onOpen, action }: { person: MemberPerson; onOpen: (
     <li className="flex items-center gap-3 rounded-xl p-2 hover:bg-surface-2">
       <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Profil von ${person.name} öffnen`}>
         <Avatar src={person.avatar} name={person.name} size={40} />
-        <span className="min-w-0"><span className="block truncate text-sm font-medium">{person.name}</span><span className="block truncate text-xs text-fg-subtle">{atHandle(person.handle)}</span></span>
+        <span className="min-w-0"><span className="block truncate text-sm font-medium">{person.name}</span><span className="block truncate text-xs text-fg-subtle">{atHandle(person.handle)}</span><StatusLine status={person.status} className="text-xs" /></span>
       </button>
       {action}
     </li>

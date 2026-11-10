@@ -89,7 +89,7 @@ test.describe("Profile und Folgen (B-73)", () => {
     await openProfile(A.page);
     await A.page.getByRole("button", { name: "Bearbeiten" }).click();
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
-    await A.page.locator('input[type="file"]').first().setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: png });
+    await A.page.getByRole("dialog").locator('input[type="file"]').first().setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: png });
     await expect(A.page.locator('img[src*="/media/"]').first()).toBeVisible();
     await A.page.getByRole("button", { name: "Speichern" }).click();
     const banner = A.page.locator('main img[src*="/media/"]').first();

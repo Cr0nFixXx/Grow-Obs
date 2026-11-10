@@ -1,3 +1,4 @@
+import { LIVE_HOURS, LIVE_TEXT_MAX, STATUS_EMOJI_MAX, STATUS_TEXT_MAX, STATUS_VISIBILITIES, ownStatus } from "../lib/status.ts";
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { and, count, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
@@ -55,6 +56,7 @@ async function toUser(id: string) {
     interests: u.interests,
     profileVisibility: u.profileVisibility as (typeof VISIBILITIES)[number],
     handleChangedAt: u.handleChangedAt ? u.handleChangedAt.toISOString() : null,
+    ...ownStatus(u),
     grows: g?.n ?? 0,
     harvests: h?.n ?? 0,
     followers: followers?.n ?? 0,
@@ -136,6 +138,16 @@ const updateMeSchema = z.object({
   medium: z.enum(MEDIA).nullable().optional(),
   interests: z.array(z.enum(INTERESTS)).max(INTERESTS_MAX, `Höchstens ${INTERESTS_MAX} Interessen`).optional(),
   profileVisibility: z.enum(VISIBILITIES).optional(),
+  /** Livestatus (B-97). */
+  statusEmoji: z.string().trim().max(STATUS_EMOJI_MAX, "Emoji zu lang").optional(),
+  statusText: z.string().trim().max(STATUS_TEXT_MAX, `Status: höchstens ${STATUS_TEXT_MAX} Zeichen`).optional(),
+  statusVisibility: z.enum(STATUS_VISIBILITIES).optional(),
+  /** 24h-Status setzen (Text und/oder Foto) oder mit `null` entfernen. */
+  live: z.object({
+    text: z.string().trim().max(LIVE_TEXT_MAX, `24h-Status: höchstens ${LIVE_TEXT_MAX} Zeichen`),
+    image: z.union([imageRef, z.literal("")]).optional(),
+    visibility: z.enum(STATUS_VISIBILITIES),
+  }).strict().nullable().optional(),
   handle: z.string().trim().regex(HANDLE_PATTERN, "Benutzername: 3–32 Zeichen, nur Buchstaben, Zahlen und _").transform((value) => value.toLowerCase()).optional(),
 }).strict();
 
@@ -143,7 +155,7 @@ const updateMeSchema = z.object({
 auth.patch("/me", requireAuth, async (c) => {
   const body = updateMeSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  const { name, title, avatar, cover, weeklyReport, growReminderDays, bio, location, growSince, medium, interests, profileVisibility, handle } = body.data;
+  const { name, title, avatar, cover, weeklyReport, growReminderDays, bio, location, growSince, medium, interests, profileVisibility, handle, statusEmoji, statusText, statusVisibility, live } = body.data;
   const userId = c.get("userId");
   const set: Partial<typeof users.$inferInsert> = {
     ...(name !== undefined ? { name } : {}),
@@ -158,7 +170,17 @@ auth.patch("/me", requireAuth, async (c) => {
     ...(medium !== undefined ? { medium } : {}),
     ...(interests !== undefined ? { interests: [...new Set(interests)] } : {}),
     ...(profileVisibility !== undefined ? { profileVisibility } : {}),
+    ...(statusEmoji !== undefined ? { statusEmoji } : {}),
+    ...(statusText !== undefined ? { statusText } : {}),
+    ...(statusVisibility !== undefined ? { statusVisibility } : {}),
   };
+  if (live !== undefined && live !== null && live.text === "" && !live.image) return c.json({ error: "Der 24h-Status braucht einen Text oder ein Foto." }, 400);
+  if (live !== undefined) {
+    set.liveText = live?.text ?? "";
+    set.liveImage = live?.image || null;
+    set.liveVisibility = live?.visibility ?? "all";
+    set.liveExpiresAt = live ? new Date(Date.now() + LIVE_HOURS * 3_600_000) : null;
+  }
   if (handle !== undefined) {
     const current = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { handle: true, handleChangedAt: true } });
     if (current && current.handle !== handle) {
@@ -171,8 +193,8 @@ auth.patch("/me", requireAuth, async (c) => {
     }
   }
   // Bisherige Bilder merken: werden nach dem Speichern gelöscht, wenn sie ersetzt/entfernt wurden und nirgends mehr verwendet werden.
-  const previous = avatar !== undefined || cover !== undefined
-    ? await db.query.users.findFirst({ where: eq(users.id, userId), columns: { avatarUrl: true, coverUrl: true } })
+  const previous = avatar !== undefined || cover !== undefined || live !== undefined
+    ? await db.query.users.findFirst({ where: eq(users.id, userId), columns: { avatarUrl: true, coverUrl: true, liveImage: true } })
     : undefined;
   if (Object.keys(set).length > 0) {
     try {
@@ -185,6 +207,7 @@ auth.patch("/me", requireAuth, async (c) => {
   }
   if (avatar !== undefined && previous?.avatarUrl && previous.avatarUrl !== (avatar || null)) await releaseMedia(userId, previous.avatarUrl);
   if (cover !== undefined && previous?.coverUrl && previous.coverUrl !== (cover || null)) await releaseMedia(userId, previous.coverUrl);
+  if (live !== undefined && previous?.liveImage && previous.liveImage !== (live?.image || null)) await releaseMedia(userId, previous.liveImage);
   // Sichtbarkeit anpassen: „alle“ nimmt offene Anfragen an, „niemand“ verwirft sie.
   if (profileVisibility === "all") await db.update(follows).set({ status: "accepted" }).where(and(eq(follows.followeeId, userId), eq(follows.status, "pending")));
   if (profileVisibility === "nobody") await db.delete(follows).where(and(eq(follows.followeeId, userId), eq(follows.status, "pending")));

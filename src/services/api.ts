@@ -147,7 +147,7 @@ const forumService: ForumService = {
 const chatService: ChatService = {
   listConversations: () => http.get<ConversationItem[]>("/chat"),
   getMessages: (id, topicId) => http.get<ChatMessage[]>(`/chat/${id}/messages${topicId ? `?topicId=${topicId}` : ""}`),
-  sendMessage: (id, text, attachments, topicId, replyTo) => http.post<ChatMessage>(`/chat/${id}/messages`, { text, ...(attachments?.length ? { attachments: attachments.map((a) => a.path) } : {}), ...(topicId ? { topicId } : {}), ...(replyTo ? { replyTo } : {}) }),
+  sendMessage: (id, text, attachments, topicId, replyTo, statusReply) => http.post<ChatMessage>(`/chat/${id}/messages`, { text, ...(attachments?.length ? { attachments: attachments.map((a) => a.path) } : {}), ...(topicId ? { topicId } : {}), ...(replyTo ? { replyTo } : {}), ...(statusReply ? { statusReply: true } : {}) }),
   deleteMessage: async (id, messageId) => { await http.delete<void>(`/chat/${id}/messages/${messageId}`); },
   startDirect: (userId) => http.post<ConversationItem>("/chat", { userId }),
   markRead: async (id, topicId) => { await http.post<void>(`/chat/${id}/read`, topicId ? { topicId } : {}); },

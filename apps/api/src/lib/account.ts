@@ -142,7 +142,7 @@ async function removeAccountData(tx: Tx, userId: string, o: DeleteOptions): Prom
   const handle = `geloescht_${U.replace(/-/g, "").slice(0, 12)}`;
   await tx.update(users).set({
     name: DELETED_NAME, handle, email: `${handle}@geloescht.invalid`, passwordHash: "!geloescht",
-    avatarUrl: null, coverUrl: null, bio: "", location: "", growSince: null, medium: null, interests: [], title: "Grower", level: 1,
+    avatarUrl: null, coverUrl: null, statusEmoji: "", statusText: "", statusVisibility: "nobody", liveText: "", liveImage: null, liveExpiresAt: null, liveVisibility: "nobody", bio: "", location: "", growSince: null, medium: null, interests: [], title: "Grower", level: 1,
     telegram: false, weeklyReport: false, weeklyReportWeek: null, growReminderDays: null, profileVisibility: "nobody",
     role: "member", mustChangePassword: false, emailVerifiedAt: null, onlineUntil: null, deletedAt: new Date(),
   }).where(eq(users.id, U));

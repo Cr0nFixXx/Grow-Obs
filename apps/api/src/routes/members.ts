@@ -1,3 +1,4 @@
+import { statusesFor, visibleStatus } from "../lib/status.ts";
 import { Hono, type Context } from "hono";
 import { and, asc, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db/client.ts";
@@ -77,6 +78,7 @@ membersApi.get("/:handle", async (c) => {
   };
   if (!full) return c.json(base);
   const shown = await visibleGrows(viewerId, u);
+  const shownStatus = visibleStatus(u, { id: viewerId, follows: following === "accepted" });
   const [[fr], [fg]] = await Promise.all([
     db.select({ n: count() }).from(follows).where(and(eq(follows.followeeId, u.id), eq(follows.status, "accepted"))),
     db.select({ n: count() }).from(follows).where(and(eq(follows.followerId, u.id), eq(follows.status, "accepted"))),
@@ -89,6 +91,8 @@ membersApi.get("/:handle", async (c) => {
     growSince: u.growSince ?? null,
     medium: u.medium ?? null,
     interests: u.interests,
+    status: shownStatus.status,
+    live: shownStatus.live,
     memberSince: u.createdAt.toISOString(),
     stats: { grows: shown.length, harvests: shown.filter((x) => x.status === "harvested").length, followers: fr?.n ?? 0, following: fg?.n ?? 0 },
   });
@@ -149,7 +153,8 @@ async function list(c: Context<AuthEnv>, direction: "followers" | "following") {
   const mine = direction === "followers" ? eq(follows.followeeId, u.id) : eq(follows.followerId, u.id);
   const other = direction === "followers" ? follows.followerId : follows.followeeId;
   const rows = await db.select(person).from(follows).innerJoin(users, eq(users.id, other)).where(and(mine, eq(follows.status, "accepted"))).orderBy(desc(follows.createdAt)).limit(200);
-  return c.json(rows.map(toPerson));
+  const statuses = await statusesFor(c.get("userId"), rows.map((r) => r.id));
+  return c.json(rows.map((r) => ({ ...toPerson(r), status: statuses.get(r.id)?.status ?? null })));
 }
 membersApi.get("/:handle/followers", (c) => list(c, "followers"));
 membersApi.get("/:handle/following", (c) => list(c, "following"));

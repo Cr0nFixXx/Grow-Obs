@@ -1,3 +1,4 @@
+import { LiveStatusCard, StatusLine, StatusReplyModal } from "@/components/status";
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, Badge, Button, Card, EmptyState, Skeleton } from "@/components/ui";
 import { Icon } from "@/components/Icon";
@@ -37,6 +38,7 @@ export default function MemberProfile() {
   const [error, setError] = useState("");
   const [list, setList] = useState<"followers" | "following" | null>(null);
   const [growsOpen, setGrowsOpen] = useState(false);
+  const [replying, setReplying] = useState(false);
   const load = useCallback(() => {
     if (!handle) return;
     setMember(null); setError("");
@@ -83,6 +85,8 @@ export default function MemberProfile() {
               </div>
             ) : (
               <>
+                <StatusLine status={member.status} className="mt-4" />
+                {member.live && <LiveStatusCard live={member.live} name={member.name} onReply={member.isMe ? undefined : () => setReplying(true)} />}
                 {member.bio && <p className="mt-4 whitespace-pre-line text-sm">{member.bio}</p>}
                 {facts.length > 0 && <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-fg-muted">{facts.map((f) => <li key={f.text} className="flex items-center gap-1.5"><Icon name={f.icon} size={14} />{f.text}</li>)}</ul>}
                 {member.interests && member.interests.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{member.interests.map((i) => <Badge key={i} tone="leaf">{i}</Badge>)}</div>}
@@ -102,6 +106,7 @@ export default function MemberProfile() {
       </Reveal>
       {!member.restricted && <MemberActivityCard handle={member.handle} title="Aktivität" />}
       {growsOpen && <MemberGrowsModal handle={member.handle} name={member.name} mine={member.isMe} onClose={() => setGrowsOpen(false)} onOpen={(growId) => { setGrowsOpen(false); navigate("member", { handle: member.handle, growId }); }} />}
+      {replying && member.live && <StatusReplyModal open onClose={() => setReplying(false)} userId={member.id} name={member.name} live={member.live} />}
       {list && <FollowListModal open onClose={() => setList(null)} handle={member.handle} kind={list} mine={member.isMe} />}
     </div>
   );

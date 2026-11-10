@@ -11,6 +11,7 @@ import { GroupInfoModal, type GroupTab } from "@/components/GroupInfo";
 import { InviteBanner } from "@/components/GroupInvites";
 import { TopicBar } from "@/components/TopicBar";
 import { ChatBubble, ReplyQuote } from "@/components/chat-message";
+import { LiveChip, StatusLine } from "@/components/status";
 import { canDeleteMessage, copyPayload, isSelectable, quoteOf, selectionActions, toggleId } from "@/lib/chat-select";
 import { inviteSummary, showSenderName, writeBlockReason } from "@/lib/chat-groups";
 import { config } from "@/lib/config";
@@ -28,8 +29,16 @@ const memberLabel = (n: number | undefined) => (n === undefined ? "Gruppe" : n =
 
 export default function Chat() {
   const toast = useToast();
-  const { navigate } = useNav();
+  const { navigate, params } = useNav();
   const { conversations, activeId, setActiveId, messages, msgLoading, send, deleteMessage, loading, error, typing, typingIds, notifyTyping, openDirect, live, group, activeTopic, selectTopic, invites, groupActions } = useChat();
+  // Sprung aus „Auf Status antworten“ (B-97): die genannte Unterhaltung öffnen, sobald sie in der Liste steht.
+  const appliedParam = useRef<string | null>(null);
+  useEffect(() => {
+    const wanted = params?.id;
+    if (!wanted || appliedParam.current === wanted || !conversations.some((c) => c.id === wanted)) return;
+    appliedParam.current = wanted;
+    setActiveId(wanted);
+  }, [params?.id, conversations, setActiveId]);
   const [newChat, setNewChat] = useState(false);
   const [newGroup, setNewGroup] = useState(false);
   const [info, setInfo] = useState<GroupTab | null>(null);
@@ -190,6 +199,12 @@ export default function Chat() {
                   {conv.isGroup
                     ? <div data-testid="chat-status" className={cn("text-xs", typing ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : memberLabel(conv.memberCount ?? group?.memberCount)}</div>
                     : <div data-testid="chat-status" className={cn("text-xs", typing || conv.online ? "text-leaf-500 dark:text-leaf-400" : "text-fg-subtle")}>{typing ? "schreibt …" : conv.online ? "Online" : "Offline"}</div>}
+                  {!conv.isGroup && (conv.partnerStatus || conv.partnerLive) && (
+                    <div className="mt-0.5 flex min-w-0 items-center gap-2">
+                      <StatusLine status={conv.partnerStatus} className="min-w-0 text-xs" />
+                      {conv.partnerHandle && conv.partnerLive && <button type="button" onClick={() => navigate("member", { handle: conv.partnerHandle! })} aria-label="24h-Status ansehen" className="shrink-0"><LiveChip live={conv.partnerLive} /></button>}
+                    </div>
+                  )}
                 </div>
                 {conv.isGroup
                   ? <button onClick={() => setInfo("general")} disabled={!group} className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 disabled:opacity-50" aria-label="Gruppen-Info"><Icon name="Info" size={18} /></button>
@@ -314,7 +329,8 @@ export default function Chat() {
               <button key={c.id} onClick={() => setActiveId(c.id)} className={cn("flex w-full items-center gap-3 p-3 text-left transition hover:bg-surface-2", activeId === c.id && "bg-surface-2")}>
                 {c.isGroup ? <span className="relative"><Avatar src={c.avatar} name={c.name} size={44} /><span className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-surface text-fg-muted ring-1 ring-border" aria-label="Gruppe"><Users className="size-2.5" /></span></span> : <Avatar src={c.avatar} name={c.name} size={44} status={c.online ? "online" : "offline"} />}
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between"><span className={cn("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>{c.name}</span><span className="text-[10px] text-fg-subtle">{c.time}</span></span>
+                  <span className="flex items-center justify-between"><span className="flex min-w-0 items-center gap-1.5"><span className={cn("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>{c.name}</span><LiveChip live={c.partnerLive} className="shrink-0" /></span><span className="text-[10px] text-fg-subtle">{c.time}</span></span>
+                  {c.partnerStatus && <StatusLine status={c.partnerStatus} className="text-[11px] text-fg-subtle" />}
                   <span className="flex items-center justify-between"><span className={cn("truncate text-xs", typingIds.has(c.id) ? "text-accent" : c.unread > 0 ? "font-medium text-fg" : "text-fg-muted")}>{typingIds.has(c.id) ? "schreibt …" : c.last}</span>{c.unread > 0 && <span data-testid="unread-badge" aria-label={`${c.unread} ungelesen`} className="grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-fg">{c.unread}</span>}</span>
                 </span>
               </button>

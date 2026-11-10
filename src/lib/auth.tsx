@@ -176,7 +176,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(async (patch: ProfileUpdate) => {
     if (config.useMock) {
-      setUser((current) => (current ? { ...current, ...patch } : current));
+      setUser((current) => {
+        if (!current) return current;
+        const { live, statusEmoji, statusText, statusVisibility, ...rest } = patch;
+        const status = { emoji: statusEmoji ?? current.status?.emoji ?? "", text: statusText ?? current.status?.text ?? "", visibility: statusVisibility ?? current.status?.visibility ?? "all" };
+        const next: User = { ...current, ...rest, status };
+        if (live !== undefined) next.live = live ? { text: live.text, image: live.image ?? "", visibility: live.visibility, expiresAt: new Date(Date.now() + 24 * 3_600_000).toISOString() } : null;
+        return next;
+      });
       return;
     }
     const updated = await http.patch<User>("/auth/me", patch);

@@ -11,6 +11,22 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-97 – TODO-Runde 4: Livestatus (Textstatus und 24h-Status)
+
+**Neu:**
+- **Textstatus:** eine Zeile bis 80 Zeichen mit Emoji (Schnellauswahl oder eigenes), bleibt bis zur Änderung, leerbar.
+- **24h-Status:** Text bis 140 Zeichen und/oder ein Foto; läuft nach 24 Stunden ab (Foto wird dann aus dem Speicher entfernt); es gibt je Person immer nur einen, ein neuer ersetzt den alten (altes Foto wird freigegeben).
+- **Privatsphäre:** je Status ein Schalter **Alle** (Standard: wer das Profil sehen darf) · **Nur Follower** · **Niemand**. Voraussetzung ist immer, dass der Betrachter das Profil sehen darf (`canViewProfile`); ein privates Profil zeigt nie einen Status. Der Besitzer sieht den eigenen Status immer.
+- **Anzeige:** Profil (Statuszeile, 24h-Karte mit Restzeit „noch 3 Std. 20 Min.“), Chat-Kopf und Chat-Liste (Zeile plus Chip „24h-Status“), Follower-/Folge-Listen. Nicht im Forum, nicht auf Home.
+- **Antworten:** „Antworten“ an der 24h-Karte öffnet den Direktchat (`startDirect`) und sendet die Nachricht mit **Zitat des Status**. Der Zitattext kommt vom **Server** (`statusReply: true`), der Client kann keinen Text vorgeben; ohne aktiven, für den Absender sichtbaren Status antwortet die API 400. Keine Ansichtszähler, keine „Gesehen von“-Liste, keine Benachrichtigung bei neuem Status.
+
+**Backend:** Migration `0029_live_status.sql` (additiv, idempotent): `users.status_emoji/status_text/status_visibility/live_text/live_image_url/live_visibility/live_expires_at` (CHECK auf die Sichtbarkeiten, Teil-Index auf den Ablauf) und `messages.status_quote`. Sichtbarkeitslogik in `apps/api/src/lib/status.ts` (`statusAllowed`, `visibleStatus`, `statusesFor` als Stapelabfrage ohne N+1). `PATCH /auth/me` (strikt) nimmt `statusEmoji`, `statusText`, `statusVisibility` und `live: { text, image?, visibility } | null`; `GET /members/:handle`, Follower-/Folge-Listen und `GET /chat` (`partnerStatus`, `partnerLive`) liefern den gefilterten Status. `users.live_image` steht in `MEDIA_REFERENCES` (die Bereinigung räumt das Foto nicht ab). Der Aufräum-Cron `/cron/media-cleanup` leert zuerst abgelaufene 24h-Status und gibt ihre Fotos frei; abgelaufene werden zusätzlich nirgends angezeigt. Kontolöschung leert alle Statusfelder.
+**Frontend:** `src/components/status.tsx` (`StatusLine`, `LiveChip`, `LiveStatusCard`, `StatusReplyModal`, `StatusEditor` auf der Profilseite), `src/lib/status.ts` (Restzeit, Eingabeprüfung), Zitatblock `StatusQuote` im Chat. Demo-Modus: eigener Status lokal editierbar, fremde Demo-Profile haben keinen Status (keine erfundenen Inhalte).
+
+**Tests:** API-Integration `live-status.integration.test.ts` (14 Fälle: Grenzen, drei Sichtbarkeiten, privates Profil, Listen, Ablauf und Aufräumlauf, serverseitiges Zitat, Chat-Liste), Vitest `status.test.ts` (7), E2E `live-status.spec.ts` (setzen, im fremden Profil sehen, antworten, Zitat beim Besitzer, Sichtbarkeit „Niemand“, entfernen).
+**Lokal gelaufen:** API komplett (33 Dateien, 396 Tests), Vitest komplett (67 Dateien, 424 Tests), Lint und Typecheck sauber, E2E `live-status`, `profiles`, `profile-round`, `chat-round`, `whats-new`, `mobile`. `profiles.spec.ts` greift die Datei-Eingabe jetzt im Dialog ab (die Profilseite hat mit dem Status-Editor eine zweite).
+**Nicht geprüft:** Foto-Upload des 24h-Status im Browser (nur per URL im API-Test); Touch-Verhalten auf echtem Gerät. **Grenze:** Ein bereits gesendetes Zitat bleibt nach Ablauf des Status stehen (Schnappschuss) und verschwindet mit der Nachricht.
+
 ### B-96 – Scroll-Sprung beim Schließen von Menü und Fenstern (endgültig)
 
 **Behoben:** Beim Schließen von Menü, Fenstern und Vorschauen sprang die Seite kurz nach oben und glitt dann wieder nach unten. Die Korrektur aus B-90 (`behavior: "auto"`) war unwirksam: „auto“ **folgt** dem CSS, und `html` hat `scroll-behavior: smooth`. Entfernt die Scroll-Sperre `position: fixed`, steht die Seite sofort oben, und das weiche Scrollen gleitet erst von dort zurück.

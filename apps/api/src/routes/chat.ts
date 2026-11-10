@@ -1,3 +1,4 @@
+import { statusesFor, type LiveStatusDto, type StatusLineDto } from "../lib/status.ts";
 import { Hono } from "hono";
 import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -23,6 +24,8 @@ chat.route("/", chatGroups);
 export interface ConversationDto {
   id: string; name: string; avatar: string; online: boolean; last: string; time: string; unread: number;
   isGroup: boolean; partnerId: string | null; partnerHandle: string | null;
+  /** Status der Gegenstelle (B-97), soweit für mich sichtbar. */
+  partnerStatus: StatusLineDto | null; partnerLive: LiveStatusDto | null;
   /** Gruppen: eigene Rolle und Mitgliederzahl (Direktnachrichten: null/2). */
   role: "admin" | "moderator" | "member" | null; memberCount: number;
 }
@@ -65,7 +68,9 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
     const others = members.filter((m) => m.conversationId === cv.id && m.id !== userId);
     if (others.length === 1) partners.set(cv.id, others[0]!);
   }
-  const online = await onlineAmong([...new Set([...partners.values()].map((p) => p.id))]);
+  const partnerIds = [...new Set([...partners.values()].map((p) => p.id))];
+  const online = await onlineAmong(partnerIds);
+  const statuses = await statusesFor(userId, partnerIds);
 
   const rows = mine
     .filter(({ cv }) => opts.includeEmpty || cv.isGroup || last.has(cv.id) || cv.createdBy === userId || cv.createdBy === null)
@@ -84,6 +89,8 @@ async function conversationList(userId: string, opts: { ids?: string[]; limit?: 
         isGroup: cv.isGroup,
         partnerId: partner?.id ?? null,
         partnerHandle: partner?.handle ?? null,
+        partnerStatus: partner ? statuses.get(partner.id)?.status ?? null : null,
+        partnerLive: partner ? statuses.get(partner.id)?.live ?? null : null,
         role: cv.isGroup ? role : null,
         memberCount: memberCounts.get(cv.id) ?? 0,
       };
@@ -186,7 +193,7 @@ function messageDto(m: typeof messages.$inferSelect, userId: string, sender: Sen
     return {
       id: m.id, from: m.senderId === userId ? "me" : "them", text: "", image: undefined, attachments: [] as MessageAttachment[], deleted: true,
       time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
-      ...who, kind: "user" as const, topicId: m.topicId, replyTo: null,
+      ...who, kind: "user" as const, topicId: m.topicId, replyTo: null, statusQuote: null,
     };
   }
   // Ältere Nachrichten haben nur `image_url`: als einzelnes Bild-Anhang ausgeben.
@@ -194,7 +201,7 @@ function messageDto(m: typeof messages.$inferSelect, userId: string, sender: Sen
   return {
     id: m.id, from: m.senderId === userId ? "me" : "them", text: m.text, image: m.imageUrl ?? undefined, attachments, deleted: false,
     time: now ? "jetzt" : ago(m.createdAt), createdAt: m.createdAt.toISOString(),
-    ...who, kind: m.kind === "system" ? "system" : "user", topicId: m.topicId, replyTo,
+    ...who, kind: m.kind === "system" ? "system" : "user", topicId: m.topicId, replyTo, statusQuote: m.statusQuote ?? null,
   };
 }
 
@@ -234,6 +241,8 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
     topicId: z.string().uuid().optional(),
     /** B-94: Nachricht, auf die geantwortet wird (gleiche Unterhaltung und, in Gruppen, gleiches Thema). */
     replyTo: z.string().uuid().optional(),
+    /** B-97: Antwort auf den 24h-Status der Gegenstelle (nur Direktchat); den zitierten Text setzt der Server. */
+    statusReply: z.boolean().optional(),
   })
     .refine((v) => v.text.length > 0 || !!v.image || !!v.attachments?.length, "Text oder Anhang erforderlich")
     .safeParse(await c.req.json().catch(() => ({})));
@@ -262,9 +271,16 @@ chat.post("/:id/messages", rateLimit({ name: "chat-send", limit: 90, windowMs: 6
       return c.json({ error: "Die Nachricht, auf die du antwortest, gibt es nicht mehr." }, 400);
     }
   }
+  let statusQuote: string | null = null;
+  if (body.data.statusReply) {
+    const partnerId = access.cv.isGroup ? undefined : access.memberIds.find((memberId) => memberId !== userId);
+    const live = partnerId ? (await statusesFor(userId, [partnerId])).get(partnerId)?.live : null;
+    if (!live) return c.json({ error: "Der Status ist nicht mehr verfügbar." }, 400);
+    statusQuote = live.text.slice(0, QUOTE_MAX) || "📷 Foto";
+  }
   const [m] = await db
     .insert(messages)
-    .values({ conversationId: id, senderId: userId, replyTo: body.data.replyTo ?? null, text: body.data.text, imageUrl: body.data.image ?? attachments.find((a) => a.kind === "image")?.path ?? null, attachments, topicId: topic?.id ?? null })
+    .values({ conversationId: id, senderId: userId, statusQuote, replyTo: body.data.replyTo ?? null, text: body.data.text, imageUrl: body.data.image ?? attachments.find((a) => a.kind === "image")?.path ?? null, attachments, topicId: topic?.id ?? null })
     .returning();
   // Anhänge gehören ab jetzt zu dieser Unterhaltung: Abruf nur noch für Mitglieder (B-82).
   const mediaIds = [...new Set([...attachments.map((a) => a.path), ...(m!.imageUrl && MEDIA_PATH.test(m!.imageUrl) ? [m!.imageUrl] : [])])].map((p) => p.slice("/media/".length));

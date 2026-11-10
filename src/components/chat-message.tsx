@@ -9,6 +9,16 @@ import type { ChatAttachment, ChatMessage, ChatReplyQuote } from "@/services/int
 const hoverBtn = "relative -my-1 grid size-6 place-items-center rounded-md opacity-0 transition-opacity before:absolute before:-inset-2 before:content-[''] hover:bg-black/10 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-70";
 
 /** Zitat einer Antwort (in der Blase und als Vorschau über dem Eingabefeld). */
+/** Zitat des 24h-Status, auf den diese Nachricht antwortet (B-97). */
+export function StatusQuote({ text, mine, className }: { text: string; mine?: boolean; className?: string }) {
+  return (
+    <div className={cn("rounded-lg border-l-4 px-2.5 py-1.5 text-xs", mine ? "border-white/70 bg-white/15" : "border-leaf bg-surface-3", className)} data-testid="status-quote">
+      <div className="flex items-center gap-1 font-semibold opacity-80"><Icon name="Clock" size={11} />Antwort auf 24h-Status</div>
+      <div className="line-clamp-2 break-words opacity-90">{text}</div>
+    </div>
+  );
+}
+
 export function ReplyQuote({ quote, mine, onOpen, onCancel, className }: { quote: ChatReplyQuote; mine?: boolean; onOpen?: () => void; onCancel?: () => void; className?: string }) {
   const body = (
     <>
@@ -95,6 +105,7 @@ export function ChatBubble(p: ChatBubbleProps) {
       {sender}
       <div className={cn("group max-w-[78%] rounded-2xl px-3.5 py-2 text-sm [overflow-wrap:anywhere]", mine ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-2 text-fg")}>
         {senderName}
+        {m.statusQuote && <StatusQuote text={m.statusQuote} mine={mine} className="mb-1" />}
         {m.replyTo && <ReplyQuote quote={m.replyTo} mine={mine} className="mb-1" onOpen={p.selecting ? undefined : () => p.onOpenQuote(m.replyTo!.id)} />}
         <div className={cn(p.selecting && "pointer-events-none")}>
   <MessageAttachments attachments={messageAttachments(m)} mine={mine} hasText={!!m.text} onOpenImage={(i) => p.onOpenImage(p.firstImage + i)} onOpenPdf={p.onOpenPdf} />
