@@ -149,6 +149,26 @@ describe("Grows: mehrere Sorten (B-100)", () => {
     expect(list).toEqual([s("Alte Sorte", { breeder: "Altbreeder", wetG: 80, dryG: 20 })]);
   });
 
+  it("Anlegen mit Sichtbarkeit und ohne Sorte (B-102)", async () => {
+    const anna = await makeUser("anna");
+    const bob = await makeUser("bob");
+    const mk = async (body: Record<string, unknown>) => call(anna, "/grows", "POST", { name: "Wizard", medium: "Hydro / DWC", type: "Sativa", ...body });
+    // Standard: privat, auch ohne Sorten
+    const plain = await mk({});
+    expect(plain.status).toBe(201);
+    expect(await plain.json()).toMatchObject({ visibility: "private", strains: [], medium: "Hydro / DWC", type: "Sativa" });
+    // gewählte Sichtbarkeit wird gespeichert und wirkt sofort für andere
+    for (const visibility of ["public", "community"] as const) {
+      const res = await mk({ visibility, strains: [s("A")] });
+      expect(res.status).toBe(201);
+      expect(await res.json()).toMatchObject({ visibility });
+    }
+    const listed = await (await call(bob, "/members/anna/grows")).json() as { visibility?: string }[];
+    expect(listed.length).toBe(1);
+    // ungültige Werte werden abgelehnt
+    expect((await mk({ visibility: "alle" })).status).toBe(400);
+  });
+
   it("Mitgliedsliste nennt alle Sortennamen", async () => {
     const anna = await makeUser("anna");
     const bob = await makeUser("bob");

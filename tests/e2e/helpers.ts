@@ -109,3 +109,22 @@ export function makeTestFiles(): string {
   writeFileSync(path.join(dir, "setup.exe"), Buffer.from("MZ not allowed"));
   return dir;
 }
+
+/**
+ * B-102: „Neuer Grow“-Wizard (Name & Sorten → Anbau → Start & Sichtbarkeit → Übersicht) durchklicken und anlegen.
+ * `strains`: ein Name oder mehrere (zweite, dritte … Sorte über „Sorte hinzufügen“); `start`: JJJJ-MM-TT.
+ */
+export async function createGrow(page: Page, opts: { name: string; strains?: string | string[]; start?: string }) {
+  const strains = typeof opts.strains === "string" ? [opts.strains] : opts.strains ?? [];
+  await page.getByRole("button", { name: "Neuer Grow" }).first().click();
+  await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(opts.name);
+  for (const [i, strain] of strains.entries()) {
+    if (i > 0) await page.getByTestId("strain-add").click();
+    await page.getByLabel(`Sorte ${i + 1}`, { exact: true }).fill(strain);
+  }
+  await page.getByRole("button", { name: /^Weiter/ }).click();
+  await page.getByRole("button", { name: /^Weiter/ }).click();
+  if (opts.start) await page.getByLabel("Startdatum", { exact: true }).fill(opts.start);
+  await page.getByRole("button", { name: /^Weiter/ }).click();
+  await page.getByRole("button", { name: "Grow anlegen" }).click();
+}

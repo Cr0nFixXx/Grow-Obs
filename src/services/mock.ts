@@ -240,7 +240,7 @@ const growService: GrowService = {
       progress: 0,
       status: "active",
       condition: "gesund",
-      visibility: "private",
+      visibility: input.visibility ?? "private",
       archived: false,
       endedOn: null,
       harvest: null,

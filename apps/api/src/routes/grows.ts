@@ -165,6 +165,8 @@ const createGrowSchema = z.object({
   medium: growFields.medium.default(""),
   startDate: growFields.startDate.optional(),
   totalDays: growFields.totalDays.optional(),
+  /** B-102: Sichtbarkeit gleich beim Anlegen (Standard privat). */
+  visibility: z.enum(GROW_VISIBILITIES).default("private"),
 }).strict();
 
 /** Sorte: Name in der Datenbank suchen (Verknüpfung), der eingegebene Name bleibt in jedem Fall erhalten. */
@@ -197,6 +199,7 @@ growsApi.post("/", requireAuth, async (c) => {
       strainName: texts.strainName,
       strainList: list,
       startDate,
+      visibility: body.data.visibility,
       ...(body.data.totalDays ? { totalDays: body.data.totalDays } : {}),
       phaseDates: { [GROW_PHASES[0]]: startDate },
     })

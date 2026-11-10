@@ -11,6 +11,20 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-102 – „Neuer Grow“ als Wizard
+
+**Neu:**
+- **Vier Schritte:** (1) Name und Sorten, (2) Anbau (Medium, Typ), (3) Start und Sichtbarkeit, (4) Übersicht mit „Ändern“ je Zeile und „Grow anlegen“. Kopf mit „Schritt n von 4“, Fortschrittsbalken (erreichte Schritte antippbar) und Zurück-Pfeil.
+- **Mobil zuerst:** Eine feste Leiste mit „Zurück“ und „Weiter“ sitzt über der Tab-Leiste, der runde Schnellaktions-Knopf ist im Wizard ausgeblendet. Medium (Raster), Typ und Sichtbarkeit sind große Auswahlkacheln (Radio-Verhalten, mind. 44 px), das Startdatum hat Schnellwahl-Chips (Heute, Gestern, Vor 1 Woche, Vor 2 Wochen) plus Datumsfeld und eine Vorschau („heute ist Tag 7“). Enter im Namensfeld geht weiter; Schrittwechsel springt nach oben.
+- **Pflichtfelder:** Nur der Name ist Pflicht. Sorten sind freiwillig (leere Zeilen entfallen; halbe Zeilen, Doppelte und ungültige Pflanzenzahlen sperren „Weiter“, der Fehler steht live im Sorten-Editor). Ein Startdatum in der Zukunft sperrt ebenfalls. Abbrechen fragt nur nach, wenn schon etwas eingegeben wurde.
+- **Sichtbarkeit beim Anlegen:** Privat (Standard), Öffentlich oder Community; vorher ging das erst im Bearbeiten-Dialog.
+
+**Backend:** `POST /grows` nimmt zusätzlich `visibility` (`private|public|community`, Standard `private`, ungültig → 400). Alles andere unverändert (keine Migration).
+
+**Tests:** Vitest `grow-wizard.test.ts` (6) und `GrowWizard.test.tsx` (5), Mock-Fall, API-Integration (Sichtbarkeit und ohne Sorte), E2E `grow-wizard.spec.ts` (390 px: alle Schritte, Kacheln, Übersicht, Sichtbarkeit, Abbrechen, Anlegen ohne Sorte); die übrigen E2E-Specs legen Grows über den Helfer `createGrow` an.
+
+**Grenzen:** Kein Zwischenspeichern des Entwurfs (Browser-Zurück verlässt den Wizard); geplante Dauer, erwarteter Ertrag und Zielbereiche weiter nur im Bearbeiten-Dialog.
+
 ### B-101 – Tagebuch, Fotos und pH/EC je Sorte
 
 **Neu:**

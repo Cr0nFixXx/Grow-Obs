@@ -10,11 +10,10 @@ import { useServices } from "@/data/DataContext";
 import { invalidate, useGrows, useWikiCategories } from "@/data/hooks";
 import { useFeatures } from "@/config/FeatureContext";
 import { createKinds, type CreateKind } from "@/config/create-kinds";
-import type { CreateStrainInput, GrowLog, GrowStrain, TaskPriority } from "@/types";
-import { StrainListEditor } from "@/components/StrainListEditor";
-import { cleanStrains, emptyStrain, strainListError } from "@/lib/grow-strains";
+import type { CreateStrainInput, GrowLog, TaskPriority } from "@/types";
+import { GrowWizard } from "@/components/GrowWizard";
 import { toneSoft } from "@/lib/tokens";
-import { GROW_MEDIUMS, GROW_TYPES, todayLocal } from "@/lib/grows";
+import { todayLocal } from "@/lib/grows";
 
 /**
  * Unterseiten der Schnellaktionen (FAB, Dashboard, Grows, Sorten, Wiki).
@@ -48,6 +47,8 @@ export default function Create() {
     return <EmptyState icon="Lock" title="Noch nicht freigeschaltet" desc="Diese Funktion ist derzeit deaktiviert." action={<Button variant="soft" onClick={() => navigate("dashboard")}>Zum Dashboard</Button>} />;
   }
 
+  if (kind === "grow") return <GrowForm key="grow" />;
+
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <button onClick={back} className="-ml-1 flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm text-fg-muted transition hover:bg-surface-2 hover:text-fg">
@@ -55,7 +56,6 @@ export default function Create() {
       </button>
       <PageHeader title={meta.title} subtitle={meta.subtitle} icon={meta.icon} breadcrumb={["Schnellaktion", meta.title]} />
       <Card className="p-4 sm:p-6">
-        {kind === "grow" && <GrowForm key="grow" />}
         {kind === "log" && <LogForm key={`log-${params?.growId ?? ""}`} presetGrowId={params?.growId} />}
         {kind === "strain" && <StrainForm key="strain" />}
         {kind === "task" && <TaskForm key="task" />}
@@ -117,48 +117,22 @@ function done(toast: ReturnType<typeof useToast>, navigate: (v: ViewKey, p?: Rec
 
 /* ------------------------------ Grow ------------------------------ */
 
-const mediums = GROW_MEDIUMS;
-
+/** B-102: Wizard statt Einzelformular (siehe `GrowWizard`). */
 function GrowForm() {
   const svc = useServices();
   const toast = useToast();
-  const { navigate } = useNav();
+  const { navigate, back } = useNav();
   const { busy, run } = useSubmit();
-  const [name, setName] = useState("");
-  const [strainList, setStrainList] = useState<GrowStrain[]>([emptyStrain()]);
-  const [medium, setMedium] = useState(mediums[0]);
-  const [type, setType] = useState<(typeof GROW_TYPES)[number]>("Hybrid");
-  const [startDate, setStartDate] = useState(todayLocal());
-  const [touched, setTouched] = useState(false);
-  const errors = { name: !name.trim() ? "Bitte einen Namen angeben." : "", strain: strainListError(strainList) };
-  const valid = !errors.name && !errors.strain;
-
   return (
-    <Form onSubmit={() => {
-      setTouched(true);
-      if (!valid) return;
-      void run(async () => {
-        const grow = await svc.grows.create({ name: name.trim(), strains: cleanStrains(strainList), medium, type, startDate: startDate || undefined });
+    <GrowWizard
+      busy={busy}
+      onCancel={back}
+      onSubmit={(input) => void run(async () => {
+        const grow = await svc.grows.create(input);
         invalidate("grows");
         done(toast, navigate, "Grow angelegt", grow.name, "Sprout", "grows", { growId: grow.id });
-      });
-    }}>
-      <Field label="Name des Grows"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Northern Haze · Run 04" autoFocus aria-invalid={touched && !!errors.name} /></Field>
-      {touched && <ErrorText>{errors.name}</ErrorText>}
-      <StrainListEditor value={strainList} onChange={setStrainList} error={touched ? errors.strain : undefined} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Medium">
-          <Select value={medium} onChange={(e) => setMedium(e.target.value)}>{mediums.map((m) => <option key={m}>{m}</option>)}</Select>
-        </Field>
-        <Field label="Typ">
-          <Select value={type} onChange={(e) => setType(e.target.value as (typeof GROW_TYPES)[number])}>{GROW_TYPES.map((t) => <option key={t}>{t}</option>)}</Select>
-        </Field>
-      </div>
-      <Field label="Startdatum" hint="Der Tag des Grows wird daraus berechnet – auch rückwirkend.">
-        <Input type="date" value={startDate} max={todayLocal()} onChange={(e) => setStartDate(e.target.value)} />
-      </Field>
-      <FormActions busy={busy} label="Grow anlegen" />
-    </Form>
+      })}
+    />
   );
 }
 

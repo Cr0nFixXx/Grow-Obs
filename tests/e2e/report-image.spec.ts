@@ -1,6 +1,6 @@
 import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { register, uniqueEmail } from "./helpers";
+import { createGrow, register, uniqueEmail } from "./helpers";
 
 test.use({ timezoneId: "Europe/Berlin", locale: "de-DE" });
 
@@ -9,10 +9,7 @@ test("Grow-Report: Bild-Export speichert ein PNG", async ({ page }) => {
   test.setTimeout(90_000);
   await register(page, "Report Bild", uniqueEmail("reportimg"));
   const name = `Report ${Date.now()}`;
-  await page.getByRole("button", { name: "Neuer Grow" }).first().click();
-  await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
-  await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("Bild Kush");
-  await page.getByRole("button", { name: "Grow anlegen" }).click();
+  await createGrow(page, { name, strains: "Bild Kush" });
   await expect(page.getByRole("heading", { name })).toBeVisible();
   await page.getByTestId("add-env").click();
   const env = page.getByTestId("env-form");

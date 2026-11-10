@@ -1,5 +1,17 @@
 [
   {
+    "id": "B-102",
+    "date": "2026-10-01",
+    "title": "Neuer Grow als Wizard",
+    "notes": [
+      "Der neue Grow entsteht in vier kurzen Schritten: Name und Sorten, Anbau, Start, Übersicht",
+      "Medium, Typ und Sichtbarkeit wählst du mit großen Kacheln statt Dropdowns",
+      "Das Startdatum geht per Schnellwahl (Heute, Gestern, Vor 1 Woche) und zeigt den Tag des Grows",
+      "Nur der Name ist Pflicht, Sorten kannst du auch später ergänzen",
+      "Die Sichtbarkeit legst du jetzt gleich beim Anlegen fest"
+    ]
+  },
+  {
     "id": "B-101",
     "date": "2026-10-01",
     "title": "Sorten im Tagebuch",

@@ -412,13 +412,15 @@ function BottomNav() {
 
 function Fab() {
   const [open, setOpen] = useState(false);
-  const { navigate, view } = useNav();
+  const { navigate, view, params } = useNav();
   const { isEnabled } = useFeatures();
   const actions = (Object.keys(createKinds) as CreateKind[])
     .filter((kind) => isEnabled(createKinds[kind].feature))
     .map((kind) => ({ kind, icon: createKinds[kind].icon, label: createKinds[kind].title.replace("Wiki-Artikel erstellen", "Wiki-Artikel"), tone: createKinds[kind].tone }));
   // Im Chat verdeckt der runde Knopf die Senden-Schaltfläche.
   if (view === "chat") return null;
+  // Im Neuer-Grow-Wizard verdeckt er „Weiter“.
+  if (view === "create" && params?.kind === "grow") return null;
   return (
     <>
       <motion.button

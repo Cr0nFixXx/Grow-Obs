@@ -55,6 +55,8 @@ export interface CreateGrowInput {
   type?: "Sativa" | "Indica" | "Hybrid";
   /** JJJJ-MM-TT; ohne Angabe: heute. */
   startDate?: string;
+  /** B-102: Sichtbarkeit beim Anlegen; ohne Angabe privat. */
+  visibility?: import("./domain").GrowVisibility;
 }
 
 /** Neuer Log-Eintrag (B-85); ohne `date` gilt heute, der Tag wird aus dem Datum berechnet. */

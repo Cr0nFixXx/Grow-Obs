@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { PASSWORD, openAuth, register, uniqueEmail } from "./helpers";
+import { PASSWORD, createGrow, openAuth, register, uniqueEmail } from "./helpers";
 
 test.describe("Versionierung", () => {
   test("Login-Seite zeigt Codename, Frontend-Version und Build; /api/version nennt Frontend und Backend", async ({ page, request }) => {
@@ -59,10 +59,7 @@ test.describe("Kernfunktionen (angemeldet)", () => {
     await register(page, "Grow Tester", uniqueEmail("grow"));
     const name = `E2E Grow ${Date.now()}`;
 
-    await page.getByRole("button", { name: "Neuer Grow" }).first().click();
-    await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
-    await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("E2E Haze");
-    await page.getByRole("button", { name: "Grow anlegen" }).click();
+    await createGrow(page, { name, strains: "E2E Haze" });
 
     await page.getByRole("button", { name: "Meine Grows" }).first().click();
     await expect(page.getByText(name).first()).toBeVisible();

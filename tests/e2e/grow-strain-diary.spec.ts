@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { makeTestFiles, register, uniqueEmail } from "./helpers";
+import { createGrow, makeTestFiles, register, uniqueEmail } from "./helpers";
 
 /** B-101: Tagebuch-Einträge, Fotos und pH/EC je Sorte wählbar; Temperatur/Luftfeuchte gelten für den ganzen Grow. */
 test("Grow mit zwei Sorten: Einträge, Fotos und pH/EC je Sorte, Sorten-Filter, Sorte entfernen", async ({ page }) => {
@@ -7,12 +7,7 @@ test("Grow mit zwei Sorten: Einträge, Fotos und pH/EC je Sorte, Sorten-Filter, 
   await register(page, "Sorten Tagebuch", uniqueEmail("sdiary"));
   const name = `Sortenbuch ${Date.now().toString(36)}`;
 
-  await page.getByRole("button", { name: "Neuer Grow" }).first().click();
-  await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
-  await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("Alpha");
-  await page.getByTestId("strain-add").click();
-  await page.getByLabel("Sorte 2", { exact: true }).fill("Beta");
-  await page.getByRole("button", { name: "Grow anlegen" }).click();
+  await createGrow(page, { name, strains: ["Alpha", "Beta"] });
   await expect(page.getByRole("heading", { name })).toBeVisible();
   const main = page.locator("#app-main");
 

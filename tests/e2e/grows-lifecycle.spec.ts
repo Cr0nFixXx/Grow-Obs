@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { makeTestFiles, register, uniqueEmail } from "./helpers";
+import { createGrow, makeTestFiles, register, uniqueEmail } from "./helpers";
 
 /** B-84: Grow bearbeiten, Phase wechseln, ernten, wieder aufnehmen, archivieren, löschen. */
 test("Grow-Lebenszyklus: Tag aus Startdatum, Phase, Zustand, Ernte, Archiv, Löschen", async ({ page }) => {
@@ -8,11 +8,7 @@ test("Grow-Lebenszyklus: Tag aus Startdatum, Phase, Zustand, Ernte, Archiv, Lös
   const start = new Date(Date.now() - 10 * 86_400_000);
   const iso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
 
-  await page.getByRole("button", { name: "Neuer Grow" }).first().click();
-  await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
-  await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("Zyklus Kush");
-  await page.getByLabel(/Startdatum/).fill(iso);
-  await page.getByRole("button", { name: "Grow anlegen" }).click();
+  await createGrow(page, { name, strains: "Zyklus Kush", start: iso });
 
   // Detail: Tag kommt aus dem Startdatum, Phase Keimung
   await expect(page.getByRole("heading", { name })).toBeVisible();
@@ -79,11 +75,7 @@ const isoDaysAgo = (n: number) => {
 test("Grow-Tagebuch: Log mit Datum bearbeiten, Messwerte, Diagramme, Fotos", async ({ page }) => {
   await register(page, "Grow Tagebuch", uniqueEmail("diary"));
   const name = `Tagebuch ${Date.now()}`;
-  await page.getByRole("button", { name: "Neuer Grow" }).first().click();
-  await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
-  await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("Tagebuch Kush");
-  await page.getByLabel(/Startdatum/).fill(isoDaysAgo(10));
-  await page.getByRole("button", { name: "Grow anlegen" }).click();
+  await createGrow(page, { name, strains: "Tagebuch Kush", start: isoDaysAgo(10) });
   await expect(page.getByRole("heading", { name })).toBeVisible();
 
   // Log mit rückwirkendem Datum: Tag wird berechnet

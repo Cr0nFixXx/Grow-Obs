@@ -22,10 +22,14 @@ test("Grow mit mehreren Sorten: anlegen, Kurzanzeige, Details, bearbeiten, Ernte
   // doppelte Sorte wird abgelehnt
   await page.getByTestId("strain-add").click();
   await page.getByLabel("Sorte 4", { exact: true }).fill("northern haze");
-  await page.getByRole("button", { name: "Grow anlegen" }).click();
   await expect(page.getByText(/ist doppelt eingetragen/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Weiter/ })).toBeDisabled();
   await page.getByLabel("Sorte 4 entfernen").click();
   await expect(page.getByTestId("strain-row")).toHaveCount(3);
+  await page.getByRole("button", { name: /^Weiter/ }).click();
+  await page.getByRole("button", { name: /^Weiter/ }).click();
+  await page.getByRole("button", { name: /^Weiter/ }).click();
+  await expect(page.getByTestId("wizard-review")).toContainText("Sorten (3)");
   await page.getByRole("button", { name: "Grow anlegen" }).click();
 
   // Detail: alle Sorten mit Breeder und Pflanzen, Kopfzeile kurz

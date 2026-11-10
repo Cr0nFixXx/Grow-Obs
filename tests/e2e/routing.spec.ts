@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PASSWORD, openSettings, register, uniqueEmail } from "./helpers";
+import { PASSWORD, createGrow, openSettings, register, uniqueEmail } from "./helpers";
 
 const dashboard = (page: import("@playwright/test").Page) => page.getByRole("heading", { level: 1, name: /^Hallo,/ });
 const forumHeading = (page: import("@playwright/test").Page) => page.getByRole("heading", { level: 1, name: "Forum" });
@@ -27,10 +27,7 @@ test.describe("URL-Routing (B-57)", () => {
   test("Detail-Link: Grow öffnen → /grows/<id>, Reload und „Zurück“-Button funktionieren", async ({ page }) => {
     await register(page, "Detail Tester", uniqueEmail("detail"));
     const name = `Route Grow ${Date.now()}`;
-    await page.getByRole("button", { name: "Neuer Grow" }).first().click();
-    await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
-    await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("Route Haze");
-    await page.getByRole("button", { name: "Grow anlegen" }).click();
+    await createGrow(page, { name, strains: "Route Haze" });
     await page.getByRole("button", { name: "Meine Grows" }).first().click();
     await expect(page).toHaveURL(/\/grows$/);
     await page.getByRole("button", { name: new RegExp(name) }).click();

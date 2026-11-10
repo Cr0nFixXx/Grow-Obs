@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { makeTestFiles, openSettings, register, uniqueEmail } from "./helpers";
+import { createGrow, makeTestFiles, openSettings, register, uniqueEmail } from "./helpers";
 
 // Phase und Messtage rechnen in Europe/Berlin; der Browser soll dieselbe Kalendertag-Sicht haben.
 test.use({ timezoneId: "Europe/Berlin", locale: "de-DE" });
@@ -16,11 +16,7 @@ test("Grows Runde 4: Phasen-Ziele, CSV, Foto-Vergleich, Erinnerung", async ({ pa
   test.setTimeout(90_000);
   await register(page, "Grow Runde4", uniqueEmail("round4"));
   const name = `Runde4 ${Date.now()}`;
-  await page.getByRole("button", { name: "Neuer Grow" }).first().click();
-  await page.getByPlaceholder("z. B. Northern Haze · Run 04").fill(name);
-  await page.getByPlaceholder("z. B. Gorilla Glue #4").fill("Runde Kush");
-  await page.getByLabel(/Startdatum/).fill(isoDaysAgo(10));
-  await page.getByRole("button", { name: "Grow anlegen" }).click();
+  await createGrow(page, { name, strains: "Runde Kush", start: isoDaysAgo(10) });
   await expect(page.getByRole("heading", { name })).toBeVisible();
 
   // Messwerte gestern (Keimung): EC 1,4 liegt über dem Keimlings-Richtwert 0,4–0,8

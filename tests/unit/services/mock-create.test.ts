@@ -151,6 +151,13 @@ describe("mock create flows", () => {
     const aborted = await svc.grows.finish(grow.id, { outcome: "aborted" });
     expect(aborted.strains.every((x) => x.wetG === null)).toBe(true);
   });
+  it("Anlegen mit Sichtbarkeit; ohne Angabe privat, ohne Sorte erlaubt (B-102)", async () => {
+    const plain = await svc.grows.create({ name: "Wizard ohne Sorte", medium: "Erde (Bio)" });
+    expect(plain.visibility).toBe("private");
+    expect(plain.strains).toEqual([]);
+    const shared = await svc.grows.create({ name: "Wizard geteilt", medium: "Erde (Bio)", visibility: "community" });
+    expect(shared.visibility).toBe("community");
+  });
   it("Sorten je Eintrag, Foto und pH/EC; Entfernen löst die Zuordnung (B-101)", async () => {
     const e = (name: string) => ({ name, breeder: "", plants: null, wetG: null, dryG: null });
     const grow = await svc.grows.create({ name: "Mix2", medium: "Erde (Bio)", strains: [e("A"), e("B"), e("C")] });
