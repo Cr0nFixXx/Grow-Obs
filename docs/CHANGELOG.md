@@ -11,6 +11,12 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-98 – Forum-Filter kompakter
+
+**Geändert:** Die Filterleiste im Forum zeigt nur noch eine Zeile: **Suche**, Knopf **Filter** (mit Zähler der aktiven Filter) und **Sortierung** (Heiß/Top/Neu als Auswahlfeld statt drei Knöpfen). Bereich (vorher eine Chip-Reihe), Zeitraum, Tag sowie „Nur meine“ und „Ohne Antworten“ (jetzt Kontrollkästchen) liegen im aufklappbaren Filterfeld. „Zurücksetzen“ steht neben der Trefferzahl, sobald etwas gefiltert ist. Filterlogik, API und Daten unverändert.
+
+**Tests:** E2E `forum-filter.spec.ts` angepasst (Filterfeld öffnen, Kontrollkästchen).
+
 ### B-97 – TODO-Runde 4: Livestatus (Textstatus und 24h-Status)
 
 **Neu:**

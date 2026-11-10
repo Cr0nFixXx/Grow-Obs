@@ -35,10 +35,11 @@ test("Forum: Suche und Filter grenzen die Liste ein, Kommentare lassen sich sort
 
   await page.getByTestId("forum-filter-reset").click();
   await page.getByTestId("forum-search").fill(String(stamp));
-  await page.getByRole("button", { name: "Nur meine" }).click();
+  await page.getByTestId("forum-filter-toggle").click();
+  await page.getByLabel("Nur meine").check();
   await expect(page.getByText(`Fremder Thread ${stamp}`, { exact: true })).toHaveCount(0);
   await expect(page.getByText(`Beantwortet ${stamp}`, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Ohne Antworten" }).click();
+  await page.getByLabel("Ohne Antworten").check();
   await expect(page.getByTestId("forum-result-count")).toHaveText("1 Thread gefunden");
   await expect(page.getByText(`Eigener Thread ${stamp}`, { exact: true })).toBeVisible();
 

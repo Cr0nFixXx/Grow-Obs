@@ -5,7 +5,7 @@ import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
-import { Avatar, Badge, BottomSheet, Button, Card, Chip, EmptyState, Field, Input, PageHeader, Popover, PopoverItem, Segmented, Select, SkeletonCard, Textarea } from "@/components/ui";
+import { Avatar, Badge, BottomSheet, Button, Card, EmptyState, Field, Input, PageHeader, Popover, PopoverItem, Segmented, Select, SkeletonCard, Textarea } from "@/components/ui";
 import { vibrate } from "@/lib/format";
 import { Reveal } from "@/components/motion";
 import { useForumThreads, useSubs, useThread } from "@/data/hooks";
@@ -44,6 +44,7 @@ function ForumList() {
   const [sort, setSort] = useState<ForumSort>("hot");
   const [filters, setFilters] = useState<ForumFilters>(NO_FILTERS);
   const setFilter = <K extends keyof ForumFilters>(key: K, value: ForumFilters[K]) => setFilters((cur) => ({ ...cur, [key]: value }));
+  const [filterOpen, setFilterOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [chosenSub, setChosenSub] = useState("");
@@ -73,6 +74,7 @@ function ForumList() {
   const list = sortThreads(filterThreads(inSub, filters), sort);
   const activeFilters = activeFilterCount(filters) + (sub !== "Alle" ? 1 : 0);
   const tags = threadTags(threads);
+  const panelCount = activeFilters - (filters.query.trim() ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -80,33 +82,63 @@ function ForumList() {
         actions={<Button onClick={() => { setChosenSub(sub === "Alle" ? "" : sub); setSheetOpen(true); }}>+ Thread</Button>}
       />
       <Reveal>
-        <Card className="space-y-3 p-4">
-          <div className="flex flex-wrap gap-2">
-            <Chip active={sub === "Alle"} onClick={() => setSub("Alle")}>Alle</Chip>
-            {subs.map((s) => <Chip key={s} active={sub === s} onClick={() => setSub(s)}>{s}</Chip>)}
+        <Card className="space-y-3 p-3 sm:p-4">
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Icon name="Search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+              <Input value={filters.query} onChange={(e) => setFilter("query", e.target.value)} placeholder="Suchen …" aria-label="Threads durchsuchen" className="pl-9" data-testid="forum-search" />
+            </div>
+            <Button variant={panelCount > 0 || filterOpen ? "secondary" : "ghost"} className="shrink-0 gap-1.5 border border-border" onClick={() => setFilterOpen((o) => !o)} aria-expanded={filterOpen} aria-controls="forum-filter-panel" data-testid="forum-filter-toggle">
+              <Icon name="SlidersHorizontal" size={16} />
+              <span className="hidden sm:inline">Filter</span>
+              {panelCount > 0 && <span className="grid size-5 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-fg" aria-label={`${panelCount} aktiv`}>{panelCount}</span>}
+            </Button>
+            <Select value={sort} onChange={(e) => setSort(e.target.value as ForumSort)} aria-label="Sortierung" className="w-auto min-w-24 sm:min-w-28" data-testid="forum-sort">
+              <option value="hot">Heiß</option>
+              <option value="top">Top</option>
+              <option value="new">Neu</option>
+            </Select>
           </div>
-          <div className="relative">
-            <Icon name="Search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
-            <Input value={filters.query} onChange={(e) => setFilter("query", e.target.value)} placeholder="Threads durchsuchen …" aria-label="Threads durchsuchen" className="pl-9" data-testid="forum-search" />
-          </div>
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter">
-            <Segmented<ForumRange> value={filters.range} onChange={(v) => setFilter("range", v)} options={[{ value: "all", label: "Alle Zeit" }, { value: "today", label: "Heute" }, { value: "week", label: "Woche" }, { value: "month", label: "Monat" }]} />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip active={filters.mine} onClick={() => setFilter("mine", !filters.mine)} aria-pressed={filters.mine}>Nur meine</Chip>
-            <Chip active={filters.unanswered} onClick={() => setFilter("unanswered", !filters.unanswered)} aria-pressed={filters.unanswered}>Ohne Antworten</Chip>
-            {tags.length > 1 && (
-              <Select value={filters.tag} onChange={(e) => setFilter("tag", e.target.value)} aria-label="Nach Tag filtern" className="w-auto min-w-36" data-testid="forum-tag">
-                <option value="">Alle Tags</option>
-                {tags.map((tg) => <option key={tg} value={tg}>{tg}</option>)}
-              </Select>
-            )}
-            {activeFilters > 0 && <Button size="sm" variant="ghost" onClick={() => { setFilters(NO_FILTERS); setSub("Alle"); }} data-testid="forum-filter-reset">Zurücksetzen</Button>}
-          </div>
-          <Segmented value={sort} onChange={setSort} options={[{ value: "hot", label: "Heiß" }, { value: "top", label: "Top" }, { value: "new", label: "Neu" }]} />
+          {filterOpen && (
+            <div id="forum-filter-panel" className="space-y-3 border-t border-border pt-3" role="group" aria-label="Filter">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="grid gap-1 text-xs text-fg-muted">Bereich
+                  <Select value={sub} onChange={(e) => setSub(e.target.value)} aria-label="Nach Bereich filtern" data-testid="forum-sub">
+                    <option value="Alle">Alle Bereiche</option>
+                    {subs.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </Select>
+                </label>
+                <label className="grid gap-1 text-xs text-fg-muted">Zeitraum
+                  <Select value={filters.range} onChange={(e) => setFilter("range", e.target.value as ForumRange)} aria-label="Nach Zeitraum filtern" data-testid="forum-range">
+                    <option value="all">Alle Zeit</option>
+                    <option value="today">Heute</option>
+                    <option value="week">Woche</option>
+                    <option value="month">Monat</option>
+                  </Select>
+                </label>
+                {tags.length > 1 && (
+                  <label className="grid gap-1 text-xs text-fg-muted">Tag
+                    <Select value={filters.tag} onChange={(e) => setFilter("tag", e.target.value)} aria-label="Nach Tag filtern" data-testid="forum-tag">
+                      <option value="">Alle Tags</option>
+                      {tags.map((tg) => <option key={tg} value={tg}>{tg}</option>)}
+                    </Select>
+                  </label>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                <label className="flex min-h-9 items-center gap-2"><input type="checkbox" className="size-4 accent-[var(--accent)]" checked={filters.mine} onChange={(e) => setFilter("mine", e.target.checked)} />Nur meine</label>
+                <label className="flex min-h-9 items-center gap-2"><input type="checkbox" className="size-4 accent-[var(--accent)]" checked={filters.unanswered} onChange={(e) => setFilter("unanswered", e.target.checked)} />Ohne Antworten</label>
+              </div>
+            </div>
+          )}
         </Card>
       </Reveal>
-      {activeFilters > 0 && <p className="text-sm text-fg-muted" role="status" data-testid="forum-result-count">{list.length === 1 ? "1 Thread" : `${list.length} Threads`} gefunden</p>}
+      {activeFilters > 0 && (
+        <div className="flex items-center justify-between gap-3 text-sm text-fg-muted">
+          <p role="status" data-testid="forum-result-count">{list.length === 1 ? "1 Thread" : `${list.length} Threads`} gefunden</p>
+          <button type="button" className="min-h-10 rounded-lg px-2 text-accent hover:underline sm:min-h-0" onClick={() => { setFilters(NO_FILTERS); setSub("Alle"); }} data-testid="forum-filter-reset">Zurücksetzen</button>
+        </div>
+      )}
       {list.length === 0 && (
         <EmptyState icon="Search" title={activeFilters > 0 ? "Keine passenden Threads" : "Noch keine Threads"} desc={activeFilters > 0 ? "Lockere die Filter oder suche nach etwas anderem." : "Starte die erste Diskussion mit „+ Thread“."} action={activeFilters > 0 ? <Button variant="secondary" onClick={() => { setFilters(NO_FILTERS); setSub("Alle"); }}>Filter zurücksetzen</Button> : undefined} />
       )}
