@@ -114,7 +114,7 @@ update logic, gestures and touch hooks, charts, formatting, UI primitives, accou
 | `chat-attachments.spec.ts` | chat attachments with two users: several images + PDF, preview with paging and save link, file download headers, rejected `.exe`, receiver live; phone view |
 | `live-status.spec.ts` | live status (B-97): set text and 24 h status, seen on the other profile, reply opens the DM with a status quote, visibility "nobody", remove |
 | `chat-round.spec.ts` | chat round (B-94): long press selects, reply with quote (live at the sender), Esc, multi-delete with confirmation, quote shows "Nachricht gelöscht", header name opens profile |
-| `whats-new.spec.ts` | what's-new window (B-95): none on a fresh install, one-time window with 3 entries + changelog link on an existing install, permanent entry in settings (5 entries) |
+| `whats-new.spec.ts` | what's-new window (B-95, B-103): none on a fresh install, one-time window (existing install without a stored state: only the newest entry; several missed: max. 3 + changelog link), settings entry shows exactly what was shown last; texts read from `whats-new.json` |
 | `scroll-lock.spec.ts` | scroll lock (B-96): records `scrollY` every frame while a modal closes; position must never fall toward 0 (fails without the fix) |
 | `groups.spec.ts` | group chat with two users: create, invite, accept, topic, message with sender and unread counter, admins-only lock – live |
 | `mobile.spec.ts` | Pixel 5: bottom navigation, menu, no horizontal overflow; viewport/translate meta; list and open chat fit 360×600, 393×727, 740×360 (no page scroll, composer visible); `user-select`; no overflow at 360 px on settings/simulation/telegram, page titles, inputs ≥ 16 px |

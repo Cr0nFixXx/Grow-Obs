@@ -48,7 +48,7 @@ export function ChangeItem({ e }: { e: WhatsNewEntry }) {
     <article className="rounded-2xl border border-border p-4" data-testid="whats-new-entry">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-semibold">{e.title}</span>
-        <time className="ml-auto text-xs text-fg-subtle" dateTime={e.date}>{new Date(e.date).toLocaleDateString("de-DE")}</time>
+        <time className="ml-auto text-xs text-fg-subtle" dateTime={e.date}>{new Date(`${e.date}T12:00:00`).toLocaleDateString("de-DE")}</time>
       </div>
       <ul className="mt-2 space-y-1 text-sm text-fg-muted">
         {e.notes.map((n, i) => <li key={i} className="flex gap-2"><Icon name="CheckCircle2" size={14} className="mt-0.5 shrink-0 text-accent" /> {n}</li>)}
@@ -64,8 +64,8 @@ export function UpdateLayer() {
   const { navigate } = useNav();
   const showBanner = u.available && !u.mandatory && u.prefs.mode === "prompt" && !u.snoozed;
   const notes = u.unseen.length ? u.unseen : u.unseenChanges.length ? [] : u.releases.slice(0, 3);
-  // Automatisch: nur das Neue (höchstens drei Aufgaben); manuell geöffnet: die letzten fünf.
-  const changes = u.unseenChanges.length ? u.unseenChanges.slice(0, MAX_AUTO_ENTRIES) : u.changes.slice(0, 5);
+  // Automatisch: nur das Neue (höchstens drei Aufgaben); manuell geöffnet: das, was das Fenster zuletzt gezeigt hat.
+  const changes = u.unseenChanges.length ? u.unseenChanges.slice(0, MAX_AUTO_ENTRIES) : u.lastChanges;
   const moreChanges = u.unseenChanges.length - MAX_AUTO_ENTRIES;
 
   return (

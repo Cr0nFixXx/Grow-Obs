@@ -1,7 +1,18 @@
 [
   {
+    "id": "B-103",
+    "date": "2026-11-10",
+    "title": "„Was ist neu“ zeigt nur noch Neues",
+    "notes": [
+      "Das Fenster zeigt nach einem Update nur noch die wirklich neuen Änderungen",
+      "In den Einstellungen siehst du genau das, was zuletzt gezeigt wurde, nicht mehr alte Einträge",
+      "Die Daten der Änderungen stimmen jetzt mit den echten Tagen überein",
+      "Ältere Änderungen findest du weiter im Changelog"
+    ]
+  },
+  {
     "id": "B-102",
-    "date": "2026-10-01",
+    "date": "2026-11-10",
     "title": "Neuer Grow als Wizard",
     "notes": [
       "Der neue Grow entsteht in vier kurzen Schritten: Name und Sorten, Anbau, Start, Übersicht",
@@ -13,7 +24,7 @@
   },
   {
     "id": "B-101",
-    "date": "2026-10-01",
+    "date": "2026-11-10",
     "title": "Sorten im Tagebuch",
     "notes": [
       "Bei Grows mit mehreren Sorten wählst du pro Eintrag und Foto, welche Sorten betroffen sind",
@@ -25,7 +36,7 @@
   },
   {
     "id": "B-100",
-    "date": "2026-10-01",
+    "date": "2026-11-10",
     "title": "Mehrere Sorten pro Grow",
     "notes": [
       "Ein Grow kann bis zu 20 Sorten enthalten, je mit Breeder und Pflanzenzahl",
@@ -36,8 +47,30 @@
     ]
   },
   {
+    "id": "B-99",
+    "date": "2026-11-10",
+    "title": "Status in eigener Schublade",
+    "notes": [
+      "Der Status steht als kleiner Knopf unter deinem Namen im Profil",
+      "Ein Tipp öffnet die Schublade mit Textstatus, 24h-Status und Sichtbarkeit",
+      "Läuft ein 24h-Status, siehst du die Restzeit direkt am Knopf",
+      "Die große Status-Karte auf der Profilseite entfällt"
+    ]
+  },
+  {
+    "id": "B-98",
+    "date": "2026-11-10",
+    "title": "Forum-Filter kompakter",
+    "notes": [
+      "Das Forum zeigt oben nur noch eine Zeile: Suche, Filter und Sortierung",
+      "Der Filter-Knopf zählt, wie viele Filter aktiv sind",
+      "Bereich, Zeitraum, Tag und weitere Filter liegen im aufklappbaren Filterfeld",
+      "Alle Filterfunktionen bleiben erhalten"
+    ]
+  },
+  {
     "id": "B-97",
-    "date": "2026-10-01",
+    "date": "2026-11-10",
     "title": "Livestatus: Status und 24h-Status",
     "notes": [
       "Eine Statuszeile mit Emoji unter deinem Namen, bleibt bis du sie änderst",
@@ -49,7 +82,7 @@
   },
   {
     "id": "B-96",
-    "date": "2026-10-01",
+    "date": "2026-11-10",
     "title": "Kein Scroll-Sprung mehr",
     "notes": [
       "Menü, Fenster und Vorschauen schließen ohne Sprung nach oben",
@@ -59,7 +92,7 @@
   },
   {
     "id": "B-95",
-    "date": "2026-10-01",
+    "date": "2026-11-09",
     "title": "„Was ist neu“ nach jedem Update",
     "notes": [
       "Nach einem Update zeigt ein Fenster die wichtigsten Neuerungen",
@@ -69,7 +102,7 @@
   },
   {
     "id": "B-94",
-    "date": "2026-10-01",
+    "date": "2026-11-09",
     "title": "Chat: auswählen, antworten, aufräumen",
     "notes": [
       "Nachricht lange drücken: Auswahl starten, weitere antippen",
@@ -80,7 +113,7 @@
   },
   {
     "id": "B-93",
-    "date": "2026-09-30",
+    "date": "2026-11-09",
     "title": "Forum: Filter und Kommentar-Sortierung",
     "notes": [
       "Suche im Forum (Titel, Text, Autor, Bereich, Tag)",
@@ -90,7 +123,7 @@
   },
   {
     "id": "B-92",
-    "date": "2026-09-30",
+    "date": "2026-11-09",
     "title": "Grows teilen und im Profil zeigen",
     "notes": [
       "Sichtbarkeit je Grow: Privat, Öffentlich oder Community",
@@ -101,7 +134,7 @@
   },
   {
     "id": "B-91",
-    "date": "2026-09-29",
+    "date": "2026-11-09",
     "title": "Neuer Name und schnellere Wege",
     "notes": [
       "Die App heißt jetzt „Grow|Obs“",
@@ -111,7 +144,7 @@
   },
   {
     "id": "B-90",
-    "date": "2026-09-28",
+    "date": "2026-11-09",
     "title": "Kleine Korrekturen",
     "notes": [
       "Forum-Sortierung stimmt wieder",

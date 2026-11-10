@@ -22,13 +22,23 @@ export const CHANGELOG_URL = "https://github.com/Cr0nFixXx/Grow-Obs/blob/main/do
 export const MAX_AUTO_ENTRIES = 3;
 
 /**
- * Einträge, die neuer sind als der zuletzt gesehene. Unbekannte Kennung (z. B. nie gespeichert, aber bestehende Installation)
- * → alle; `null` → keine (frische Installation soll keine Altlasten sehen).
+ * Einträge, die neuer sind als der zuletzt gesehene. `null` → keine (frische Installation soll keine Altlasten sehen).
+ * Unbekannte oder leere Kennung (Bestandsinstallation ohne gemerkten Stand, Speicher teilweise gelöscht) → nur der neueste
+ * Eintrag, nie die ganze Historie.
  */
 export function unseenChanges(entries: WhatsNewEntry[], seenId: string | null): WhatsNewEntry[] {
   if (seenId === null) return [];
   const at = entries.findIndex((e) => e.id === seenId);
-  return at === -1 ? entries : entries.slice(0, at);
+  return at === -1 ? entries.slice(0, 1) : entries.slice(0, at);
+}
+
+/**
+ * Inhalt beim manuellen Öffnen („Einstellungen → Was ist neu“): die Einträge, die das Fenster zuletzt automatisch gezeigt hat
+ * (`batchIds`); ohne gemerkten Stand nur der neueste Eintrag. Älteres steht im Changelog.
+ */
+export function lastBatch(entries: WhatsNewEntry[], batchIds: string[] | null): WhatsNewEntry[] {
+  const picked = batchIds?.length ? entries.filter((e) => batchIds.includes(e.id)) : [];
+  return picked.length ? picked : entries.slice(0, 1);
 }
 
 /** Startzustand ohne gespeicherte Kennung: bestehende Installation (hat alte Update-Daten) → alles ungesehen, frisch → alles gesehen. */

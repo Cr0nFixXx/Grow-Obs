@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { CHANGELOG_URL, WHATS_NEW, initialSeenId, unseenChanges, type WhatsNewEntry } from "@/lib/whats-new";
+import { CHANGELOG_URL, WHATS_NEW, initialSeenId, lastBatch, unseenChanges, type WhatsNewEntry } from "@/lib/whats-new";
 
 const e = (id: string): WhatsNewEntry => ({ id, date: "2026-10-01", title: id, notes: ["a", "b", "c"] });
 const list = [e("B-3"), e("B-2"), e("B-1")];
@@ -24,6 +24,13 @@ describe("whats-new Daten (Pflegeregeln)", () => {
       expect(Number(WHATS_NEW[i - 1]!.id.slice(2))).toBeGreaterThan(Number(WHATS_NEW[i]!.id.slice(2)));
     }
   });
+  it("Daten sind echte Kalendertage und nicht in der Zukunft", () => {
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+    for (const x of WHATS_NEW) {
+      expect(Number.isNaN(Date.parse(`${x.date}T12:00:00Z`))).toBe(false);
+      expect(x.date <= today).toBe(true);
+    }
+  });
   it("jeder Eintrag hat eine Überschrift im detaillierten Changelog", () => {
     const changelog = readFileSync("docs/CHANGELOG.md", "utf8");
     for (const x of WHATS_NEW) expect(changelog).toContain(`### ${x.id} –`);
@@ -37,10 +44,17 @@ describe("unseenChanges / initialSeenId", () => {
     expect(unseenChanges(list, "B-2").map((x) => x.id)).toEqual(["B-3"]);
     expect(unseenChanges(list, "B-1").map((x) => x.id)).toEqual(["B-3", "B-2"]);
   });
-  it("null (frisch) → nichts; unbekannt/leer (Bestandsinstallation) → alles", () => {
+  it("null (frisch) → nichts; unbekannt/leer (Bestandsinstallation) → nur der neueste Eintrag, nie die Historie", () => {
     expect(unseenChanges(list, null)).toEqual([]);
-    expect(unseenChanges(list, "")).toHaveLength(3);
-    expect(unseenChanges(list, "B-0")).toHaveLength(3);
+    expect(unseenChanges(list, "").map((x) => x.id)).toEqual(["B-3"]);
+    expect(unseenChanges(list, "B-0").map((x) => x.id)).toEqual(["B-3"]);
+  });
+  it("manuelles Öffnen: zuletzt gezeigte Einträge, sonst nur der neueste", () => {
+    expect(lastBatch(list, ["B-3", "B-2"]).map((x) => x.id)).toEqual(["B-3", "B-2"]);
+    expect(lastBatch(list, null).map((x) => x.id)).toEqual(["B-3"]);
+    expect(lastBatch(list, []).map((x) => x.id)).toEqual(["B-3"]);
+    expect(lastBatch(list, ["B-99"]).map((x) => x.id)).toEqual(["B-3"]);
+    expect(lastBatch([], null)).toEqual([]);
   });
   it("Startzustand: gespeichert gewinnt; sonst Bestand → leer, frisch → neueste Kennung", () => {
     expect(initialSeenId("B-2", false, list)).toBe("B-2");

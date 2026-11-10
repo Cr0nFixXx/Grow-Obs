@@ -11,6 +11,15 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-103 – „Was ist neu“: nur Neues, richtige Daten, CI-Fix
+
+**Behoben:**
+- **Alte Änderungen:** Das manuelle Öffnen (Einstellungen → „Updates & Was ist neu“) zeigte immer die letzten fünf Einträge, und eine Bestandsinstallation ohne (oder mit unbekanntem) gemerktem Stand bekam beim Start **alle** Einträge als „neu“. Jetzt: unbekannter/leerer Stand → nur der **neueste** Eintrag; das manuelle Öffnen zeigt genau die Einträge, die das Fenster zuletzt automatisch gezeigt hat (neuer Merker `go-whats-new-last`, höchstens drei), sonst nur den neuesten. Älteres steht über den Changelog-Link.
+- **Falsche Daten:** Die Daten in `src/data/whats-new.json` waren geraten (28.09.–01.10.2026). Jetzt die echten Commit-Tage (Berlin): B-90…B-95 = 09.11.2026, B-96…B-102 = 10.11.2026. Fehlende Einträge B-98 und B-99 nachgetragen. Anzeige parst den Tag als Mittag lokaler Zeit (kein Zeitzonen-Sprung). Regel in `CLAUDE.md`: Datum aus `date +%F`/`git log`, nie raten; ein Unit-Test lehnt Daten in der Zukunft ab.
+- **CI rot:** E2E `whats-new.spec.ts` erwartete einen festen Titel (B-94) unter den fünf neuesten Einträgen; mit neuen Einträgen rutschte er heraus. Der Test liest Titel und Datum jetzt aus `whats-new.json`.
+
+**Tests:** Vitest 460/460 (71 Dateien; `whats-new.test.ts` +Datum nicht in der Zukunft, +`lastBatch`, neue Semantik für unbekannten Stand), E2E `whats-new.spec.ts` grün (frisch → nichts; Bestand ohne Stand → 1 Eintrag mit richtigem Datum; mehrere verpasst → 3 + Hinweis; manuell zeigt dasselbe, nie ältere). `tsc` und `eslint .` ohne Fehler.
+
 ### B-102 – „Neuer Grow“ als Wizard
 
 **Neu:**
