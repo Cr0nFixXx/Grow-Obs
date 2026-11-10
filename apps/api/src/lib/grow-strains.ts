@@ -5,6 +5,12 @@ import type { GrowStrainRow } from "../db/schema.ts";
 /** B-100: höchstens so viele Sorten pro Grow. */
 export const MAX_GROW_STRAINS = 20;
 
+/** B-105: erlaubte Werte (gleich wie im Frontend, `src/lib/grow-traits.ts`). */
+export const GENETICS = ["Indica", "Sativa", "Hybrid"] as const;
+export const LIGHT_TYPES = ["photo", "fast", "auto"] as const;
+export const SEED_TYPES = ["regular", "feminized"] as const;
+export const GROW_SITES = ["indoor", "outdoor"] as const;
+
 const grams = z.number().int().min(0, "Gewicht nicht negativ").max(1_000_000, "Gewicht zu hoch").nullable();
 
 /** Eine Sorte im Request (Anlegen und Bearbeiten). Gewichte werden beim Bearbeiten unverändert zurückgegeben. */
@@ -16,6 +22,10 @@ export const growStrainSchema = z.object({
   plants: z.number().int("Pflanzenzahl als ganze Zahl").min(1, "Mindestens 1 Pflanze").max(999, "Höchstens 999 Pflanzen").nullable().default(null),
   wetG: grams.default(null),
   dryG: grams.default(null),
+  /** B-105: freiwillig; fehlend = unverändert (beim Bearbeiten) bzw. keine Angabe, `null` = Angabe löschen. */
+  genetics: z.enum(GENETICS).nullable().optional(),
+  light: z.enum(LIGHT_TYPES).nullable().optional(),
+  seed: z.enum(SEED_TYPES).nullable().optional(),
 }).strict();
 
 export const growStrainsSchema = z.array(growStrainSchema).min(1, "Bitte mindestens eine Sorte angeben").max(MAX_GROW_STRAINS, `Höchstens ${MAX_GROW_STRAINS} Sorten pro Grow`);
@@ -63,8 +73,18 @@ export function withStrainIds(incoming: Array<Omit<GrowStrainRow, "id"> & { id?:
   return incoming.map((s) => {
     const id = s.id && known.has(s.id) && !used.has(s.id) ? s.id : randomUUID();
     used.add(id);
-    return { ...s, id };
+    // B-105: nicht mitgeschickte Angaben einer bekannten Sorte bleiben erhalten; `null` löscht sie.
+    const old = existing.find((e) => e.id === id);
+    const keep = <K extends "genetics" | "light" | "seed">(key: K) => (s[key] === undefined ? (old?.[key] ?? null) : s[key]) as GrowStrainRow[K];
+    return { ...s, id, genetics: keep("genetics"), light: keep("light"), seed: keep("seed") };
   });
+}
+
+/** Typ des Grows aus den Sorten (alle gleich → dieser, gemischt → Hybrid, keine Angabe → `null`). */
+export function deriveGrowType(list: Pick<GrowStrainRow, "genetics">[]): (typeof GENETICS)[number] | null {
+  const set = [...new Set(list.map((s) => s.genetics).filter((g): g is (typeof GENETICS)[number] => !!g))];
+  if (set.length === 0) return null;
+  return set.length === 1 ? set[0] : "Hybrid";
 }
 
 /** IDs, die in der alten, aber nicht mehr in der neuen Liste stehen. */

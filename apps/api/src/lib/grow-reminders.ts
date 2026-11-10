@@ -19,7 +19,7 @@ export function reminderBody(lines: ReminderLine[]): string {
  * Erinnerungen (B-88, nur In-App + ggf. Push): Konten mit eingestellter Frist (1–5 Tage) bekommen eine gebündelte Meldung,
  * wenn bei einem laufenden, nicht archivierten Grow so lange kein Messwert bzw. Log-Eintrag steht.
  * Je Lücke wird nur einmal erinnert: Der Tag der Erinnerung wird atomar am Grow vermerkt und erst nach einem neuen Eintrag wieder frei.
- * Ausgangspunkt ohne Eintrag ist das Startdatum.
+ * Ausgangspunkt ohne Eintrag ist das Startdatum. Outdoor-Grows (B-105) bekommen keine Erinnerung an Messwerte, nur an Log-Einträge.
  */
 export async function runGrowReminders(now = new Date()): Promise<{ candidates: number; notified: number; lines: number }> {
   const today = todayIso(now);
@@ -42,6 +42,8 @@ export async function runGrowReminders(now = new Date()): Promise<{ candidates: 
     const lines: ReminderLine[] = [];
     for (const row of rows) {
       for (const kind of ["env", "log"] as const) {
+        // B-105: Outdoor-Grows werden nicht an Klima-Messwerte erinnert (kein Temperatur-/Feuchteverlauf nötig).
+        if (kind === "env" && row.site === "outdoor") continue;
         const reference = (kind === "env" ? envLast : logLast).get(row.id) ?? row.startDate;
         const gap = dayDiff(reference, today);
         if (gap < limit) continue;

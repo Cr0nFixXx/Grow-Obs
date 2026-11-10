@@ -71,6 +71,14 @@ describe("runGrowReminders (B-88)", () => {
     expect(note!.body).toBe("Läuft: seit 30 Tagen keine Messwerte\nLäuft: seit 30 Tagen kein Log-Eintrag");
   });
 
+  it("Outdoor (B-105): keine Erinnerung an Messwerte, nur an Log-Einträge", async () => {
+    const id = await makeUser("o@example.test", { growReminderDays: 2 });
+    await makeGrow(id, { name: "Draußen", site: "outdoor" });
+    await makeGrow(id, { name: "Zelt", site: "indoor" });
+    expect(await runGrowReminders(NOW)).toMatchObject({ notified: 1, lines: 3 });
+    expect((await notes(id))[0]!.body.split("\n").sort()).toEqual(["Draußen: seit 30 Tagen kein Log-Eintrag", "Zelt: seit 30 Tagen keine Messwerte", "Zelt: seit 30 Tagen kein Log-Eintrag"].sort());
+  });
+
   it("Frist: erst ab N Tagen ohne Eintrag; Messwerte und Logs getrennt gezählt", async () => {
     const id = await makeUser("a@example.test", { growReminderDays: 3 });
     const grow = await makeGrow(id, { startDate: day(10) });

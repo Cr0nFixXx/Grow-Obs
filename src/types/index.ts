@@ -52,7 +52,10 @@ export interface CreateGrowInput {
   /** B-100: eine oder mehrere Sorten. */
   strains?: import("./domain").GrowStrain[];
   medium: string;
+  /** Ohne Angabe aus den Sorten abgeleitet (sonst Hybrid). */
   type?: "Sativa" | "Indica" | "Hybrid";
+  /** B-105: Indoor/Outdoor. */
+  site?: "indoor" | "outdoor" | null;
   /** JJJJ-MM-TT; ohne Angabe: heute. */
   startDate?: string;
   /** B-102: Sichtbarkeit beim Anlegen; ohne Angabe privat. */
@@ -93,6 +96,8 @@ export interface UpdateGrowInput {
   breeder?: string;
   type?: "Sativa" | "Indica" | "Hybrid";
   medium?: string;
+  /** B-105: Indoor/Outdoor; `null` = keine Angabe. */
+  site?: "indoor" | "outdoor" | null;
   startDate?: string;
   totalDays?: number;
   expectedYield?: string;

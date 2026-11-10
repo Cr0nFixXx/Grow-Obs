@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeleteGrowModal, EditGrowModal, EditLogModal, EnvModal, FinishGrowModal, PhotoModal, parseDecimal } from "@/components/GrowDialogs";
 import type { Grow } from "@/types";
@@ -46,7 +46,7 @@ describe("Grow-Dialoge (B-84)", () => {
     fireEvent.change(screen.getByLabelText(/Geplante Dauer/), { target: { value: "90" } });
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "Run 2", totalDays: 90, startDate: "2026-09-01", strains: [{ id: "legacy", name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }] }));
+    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "Run 2", totalDays: 90, startDate: "2026-09-01", strains: [{ id: "legacy", name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null, genetics: "Hybrid" }] }));
   });
 
   it("Bearbeiten: mehrere Sorten (B-100) – hinzufügen, Doppelte und leere Namen werden abgelehnt, Liste wird gesendet", async () => {
@@ -67,7 +67,7 @@ describe("Grow-Dialoge (B-84)", () => {
     fireEvent.change(screen.getByLabelText("Pflanzen von Sorte 2"), { target: { value: "3" } });
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ strains: [{ id: "legacy", name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }, { name: "Gorilla Glue", breeder: "", plants: 3, wetG: null, dryG: null }] }));
+    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ strains: [{ id: "legacy", name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null, genetics: "Hybrid" }, { name: "Gorilla Glue", breeder: "", plants: 3, wetG: null, dryG: null }] }));
   });
 
   it("Ernte: bei mehreren Sorten Gewichte je Sorte mit Summe (B-100)", async () => {
@@ -88,6 +88,30 @@ describe("Grow-Dialoge (B-84)", () => {
     fireEvent.submit(screen.getByTestId("finish-grow-form"));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(grows.finish).toHaveBeenCalledWith("g1", expect.objectContaining({ outcome: "harvested", strainWeights: [{ wetG: 300, dryG: 70 }, { wetG: 100, dryG: 30 }] }));
+  });
+
+  it("Bearbeiten (B-105): kein Typ mehr; Ort wählbar, Genetik/Licht/Samen je Sorte; der alte Typ ist bei einer Sorte vorbelegt", async () => {
+    const onSaved = vi.fn();
+    render(<EditGrowModal grow={grow({ type: "Indica" })} open onClose={() => undefined} onSaved={onSaved} />);
+    expect(screen.queryByLabelText("Typ")).toBeNull();
+    expect(within(screen.getByTestId("strain-genetics")).getByRole("button", { name: "Indica" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(within(screen.getByTestId("strain-light")).getByRole("button", { name: "Photoperiodisch" }));
+    fireEvent.click(within(screen.getByTestId("strain-seed")).getByRole("button", { name: "Regulär" }));
+    fireEvent.change(screen.getByTestId("edit-site"), { target: { value: "indoor" } });
+    fireEvent.submit(screen.getByTestId("edit-grow-form"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const patch = grows.update.mock.calls.at(-1)![1];
+    expect(patch).toMatchObject({ site: "indoor", strains: [{ name: "Haze", genetics: "Indica", light: "photo", seed: "regular" }] });
+    expect("type" in patch).toBe(false);
+  });
+
+  it("Bearbeiten (B-105): Outdoor blendet die Zielbereiche für Temperatur, Luftfeuchte und VPD aus", () => {
+    render(<EditGrowModal grow={grow({ site: "outdoor" })} open onClose={() => undefined} onSaved={() => undefined} />);
+    expect(screen.getByTestId("target-row-ph")).toBeTruthy();
+    expect(screen.getByTestId("target-row-ec")).toBeTruthy();
+    for (const k of ["temp", "rh", "vpd"]) expect(screen.queryByTestId(`target-row-${k}`)).toBeNull();
+    fireEvent.change(screen.getByTestId("edit-site"), { target: { value: "" } });
+    expect(screen.getByTestId("target-row-temp")).toBeTruthy();
   });
 
   it("Bearbeiten: Sichtbarkeit (B-92) – Standard „Nur ich“, Wechsel wird mitgesendet", async () => {

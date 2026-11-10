@@ -6,10 +6,11 @@ import { Icon } from "@/components/Icon";
 import { Button, Chip, Field, IconButton, Input, Modal } from "@/components/ui";
 import { StrainListEditor } from "@/components/StrainListEditor";
 import { restoreScroll, usePrefersReducedMotion } from "@/lib/hooks";
-import { GROW_MEDIUMS, GROW_TYPES, GROW_VISIBILITIES, visibilityHint, visibilityLabel } from "@/lib/grows";
+import { GROW_MEDIUMS, GROW_VISIBILITIES, visibilityHint, visibilityLabel } from "@/lib/grows";
 import { totalPlants } from "@/lib/grow-strains";
+import { GROW_SITES, SITE_HINT, SITE_LABEL, hasTraits, strainTraitLabels } from "@/lib/grow-traits";
 import {
-  LAST_STEP, MEDIUM_INFO, TYPE_INFO, VISIBILITY_INFO, WIZARD_STEPS, draftStrains, firstInvalidStep, isDraftDirty, newDraft,
+  LAST_STEP, MEDIUM_INFO, SITE_ICON, VISIBILITY_INFO, WIZARD_STEPS, draftStrains, firstInvalidStep, isDraftDirty, newDraft,
   startDateError, startLabel, startPresets, startPreview, stepError, strainStepError, toCreateInput, type WizardDraft,
 } from "@/lib/grow-wizard";
 import type { CreateGrowInput } from "@/types";
@@ -88,7 +89,7 @@ export function GrowWizard({ busy, onSubmit, onCancel }: { busy: boolean; onSubm
       >
         {step === 0 && (
           <>
-            <Intro>Gib deinem Grow einen Namen. Sorten kannst du jetzt eintragen oder später ergänzen.</Intro>
+            <Intro>Gib deinem Grow einen Namen. Sorten (mit Genetik, Licht und Samen) kannst du jetzt eintragen oder später ergänzen.</Intro>
             <Field label="Name des Grows">
               <Input value={draft.name} onChange={(e) => set("name", e.target.value)} maxLength={100} placeholder="z. B. Northern Haze · Run 04" autoFocus autoComplete="off" enterKeyHint="next" />
             </Field>
@@ -97,7 +98,7 @@ export function GrowWizard({ busy, onSubmit, onCancel }: { busy: boolean; onSubm
         )}
         {step === 1 && (
           <>
-            <Intro>Wie und was wächst? Das hilft bei Richtwerten und im Tagebuch – ändern kannst du es jederzeit.</Intro>
+            <Intro>Wie und wo wächst es? Das hilft bei Richtwerten und im Tagebuch – ändern kannst du es jederzeit.</Intro>
             <Group label="Medium">
               <div role="radiogroup" aria-label="Medium" className="grid grid-cols-2 gap-2.5">
                 {GROW_MEDIUMS.map((m) => (
@@ -105,12 +106,13 @@ export function GrowWizard({ busy, onSubmit, onCancel }: { busy: boolean; onSubm
                 ))}
               </div>
             </Group>
-            <Group label="Typ">
-              <div role="radiogroup" aria-label="Typ" className="grid gap-2.5">
-                {GROW_TYPES.map((t) => (
-                  <Tile key={t} selected={draft.type === t} label={t} hint={TYPE_INFO[t]} onSelect={() => set("type", t)} />
+            <Group label="Ort (optional)">
+              <div role="radiogroup" aria-label="Ort" className="grid grid-cols-2 gap-2.5">
+                {GROW_SITES.map((s) => (
+                  <Tile key={s} selected={draft.site === s} icon={SITE_ICON[s]} label={SITE_LABEL[s]} hint={SITE_HINT[s]} onSelect={() => set("site", draft.site === s ? null : s)} stacked />
                 ))}
               </div>
+              <p className="text-xs text-fg-subtle">Tippe die Auswahl noch einmal, um sie zu entfernen.</p>
             </Group>
           </>
         )}
@@ -207,10 +209,10 @@ function Review({ draft, onEdit }: { draft: WizardDraft; onEdit: (step: number) 
       step: 0,
       value: strains.length === 0
         ? <span className="font-normal text-fg-subtle">Keine Sorte angegeben</span>
-        : <ul className="space-y-0.5">{strains.map((s, i) => <li key={i}>{s.name}{s.breeder && <span className="font-normal text-fg-subtle"> · {s.breeder}</span>}{s.plants !== null && <span className="font-normal text-fg-subtle"> · {s.plants} {s.plants === 1 ? "Pflanze" : "Pflanzen"}</span>}</li>)}{strains.length > 1 && plants !== null && <li className="text-xs font-normal text-fg-subtle">{plants} Pflanzen insgesamt</li>}</ul>,
+        : <ul className="space-y-0.5">{strains.map((s, i) => <li key={i}>{s.name}{s.breeder && <span className="font-normal text-fg-subtle"> · {s.breeder}</span>}{s.plants !== null && <span className="font-normal text-fg-subtle"> · {s.plants} {s.plants === 1 ? "Pflanze" : "Pflanzen"}</span>}{hasTraits(s) && <span className="block text-xs font-normal text-fg-subtle" data-testid="review-traits">{strainTraitLabels(s).join(" · ")}</span>}</li>)}{strains.length > 1 && plants !== null && <li className="text-xs font-normal text-fg-subtle">{plants} Pflanzen insgesamt</li>}</ul>,
     },
     { label: "Medium", step: 1, value: draft.medium },
-    { label: "Typ", step: 1, value: draft.type },
+    { label: "Ort", step: 1, value: draft.site ? SITE_LABEL[draft.site] : <span className="font-normal text-fg-subtle">Keine Angabe</span> },
     { label: "Start", step: 2, value: <>{startLabel(draft.startDate)}<span className="block text-xs font-normal text-fg-subtle">{startPreview(draft.startDate)}</span></> },
     { label: "Sichtbar für", step: 2, value: <>{visibilityLabel[draft.visibility]}<span className="block text-xs font-normal text-fg-subtle">{VISIBILITY_INFO[draft.visibility].hint}</span></> },
   ];

@@ -1,5 +1,6 @@
 import type { CreateGrowInput, GrowStrain, GrowVisibility } from "@/types";
-import { GROW_MEDIUMS, GROW_TYPES, todayLocal } from "@/lib/grows";
+import { GROW_MEDIUMS, todayLocal } from "@/lib/grows";
+import { hasTraits, type GrowSite } from "@/lib/grow-traits";
 import { cleanStrains, emptyStrain, strainListError } from "@/lib/grow-strains";
 
 /** B-102: „Neuer Grow“ als Wizard in vier Schritten. */
@@ -15,12 +16,13 @@ export interface WizardDraft {
   name: string;
   strains: GrowStrain[];
   medium: string;
-  type: (typeof GROW_TYPES)[number];
+  /** B-105: Indoor/Outdoor, freiwillig (`null` = keine Angabe). Genetik, Licht und Samen stehen je Sorte in `strains`. */
+  site: GrowSite | null;
   startDate: string;
   visibility: GrowVisibility;
 }
 
-export const newDraft = (): WizardDraft => ({ name: "", strains: [emptyStrain()], medium: GROW_MEDIUMS[0], type: "Hybrid", startDate: todayLocal(), visibility: "private" });
+export const newDraft = (): WizardDraft => ({ name: "", strains: [emptyStrain()], medium: GROW_MEDIUMS[0], site: null, startDate: todayLocal(), visibility: "private" });
 
 export const MEDIUM_INFO: Record<string, { icon: string; hint: string }> = {
   "Living Soil (No-Till)": { icon: "Sprout", hint: "Lebendige Erde, kein Umtopfen" },
@@ -28,11 +30,7 @@ export const MEDIUM_INFO: Record<string, { icon: string; hint: string }> = {
   "Kokos/Perlit 70/30": { icon: "Layers", hint: "Schnell, präzise zu düngen" },
   "Hydro / DWC": { icon: "Droplets", hint: "Wurzeln im Nährwasser" },
 };
-export const TYPE_INFO: Record<(typeof GROW_TYPES)[number], string> = {
-  Hybrid: "Mischung aus beiden",
-  Indica: "Kompakt, eher entspannend",
-  Sativa: "Hoch gewachsen, eher anregend",
-};
+export const SITE_ICON: Record<GrowSite, string> = { indoor: "Home", outdoor: "Sun" };
 export const VISIBILITY_INFO: Record<GrowVisibility, { icon: string; hint: string }> = {
   private: { icon: "Lock", hint: "Nur du siehst den Grow" },
   public: { icon: "Globe", hint: "Alle Mitglieder, nur lesend" },
@@ -40,7 +38,7 @@ export const VISIBILITY_INFO: Record<GrowVisibility, { icon: string; hint: strin
 };
 
 /** Zeile ohne jede Eingabe: wird beim Anlegen ignoriert. */
-export const isBlankStrain = (s: GrowStrain) => !s.name.trim() && !s.breeder.trim() && s.plants === null;
+export const isBlankStrain = (s: GrowStrain) => !s.name.trim() && !s.breeder.trim() && s.plants === null && !hasTraits(s);
 
 /** Die tatsächlich gespeicherten Sorten (leere Zeilen entfallen, Leerzeichen gesäubert). */
 export const draftStrains = (list: GrowStrain[]): GrowStrain[] => cleanStrains(list.filter((s) => !isBlankStrain(s)));
@@ -105,7 +103,8 @@ export function toCreateInput(d: WizardDraft): CreateGrowInput {
     name: d.name.trim(),
     ...(strains.length ? { strains } : {}),
     medium: d.medium,
-    type: d.type,
+    // Der Typ des Grows ergibt sich aus der Genetik der Sorten (B-105).
+    ...(d.site ? { site: d.site } : {}),
     startDate: d.startDate || undefined,
     visibility: d.visibility,
   };

@@ -77,11 +77,17 @@ export const PHASE_TARGETS: Record<(typeof GROW_PHASE_NAMES)[number], EffectiveT
   Curing: { ph: null, ec: null, temp: { min: 16, max: 21 }, rh: { min: 58, max: 65 }, vpd: null },
 };
 
-/** Wirksame Zielbereiche: Überschreibung des Grows vor dem Richtwert der Phase. */
-export function effectiveTargets(phase: string, overrides: GrowTargets): EffectiveTargets {
+/** B-105: Outdoor gibt es keine Zielbereiche für das Klima (Temperatur, Luftfeuchte, VPD). */
+export const CLIMATE_TARGETS: TargetKey[] = ["temp", "rh", "vpd"];
+/** Zielgrößen, die für den Standort gelten (Outdoor ohne Klima). */
+export const targetKeysFor = (site: "indoor" | "outdoor" | null | undefined): TargetKey[] => (site === "outdoor" ? TARGET_KEYS.filter((k) => !CLIMATE_TARGETS.includes(k)) : TARGET_KEYS);
+
+/** Wirksame Zielbereiche: Überschreibung des Grows vor dem Richtwert der Phase; Outdoor ohne Klima-Ziele. */
+export function effectiveTargets(phase: string, overrides: GrowTargets, site?: "indoor" | "outdoor" | null): EffectiveTargets {
   const base = PHASE_TARGETS[phase as keyof typeof PHASE_TARGETS] ?? PHASE_TARGETS.Vegetativ;
   const out = { ...base };
   for (const key of TARGET_KEYS) if (overrides[key] !== undefined) out[key] = overrides[key] ?? null;
+  if (site === "outdoor") for (const key of CLIMATE_TARGETS) out[key] = null;
   return out;
 }
 
@@ -95,19 +101,19 @@ export function phaseAtDate(grow: Pick<Grow, "phases">, date: string): string {
 }
 
 /** Wirksame Zielbereiche des Grows an einem Tag. */
-export const targetsOn = (grow: Pick<Grow, "phases" | "targets">, date: string): EffectiveTargets => effectiveTargets(phaseAtDate(grow, date), grow.targets);
+export const targetsOn = (grow: Pick<Grow, "phases" | "targets" | "site">, date: string): EffectiveTargets => effectiveTargets(phaseAtDate(grow, date), grow.targets, grow.site);
 
 /** Zielband einer Größe als Folge von Phasen-Abschnitten (für das Diagramm); `null`, wenn nirgends ein Ziel gilt. */
-export function targetSteps(grow: Pick<Grow, "phases" | "targets" | "phase">, key: TargetKey): { from: string; range: TargetRange | null }[] | null {
+export function targetSteps(grow: Pick<Grow, "phases" | "targets" | "phase" | "site">, key: TargetKey): { from: string; range: TargetRange | null }[] | null {
   const steps: { from: string; range: TargetRange | null }[] = [];
   for (const p of grow.phases) {
     if (!p.startedOn) continue;
-    const range = effectiveTargets(p.label, grow.targets)[key];
+    const range = effectiveTargets(p.label, grow.targets, grow.site)[key];
     const last = steps[steps.length - 1];
     if (last && last.range?.min === range?.min && last.range?.max === range?.max) continue;
     steps.push({ from: p.startedOn.slice(0, 10), range });
   }
-  if (!steps.length) steps.push({ from: "0000-01-01", range: effectiveTargets(grow.phase, grow.targets)[key] });
+  if (!steps.length) steps.push({ from: "0000-01-01", range: effectiveTargets(grow.phase, grow.targets, grow.site)[key] });
   return steps.some((s) => s.range) ? steps : null;
 }
 
@@ -124,7 +130,7 @@ export const formatRange = (range: { min: number; max: number }, unit = "") => `
 export interface RangeAlert { key: TargetKey; label: string; unit: string; value: number; date: string; direction: "low" | "high"; range: TargetRange; digits: number; phase: string }
 
 /** Letzter Messwert je Größe, der außerhalb seines Zielbereichs liegt – gemessen am Bereich der Phase, in der er aufgenommen wurde. */
-export function rangeAlerts(grow: Pick<Grow, "env" | "phases" | "targets">): RangeAlert[] {
+export function rangeAlerts(grow: Pick<Grow, "env" | "phases" | "targets" | "site">): RangeAlert[] {
   const sorted = [...grow.env].sort((a, b) => b.date.localeCompare(a.date));
   const out: RangeAlert[] = [];
   for (const key of TARGET_KEYS) {

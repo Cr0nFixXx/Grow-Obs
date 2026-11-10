@@ -7,7 +7,8 @@ import { StrainListEditor } from "@/components/StrainListEditor";
 import { StrainPicker } from "@/components/StrainPicker";
 import { isMultiStrain, strainEnvOn, strainsWithId } from "@/lib/strain-diary";
 import { cleanStrains, emptyStrain, growStrains, strainListError } from "@/lib/grow-strains";
-import { GROW_MEDIUMS, GROW_TYPES, formatGrams, GROW_VISIBILITIES, TARGET_KEYS, TARGET_META, conditionLabel, visibilityHint, visibilityLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
+import { GROW_SITES, SITE_LABEL, type GrowSite } from "@/lib/grow-traits";
+import { GROW_MEDIUMS, formatGrams, GROW_VISIBILITIES, TARGET_KEYS, TARGET_META, targetKeysFor, conditionLabel, visibilityHint, visibilityLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
 import { resolveMedia } from "@/lib/media";
 import type { EnvPoint, FinishGrowInput, Grow, GrowCondition, GrowLog, GrowPhoto, GrowStrain, GrowVisibility, TargetKey, TargetRange, UpdateGrowInput } from "@/types";
 
@@ -78,8 +79,13 @@ function targetPatchOf(key: TargetKey, f: TargetFieldState): TargetRange | null 
 export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; open: boolean; onClose: () => void; onSaved: (grow: Grow) => void }) {
   const svc = useServices();
   const [name, setName] = useState(grow.name);
-  const [strainList, setStrainList] = useState<GrowStrain[]>(() => { const l = growStrains(grow); return l.length ? l : [emptyStrain()]; });
-  const [type, setType] = useState(grow.type);
+  const [strainList, setStrainList] = useState<GrowStrain[]>(() => {
+    const l = growStrains(grow);
+    if (!l.length) return [emptyStrain()];
+    // B-105: Der frühere Grow-Typ wandert zur Sorte – bei genau einer Sorte ohne Genetik wird er vorbelegt.
+    return l.length === 1 && !l[0].genetics ? [{ ...l[0], genetics: grow.type }] : l;
+  });
+  const [site, setSite] = useState<GrowSite | "">(grow.site ?? "");
   const [medium, setMedium] = useState(grow.medium);
   const [startDate, setStartDate] = useState(grow.startDate.slice(0, 10));
   const [totalDays, setTotalDays] = useState(String(grow.totalDays));
@@ -111,7 +117,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
     setTouched(true);
     if (!valid) return;
     const patch: UpdateGrowInput = {
-      name: name.trim(), strains: cleanStrains(strainList), type, medium, startDate, totalDays: days,
+      name: name.trim(), strains: cleanStrains(strainList), medium, site: site || null, startDate, totalDays: days,
       expectedYield: expectedYield.trim() || "—", leafOffset: offset, visibility,
       targets: targetPatches as UpdateGrowInput["targets"],
     };
@@ -125,8 +131,11 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
         {touched && <ErrorLine error={problems.name} />}
         <StrainListEditor value={strainList} onChange={setStrainList} error={touched ? problems.strain : undefined} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Typ">
-            <Select value={type} onChange={(e) => setType(e.target.value as Grow["type"])}>{GROW_TYPES.map((t) => <option key={t}>{t}</option>)}</Select>
+          <Field label="Ort" hint={site === "outdoor" ? "Outdoor: ohne Zielbereiche für Temperatur, Luftfeuchte und VPD." : undefined}>
+            <Select value={site} onChange={(e) => setSite(e.target.value as GrowSite | "")} data-testid="edit-site">
+              <option value="">Keine Angabe</option>
+              {GROW_SITES.map((x) => <option key={x} value={x}>{SITE_LABEL[x]}</option>)}
+            </Select>
           </Field>
           <Field label="Medium">
             <Select value={medium} onChange={(e) => setMedium(e.target.value)}>
@@ -158,7 +167,7 @@ export function EditGrowModal({ grow, open, onClose, onSaved }: { grow: Grow; op
         <fieldset className="space-y-3 rounded-xl border border-border p-3" data-testid="target-fields">
           <legend className="px-1 text-[13px] font-semibold">Zielbereiche in den Diagrammen</legend>
           <p className="text-xs text-fg-subtle">Standardmäßig gelten Richtwerte je Phase (Keimung, Vegetativ, Blüte …). Hier kannst du jede Größe für den ganzen Grow überschreiben oder abschalten. Werte außerhalb werden markiert.</p>
-          {TARGET_KEYS.map((key) => {
+          {targetKeysFor(site || null).map((key) => {
             const meta = TARGET_META[key];
             const f = targetFields[key];
             const base = phaseDefaults[key];

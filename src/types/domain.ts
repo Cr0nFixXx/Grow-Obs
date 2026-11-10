@@ -139,6 +139,10 @@ export interface GrowStrain {
   /** Stabile ID (B-101); neue Zeilen im Editor haben noch keine. */
   id?: string;
   name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null;
+  /** B-105: Genetik, Lichttyp und Samentyp – freiwillig (`null`/fehlend = keine Angabe). */
+  genetics?: "Indica" | "Sativa" | "Hybrid" | null;
+  light?: "photo" | "fast" | "auto" | null;
+  seed?: "regular" | "feminized" | null;
 }
 /** Kurzform eines Grows in der Liste auf einem fremden Profil. */
 export interface MemberGrowBrief {
@@ -223,8 +227,11 @@ export interface Grow {
   /** B-100: alle Sorten des Grows. */
   strains: GrowStrain[];
   breeder: string;
+  /** Aus den Sorten abgeleitet (alle gleich → dieser Typ, gemischt → Hybrid). */
   type: Type;
   medium: string;
+  /** B-105: Indoor/Outdoor, freiwillig. Outdoor hat keine Zielbereiche für Temperatur, Luftfeuchte und VPD. */
+  site?: "indoor" | "outdoor" | null;
   startDate: string;
   day: number;
   totalDays: number;

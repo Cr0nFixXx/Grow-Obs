@@ -1,5 +1,17 @@
 [
   {
+    "id": "B-105",
+    "date": "2026-11-10",
+    "title": "Genetik, Licht, Samen und Indoor/Outdoor",
+    "notes": [
+      "Indica, Sativa oder Hybrid wählst du jetzt bei der Sorte statt beim Grow – auch bei Grows mit mehreren Sorten",
+      "Je Sorte kannst du außerdem Photoperiodisch, Fast oder Auto und Regulär oder Feminisiert angeben",
+      "Im Schritt „Anbau“ legst du fest, ob der Grow Indoor oder Outdoor läuft",
+      "Outdoor-Grows haben keine Zielbereiche für Temperatur, Luftfeuchte und VPD und keine Erinnerung an Messwerte",
+      "Alle Angaben sind freiwillig und im Bearbeiten-Dialog änderbar"
+    ]
+  },
+  {
     "id": "B-104",
     "date": "2026-11-10",
     "title": "pH und EC je Pflanze",

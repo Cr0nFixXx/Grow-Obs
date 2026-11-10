@@ -4,7 +4,7 @@ import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
 import { growEnv, growLogs, growPhotos, growStrainEnv, grows, strains, type GrowStrainRow } from "../db/schema.ts";
-import { duplicateStrain, growStrainsSchema, removedStrainIds, strainIdsField, strainTexts, strainsOf, plantEnvError, unknownStrainIds, weightTotals, withStrainIds } from "../lib/grow-strains.ts";
+import { GROW_SITES, deriveGrowType, duplicateStrain, growStrainsSchema, removedStrainIds, strainIdsField, strainTexts, strainsOf, plantEnvError, unknownStrainIds, weightTotals, withStrainIds } from "../lib/grow-strains.ts";
 import { GROW_CONDITIONS, GROW_PHASES, dayDiff, growState, isIsoDate, todayIso, vpdKpa, type GrowCondition, type GrowStatus } from "../lib/grow-state.ts";
 import { releaseMedia } from "../lib/media-cleanup.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
@@ -60,6 +60,7 @@ export async function toGrow(row: GrowRow) {
     breeder: row.breeder,
     type: row.type,
     medium: row.medium,
+    site: row.site,
     startDate: row.startDate,
     day: state.day,
     totalDays: row.totalDays,
@@ -161,8 +162,11 @@ const createGrowSchema = z.object({
   /** B-100: mehrere Sorten; hat Vorrang vor `strain`/`breeder`. */
   strains: growStrainsSchema.optional(),
   breeder: growFields.breeder.default(""),
-  type: growFields.type.default("Hybrid"),
+  /** Ohne Angabe aus den Genetik-Angaben der Sorten abgeleitet, sonst Hybrid. */
+  type: growFields.type.optional(),
   medium: growFields.medium.default(""),
+  /** B-105: Indoor/Outdoor, freiwillig. */
+  site: z.enum(GROW_SITES).nullable().optional(),
   startDate: growFields.startDate.optional(),
   totalDays: growFields.totalDays.optional(),
   /** B-102: Sichtbarkeit gleich beim Anlegen (Standard privat). */
@@ -178,11 +182,12 @@ async function findStrain(name: string | undefined) {
 growsApi.post("/", requireAuth, async (c) => {
   const body = createGrowSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  const { name, type, medium } = body.data;
+  const { name, medium } = body.data;
   // Sortenliste: `strains` hat Vorrang; die alten Felder `strain`/`breeder` ergeben genau eine Sorte.
   const list: GrowStrainRow[] = withStrainIds(body.data.strains ?? (body.data.strain ? [{ name: body.data.strain, breeder: body.data.breeder === "Unbekannt" ? "" : body.data.breeder, plants: null, wetG: null, dryG: null }] : []), []);
   const dup = duplicateStrain(list);
   if (dup) return c.json({ error: dup }, 400);
+  const type = body.data.type ?? deriveGrowType(list) ?? "Hybrid";
   const texts = strainTexts(list);
   const breeder = body.data.strains ? texts.breeder : body.data.breeder;
   const strainRow = await findStrain(list[0]?.name);
@@ -195,6 +200,7 @@ growsApi.post("/", requireAuth, async (c) => {
       breeder,
       type,
       medium,
+      site: body.data.site ?? null,
       strainId: strainRow?.id ?? null,
       strainName: texts.strainName,
       strainList: list,
@@ -245,6 +251,7 @@ const patchGrowSchema = z.object({
   breeder: growFields.breeder,
   type: growFields.type,
   medium: growFields.medium,
+  site: z.enum(GROW_SITES).nullable(),
   startDate: growFields.startDate,
   totalDays: growFields.totalDays,
   expectedYield: growFields.expectedYield,
@@ -281,6 +288,9 @@ growsApi.patch("/:id", requireAuth, async (c) => {
     const strainRow = await findStrain(strainsIn[0]?.name);
     patch.strainList = strainsIn;
     after = strainsIn;
+    // B-105: der Grow-Typ folgt den Genetik-Angaben der Sorten (ein ausdrücklich mitgeschickter Typ gewinnt).
+    const derived = deriveGrowType(strainsIn);
+    if (derived && rest.type === undefined) patch.type = derived;
     patch.strainName = texts.strainName;
     patch.breeder = texts.breeder;
     patch.strainId = strainRow?.id ?? null;

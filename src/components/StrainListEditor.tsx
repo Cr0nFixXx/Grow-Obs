@@ -1,13 +1,26 @@
 import { useId } from "react";
 import { Icon } from "@/components/Icon";
-import { Button, Input } from "@/components/ui";
+import { Button, Chip, Input } from "@/components/ui";
 import { useStrainCatalog } from "@/data/hooks";
 import { MAX_GROW_STRAINS, emptyStrain } from "@/lib/grow-strains";
+import { GENETICS, GENETICS_HINT, LIGHT_LABEL, LIGHT_TYPES, SEED_LABEL, SEED_TYPES } from "@/lib/grow-traits";
 import type { GrowStrain } from "@/types";
+
+/** Freiwillige Einzelwahl als Chips: ein zweiter Tipp auf die gewählte Chip nimmt die Angabe wieder zurück. */
+function TraitChips<T extends string>({ label, testId, options, value, onChange }: { label: string; testId: string; options: { value: T; label: string; title?: string }[]; value: T | null | undefined; onChange: (next: T | null) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label} data-testid={testId}>
+      <span className="w-14 shrink-0 text-xs text-fg-subtle">{label}</span>
+      {options.map((o) => (
+        <Chip key={o.value} type="button" title={o.title} active={value === o.value} aria-pressed={value === o.value} onClick={() => onChange(value === o.value ? null : o.value)}>{o.label}</Chip>
+      ))}
+    </div>
+  );
+}
 
 /**
  * B-100: Sortenliste eines Grows. Je Zeile Name (mit Vorschlägen aus dem Sortenkatalog, Freitext bleibt möglich),
- * Breeder und Pflanzenzahl; „+ Sorte hinzufügen“ bis 20. Wählt man eine Katalogsorte, füllt sich ein leerer Breeder.
+ * Breeder und Pflanzenzahl, dazu (B-105, freiwillig) Genetik, Lichttyp und Samentyp; „+ Sorte hinzufügen“ bis 20. Wählt man eine Katalogsorte, füllt sich ein leerer Breeder.
  */
 export function StrainListEditor({ value, onChange, error }: { value: GrowStrain[]; onChange: (next: GrowStrain[]) => void; error?: string }) {
   const listId = useId();
@@ -38,6 +51,11 @@ export function StrainListEditor({ value, onChange, error }: { value: GrowStrain
           <div className="grid grid-cols-[1fr_7.5rem] gap-2">
             <Input value={s.breeder} onChange={(e) => set(i, { breeder: e.target.value })} maxLength={100} placeholder="Breeder (optional)" aria-label={`Breeder zu Sorte ${i + 1}`} data-testid="strain-breeder" />
             <Input type="number" inputMode="numeric" min={1} max={999} step={1} value={s.plants ?? ""} onChange={(e) => set(i, { plants: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Pflanzen" aria-label={`Pflanzen von Sorte ${i + 1}`} data-testid="strain-plants" />
+          </div>
+          <div className="space-y-1.5 pt-0.5" data-testid="strain-traits">
+            <TraitChips label="Genetik" testId="strain-genetics" options={GENETICS.map((g) => ({ value: g, label: g, title: GENETICS_HINT[g] }))} value={s.genetics} onChange={(v) => set(i, { genetics: v })} />
+            <TraitChips label="Licht" testId="strain-light" options={LIGHT_TYPES.map((l) => ({ value: l, label: LIGHT_LABEL[l] }))} value={s.light} onChange={(v) => set(i, { light: v })} />
+            <TraitChips label="Samen" testId="strain-seed" options={SEED_TYPES.map((x) => ({ value: x, label: SEED_LABEL[x] }))} value={s.seed} onChange={(v) => set(i, { seed: v })} />
           </div>
         </div>
       ))}

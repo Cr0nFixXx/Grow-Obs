@@ -17,6 +17,7 @@ import { useServices } from "@/data/DataContext";
 import { ImagePickButton } from "@/components/media";
 import { resolveMedia } from "@/lib/media";
 import { growStrains, strainSummary, totalPlants } from "@/lib/grow-strains";
+import { LIGHT_LABEL, SEED_LABEL, SITE_LABEL, strainTraitLabels } from "@/lib/grow-traits";
 import { ALL_STRAINS, matchesStrainFilter, strainNamesOf, strainsWithId } from "@/lib/strain-diary";
 import { StrainTags } from "@/components/StrainPicker";
 import { toneSoft, type Tone } from "@/lib/tokens";
@@ -268,6 +269,7 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
             <div className="absolute bottom-3 left-4 flex gap-2">
               <Badge tone="leaf">{grow.type}</Badge>
               <Badge className="bg-black/40 text-white border-white/15">{grow.medium}</Badge>
+              {grow.site && <span data-testid="grow-site-badge"><Badge className="bg-black/40 text-white border-white/15">{SITE_LABEL[grow.site]}</Badge></span>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
@@ -300,7 +302,7 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
           <ul className="divide-y divide-border">
             {strainRows.map((x, i) => (
               <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2 text-sm" data-testid="grow-strain-row">
-                <span className="min-w-0"><span className="font-medium">{x.name}</span>{x.breeder && <span className="text-fg-subtle"> · {x.breeder}</span>}</span>
+                <span className="min-w-0"><span className="font-medium">{x.name}</span>{x.breeder && <span className="text-fg-subtle"> · {x.breeder}</span>}{strainTraitLabels(x).length > 0 && <span className="block text-xs text-fg-subtle" data-testid="grow-strain-traits">{strainTraitLabels(x).join(" · ")}</span>}</span>
                 <span className="text-xs text-fg-muted tnum">
                   {x.plants != null ? `${x.plants} ${x.plants === 1 ? "Pflanze" : "Pflanzen"}` : ""}
                   {grow.status === "harvested" && (x.wetG != null || x.dryG != null) ? `${x.plants != null ? " · " : ""}nass ${formatGrams(x.wetG)} · trocken ${formatGrams(x.dryG)}` : ""}
@@ -466,6 +468,9 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
               <div className="mt-4 w-full space-y-2 text-left text-sm">
                 <Row label="Medium" value={grow.medium} />
                 <Row label="Typ" value={grow.type} />
+                {grow.site && <Row label="Ort" value={SITE_LABEL[grow.site]} />}
+                {strainRows.length === 1 && strainRows[0].light && <Row label="Licht" value={LIGHT_LABEL[strainRows[0].light]} />}
+                {strainRows.length === 1 && strainRows[0].seed && <Row label="Samen" value={SEED_LABEL[strainRows[0].seed]} />}
                 <Row label="Breeder" value={grow.breeder} />
                 <Row label="Start" value={new Date(grow.startDate).toLocaleDateString("de-DE")} />
                 {!readOnly && <Row label="Sichtbar für" value={visibilityLabel[grow.visibility ?? "private"]} />}

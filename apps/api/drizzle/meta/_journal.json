@@ -232,6 +232,13 @@
       "when": 1792937400000,
       "tag": "0032_plant_env",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793023800000,
+      "tag": "0033_grow_traits",
+      "breakpoints": true
     }
   ]
 }

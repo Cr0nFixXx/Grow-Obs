@@ -306,7 +306,12 @@ export const tasks = pgTable("tasks", {
 });
 
 /* ----------------------------- Grows ----------------------------- */
-export interface GrowStrainRow { /** B-101: stabile ID (Zuordnung von Einträgen, Fotos, pH/EC bleibt beim Umbenennen erhalten). */ id: string; name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null }
+export interface GrowStrainRow {
+  /** B-101: stabile ID (Zuordnung von Einträgen, Fotos, pH/EC bleibt beim Umbenennen erhalten). */
+  id: string; name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null;
+  /** B-105: Genetik, Lichttyp, Samentyp – freiwillig; ältere Zeilen haben die Felder nicht. */
+  genetics?: "Indica" | "Sativa" | "Hybrid" | null; light?: "photo" | "fast" | "auto" | null; seed?: "regular" | "feminized" | null;
+}
 export const grows = pgTable("grows", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id),
@@ -315,6 +320,8 @@ export const grows = pgTable("grows", {
   breeder: text("breeder").notNull().default(""),
   type: growTypeEnum("type").notNull().default("Hybrid"),
   medium: text("medium").notNull().default(""),
+  /** B-105: `indoor` | `outdoor` | NULL (keine Angabe). */
+  site: text("site"),
   startDate: date("start_date").notNull(),
   day: integer("day").notNull().default(0),
   totalDays: integer("total_days").notNull().default(84),

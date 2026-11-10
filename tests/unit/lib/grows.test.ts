@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PHASE_TARGETS, TARGET_KEYS, effectiveTargets, phaseAtDate, targetSteps, targetsOn, formatRange, outsideRange, rangeAlerts, average, dayDiff, dryRatio, formatDay, formatGrams, isActiveGrow, conditionLabel, GROW_PHASE_NAMES, shiftDay, vpdKpa } from "@/lib/grows";
+import { PHASE_TARGETS, TARGET_KEYS, effectiveTargets, phaseAtDate, targetSteps, targetsOn, formatRange, outsideRange, rangeAlerts, average, dayDiff, dryRatio, formatDay, formatGrams, isActiveGrow, conditionLabel, GROW_PHASE_NAMES, shiftDay, vpdKpa, targetKeysFor } from "@/lib/grows";
 import { parseGrams } from "@/components/GrowDialogs";
 
 describe("Grow-Hilfen (B-84)", () => {
@@ -131,5 +131,26 @@ describe("Zielbereiche (B-86)", () => {
     const climate = rangeAlerts(growOf({}, { env: [point("2026-10-05", { temp: 31, rh: 30 })] }));
     expect(climate.map((a) => [a.key, a.direction])).toEqual([["temp", "high"], ["rh", "low"]]);
     expect(rangeAlerts(growOf({}, { env: [] }))).toEqual([]);
+  });
+});
+
+describe("Outdoor (B-105)", () => {
+  const phasesOf = [{ label: "Vegetativ", startedOn: "2026-09-01", active: true }] as never;
+  const base = { phases: phasesOf, phase: "Vegetativ", targets: {}, env: [{ day: 1, date: "2026-09-10", temp: 40, rh: 10, vpd: 4, ph: 3, ec: 5 }] } as never;
+  it("ohne Klima-Zielbereiche, pH/EC bleiben", () => {
+    expect(effectiveTargets("Vegetativ", {}, "outdoor")).toMatchObject({ temp: null, rh: null, vpd: null, ph: PHASE_TARGETS.Vegetativ.ph, ec: PHASE_TARGETS.Vegetativ.ec });
+    expect(effectiveTargets("Vegetativ", {}, "indoor").temp).toEqual(PHASE_TARGETS.Vegetativ.temp);
+    expect(effectiveTargets("Vegetativ", {}).temp).toEqual(PHASE_TARGETS.Vegetativ.temp);
+    expect(targetKeysFor("outdoor")).toEqual(["ph", "ec"]);
+    expect(targetKeysFor(null)).toHaveLength(5);
+  });
+  it("keine Bereichs-Warnungen und kein Zielband für Klimawerte", () => {
+    const keysIndoor = rangeAlerts({ ...(base as object), site: "indoor" } as never).map((a) => a.key).sort();
+    expect(keysIndoor).toEqual(["ec", "ph", "rh", "temp", "vpd"]);
+    const keysOutdoor = rangeAlerts({ ...(base as object), site: "outdoor" } as never).map((a) => a.key).sort();
+    expect(keysOutdoor).toEqual(["ec", "ph"]);
+    expect(targetSteps({ ...(base as object), site: "outdoor" } as never, "temp")).toBeNull();
+    expect(targetSteps({ ...(base as object), site: "outdoor" } as never, "ph")).not.toBeNull();
+    expect(targetsOn({ ...(base as object), site: "outdoor" } as never, "2026-09-10").vpd).toBeNull();
   });
 });

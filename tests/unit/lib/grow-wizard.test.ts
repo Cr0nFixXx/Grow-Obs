@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { GrowStrain } from "@/types";
 import {
-  daysSince, draftStrains, firstInvalidStep, isDraftDirty, newDraft, startDateError, startPreview, startPresets, stepError, strainStepError, toCreateInput,
+  daysSince, isBlankStrain, draftStrains, firstInvalidStep, isDraftDirty, newDraft, startDateError, startPreview, startPresets, stepError, strainStepError, toCreateInput,
 } from "@/lib/grow-wizard";
 
 const TODAY = "2026-10-01";
 const strain = (p: Partial<GrowStrain> = {}): GrowStrain => ({ name: "", breeder: "", plants: null, wetG: null, dryG: null, ...p });
 
 describe("Grow-Wizard (B-102)", () => {
-  it("startet mit Vorgaben: Living Soil, Hybrid, privat, heute, eine leere Sortenzeile", () => {
+  it("startet mit Vorgaben: Living Soil, privat, heute, eine leere Sortenzeile, kein Ort", () => {
     const d = newDraft();
-    expect(d).toMatchObject({ name: "", medium: "Living Soil (No-Till)", type: "Hybrid", visibility: "private" });
+    expect(d).toMatchObject({ name: "", medium: "Living Soil (No-Till)", site: null, visibility: "private" });
+    expect("type" in d).toBe(false);
     expect(d.strains).toHaveLength(1);
     expect(isDraftDirty(d)).toBe(false);
   });
@@ -52,11 +53,26 @@ describe("Grow-Wizard (B-102)", () => {
   });
 
   it("baut die Anfrage: ohne Sorten wird `strains` weggelassen, sonst gesäubert", () => {
-    const base = { ...newDraft(), name: " Run 2 ", visibility: "community" as const, medium: "Erde (Bio)", type: "Indica" as const, startDate: "2026-09-24" };
+    const base = { ...newDraft(), name: " Run 2 ", visibility: "community" as const, medium: "Erde (Bio)", startDate: "2026-09-24" };
     const none = toCreateInput(base);
-    expect(none).toEqual({ name: "Run 2", medium: "Erde (Bio)", type: "Indica", startDate: "2026-09-24", visibility: "community" });
+    // Kein Typ mehr: der Server leitet ihn aus der Genetik der Sorten ab; kein Ort = kein Feld.
+    expect(none).toEqual({ name: "Run 2", medium: "Erde (Bio)", startDate: "2026-09-24", visibility: "community" });
     expect("strains" in none).toBe(false);
+    expect(toCreateInput({ ...base, site: "outdoor" }).site).toBe("outdoor");
     const two = toCreateInput({ ...base, strains: [strain({ name: " A " }), strain(), strain({ name: "B", plants: 3 })] });
     expect(two.strains?.map((s) => [s.name, s.plants])).toEqual([["A", null], ["B", 3]]);
+  });
+
+  it("Genetik, Licht und Samen (B-105): allein keine Eingabe, aber ein Name wird dann Pflicht; Angaben gehen mit", () => {
+    expect(isBlankStrain(strain())).toBe(true);
+    expect(isBlankStrain(strain({ genetics: "Indica" }))).toBe(false);
+    expect(isBlankStrain(strain({ light: "auto" }))).toBe(false);
+    expect(isBlankStrain(strain({ seed: "feminized" }))).toBe(false);
+    expect(strainStepError([strain({ light: "auto" })])).toMatch(/Namen/);
+    const d = { ...newDraft(), name: "x", strains: [strain({ name: "Haze", genetics: "Sativa", light: "photo", seed: "regular" })] };
+    expect(strainStepError(d.strains)).toBe("");
+    expect(isDraftDirty({ ...newDraft(), site: "indoor" })).toBe(false); // Auswahl allein ist keine Eingabe
+    expect(isDraftDirty({ ...newDraft(), strains: [strain({ light: "fast" })] })).toBe(true);
+    expect(toCreateInput(d).strains?.[0]).toMatchObject({ name: "Haze", genetics: "Sativa", light: "photo", seed: "regular" });
   });
 });

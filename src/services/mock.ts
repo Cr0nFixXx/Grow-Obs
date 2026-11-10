@@ -23,6 +23,7 @@ import {
 import { dbGet, dbSet } from "@/lib/db";
 import { APP_VERSION } from "@/lib/app-version";
 import { GROW_PHASE_NAMES, dayDiff, todayLocal, vpdKpa } from "@/lib/grows";
+import { deriveGrowType } from "@/lib/grow-traits";
 import type { EnvPoint, Grow, GrowLog, GrowStrain, SocialPost, Strain, TargetKey, TargetRange, Task } from "@/types";
 import type { BannedMember, CommunityDetail, ReportGroup, ReportPage } from "@/types";
 import type {
@@ -230,8 +231,9 @@ const growService: GrowService = {
       strain: strainTexts(newStrains).strainName,
       strains: newStrains,
       breeder: strainTexts(newStrains).breeder,
-      type: input.type ?? "Hybrid",
+      type: input.type ?? deriveGrowType(newStrains) ?? "Hybrid",
       medium: input.medium,
+      site: input.site ?? null,
       startDate: input.startDate ?? todayLocal(),
       day: 0,
       totalDays: 84,
@@ -265,6 +267,9 @@ const growService: GrowService = {
     const before = grow.strains;
     if (strainsIn) {
       grow.strains = withStrainIds(strainsIn, before);
+      // B-105: der Grow-Typ folgt der Genetik der Sorten (ein ausdrücklich mitgeschickter Typ gewinnt).
+      const derived = deriveGrowType(grow.strains);
+      if (derived && fields.type === undefined) grow.type = derived;
       Object.assign(grow, { strain: strainTexts(strainsIn).strainName, breeder: strainTexts(strainsIn).breeder });
       if (strainsIn.some((x) => x.wetG !== null || x.dryG !== null) && grow.harvest) grow.harvest = { ...grow.harvest, wetG: sumGrams(strainsIn.map((x) => x.wetG)), dryG: sumGrams(strainsIn.map((x) => x.dryG)) };
     } else if (fields.strain !== undefined) {

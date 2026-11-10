@@ -179,4 +179,65 @@ describe("Grows: mehrere Sorten (B-100)", () => {
   });
 });
 
+describe("Grows: Genetik, Licht, Samen und Indoor/Outdoor (B-105)", () => {
+  type Traits = { genetics?: string | null; light?: string | null; seed?: string | null };
+  const traitsOf = (g: GrowDto) => g.strains.map((x) => { const t = x as unknown as Traits; return [t.genetics ?? null, t.light ?? null, t.seed ?? null]; });
+  const typeOf = async (id: string) => (await db.select({ type: grows.type }).from(grows).where(eq(grows.id, id)))[0]!.type;
+
+  it("anlegen: Angaben je Sorte und Ort werden gespeichert; ohne Angaben bleibt alles leer (Typ Hybrid)", async () => {
+    const anna = await makeUser("anna");
+    const plain = await create(anna, { strains: [s("A")] }) as GrowDto & { site: string | null; type: string };
+    expect(plain.site).toBeNull();
+    expect(plain.type).toBe("Hybrid");
+    expect(traitsOf(plain)).toEqual([[null, null, null]]);
+    const g = await create(anna, { site: "outdoor", strains: [s("A", { genetics: "Indica", light: "auto", seed: "feminized" } as Partial<Strain>), s("B")] }) as GrowDto & { site: string | null };
+    expect(g.site).toBe("outdoor");
+    expect(traitsOf(g)).toEqual([["Indica", "auto", "feminized"], [null, null, null]]);
+    expect(((await get(anna, g.id)) as GrowDto & { site: string }).site).toBe("outdoor");
+  });
+
+  it("Typ des Grows folgt den Sorten: gleich → dieser, gemischt → Hybrid, ohne Angabe → Hybrid; ein mitgeschickter Typ gewinnt", async () => {
+    const anna = await makeUser("anna");
+    const one = await create(anna, { strains: [s("A", { genetics: "Sativa" } as Partial<Strain>)] });
+    expect(await typeOf(one.id)).toBe("Sativa");
+    const same = await create(anna, { strains: [s("A", { genetics: "Indica" } as Partial<Strain>), s("B", { genetics: "Indica" } as Partial<Strain>), s("C")] });
+    expect(await typeOf(same.id)).toBe("Indica");
+    const mixed = await create(anna, { strains: [s("A", { genetics: "Indica" } as Partial<Strain>), s("B", { genetics: "Sativa" } as Partial<Strain>)] });
+    expect(await typeOf(mixed.id)).toBe("Hybrid");
+    const explicit = await create(anna, { type: "Sativa", strains: [s("A", { genetics: "Indica" } as Partial<Strain>)] });
+    expect(await typeOf(explicit.id)).toBe("Sativa");
+  });
+
+  it("bearbeiten: Genetik ändert den Typ; fehlende Angaben bleiben, null löscht; Sorten ohne Angabe lassen den Typ stehen", async () => {
+    const anna = await makeUser("anna");
+    const g = await create(anna, { strains: [s("A", { genetics: "Indica", light: "photo", seed: "regular" } as Partial<Strain>)] });
+    const id = (g.strains[0] as unknown as { id: string }).id;
+    // Angaben nicht mitgeschickt → bleiben (nur Pflanzenzahl ändert sich)
+    let res = await call(anna, `/grows/${g.id}`, "PATCH", { strains: [{ id, name: "A", breeder: "", plants: 2 }] });
+    expect(res.status).toBe(200);
+    expect(traitsOf((await res.json()) as GrowDto)).toEqual([["Indica", "photo", "regular"]]);
+    // Einzelne Angabe auf null → gelöscht, Genetik neu → Typ folgt
+    res = await call(anna, `/grows/${g.id}`, "PATCH", { strains: [{ id, name: "A", breeder: "", plants: 2, genetics: "Sativa", light: null }] });
+    expect(traitsOf((await res.json()) as GrowDto)).toEqual([["Sativa", null, "regular"]]);
+    expect(await typeOf(g.id)).toBe("Sativa");
+    // Alle Genetik-Angaben gelöscht → der bisherige Typ bleibt
+    await call(anna, `/grows/${g.id}`, "PATCH", { strains: [{ id, name: "A", breeder: "", plants: 2, genetics: null }] });
+    expect(await typeOf(g.id)).toBe("Sativa");
+    // Ort ändern und löschen
+    res = await call(anna, `/grows/${g.id}`, "PATCH", { site: "indoor" });
+    expect(((await res.json()) as { site: string }).site).toBe("indoor");
+    res = await call(anna, `/grows/${g.id}`, "PATCH", { site: null });
+    expect(((await res.json()) as { site: string | null }).site).toBeNull();
+  });
+
+  it("ungültige Werte werden abgelehnt", async () => {
+    const anna = await makeUser("anna");
+    const bad = async (strains: unknown, extra: Record<string, unknown> = {}) => (await call(anna, "/grows", "POST", { name: "x", strains, ...extra })).status;
+    expect(await bad([s("A", { genetics: "Ruderalis" } as Partial<Strain>)])).toBe(400);
+    expect(await bad([s("A", { light: "led" } as Partial<Strain>)])).toBe(400);
+    expect(await bad([s("A", { seed: "klon" } as Partial<Strain>)])).toBe(400);
+    expect(await bad([s("A")], { site: "balkon" })).toBe(400);
+  });
+});
+
 function daysAgoIso(n: number) { const d = new Date(`${todayIso()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); }

@@ -32,7 +32,8 @@ describe("GrowWizard (B-102)", () => {
     next();
     expect(screen.getByTestId("wizard-step-setup")).toBeTruthy();
     fireEvent.click(within(screen.getByRole("radiogroup", { name: "Medium" })).getByRole("radio", { name: /Hydro/ }));
-    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Typ" })).getByRole("radio", { name: /Sativa/ }));
+    expect(screen.queryByRole("radiogroup", { name: "Typ" })).toBeNull();
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Ort" })).getByRole("radio", { name: /Outdoor/ }));
     next();
     expect(screen.getByTestId("wizard-step-start")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Gestern" }));
@@ -42,12 +43,13 @@ describe("GrowWizard (B-102)", () => {
     expect(review.textContent).toContain("Run 7");
     expect(review.textContent).toContain("Keine Sorte angegeben");
     expect(review.textContent).toContain("Hydro / DWC");
-    expect(review.textContent).toContain("Sativa");
+    expect(review.textContent).toContain("Outdoor");
     expect(review.textContent).toContain("Community");
     fireEvent.click(screen.getByRole("button", { name: "Grow anlegen" }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const input = onSubmit.mock.calls[0][0];
-    expect(input).toMatchObject({ name: "Run 7", medium: "Hydro / DWC", type: "Sativa", visibility: "community" });
+    expect(input).toMatchObject({ name: "Run 7", medium: "Hydro / DWC", site: "outdoor", visibility: "community" });
+    expect("type" in input).toBe(false);
     expect(input.strains).toBeUndefined();
     expect(input.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
@@ -93,5 +95,28 @@ describe("GrowWizard (B-102)", () => {
     fireEvent.change(screen.getByLabelText("Startdatum"), { target: { value: "2999-01-01" } });
     expect(screen.getByRole("alert").textContent).toMatch(/Zukunft/);
     expect((screen.getByRole("button", { name: /^Weiter/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("Sorte mit Genetik, Licht und Samen (B-105): Chips wählen und wieder abwählen, Übersicht und Anfrage zeigen sie", () => {
+    const onSubmit = vi.fn();
+    render(<GrowWizard busy={false} onSubmit={onSubmit} onCancel={vi.fn()} />);
+    fireEvent.change(nameInput(), { target: { value: "Run 8" } });
+    fireEvent.change(screen.getByLabelText("Sorte 1", { exact: true }), { target: { value: "Haze" } });
+    const chip = (group: string, label: string) => within(screen.getByTestId(group)).getByRole("button", { name: label });
+    expect(chip("strain-genetics", "Indica").getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(chip("strain-genetics", "Indica"));
+    fireEvent.click(chip("strain-genetics", "Sativa"));
+    fireEvent.click(chip("strain-light", "Auto"));
+    fireEvent.click(chip("strain-light", "Auto"));
+    fireEvent.click(chip("strain-light", "Fast"));
+    fireEvent.click(chip("strain-seed", "Feminisiert"));
+    expect(chip("strain-genetics", "Sativa").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("strain-genetics", "Indica").getAttribute("aria-pressed")).toBe("false");
+    expect(chip("strain-light", "Auto").getAttribute("aria-pressed")).toBe("false");
+    next(); next(); next();
+    expect(screen.getByTestId("review-traits").textContent).toBe("Sativa · Fast · Feminisiert");
+    expect(screen.getByTestId("wizard-review").textContent).toContain("Keine Angabe");
+    fireEvent.click(screen.getByRole("button", { name: "Grow anlegen" }));
+    expect(onSubmit.mock.calls[0][0].strains[0]).toMatchObject({ name: "Haze", genetics: "Sativa", light: "fast", seed: "feminized" });
   });
 });

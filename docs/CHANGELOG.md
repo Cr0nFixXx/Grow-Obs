@@ -11,6 +11,20 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-105 – Genetik, Licht, Samen je Sorte; Indoor/Outdoor je Grow
+
+**Neu:**
+- **Je Sorte (freiwillig, ohne Vorauswahl):** Genetik (Indica/Sativa/Hybrid), Lichttyp (Photoperiodisch/Fast/Auto) und Samentyp (Regulär/Feminisiert) als Chip-Reihen in der Sortenkarte (`StrainListEditor`, im Wizard und im Bearbeiten-Dialog; ein zweiter Tipp nimmt die Angabe zurück). Sie liegen in `grows.strain_list` (jsonb), dafür ist keine Migration nötig; ältere Sorten haben die Felder nicht (= keine Angabe).
+- **Je Grow:** Indoor/Outdoor (Spalte `grows.site`, `NULL` = keine Angabe; Migration `0033_grow_traits.sql`, additiv, idempotent). Im Wizard als Kacheln „Ort (optional)“ im Schritt „Anbau“, im Bearbeiten-Dialog als Auswahl.
+- **Wizard:** Die Typ-Kacheln (Indica/Sativa/Hybrid) sind aus dem Schritt „Anbau“ in die Sortenkarte gewandert; die Übersicht zeigt je Sorte die Angaben und den Ort. Eine Zeile nur mit Chips (ohne Namen) gilt als Eingabe und verlangt den Namen.
+- **Typ des Grows (`grows.type`) bleibt in Datenbank und API,** wird aber abgeleitet: alle Sorten gleiche Genetik → diese, gemischt → Hybrid, keine Angabe → bisheriger Wert (Neuanlage: Hybrid). Ein ausdrücklich mitgeschickter `type` gewinnt. Der Bearbeiten-Dialog hat keine Typ-Auswahl mehr; bei genau einer Sorte ohne Genetik ist der bisherige Typ als Genetik vorbelegt.
+- **Anzeige:** Grow-Detail (Badge Indoor/Outdoor, Zeilen „Ort“, bei einer Sorte „Licht“/„Samen“, bei mehreren Sorten je Sortenzeile), Wizard-Übersicht, Bearbeiten-Dialog. Der Konto-Export enthält die Angaben (Teil der Grow-Daten). Nicht im öffentlichen Profil und nicht in der Liste.
+- **Outdoor:** keine Zielbereiche für Temperatur, Luftfeuchte und VPD (kein Band im Diagramm, keine Bereichs-Warnung, keine Felder im Bearbeiten-Dialog; pH und EC bleiben) und keine Erinnerung „keine Messwerte“ (Log-Erinnerungen bleiben).
+
+**Backend:** `POST /grows`: `type` optional (kein Default mehr, siehe Ableitung), neu `site` (`indoor` | `outdoor` | `null`). `PATCH /grows/:id`: `site`; Sorten `genetics`/`light`/`seed` (`Indica|Sativa|Hybrid`, `photo|fast|auto`, `regular|feminized`, jeweils `null` = löschen, weggelassen = unverändert bei bekannter Sorten-`id`); ändert sich die Genetik, folgt `type`. Ungültige Werte → 400. `growStrainSchema` bleibt strikt.
+
+**Tests:** Vitest 473 (`grow-traits.test.ts` neu, `grow-wizard`, `GrowWizard`, `GrowDialogs`, `grows` erweitert), API-Integration `grow-strains` +4, `grow-reminders` +1, E2E `grow-wizard.spec.ts` angepasst und einzeln grün; ESLint und `tsc` sauber. Voll-E2E nur in der CI.
+
 ### B-104 – pH/EC je Pflanze, „Ganzer Grow“ als Grundwert, Update-Banner
 
 **Neu:**
