@@ -4,6 +4,8 @@ import { Button, Field, Input, Modal, Segmented, Select, Textarea } from "@/comp
 import { useToast } from "@/components/Toast";
 import { useServices } from "@/data/DataContext";
 import { StrainListEditor } from "@/components/StrainListEditor";
+import { StrainPicker } from "@/components/StrainPicker";
+import { isMultiStrain, strainEnvOn, strainsWithId } from "@/lib/strain-diary";
 import { cleanStrains, emptyStrain, growStrains, strainListError } from "@/lib/grow-strains";
 import { GROW_MEDIUMS, GROW_TYPES, formatGrams, GROW_VISIBILITIES, TARGET_KEYS, TARGET_META, conditionLabel, visibilityHint, visibilityLabel, dayDiff, effectiveTargets, formatDay, formatRange, todayLocal, vpdKpa } from "@/lib/grows";
 import { resolveMedia } from "@/lib/media";
@@ -359,6 +361,7 @@ export function EditLogModal({ grow, log, open, onClose, onSaved }: { grow: Grow
   const [text, setText] = useState(log.text);
   const [tag, setTag] = useState(log.tag);
   const [date, setDate] = useState(log.date.slice(0, 10));
+  const [strainIds, setStrainIds] = useState<string[]>(log.strainIds ?? []);
   const [touched, setTouched] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { busy, error, run } = useGrowAction(() => onSaved());
@@ -369,7 +372,7 @@ export function EditLogModal({ grow, log, open, onClose, onSaved }: { grow: Grow
     event.preventDefault();
     setTouched(true);
     if (problem) return;
-    void run(async () => { await svc.grows.updateLog(grow.id, log.id, { title: title.trim(), text: text.trim(), tag, date }); }, { title: "Eintrag gespeichert", desc: title.trim(), icon: "Save" });
+    void run(async () => { await svc.grows.updateLog(grow.id, log.id, { title: title.trim(), text: text.trim(), tag, date, ...(isMultiStrain(grow) ? { strainIds } : {}) }); }, { title: "Eintrag gespeichert", desc: title.trim(), icon: "Save" });
   };
 
   return (
@@ -384,6 +387,7 @@ export function EditLogModal({ grow, log, open, onClose, onSaved }: { grow: Grow
           </div>
         </div>
         <Field label="Titel"><Input value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={touched && !title.trim()} /></Field>
+        <StrainPicker grow={grow} value={strainIds} onChange={setStrainIds} hint="Nichts gewählt = gilt für den ganzen Grow." />
         <Field label="Datum" hint={date && date >= start && date <= todayLocal() ? `Tag ${dayDiff(start, date)} des Grows` : undefined}>
           <Input type="date" aria-label="Datum" value={date} min={start} max={todayLocal()} onChange={(e) => setDate(e.target.value)} />
         </Field>
@@ -414,9 +418,11 @@ export function EditLogModal({ grow, log, open, onClose, onSaved }: { grow: Grow
 export function PhotoModal({ grow, photo, open, onClose, onSaved }: { grow: Grow; photo: GrowPhoto; open: boolean; onClose: () => void; onSaved: () => void }) {
   const svc = useServices();
   const [caption, setCaption] = useState(photo.caption);
+  const [strainIds, setStrainIds] = useState<string[]>(photo.strainIds ?? []);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { busy, error, run } = useGrowAction(() => onSaved());
-  const changed = caption.trim() !== photo.caption;
+  const sameIds = (photo.strainIds ?? []).length === strainIds.length && strainIds.every((id) => (photo.strainIds ?? []).includes(id));
+  const changed = caption.trim() !== photo.caption || !sameIds;
   const lastPhoto = grow.photos.length === 1;
 
   return (
@@ -426,6 +432,7 @@ export function PhotoModal({ grow, photo, open, onClose, onSaved }: { grow: Grow
         <Field label="Bildunterschrift" hint="optional">
           <Input value={caption} maxLength={200} onChange={(e) => setCaption(e.target.value)} placeholder="z. B. Tag 35, Beginn der Blüte" />
         </Field>
+        <StrainPicker grow={grow} value={strainIds} onChange={setStrainIds} hint="Nichts gewählt = gilt für den ganzen Grow." />
         {photo.cover ? (
           <p className="flex items-center gap-2 text-sm text-fg-muted"><Icon name="Star" size={16} className="text-accent" /> Dieses Foto ist das Titelbild.</p>
         ) : (
@@ -446,7 +453,7 @@ export function PhotoModal({ grow, photo, open, onClose, onSaved }: { grow: Grow
           )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button type="button" variant="ghost" onClick={onClose}>Schließen</Button>
-            <Button type="button" disabled={!changed} loading={busy} onClick={() => void run(() => svc.grows.updatePhoto(grow.id, photo.id, { caption: caption.trim() }), { title: "Bildunterschrift gespeichert", icon: "Save" })}><Icon name="Save" size={16} /> Speichern</Button>
+            <Button type="button" disabled={!changed} loading={busy} onClick={() => void run(() => svc.grows.updatePhoto(grow.id, photo.id, { caption: caption.trim(), ...(isMultiStrain(grow) ? { strainIds } : {}) }), { title: "Foto gespeichert", icon: "Save" })}><Icon name="Save" size={16} /> Speichern</Button>
           </div>
         </div>
       </div>
@@ -474,36 +481,50 @@ export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: 
   const [rh, setRh] = useState(show(existing(date)?.rh));
   const [ec, setEc] = useState(show(existing(date)?.ec));
   const [ph, setPh] = useState(show(existing(date)?.ph));
+  // B-101: bei mehreren Sorten pH/EC je Sorte (Temperatur und Luftfeuchte gelten für den ganzen Grow).
+  const multi = isMultiStrain(grow);
+  const strainList = strainsWithId(grow);
+  type StrainText = Record<string, { ph: string; ec: string }>;
+  const strainTexts = (d: string): StrainText => Object.fromEntries(strainList.map((st) => {
+    const found = strainEnvOn(grow, d).find((e) => e.strainId === st.id);
+    return [st.id, { ph: show(found?.ph), ec: show(found?.ec) }];
+  }));
+  const [perStrain, setPerStrain] = useState<StrainText>(() => strainTexts(date));
+  const setStrainText = (id: string, key: "ph" | "ec", value: string) => setPerStrain((prev) => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
   const [touched, setTouched] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { busy, error, run } = useGrowAction(() => onSaved());
   const start = grow.startDate.slice(0, 10);
-  const current = existing(date);
+  const current = existing(date) ?? (multi && strainEnvOn(grow, date).length > 0 ? ({} as EnvPoint) : undefined);
 
   /** Beim Datumswechsel die Werte dieses Tages vorbelegen (erneutes Speichern überschreibt). */
   const changeDate = (value: string) => {
     setDate(value);
     const found = existing(value);
     setTemp(show(found?.temp)); setRh(show(found?.rh)); setEc(show(found?.ec)); setPh(show(found?.ph));
+    setPerStrain(strainTexts(value));
     setConfirmDelete(false);
   };
 
   const values = { temp: parseDecimal(temp, -10, 60), rh: parseDecimal(rh, 0, 100), ec: parseDecimal(ec, 0, 10), ph: parseDecimal(ph, 0, 14) };
+  const strainValues = multi ? strainList.map((st) => ({ id: st.id, name: st.name, ph: parseDecimal(perStrain[st.id]?.ph ?? "", 0, 14), ec: parseDecimal(perStrain[st.id]?.ec ?? "", 0, 10) })) : [];
   const invalid = (Object.entries(values) as [string, number | null][]).find(([, v]) => Number.isNaN(v));
+  const invalidStrain = strainValues.find((v) => Number.isNaN(v.ph) || Number.isNaN(v.ec));
   const labels: Record<string, string> = { temp: "Temperatur (−10 bis 60 °C)", rh: "Luftfeuchte (0 bis 100 %)", ec: "EC (0 bis 10 mS)", ph: "pH (0 bis 14)" };
   const problem =
     !date ? "Bitte ein Datum angeben." :
     date < start ? "Das Datum liegt vor dem Start des Grows." :
     date > todayLocal() ? "Das Datum liegt in der Zukunft." :
     invalid ? `Ungültiger Wert: ${labels[invalid[0]]}.` :
-    Object.values(values).every((v) => v === null) ? "Bitte mindestens einen Wert eintragen." : "";
+    invalidStrain ? `Ungültiger Wert bei ${invalidStrain.name}: pH 0 bis 14, EC 0 bis 10 mS.` :
+    Object.values(values).every((v) => v === null) && strainValues.every((v) => v.ph === null && v.ec === null) ? "Bitte mindestens einen Wert eintragen." : "";
   const vpd = values.temp != null && values.rh != null && !Number.isNaN(values.temp) && !Number.isNaN(values.rh) ? vpdKpa(values.temp, values.rh, grow.leafOffset) : null;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setTouched(true);
     if (problem) return;
-    void run(async () => { await svc.grows.saveEnv(grow.id, { date, temp: values.temp, rh: values.rh, ec: values.ec, ph: values.ph }); }, { title: current ? "Messwerte aktualisiert" : "Messwerte gespeichert", desc: formatDay(date), icon: "Thermometer" });
+    void run(async () => { await svc.grows.saveEnv(grow.id, { date, temp: values.temp, rh: values.rh, ec: values.ec, ph: values.ph, ...(multi ? { strainEnv: strainValues.map((v) => ({ strainId: v.id, ph: v.ph, ec: v.ec })) } : {}) }); }, { title: current ? "Messwerte aktualisiert" : "Messwerte gespeichert", desc: formatDay(date), icon: "Thermometer" });
   };
 
   return (
@@ -515,9 +536,32 @@ export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Temperatur (°C)"><Input inputMode="decimal" value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="z. B. 24,5" aria-label="Temperatur" /></Field>
           <Field label="Luftfeuchte (%)"><Input inputMode="decimal" value={rh} onChange={(e) => setRh(e.target.value)} placeholder="z. B. 55" aria-label="Luftfeuchte" /></Field>
-          <Field label="EC (mS)"><Input inputMode="decimal" value={ec} onChange={(e) => setEc(e.target.value)} placeholder="z. B. 1,4" aria-label="EC" /></Field>
-          <Field label="pH"><Input inputMode="decimal" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="z. B. 6,3" aria-label="pH" /></Field>
+          {!multi && <Field label="EC (mS)"><Input inputMode="decimal" value={ec} onChange={(e) => setEc(e.target.value)} placeholder="z. B. 1,4" aria-label="EC" /></Field>}
+          {!multi && <Field label="pH"><Input inputMode="decimal" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="z. B. 6,3" aria-label="pH" /></Field>}
         </div>
+        {multi && (
+          <div className="space-y-2" data-testid="strain-env">
+            <div>
+              <span className="text-sm font-medium">pH & EC</span>
+              <p className="text-xs text-fg-subtle">Je Sorte eigene Werte; „Ganzer Grow“ gilt für alle. Leer = kein Wert.</p>
+            </div>
+            <div className="grid grid-cols-[1fr_5.5rem_5.5rem] items-center gap-x-2 gap-y-2 text-sm" data-testid="strain-env-grid">
+              <span />
+              <span className="text-xs font-medium text-fg-subtle">pH</span>
+              <span className="text-xs font-medium text-fg-subtle">EC (mS)</span>
+              <span className="truncate font-medium">Ganzer Grow</span>
+              <Input inputMode="decimal" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="6,3" aria-label="pH" data-testid="strain-env-ph" />
+              <Input inputMode="decimal" value={ec} onChange={(e) => setEc(e.target.value)} placeholder="1,4" aria-label="EC" data-testid="strain-env-ec" />
+              {strainList.map((st) => (
+                <div key={st.id} className="contents" data-testid="strain-env-row">
+                  <span className="truncate" title={st.name}>{st.name}</span>
+                  <Input inputMode="decimal" value={perStrain[st.id]?.ph ?? ""} onChange={(e) => setStrainText(st.id, "ph", e.target.value)} placeholder="6,3" aria-label={`pH ${st.name}`} data-testid="strain-env-ph" />
+                  <Input inputMode="decimal" value={perStrain[st.id]?.ec ?? ""} onChange={(e) => setStrainText(st.id, "ec", e.target.value)} placeholder="1,4" aria-label={`EC ${st.name}`} data-testid="strain-env-ec" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm text-fg-muted" data-testid="env-vpd">
           {vpd !== null ? <>VPD: <strong className="tnum text-fg">{vpd.toLocaleString("de-DE", { minimumFractionDigits: 2 })} kPa</strong> <span className="text-xs text-fg-subtle">(Blatt-Abzug {String(grow.leafOffset).replace(".", ",")} °C)</span></> : "VPD wird berechnet, sobald Temperatur und Luftfeuchte eingetragen sind."}
         </p>

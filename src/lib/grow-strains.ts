@@ -8,7 +8,7 @@ export const emptyStrain = (): GrowStrain => ({ name: "", breeder: "", plants: n
 /** Sorten eines Grows; ältere Daten ohne Liste erhalten die eine Sorte aus `strain`/`breeder`. */
 export function growStrains(g: Pick<Grow, "strain" | "breeder"> & { strains?: GrowStrain[] }): GrowStrain[] {
   if (g.strains?.length) return g.strains;
-  return g.strain && g.strain !== "Unbekannt" ? [{ name: g.strain, breeder: g.breeder === "Unbekannt" ? "" : g.breeder, plants: null, wetG: null, dryG: null }] : [];
+  return g.strain && g.strain !== "Unbekannt" ? [{ id: "legacy", name: g.strain, breeder: g.breeder === "Unbekannt" ? "" : g.breeder, plants: null, wetG: null, dryG: null }] : [];
 }
 
 /** Kurztext für Karten und Listen: „Gorilla Glue“, „Gorilla Glue und 2 weitere“. */

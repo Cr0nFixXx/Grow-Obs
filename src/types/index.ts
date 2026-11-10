@@ -64,6 +64,8 @@ export interface AddLogInput {
   tag: import("./domain").GrowLog["tag"];
   /** JJJJ-MM-TT */
   date?: string;
+  /** B-101: betroffene Sorten (IDs); leer = ganzer Grow. */
+  strainIds?: string[];
 }
 
 export type UpdateLogInput = Partial<AddLogInput>;
@@ -76,6 +78,8 @@ export interface EnvInput {
   rh?: number | null;
   ec?: number | null;
   ph?: number | null;
+  /** B-101: pH/EC je Sorte; angegeben = ersetzt die Sortenwerte des Tages. */
+  strainEnv?: { strainId: string; ph?: number | null; ec?: number | null }[];
 }
 
 /** Änderbare Felder eines Grows (B-84). */

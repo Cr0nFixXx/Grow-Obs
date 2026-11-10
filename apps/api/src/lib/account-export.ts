@@ -2,7 +2,7 @@ import { Zip, ZipDeflate, ZipPassThrough, strToU8 } from "fflate";
 import { eq, or, sql } from "drizzle-orm";
 import { db } from "../db/client.ts";
 import {
-  comments, communityMembers, communities, conversationMembers, conversations, follows, growEnv, growLogs, growPhotos, grows, itemComments,
+  comments, communityMembers, communities, conversationMembers, conversations, follows, growEnv, growLogs, growPhotos, growStrainEnv, grows, itemComments,
   loginEvents, media, messages, notifications, postBookmarks, postLikes, posts, pushPrefs, sessions, strainCollection, tasks, threads, users,
 } from "../db/schema.ts";
 import { getObjectStream } from "./s3.ts";
@@ -60,6 +60,7 @@ export async function collectExport(userId: string) {
         logs: await db.select().from(growLogs).where(eq(growLogs.growId, g.id)),
         fotos: await db.select().from(growPhotos).where(eq(growPhotos.growId, g.id)),
         messwerte: await db.select().from(growEnv).where(eq(growEnv.growId, g.id)),
+        messwerteJeSorte: await db.select().from(growStrainEnv).where(eq(growStrainEnv.growId, g.id)),
       }))),
       feedBeitraege: postRows,
       feedLikes: likeRows,

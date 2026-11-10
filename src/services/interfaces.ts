@@ -302,14 +302,14 @@ export interface GrowService {
   updateLog(growId: string, logId: string, patch: UpdateLogInput): Promise<GrowLog>;
   deleteLog(growId: string, logId: string): Promise<void>;
   /** Titelbild setzen und/oder Bildunterschrift ändern. Liefert den aktualisierten Grow. */
-  updatePhoto(growId: string, photoId: string, patch: { caption?: string; cover?: true }): Promise<Grow>;
+  updatePhoto(growId: string, photoId: string, patch: { caption?: string; cover?: true; strainIds?: string[] }): Promise<Grow>;
   /** Foto samt Datei löschen; das Titelbild rückt nach. Liefert den aktualisierten Grow. */
   deletePhoto(growId: string, photoId: string): Promise<Grow>;
   /** Messwerte eines Tages speichern (ersetzt den Tag). */
   saveEnv(growId: string, input: EnvInput): Promise<EnvPoint>;
   deleteEnv(growId: string, date: string): Promise<void>;
   /** Foto zur Galerie (erstes Foto wird Cover). Liefert den aktualisierten Grow. */
-  addPhoto(growId: string, url: string): Promise<Grow>;
+  addPhoto(growId: string, url: string, strainIds?: string[]): Promise<Grow>;
   /** Felder ändern (B-84). Tag und Fortschritt ergeben sich aus dem Startdatum. */
   update(growId: string, patch: UpdateGrowInput): Promise<Grow>;
   /** Phase wechseln (nur laufende Grows); das Datum des Wechsels wird gemerkt. */

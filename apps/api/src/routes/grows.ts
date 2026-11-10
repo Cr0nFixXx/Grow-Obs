@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
-import { growEnv, growLogs, growPhotos, grows, strains, type GrowStrainRow } from "../db/schema.ts";
-import { duplicateStrain, growStrainsSchema, strainTexts, strainsOf, weightTotals } from "../lib/grow-strains.ts";
+import { growEnv, growLogs, growPhotos, growStrainEnv, grows, strains, type GrowStrainRow } from "../db/schema.ts";
+import { duplicateStrain, growStrainsSchema, removedStrainIds, strainIdsField, strainTexts, strainsOf, unknownStrainIds, weightTotals, withStrainIds } from "../lib/grow-strains.ts";
 import { GROW_CONDITIONS, GROW_PHASES, dayDiff, growState, isIsoDate, todayIso, vpdKpa, type GrowCondition, type GrowStatus } from "../lib/grow-state.ts";
 import { releaseMedia } from "../lib/media-cleanup.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
@@ -49,6 +50,7 @@ export async function toGrow(row: GrowRow) {
   const logs = await db.select().from(growLogs).where(eq(growLogs.growId, row.id)).orderBy(desc(growLogs.loggedOn), desc(growLogs.createdAt));
   const photos = await db.select().from(growPhotos).where(eq(growPhotos.growId, row.id)).orderBy(asc(growPhotos.takenAt), asc(growPhotos.id));
   const env = await db.select().from(growEnv).where(eq(growEnv.growId, row.id)).orderBy(asc(growEnv.loggedOn));
+  const strainEnv = await db.select().from(growStrainEnv).where(eq(growStrainEnv.growId, row.id)).orderBy(asc(growStrainEnv.loggedOn));
   const state = growState(row);
   return {
     id: row.id,
@@ -74,12 +76,14 @@ export async function toGrow(row: GrowRow) {
       : null,
     cover: row.coverUrl ?? "",
     gallery: photos.map((p) => p.url),
-    photos: photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, cover: p.url === row.coverUrl, date: todayIso(p.takenAt), day: dayDiff(row.startDate, todayIso(p.takenAt)) })),
+    photos: photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, cover: p.url === row.coverUrl, strainIds: p.strainIds, date: todayIso(p.takenAt), day: dayDiff(row.startDate, todayIso(p.takenAt)) })),
     leafOffset: row.leafOffset,
     targets: cleanTargets(row.targets),
     expectedYield: row.expectedYield,
     phases: state.phases,
     env: env.map((e) => toEnv(e, row)),
+    /** B-101: pH/EC je Sorte (Temperatur/Luftfeuchte stehen in `env` und gelten für den ganzen Grow). */
+    strainEnv: strainEnv.map((e) => ({ day: dayDiff(row.startDate, e.loggedOn), date: e.loggedOn, strainId: e.strainId, ph: e.ph, ec: e.ec })),
     logs: logs.map((l) => toLog(l, row.startDate)),
   };
 }
@@ -89,7 +93,7 @@ type EnvRow = typeof growEnv.$inferSelect;
 
 /** Log-Eintrag für das Frontend; der Tag ergibt sich aus Datum und Startdatum (nicht mehr aus dem gespeicherten Wert). */
 function toLog(l: LogRow, startDate: string) {
-  return { id: l.id, day: dayDiff(startDate, l.loggedOn), date: l.loggedOn, title: l.title, text: l.body, tag: l.tag };
+  return { id: l.id, day: dayDiff(startDate, l.loggedOn), date: l.loggedOn, title: l.title, text: l.body, tag: l.tag, strainIds: l.strainIds };
 }
 
 /** Messpunkt; das VPD wird aus Temperatur, Luftfeuchte und dem Blatt-Abzug des Grows berechnet (nie gespeichert). */
@@ -174,7 +178,7 @@ growsApi.post("/", requireAuth, async (c) => {
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
   const { name, type, medium } = body.data;
   // Sortenliste: `strains` hat Vorrang; die alten Felder `strain`/`breeder` ergeben genau eine Sorte.
-  const list: GrowStrainRow[] = body.data.strains ?? (body.data.strain ? [{ name: body.data.strain, breeder: body.data.breeder === "Unbekannt" ? "" : body.data.breeder, plants: null, wetG: null, dryG: null }] : []);
+  const list: GrowStrainRow[] = withStrainIds(body.data.strains ?? (body.data.strain ? [{ name: body.data.strain, breeder: body.data.breeder === "Unbekannt" ? "" : body.data.breeder, plants: null, wetG: null, dryG: null }] : []), []);
   const dup = duplicateStrain(list);
   if (dup) return c.json({ error: dup }, 400);
   const texts = strainTexts(list);
@@ -211,6 +215,25 @@ const targetRange = (key: keyof typeof TARGET_LIMITS) => {
   ]);
 };
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** B-101: Zuordnungen entfernter Sorten lösen – Einträge/Fotos werden „ganzer Grow“, pH/EC wandert in die Tageswerte des Grows (ein vorhandener Wert dort hat Vorrang). */
+async function releaseStrainRefs(tx: Tx, row: GrowRow, removed: string[]) {
+  if (removed.length === 0) return;
+  const gone = new Set(removed);
+  const logs = await tx.select({ id: growLogs.id, ids: growLogs.strainIds }).from(growLogs).where(eq(growLogs.growId, row.id));
+  for (const l of logs) if (l.ids.some((i) => gone.has(i))) await tx.update(growLogs).set({ strainIds: l.ids.filter((i) => !gone.has(i)) }).where(eq(growLogs.id, l.id));
+  const photos = await tx.select({ id: growPhotos.id, ids: growPhotos.strainIds }).from(growPhotos).where(eq(growPhotos.growId, row.id));
+  for (const p of photos) if (p.ids.some((i) => gone.has(i))) await tx.update(growPhotos).set({ strainIds: p.ids.filter((i) => !gone.has(i)) }).where(eq(growPhotos.id, p.id));
+  const rows = await tx.select().from(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), inArray(growStrainEnv.strainId, removed))).orderBy(asc(growStrainEnv.loggedOn), asc(growStrainEnv.id));
+  for (const r of rows) {
+    const [whole] = await tx.select().from(growEnv).where(and(eq(growEnv.growId, row.id), eq(growEnv.loggedOn, r.loggedOn)));
+    if (whole) await tx.update(growEnv).set({ ph: whole.ph ?? r.ph, ec: whole.ec ?? r.ec }).where(eq(growEnv.id, whole.id));
+    else await tx.insert(growEnv).values({ growId: row.id, day: dayDiff(row.startDate, r.loggedOn), loggedOn: r.loggedOn, ph: r.ph, ec: r.ec });
+  }
+  await tx.delete(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), inArray(growStrainEnv.strainId, removed)));
+}
+
 const patchGrowSchema = z.object({
   name: growFields.name,
   strain: growFields.strain,
@@ -232,7 +255,10 @@ growsApi.patch("/:id", requireAuth, async (c) => {
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
   const row = await getOwnedRow(c.req.param("id"), c.get("userId"));
   if (!row) return c.json({ error: "Nicht gefunden" }, 404);
-  const { strain, strains: strainsIn, targets, ...rest } = body.data;
+  const { strain, strains: strainsRaw, targets, ...rest } = body.data;
+  const before = strainsOf(row);
+  const strainsIn = strainsRaw ? withStrainIds(strainsRaw, before) : undefined;
+  let after: GrowStrainRow[] | null = null;
   const patch: Partial<typeof grows.$inferInsert> = { ...rest, updatedAt: new Date() };
   if (targets) {
     const next = cleanTargets(row.targets);
@@ -250,6 +276,7 @@ growsApi.patch("/:id", requireAuth, async (c) => {
     const texts = strainTexts(strainsIn);
     const strainRow = await findStrain(strainsIn[0]?.name);
     patch.strainList = strainsIn;
+    after = strainsIn;
     patch.strainName = texts.strainName;
     patch.breeder = texts.breeder;
     patch.strainId = strainRow?.id ?? null;
@@ -266,12 +293,18 @@ growsApi.patch("/:id", requireAuth, async (c) => {
     const breederText = (rest.breeder ?? row.breeder) === "Unbekannt" ? "" : (rest.breeder ?? row.breeder);
     patch.strainName = strain;
     patch.strainId = strainRow?.id ?? null;
-    patch.strainList = strain ? [{ name: strain, breeder: breederText, plants: current.length === 1 ? current[0].plants : null, wetG: current.length === 1 ? current[0].wetG : null, dryG: current.length === 1 ? current[0].dryG : null }] : [];
+    patch.strainList = strain ? [{ id: current.length === 1 ? current[0].id : randomUUID(), name: strain, breeder: breederText, plants: current.length === 1 ? current[0].plants : null, wetG: current.length === 1 ? current[0].wetG : null, dryG: current.length === 1 ? current[0].dryG : null }] : [];
+    after = patch.strainList;
   }
   const startDate = rest.startDate ?? row.startDate;
   if (row.endedOn && startDate > row.endedOn) return c.json({ error: "Startdatum liegt nach dem Ende des Grows" }, 400);
   if (rest.startDate) patch.phaseDates = { ...row.phaseDates, [GROW_PHASES[0]]: rest.startDate };
-  const [updated] = await db.update(grows).set(patch).where(eq(grows.id, row.id)).returning();
+  const updated = await db.transaction(async (tx) => {
+    const [u] = await tx.update(grows).set(patch).where(eq(grows.id, row.id)).returning();
+    // B-101: entfernte Sorten – ihre Einträge, Fotos und pH/EC-Werte gelten danach für den ganzen Grow.
+    if (after) await releaseStrainRefs(tx, row, removedStrainIds(before, after));
+    return u;
+  });
   return c.json(await toGrow(updated));
 });
 
@@ -365,6 +398,7 @@ growsApi.delete("/:id", requireAuth, async (c) => {
   const photos = await db.select({ url: growPhotos.url }).from(growPhotos).where(eq(growPhotos.growId, row.id));
   await db.transaction(async (tx) => {
     await tx.delete(growEnv).where(eq(growEnv.growId, row.id));
+    await tx.delete(growStrainEnv).where(eq(growStrainEnv.growId, row.id));
     await tx.delete(growLogs).where(eq(growLogs.growId, row.id));
     await tx.delete(growPhotos).where(eq(growPhotos.growId, row.id));
     await tx.delete(grows).where(eq(grows.id, row.id));
@@ -378,17 +412,21 @@ const logFields = {
   text: z.string().max(20000),
   tag: z.enum(LOG_TAGS),
   date: z.string().max(10),
+  /** B-101: Sorten-IDs; leer = ganzer Grow. */
+  strainIds: strainIdsField,
 };
 // `day` wird von älteren Clients noch mitgeschickt und ignoriert (der Tag ergibt sich aus dem Datum).
-const addLogSchema = z.object({ ...logFields, text: logFields.text.default(""), tag: logFields.tag.default("Beobachtung"), date: logFields.date.optional(), day: z.number().optional() }).strict();
+const addLogSchema = z.object({ ...logFields, text: logFields.text.default(""), tag: logFields.tag.default("Beobachtung"), strainIds: logFields.strainIds.default([]), date: logFields.date.optional(), day: z.number().optional() }).strict();
 const patchLogSchema = z.object(logFields).partial().strict();
 
 growsApi.post("/:id/photos", requireAuth, async (c) => {
-  const body = z.object({ url: imageRef }).strict().safeParse(await c.req.json().catch(() => ({})));
+  const body = z.object({ url: imageRef, strainIds: strainIdsField.default([]) }).strict().safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
-  const grow = await getOwnedGrow(c.req.param("id"), c.get("userId"));
+  const grow = await getOwnedRow(c.req.param("id"), c.get("userId"));
   if (!grow) return c.json({ error: "Nicht gefunden" }, 404);
-  await db.insert(growPhotos).values({ growId: grow.id, url: body.data.url });
+  const unknown = unknownStrainIds(body.data.strainIds, strainsOf(grow));
+  if (unknown) return c.json({ error: unknown }, 400);
+  await db.insert(growPhotos).values({ growId: grow.id, url: body.data.url, strainIds: body.data.strainIds });
   // Erstes Foto wird Cover, sofern noch keins gesetzt ist.
   await db.update(grows).set({ coverUrl: body.data.url })
     .where(and(eq(grows.id, grow.id), sql`${grows.coverUrl} IS NULL`));
@@ -403,6 +441,8 @@ growsApi.post("/:id/logs", requireAuth, async (c) => {
   const date = body.data.date ?? todayIso();
   const problem = diaryDateError(row, date);
   if (problem) return c.json({ error: problem }, 400);
+  const unknown = unknownStrainIds(body.data.strainIds, strainsOf(row));
+  if (unknown) return c.json({ error: unknown }, 400);
   const [log] = await db
     .insert(growLogs)
     .values({
@@ -413,6 +453,7 @@ growsApi.post("/:id/logs", requireAuth, async (c) => {
       title: body.data.title,
       body: body.data.text,
       tag: body.data.tag,
+      strainIds: body.data.strainIds,
     })
     .returning();
   return c.json(toLog(log, row.startDate), 201);
@@ -435,6 +476,10 @@ growsApi.patch("/:id/logs/:logId", requireAuth, async (c) => {
   if (date !== undefined) {
     const problem = diaryDateError(row, date);
     if (problem) return c.json({ error: problem }, 400);
+  }
+  if (rest.strainIds) {
+    const unknown = unknownStrainIds(rest.strainIds, strainsOf(row));
+    if (unknown) return c.json({ error: unknown }, 400);
   }
   const changes = {
     ...rest,
@@ -463,14 +508,19 @@ async function getOwnedPhoto(growId: string, photoId: string, userId: string) {
   return { row, photo: photo ?? null };
 }
 
-const patchPhotoSchema = z.object({ caption: z.string().trim().max(200, "Höchstens 200 Zeichen"), cover: z.literal(true) }).partial().strict();
+const patchPhotoSchema = z.object({ caption: z.string().trim().max(200, "Höchstens 200 Zeichen"), cover: z.literal(true), strainIds: strainIdsField }).partial().strict();
 
 growsApi.patch("/:id/photos/:photoId", requireAuth, async (c) => {
   const body = patchPhotoSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "Ungültige Daten" }, 400);
   const { row, photo } = await getOwnedPhoto(c.req.param("id"), c.req.param("photoId"), c.get("userId"));
   if (!row || !photo) return c.json({ error: "Nicht gefunden" }, 404);
+  if (body.data.strainIds) {
+    const unknown = unknownStrainIds(body.data.strainIds, strainsOf(row));
+    if (unknown) return c.json({ error: unknown }, 400);
+  }
   await db.transaction(async (tx) => {
+    if (body.data.strainIds !== undefined) await tx.update(growPhotos).set({ strainIds: body.data.strainIds }).where(eq(growPhotos.id, photo.id));
     if (body.data.caption !== undefined) await tx.update(growPhotos).set({ caption: body.data.caption }).where(eq(growPhotos.id, photo.id));
     if (body.data.cover) await tx.update(grows).set({ coverUrl: photo.url, updatedAt: new Date() }).where(eq(grows.id, row.id));
   });
@@ -502,6 +552,8 @@ const envSchema = z.object({
   rh: measure(0, 100, "Luftfeuchte (%)"),
   ec: measure(0, 10, "EC (mS/cm)"),
   ph: measure(0, 14, "pH"),
+  /** B-101: pH/EC je Sorte. Angegeben = vollständiger Ersatz der Sortenwerte dieses Tages; weggelassen = unverändert. */
+  strainEnv: z.array(z.object({ strainId: z.string().max(60), ec: measure(0, 10, "EC (mS/cm)"), ph: measure(0, 14, "pH") }).strict()).max(20).optional(),
 }).strict();
 
 /** Ein Wert auf zwei Nachkommastellen; `undefined` und `null` werden zu `null`. */
@@ -516,13 +568,38 @@ growsApi.put("/:id/env", requireAuth, async (c) => {
   const problem = diaryDateError(row, date);
   if (problem) return c.json({ error: problem }, 400);
   const values = { temp: round2(body.data.temp), rh: round2(body.data.rh), ec: round2(body.data.ec), ph: round2(body.data.ph) };
-  if (Object.values(values).every((v) => v === null)) return c.json({ error: "Bitte mindestens einen Messwert angeben" }, 400);
+  const perStrain = (body.data.strainEnv ?? [])
+    .map((e) => ({ strainId: e.strainId, ec: round2(e.ec), ph: round2(e.ph) }))
+    .filter((e) => e.ec !== null || e.ph !== null);
+  const ids = (body.data.strainEnv ?? []).map((e) => e.strainId);
+  const unknown = unknownStrainIds(ids, strainsOf(row));
+  if (unknown) return c.json({ error: unknown }, 400);
+  if (new Set(ids).size !== ids.length) return c.json({ error: "Eine Sorte ist doppelt angegeben" }, 400);
+  const wholeEmpty = Object.values(values).every((v) => v === null);
+  if (wholeEmpty && perStrain.length === 0) return c.json({ error: "Bitte mindestens einen Messwert angeben" }, 400);
+  const day = dayDiff(row.startDate, date);
   // Einer je Tag: erneutes Speichern ersetzt den Eintrag (PUT = vollständiger Ersatz).
-  const [saved] = await db.insert(growEnv)
-    .values({ growId: row.id, day: dayDiff(row.startDate, date), loggedOn: date, ...values })
-    .onConflictDoUpdate({ target: [growEnv.growId, growEnv.loggedOn], set: { day: dayDiff(row.startDate, date), ...values } })
-    .returning();
-  return c.json(toEnv(saved, row));
+  const saved = await db.transaction(async (tx) => {
+    let whole: EnvRow | undefined;
+    if (wholeEmpty) {
+      // Nur Sortenwerte: der Tageswert des Grows entfällt (ein leerer Eintrag wäre nur Rauschen).
+      await tx.delete(growEnv).where(and(eq(growEnv.growId, row.id), eq(growEnv.loggedOn, date)));
+    } else {
+      [whole] = await tx.insert(growEnv)
+        .values({ growId: row.id, day, loggedOn: date, ...values })
+        .onConflictDoUpdate({ target: [growEnv.growId, growEnv.loggedOn], set: { day, ...values } })
+        .returning();
+    }
+    if (body.data.strainEnv !== undefined) {
+      await tx.delete(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), eq(growStrainEnv.loggedOn, date)));
+      if (perStrain.length) await tx.insert(growStrainEnv).values(perStrain.map((e) => ({ growId: row.id, loggedOn: date, ...e })));
+    }
+    return whole;
+  });
+  const strainRows = await db.select().from(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), eq(growStrainEnv.loggedOn, date)));
+  const strainEnv = strainRows.map((e) => ({ day, date, strainId: e.strainId, ph: e.ph, ec: e.ec }));
+  const base = saved ? toEnv(saved, row) : { day, date, temp: null, rh: null, vpd: null, ec: null, ph: null };
+  return c.json({ ...base, strainEnv });
 });
 
 growsApi.delete("/:id/env/:date", requireAuth, async (c) => {
@@ -531,5 +608,6 @@ growsApi.delete("/:id/env/:date", requireAuth, async (c) => {
   const date = c.req.param("date");
   if (!isIsoDate(date)) return c.json({ error: "Ungültiges Datum" }, 400);
   await db.delete(growEnv).where(and(eq(growEnv.growId, row.id), eq(growEnv.loggedOn, date)));
+  await db.delete(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), eq(growStrainEnv.loggedOn, date)));
   return c.body(null, 204); // idempotent
 });

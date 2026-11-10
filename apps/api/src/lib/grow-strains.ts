@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { GrowStrainRow } from "../db/schema.ts";
 
@@ -8,6 +9,8 @@ const grams = z.number().int().min(0, "Gewicht nicht negativ").max(1_000_000, "G
 
 /** Eine Sorte im Request (Anlegen und Bearbeiten). Gewichte werden beim Bearbeiten unverändert zurückgegeben. */
 export const growStrainSchema = z.object({
+  /** B-101: vorhandene Sorten schicken ihre ID zurück (Zuordnungen bleiben beim Umbenennen erhalten); neue Sorten haben keine. */
+  id: z.string().max(60).optional(),
   name: z.string().trim().min(1, "Bitte bei jeder Sorte einen Namen angeben").max(100, "Sortenname höchstens 100 Zeichen"),
   breeder: z.string().trim().max(100, "Breeder höchstens 100 Zeichen").default(""),
   plants: z.number().int("Pflanzenzahl als ganze Zahl").min(1, "Mindestens 1 Pflanze").max(999, "Höchstens 999 Pflanzen").nullable().default(null),
@@ -18,7 +21,7 @@ export const growStrainSchema = z.object({
 export const growStrainsSchema = z.array(growStrainSchema).min(1, "Bitte mindestens eine Sorte angeben").max(MAX_GROW_STRAINS, `Höchstens ${MAX_GROW_STRAINS} Sorten pro Grow`);
 
 /** Doppelte Sorten (gleicher Name und Breeder, Groß-/Kleinschreibung egal) sind ein Fehler. */
-export function duplicateStrain(list: GrowStrainRow[]): string | null {
+export function duplicateStrain(list: Pick<GrowStrainRow, "name" | "breeder">[]): string | null {
   const seen = new Set<string>();
   for (const s of list) {
     const key = `${s.name.toLowerCase()}|${s.breeder.toLowerCase()}`;
@@ -47,5 +50,33 @@ export function weightTotals(list: Pick<GrowStrainRow, "wetG" | "dryG">[]): { we
 export function strainsOf(row: { strainList: GrowStrainRow[]; strainName: string; breeder: string; wetWeightG: number | null; dryWeightG: number | null }): GrowStrainRow[] {
   if (row.strainList.length) return row.strainList;
   if (!row.strainName) return [];
-  return [{ name: row.strainName, breeder: row.breeder === "Unbekannt" ? "" : row.breeder, plants: null, wetG: row.wetWeightG, dryG: row.dryWeightG }];
+  return [{ id: LEGACY_STRAIN_ID, name: row.strainName, breeder: row.breeder === "Unbekannt" ? "" : row.breeder, plants: null, wetG: row.wetWeightG, dryG: row.dryWeightG }];
+}
+
+/** ID der einen Sorte eines Grows, dessen Liste noch aus den alten Spalten abgeleitet wird. */
+export const LEGACY_STRAIN_ID = "legacy";
+
+/** Eingehende Sortenliste mit IDs versehen: bekannte IDs bleiben, alles andere (neu oder fremd) bekommt eine frische. */
+export function withStrainIds(incoming: Array<Omit<GrowStrainRow, "id"> & { id?: string }>, existing: GrowStrainRow[]): GrowStrainRow[] {
+  const known = new Set(existing.map((s) => s.id));
+  const used = new Set<string>();
+  return incoming.map((s) => {
+    const id = s.id && known.has(s.id) && !used.has(s.id) ? s.id : randomUUID();
+    used.add(id);
+    return { ...s, id };
+  });
+}
+
+/** IDs, die in der alten, aber nicht mehr in der neuen Liste stehen. */
+export function removedStrainIds(before: GrowStrainRow[], after: GrowStrainRow[]): string[] {
+  const keep = new Set(after.map((s) => s.id));
+  return before.map((s) => s.id).filter((id) => !keep.has(id));
+}
+
+/** Sorten-IDs in Requests (Tagebuch, Fotos): nur bekannte, ohne Doppelte. Fehlermeldung bei Unbekanntem. */
+export const strainIdsField = z.array(z.string().max(60)).max(MAX_GROW_STRAINS).transform((ids) => [...new Set(ids)]);
+
+export function unknownStrainIds(ids: string[], list: GrowStrainRow[]): string | null {
+  const known = new Set(list.map((s) => s.id));
+  return ids.some((id) => !known.has(id)) ? "Unbekannte Sorte" : null;
 }

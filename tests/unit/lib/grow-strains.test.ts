@@ -32,7 +32,7 @@ describe("strainListError", () => {
 
 describe("growStrains / cleanStrains / totalPlants", () => {
   it("Rückfall auf die alte Einzelsorte", () => {
-    expect(growStrains({ strain: "Alt", breeder: "Unbekannt" })).toEqual([s("Alt")]);
+    expect(growStrains({ strain: "Alt", breeder: "Unbekannt" })).toEqual([{ ...s("Alt"), id: "legacy" }]);
     expect(growStrains({ strain: "Unbekannt", breeder: "" })).toEqual([]);
     expect(growStrains({ strain: "x", breeder: "", strains: [s("Neu")] })).toEqual([s("Neu")]);
   });

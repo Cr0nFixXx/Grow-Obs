@@ -23,6 +23,7 @@ Das vollständige alte Protokoll samt detaillierter Änderungs-Historie: [archiv
 | B-98 | Forum-Filter kompakter (eine Zeile: Suche, Filter-Knopf mit Zähler, Sortierung als Auswahl; Rest im Filterfeld) | E2E `forum-filter` angepasst |
 | B-99 | Status in eigener Schublade (Profilkopf-Knopf statt Karte auf der Profilseite) | E2E `live-status` angepasst |
 | B-100 | Mehrere Sorten pro Grow (bis 20, je Name/Breeder/Pflanzen, Ernte-Gewichte je Sorte; Migration 0030) | API-Integration +11, Vitest +7, E2E `grow-strains` |
+| B-101 | Tagebuch, Fotos und pH/EC je Sorte (Zuordnung, Sorten-Filter, stabile Sorten-IDs; Migration 0031) | API-Integration +10, Vitest +13, E2E `grow-strain-diary` |
 | B-74 | Konto löschen (vier Schalter Forum/Feed/Kommentare/Chat + Bilder, anonyme Hülle „Gelöschtes Mitglied“, Blocker für letzten Plattform-/alleinigen Admin, Dateien sofort aus S3) und Datenexport als ZIP (JSON + alle Medien, Passwort + 2-Minuten-Link); Migration 0025 | API 357, Vitest 358 |
 | B-88 | Grows Runde 4: Zielbereiche je Phase (pH, EC, Temperatur, Luftfeuchte, VPD; Grow-Ziel überschreibt), CSV-Export (Messwerte, Tagebuch), Foto-Vergleich mit Schieberegler, In-App-Erinnerung bei fehlenden Einträgen (Cron täglich); Migration 0024 | API 344, Vitest 351 |
 | B-87 | E-Mail: Passwort-Reset per Link (1 h, danach alle Sitzungen weg), E-Mail-Bestätigung (Pflicht, sobald SMTP konfiguriert), Adresse ändern mit Passwort; SMTP-Adapter (nodemailer); Migration 0023 | API 335, Vitest 331, E2E +1 (echtes SMTP gegen Test-Mailserver) |

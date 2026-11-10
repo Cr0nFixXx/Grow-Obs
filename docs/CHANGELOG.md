@@ -11,6 +11,21 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-101 – Tagebuch, Fotos und pH/EC je Sorte
+
+**Neu:**
+- **Zuordnung:** Bei Grows mit mehr als einer Sorte wählt man pro Tagebuch-Eintrag und pro Foto die betroffenen Sorten (Mehrfachauswahl, `StrainPicker`). Keine Auswahl heißt „Ganzer Grow“ (Standard, auch für alle bisherigen Einträge und Fotos). Bei einer Sorte erscheint nichts davon.
+- **pH/EC je Sorte:** Im Messwert-Dialog stehen Temperatur und Luftfeuchte für den ganzen Grow; darunter eine Tabelle mit pH/EC je Sorte plus Zeile „Ganzer Grow“ (alle Felder optional). Ein Eintrag je Tag bleibt: Speichern ersetzt Tageswerte und Sortenwerte dieses Tages. Es genügt ein einziger Sortenwert.
+- **Anzeige:** In der Karte „Sorten“ steht der Filter „Anzeigen für“ (Alle Sorten / je Sorte). Mit gewählter Sorte zeigen Tagebuch, Galerie, Messwerte-Liste und Diagramme deren Daten **und** alles, was für den ganzen Grow gilt. Einträge und Fotos tragen Sorten-Etiketten. Gibt es Sortenwerte, zeigen zwei Diagramme pH und EC je eine Linie je Sorte (plus „Ganzer Grow“); sonst bleibt das gemeinsame pH/EC-Diagramm. Neue Fotos gehören bei gewähltem Filter automatisch zur Sorte, bei „Alle Sorten“ fragt der Foto-Dialog.
+- **Sorte bearbeiten/entfernen:** Sorten haben stabile IDs – Umbenennen behält alle Zuordnungen. Wird eine Sorte entfernt, gelten ihre Einträge und Fotos für den ganzen Grow; ihr pH/EC wandert in den Tageswert des Grows (ein dort vorhandener Wert hat Vorrang, sonst entfällt der Sortenwert).
+- **Export:** Die CSV des Tagebuchs bekommt die Spalte „Sorten“, die der Messwerte die Spalte „Sorte“ (Sortenzeilen enthalten nur pH/EC) – nur, wenn es Zuordnungen gibt; sonst bleibt das Format wie bisher. Der Konto-Export enthält `messwerteJeSorte`.
+
+**Backend:** Migration `0031_strain_diary.sql` (additiv, idempotent, RLS an): `grow_logs.strain_ids` und `grow_photos.strain_ids` (jsonb, Standard `[]`), neue Tabelle `grow_strain_env` (Grow, Sorten-ID, Datum, pH, EC; eindeutig je Grow/Sorte/Tag) und Sorten-IDs in `grows.strain_list` für Bestandsdaten. API: `strains[].id` (bekannte IDs bleiben, neue Sorten bekommen eine); `strainIds` bei `POST/PATCH …/logs` und `POST/PATCH …/photos`; `PUT …/env` nimmt `strainEnv: [{strainId, ph?, ec?}]` (angegeben = ersetzt die Sortenwerte des Tages, weggelassen = unverändert; nur Sortenwerte sind erlaubt, dann entfällt der Tageswert); `GET /grows/:id` liefert `strainEnv`, `strainIds` je Eintrag/Foto. Unbekannte oder doppelte Sorten → 400. Grow-Löschung und Konto-Löschung räumen die neue Tabelle auf; Messwert-Erinnerungen zählen auch Sortenwerte.
+
+**Tests:** API-Integration `strain-diary.integration.test.ts` (10 Fälle: IDs, Einträge, Fotos, Messwerte je Sorte, Fehlerfälle, Sorte entfernen mit/ohne Tageswert, alter Weg, Löschen, Migration wiederholbar), Vitest `strain-diary.test.ts` (6), Dialog-Tests (+6) und ein Mock-Fall, E2E `grow-strain-diary.spec.ts`.
+
+**Grenzen:** Keine Zielbereichs-Warnungen (Banner) für Sortenwerte, nur Markierung in der Liste; Report und Wochenbericht nutzen weiter die Werte des ganzen Grows; Zuordnung nur bei Grows mit mindestens zwei Sorten sichtbar.
+
 ### B-100 – Mehrere Sorten pro Grow
 
 **Neu:**

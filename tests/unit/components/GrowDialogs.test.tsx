@@ -46,7 +46,7 @@ describe("Grow-Dialoge (B-84)", () => {
     fireEvent.change(screen.getByLabelText(/Geplante Dauer/), { target: { value: "90" } });
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "Run 2", totalDays: 90, startDate: "2026-09-01", strains: [{ name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }] }));
+    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "Run 2", totalDays: 90, startDate: "2026-09-01", strains: [{ id: "legacy", name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }] }));
   });
 
   it("Bearbeiten: mehrere Sorten (B-100) – hinzufügen, Doppelte und leere Namen werden abgelehnt, Liste wird gesendet", async () => {
@@ -67,7 +67,7 @@ describe("Grow-Dialoge (B-84)", () => {
     fireEvent.change(screen.getByLabelText("Pflanzen von Sorte 2"), { target: { value: "3" } });
     fireEvent.submit(screen.getByTestId("edit-grow-form"));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ strains: [{ name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }, { name: "Gorilla Glue", breeder: "", plants: 3, wetG: null, dryG: null }] }));
+    expect(grows.update).toHaveBeenCalledWith("g1", expect.objectContaining({ strains: [{ id: "legacy", name: "Haze", breeder: "X", plants: null, wetG: null, dryG: null }, { name: "Gorilla Glue", breeder: "", plants: 3, wetG: null, dryG: null }] }));
   });
 
   it("Ernte: bei mehreren Sorten Gewichte je Sorte mit Summe (B-100)", async () => {
@@ -303,5 +303,82 @@ describe("Log-, Foto- und Messwert-Dialoge (B-85)", () => {
     expect(parseDecimal("15", 0, 14)).toBeNaN();
     expect(parseDecimal("x", 0, 14)).toBeNaN();
     expect(parseDecimal("-3", -10, 60)).toBe(-3);
+  });
+  describe("Sorten je Eintrag, Foto und pH/EC (B-101)", () => {
+    const multi = () => grow({ strains: [{ id: "a", name: "Alpha", breeder: "", plants: null, wetG: null, dryG: null }, { id: "b", name: "Beta", breeder: "", plants: null, wetG: null, dryG: null }] });
+    const pick = (name: string) => screen.getAllByTestId("strain-pick").find((el) => el.textContent === name)!;
+
+    it("Bei einer Sorte erscheint keine Sortenwahl", () => {
+      render(<EditLogModal grow={grow()} log={log} open onClose={() => undefined} onSaved={() => undefined} />);
+      expect(screen.queryByTestId("strain-picker")).toBeNull();
+    });
+
+    it("Eintrag: Sorten wählen (Mehrfach), abwählen = ganzer Grow, wird mitgesendet", async () => {
+      const onSaved = vi.fn();
+      render(<EditLogModal grow={multi()} log={{ ...log, strainIds: ["a"] }} open onClose={() => undefined} onSaved={onSaved} />);
+      expect(pick("Alpha").getAttribute("aria-pressed")).toBe("true");
+      expect(screen.getByTestId("strain-pick-all").getAttribute("aria-pressed")).toBe("false");
+      fireEvent.click(pick("Beta"));
+      fireEvent.submit(screen.getByTestId("edit-log-form"));
+      await waitFor(() => expect(onSaved).toHaveBeenCalled());
+      expect(grows.updateLog).toHaveBeenLastCalledWith("g1", "l1", expect.objectContaining({ strainIds: ["a", "b"] }));
+      fireEvent.click(screen.getByTestId("strain-pick-all"));
+      expect(screen.getByTestId("strain-pick-all").getAttribute("aria-pressed")).toBe("true");
+      fireEvent.submit(screen.getByTestId("edit-log-form"));
+      await waitFor(() => expect(grows.updateLog).toHaveBeenCalledTimes(2));
+      expect(grows.updateLog).toHaveBeenLastCalledWith("g1", "l1", expect.objectContaining({ strainIds: [] }));
+    });
+
+    it("Foto: Sortenwechsel macht „Speichern“ aktiv und sendet die Sorten", async () => {
+      const onSaved = vi.fn();
+      const g = multi();
+      render(<PhotoModal grow={g} photo={{ ...g.photos[1]!, strainIds: [] }} open onClose={() => undefined} onSaved={onSaved} />);
+      const save = screen.getByRole("button", { name: /Speichern/ }) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      fireEvent.click(pick("Beta"));
+      expect(save.disabled).toBe(false);
+      fireEvent.click(save);
+      await waitFor(() => expect(onSaved).toHaveBeenCalled());
+      expect(grows.updatePhoto).toHaveBeenCalledWith("g1", "p2", expect.objectContaining({ strainIds: ["b"] }));
+    });
+
+    it("Messwerte: Temp/RLF für den ganzen Grow, pH/EC je Sorte; vorhandene Sortenwerte werden vorbelegt", async () => {
+      const onSaved = vi.fn();
+      const g = { ...multi(), strainEnv: [{ day: 5, date: "2026-09-06", strainId: "a", ph: 6.1, ec: 1.2 }] };
+      render(<EnvModal grow={g} initialDate="2026-09-06" open onClose={() => undefined} onSaved={onSaved} />);
+      expect((screen.getByLabelText("pH Alpha") as HTMLInputElement).value).toBe("6,1");
+      expect((screen.getByLabelText("EC Alpha") as HTMLInputElement).value).toBe("1,2");
+      expect((screen.getByLabelText("pH Beta") as HTMLInputElement).value).toBe("");
+      expect(screen.getAllByTestId("strain-env-row")).toHaveLength(2);
+      fireEvent.change(screen.getByLabelText("pH Beta"), { target: { value: "15" } });
+      fireEvent.submit(screen.getByTestId("env-form"));
+      expect(await screen.findByText(/Ungültiger Wert bei Beta/)).toBeTruthy();
+      expect(grows.saveEnv).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByLabelText("pH Beta"), { target: { value: "5,9" } });
+      fireEvent.change(screen.getByLabelText("Temperatur"), { target: { value: "24" } });
+      fireEvent.submit(screen.getByTestId("env-form"));
+      await waitFor(() => expect(onSaved).toHaveBeenCalled());
+      expect(grows.saveEnv).toHaveBeenCalledWith("g1", { date: "2026-09-06", temp: 24, rh: null, ec: null, ph: null, strainEnv: [{ strainId: "a", ph: 6.1, ec: 1.2 }, { strainId: "b", ph: 5.9, ec: null }] });
+    });
+
+    it("Messwerte: nur ein Sortenwert genügt; ganz leer wird abgelehnt", async () => {
+      const onSaved = vi.fn();
+      render(<EnvModal grow={multi()} open onClose={() => undefined} onSaved={onSaved} />);
+      fireEvent.submit(screen.getByTestId("env-form"));
+      expect(await screen.findByText("Bitte mindestens einen Wert eintragen.")).toBeTruthy();
+      fireEvent.change(screen.getByLabelText("EC Beta"), { target: { value: "1,6" } });
+      fireEvent.submit(screen.getByTestId("env-form"));
+      await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    });
+
+    it("Bei einer Sorte bleibt der Messwert-Dialog unverändert (kein Sortenblock, keine strainEnv)", async () => {
+      const onSaved = vi.fn();
+      render(<EnvModal grow={grow()} open onClose={() => undefined} onSaved={onSaved} />);
+      expect(screen.queryByTestId("strain-env")).toBeNull();
+      fireEvent.change(screen.getByLabelText("pH"), { target: { value: "6" } });
+      fireEvent.submit(screen.getByTestId("env-form"));
+      await waitFor(() => expect(onSaved).toHaveBeenCalled());
+      expect(grows.saveEnv).toHaveBeenCalledWith("g1", { date: expect.any(String), temp: null, rh: null, ec: null, ph: 6 });
+    });
   });
 });

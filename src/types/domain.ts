@@ -136,6 +136,8 @@ export type GrowCondition = "gesund" | "beobachten" | "problem";
 export type GrowVisibility = "private" | "public" | "community";
 /** Eine Sorte eines Grows (B-100). Gewichte nur nach der Ernte. */
 export interface GrowStrain {
+  /** Stabile ID (B-101); neue Zeilen im Editor haben noch keine. */
+  id?: string;
   name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null;
 }
 /** Kurzform eines Grows in der Liste auf einem fremden Profil. */
@@ -166,6 +168,15 @@ export interface EnvPoint {
   ph: number | null;
 }
 
+/** pH/EC einer Sorte an einem Tag (B-101); Temperatur und Luftfeuchte gelten für den ganzen Grow (`EnvPoint`). */
+export interface StrainEnvPoint {
+  day: number;
+  date: string;
+  strainId: string;
+  ph: number | null;
+  ec: number | null;
+}
+
 export interface TargetRange { min: number; max: number }
 
 /** Größen mit Zielbereich (B-88). */
@@ -187,6 +198,8 @@ export interface GrowPhoto {
   /** Aufnahmedatum (JJJJ-MM-TT, Europe/Berlin) und Tag des Grows (B-88). */
   date?: string;
   day?: number;
+  /** B-101: zugeordnete Sorten (IDs); leer oder fehlend = ganzer Grow. */
+  strainIds?: string[];
 }
 
 export interface GrowLog {
@@ -196,6 +209,8 @@ export interface GrowLog {
   title: string;
   text: string;
   tag: "Gießen" | "Dünger" | "Training" | "Beobachtung" | "Schädling" | "Ernte";
+  /** B-101: betroffene Sorten (IDs); leer oder fehlend = ganzer Grow. */
+  strainIds?: string[];
 }
 
 export interface Grow {
@@ -229,6 +244,8 @@ export interface Grow {
   targets: GrowTargets;
   phases: GrowPhase[];
   env: EnvPoint[];
+  /** B-101: pH/EC je Sorte. */
+  strainEnv?: StrainEnvPoint[];
   logs: GrowLog[];
   expectedYield: string;
 }

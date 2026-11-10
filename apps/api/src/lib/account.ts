@@ -85,6 +85,7 @@ async function removeAccountData(tx: Tx, userId: string, o: DeleteOptions): Prom
 
   // 2) Grows (immer gelöscht); die Bilder räumt die Medien-Bereinigung am Ende auf
   await tx.execute(sql`delete from grow_env where grow_id in (select id from grows where user_id = ${U})`);
+  await tx.execute(sql`delete from grow_strain_env where grow_id in (select id from grows where user_id = ${U})`);
   await tx.execute(sql`delete from grow_logs where grow_id in (select id from grows where user_id = ${U})`);
   await tx.execute(sql`delete from grow_photos where grow_id in (select id from grows where user_id = ${U})`);
   await tx.execute(sql`delete from grows where user_id = ${U}`);

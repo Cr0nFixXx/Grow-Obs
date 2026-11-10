@@ -6,6 +6,7 @@ import { EnvModal } from "@/components/GrowDialogs";
 import { TARGET_META, formatDay, formatRange, outsideRange, rangeAlerts, shiftDay, targetSteps, targetsOn, todayLocal } from "@/lib/grows";
 import { downloadCsv, envCsv } from "@/lib/grow-csv";
 import { useToast } from "@/components/Toast";
+import { ALL_STRAINS, STRAIN_LINE_COLORS, envDates, feedData, isMultiStrain, strainEnvOn, strainsWithId, type FeedLine } from "@/lib/strain-diary";
 import type { EnvPoint, Grow, TargetKey } from "@/types";
 
 type Range = "7" | "30" | "all";
@@ -36,7 +37,7 @@ function targetBand(grow: Grow, key: TargetKey, axis: "left" | "right"): EnvBand
 }
 
 /** Messwerte eines Grows (B-85): Diagramme (Temperatur + Feuchte, pH + EC, VPD mit Zielband) und Liste mit Bearbeiten. */
-export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: Grow; onChanged: () => Promise<void> | void; readOnly?: boolean }) {
+export function GrowMeasurements({ grow, onChanged, readOnly = false, strainFilter = ALL_STRAINS }: { grow: Grow; onChanged: () => Promise<void> | void; readOnly?: boolean; strainFilter?: string }) {
   const [range, setRange] = useState<Range>("all");
   const [dialog, setDialog] = useState<null | { date?: string }>(null);
   const [showAll, setShowAll] = useState(false);
@@ -50,16 +51,29 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: 
   );
   const dates = points.map((p) => p.date);
   const col = (key: "temp" | "rh" | "ec" | "ph" | "vpd") => points.map((p) => p[key]);
-  const list = [...grow.env].sort((a, b) => b.date.localeCompare(a.date));
+  // B-101: pH/EC je Sorte. Mit gewählter Sorte nur deren Werte (plus die des ganzen Grows).
+  const multi = isMultiStrain(grow);
+  const strainName = new Map(strainsWithId(grow).map((st) => [st.id, st.name]));
+  const hasStrainEnv = multi && (grow.strainEnv?.length ?? 0) > 0;
+  const strainRowsOn = (date: string) => strainEnvOn(grow, date).filter((e) => strainFilter === ALL_STRAINS || e.strainId === strainFilter);
+  const list = envDates(grow).filter((d) => grow.env.some((e) => e.date === d) || strainRowsOn(d).length > 0);
+  const hasValues = grow.env.length > 0 || (grow.strainEnv?.length ?? 0) > 0;
+  const feed = hasStrainEnv ? feedData(grow, strainFilter, from, to) : null;
+  const lineColor = (line: FeedLine, shown: FeedLine[]) => (line.label === "Ganzer Grow" ? "var(--fg-muted)" : STRAIN_LINE_COLORS[shown.filter((l) => l.label !== "Ganzer Grow").indexOf(line) % STRAIN_LINE_COLORS.length]);
+  const strainSeries = (lines: FeedLine[], unit: string, digits: number) => lines.map((l) => ({ key: l.key, label: l.label, unit, color: lineColor(l, lines), axis: "left" as const, values: l.values, digits }));
   const alerts = rangeAlerts(grow);
   const toast = useToast();
   const exportCsv = () => {
-    if (grow.env.length === 0) { toast.push({ title: "Keine Messwerte zum Exportieren", desc: "Trage zuerst Messwerte ein.", tone: "warning", icon: "Info" }); return; }
+    if (!hasValues) { toast.push({ title: "Keine Messwerte zum Exportieren", desc: "Trage zuerst Messwerte ein.", tone: "warning", icon: "Info" }); return; }
     downloadCsv(grow, "messwerte", envCsv(grow));
   };
   const climateBands = [targetBand(grow, "temp", "left"), targetBand(grow, "rh", "right")].filter((b): b is EnvBand => !!b);
   const feedBands = [targetBand(grow, "ph", "left"), targetBand(grow, "ec", "right")].filter((b): b is EnvBand => !!b);
   const vpdBands = [targetBand(grow, "vpd", "left")].filter((b): b is EnvBand => !!b);
+  // Ein Band je Größe genügt: an die erste sichtbare Linie gehängt (Ganzer Grow, sonst die erste Sorte).
+  const bandOn = (band: EnvBand[], lines: FeedLine[]) => band.map((b) => ({ ...b, seriesKey: lines[0]?.key ?? b.seriesKey }));
+  const phBand = bandOn(feedBands.filter((b) => b.seriesKey === "ph"), feed?.ph ?? []);
+  const ecBand = bandOn(feedBands.filter((b) => b.seriesKey === "ec").map((b) => ({ ...b, axis: "left" as const })), feed?.ec ?? []);
   const shown = showAll ? list : list.slice(0, LIST_LIMIT);
 
   return (
@@ -68,7 +82,7 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Thermometer" size={16} /> Messwerte</h2>
-            {!readOnly && <p className="mt-0.5 text-xs text-fg-subtle">Ein Eintrag pro Tag · alle Werte optional · VPD wird berechnet</p>}
+            {!readOnly && <p className="mt-0.5 text-xs text-fg-subtle">Ein Eintrag pro Tag · alle Werte optional · VPD wird berechnet{multi ? " · pH/EC je Sorte, Temperatur/Luftfeuchte für den ganzen Grow" : ""}</p>}
           </div>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" onClick={exportCsv} data-testid="export-env" aria-label="Messwerte als CSV exportieren"><Icon name="Download" size={15} /> CSV</Button>
@@ -93,7 +107,7 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: 
           options={[{ value: "7", label: "7 Tage" }, { value: "30", label: "30 Tage" }, { value: "all", label: "Alles" }]}
         />
 
-        {grow.env.length === 0 ? (
+        {!hasValues ? (
           <p className="mt-4 rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Messwerte. Trage Temperatur, Luftfeuchte, EC oder pH ein – die Diagramme entstehen automatisch.</p>
         ) : (
           <div className="mt-4 space-y-6">
@@ -110,6 +124,18 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: 
                 ]}
               />
             </div>
+            {feed ? (
+              <>
+                <div>
+                  <h3 className="mb-1 text-[13px] font-semibold">pH <span className="font-normal text-fg-subtle">· je Sorte</span></h3>
+                  <EnvChart testId="chart-ph" label="Verlauf des pH-Werts je Sorte" dates={feed.dates} from={from} to={to} bands={phBand} series={strainSeries(feed.ph, "", 2)} />
+                </div>
+                <div>
+                  <h3 className="mb-1 text-[13px] font-semibold">EC <span className="font-normal text-fg-subtle">· je Sorte</span></h3>
+                  <EnvChart testId="chart-ec" label="Verlauf der EC je Sorte" dates={feed.dates} from={from} to={to} bands={ecBand} series={strainSeries(feed.ec, "mS", 2)} />
+                </div>
+              </>
+            ) : (
             <div>
               <h3 className="mb-1 text-[13px] font-semibold">pH & EC</h3>
               <EnvChart
@@ -123,6 +149,7 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: 
                 ]}
               />
             </div>
+            )}
             <div>
               <h3 className="mb-1 text-[13px] font-semibold">VPD <span className="font-normal text-fg-subtle">· Blatt-Abzug {String(grow.leafOffset).replace(".", ",")} °C</span></h3>
               <EnvChart
@@ -138,21 +165,33 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false }: { grow: 
             <div>
               <h3 className="mb-2 text-[13px] font-semibold">Einträge <span className="font-normal text-fg-subtle">({list.length})</span></h3>
               <ul className="divide-y divide-border rounded-xl border border-border" data-testid="env-list">
-                {shown.map((e) => {
-                  const t = targetsOn(grow, e.date);
+                {shown.map((date) => {
+                  const e = grow.env.find((x) => x.date === date);
+                  const perStrain = strainRowsOn(date);
+                  const t = targetsOn(grow, date);
+                  const day = e?.day ?? perStrain[0]?.day ?? 0;
                   return (
-                  <li key={e.date} className="flex items-center gap-3 px-3 py-2.5" data-testid="env-row">
+                  <li key={date} className="flex items-center gap-3 px-3 py-2.5" data-testid="env-row">
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium tnum">{formatDay(e.date)} <span className="text-xs font-normal text-fg-subtle">· Tag {e.day}</span></div>
-                      <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-fg-muted tnum">
-                        <Flagged dir={outsideRange(e.temp, t.temp)}>{n(e.temp)} °C</Flagged>
-                        <Flagged dir={outsideRange(e.rh, t.rh)}>{n(e.rh, 0)} %</Flagged>
-                        <Flagged dir={outsideRange(e.vpd, t.vpd)}>VPD {n(e.vpd, 2)}</Flagged>
-                        <Flagged dir={outsideRange(e.ec, t.ec)}>EC {n(e.ec, 2)}</Flagged>
-                        <Flagged dir={outsideRange(e.ph, t.ph)}>pH {n(e.ph, 2)}</Flagged>
-                      </div>
+                      <div className="text-sm font-medium tnum">{formatDay(date)} <span className="text-xs font-normal text-fg-subtle">· Tag {day}</span></div>
+                      {e && (
+                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-fg-muted tnum">
+                          <Flagged dir={outsideRange(e.temp, t.temp)}>{n(e.temp)} °C</Flagged>
+                          <Flagged dir={outsideRange(e.rh, t.rh)}>{n(e.rh, 0)} %</Flagged>
+                          <Flagged dir={outsideRange(e.vpd, t.vpd)}>VPD {n(e.vpd, 2)}</Flagged>
+                          <Flagged dir={outsideRange(e.ec, t.ec)}>EC {n(e.ec, 2)}</Flagged>
+                          <Flagged dir={outsideRange(e.ph, t.ph)}>pH {n(e.ph, 2)}</Flagged>
+                        </div>
+                      )}
+                      {perStrain.map((p) => (
+                        <div key={p.strainId} className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-xs text-fg-muted tnum" data-testid="env-strain-line">
+                          <span className="max-w-[10rem] truncate font-medium text-fg" title={strainName.get(p.strainId)}>{strainName.get(p.strainId) ?? "Entfernte Sorte"}</span>
+                          <Flagged dir={outsideRange(p.ec, t.ec)}>EC {n(p.ec, 2)}</Flagged>
+                          <Flagged dir={outsideRange(p.ph, t.ph)}>pH {n(p.ph, 2)}</Flagged>
+                        </div>
+                      ))}
                     </div>
-                    <Button size="sm" variant="ghost" aria-label={`Messwerte vom ${formatDay(e.date)} bearbeiten`} onClick={() => setDialog({ date: e.date })}><Icon name="Pencil" size={15} /></Button>
+                    {!readOnly && <Button size="sm" variant="ghost" aria-label={`Messwerte vom ${formatDay(date)} bearbeiten`} onClick={() => setDialog({ date })}><Icon name="Pencil" size={15} /></Button>}
                   </li>
                   );
                 })}

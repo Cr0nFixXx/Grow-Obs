@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNotNull, isNull, lte, max, or, sql } from "drizzle-orm";
 import { db } from "../db/client.ts";
-import { growEnv, growLogs, grows, users } from "../db/schema.ts";
+import { growEnv, growLogs, growStrainEnv, grows, users } from "../db/schema.ts";
 import { createNotification } from "./notify.ts";
 import { dayDiff, todayIso } from "./grow-state.ts";
 
@@ -33,6 +33,11 @@ export async function runGrowReminders(now = new Date()): Promise<{ candidates: 
     if (rows.length === 0) continue;
     const ids = rows.map((r) => r.id);
     const envLast = new Map((await db.select({ id: growEnv.growId, last: max(growEnv.loggedOn) }).from(growEnv).where(inArray(growEnv.growId, ids)).groupBy(growEnv.growId)).map((r) => [r.id, r.last]));
+    // B-101: auch pH/EC je Sorte zählen als Messung.
+    for (const r of await db.select({ id: growStrainEnv.growId, last: max(growStrainEnv.loggedOn) }).from(growStrainEnv).where(inArray(growStrainEnv.growId, ids)).groupBy(growStrainEnv.growId)) {
+      const prev = envLast.get(r.id);
+      if (r.last && (!prev || r.last > prev)) envLast.set(r.id, r.last);
+    }
     const logLast = new Map((await db.select({ id: growLogs.growId, last: max(growLogs.loggedOn) }).from(growLogs).where(inArray(growLogs.growId, ids)).groupBy(growLogs.growId)).map((r) => [r.id, r.last]));
     const lines: ReminderLine[] = [];
     for (const row of rows) {

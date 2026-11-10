@@ -306,7 +306,7 @@ export const tasks = pgTable("tasks", {
 });
 
 /* ----------------------------- Grows ----------------------------- */
-export interface GrowStrainRow { name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null }
+export interface GrowStrainRow { /** B-101: stabile ID (Zuordnung von Einträgen, Fotos, pH/EC bleibt beim Umbenennen erhalten). */ id: string; name: string; breeder: string; plants: number | null; wetG: number | null; dryG: number | null }
 export const grows = pgTable("grows", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id),
@@ -365,6 +365,8 @@ export const growLogs = pgTable("grow_logs", {
   tag: text("tag").notNull().default("Beobachtung"),
   /** B-85: echtes Datum des Eintrags (`day`/`date` oben sind Altlasten; der Tag wird aus diesem Datum berechnet). */
   loggedOn: date("logged_on").notNull().defaultNow(),
+  /** B-101: betroffene Sorten (IDs aus `grows.strain_list`); leer = ganzer Grow. */
+  strainIds: jsonb("strain_ids").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -374,6 +376,8 @@ export const growPhotos = pgTable("grow_photos", {
   url: text("url").notNull(),
   caption: text("caption").notNull().default(""),
   takenAt: timestamp("taken_at", { withTimezone: true }).notNull().defaultNow(),
+  /** B-101: zugeordnete Sorten (IDs); leer = ganzer Grow. */
+  strainIds: jsonb("strain_ids").$type<string[]>().notNull().default([]),
 });
 
 export const growEnv = pgTable("grow_env", {
@@ -388,6 +392,16 @@ export const growEnv = pgTable("grow_env", {
   ec: doublePrecision("ec"),
   ph: doublePrecision("ph"),
 }, (t) => [uniqueIndex("grow_env_grow_day_uq").on(t.growId, t.loggedOn)]);
+
+/** B-101: pH/EC je Sorte und Tag (Temperatur/Luftfeuchte gelten für den ganzen Grow und bleiben in `grow_env`). */
+export const growStrainEnv = pgTable("grow_strain_env", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  growId: uuid("grow_id").notNull().references(() => grows.id),
+  strainId: text("strain_id").notNull(),
+  loggedOn: date("logged_on").notNull(),
+  ec: doublePrecision("ec"),
+  ph: doublePrecision("ph"),
+}, (t) => [uniqueIndex("grow_strain_env_uq").on(t.growId, t.strainId, t.loggedOn)]);
 
 /* ----------------------------- Social ----------------------------- */
 export const posts = pgTable("posts", {

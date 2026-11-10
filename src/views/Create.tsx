@@ -5,6 +5,7 @@ import { useNav, type ViewKey } from "@/lib/nav";
 import { useToast } from "@/components/Toast";
 import { Icon } from "@/components/Icon";
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Segmented, Select, Textarea } from "@/components/ui";
+import { StrainPicker } from "@/components/StrainPicker";
 import { useServices } from "@/data/DataContext";
 import { invalidate, useGrows, useWikiCategories } from "@/data/hooks";
 import { useFeatures } from "@/config/FeatureContext";
@@ -176,6 +177,7 @@ function LogForm({ presetGrowId }: { presetGrowId?: string }) {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [date, setDate] = useState(todayLocal());
+  const [strainIds, setStrainIds] = useState<string[]>([]);
   const [touched, setTouched] = useState(false);
   const selectedGrow = grows.find((g) => g.id === (growId || grows[0]?.id));
   const errors = { grow: !selectedGrow ? "Bitte zuerst einen Grow anlegen." : "", title: !title.trim() ? "Bitte einen Titel angeben." : "",
@@ -191,12 +193,12 @@ function LogForm({ presetGrowId }: { presetGrowId?: string }) {
       setTouched(true);
       if (errors.grow || errors.title || errors.date || !selectedGrow) return;
       void run(async () => {
-        const saved = await svc.grows.addLog(selectedGrow.id, { date, title: title.trim(), text: text.trim(), tag });
+        const saved = await svc.grows.addLog(selectedGrow.id, { date, title: title.trim(), text: text.trim(), tag, ...(strainIds.length ? { strainIds } : {}) });
         done(toast, navigate, "Log gespeichert", `${selectedGrow.name} · Tag ${saved?.day ?? selectedGrow.day}`, "NotebookPen", "grows", { growId: selectedGrow.id });
       });
     }}>
       <Field label="Grow">
-        <Select value={selectedGrow?.id ?? ""} onChange={(e) => setGrowId(e.target.value)} disabled={loading}>
+        <Select value={selectedGrow?.id ?? ""} onChange={(e) => { setGrowId(e.target.value); setStrainIds([]); }} disabled={loading}>
           {grows.map((g) => <option key={g.id} value={g.id}>{g.name} · Tag {g.day}</option>)}
         </Select>
       </Field>
@@ -208,6 +210,7 @@ function LogForm({ presetGrowId }: { presetGrowId?: string }) {
           ))}
         </div>
       </div>
+      {selectedGrow && <StrainPicker grow={selectedGrow} value={strainIds} onChange={setStrainIds} hint="Nichts gewählt = gilt für den ganzen Grow." />}
       <Field label="Datum" hint="heute vorbelegt, rückwirkend wählbar – der Tag wird daraus berechnet">
         <Input type="date" value={date} min={selectedGrow?.startDate.slice(0, 10)} max={todayLocal()} onChange={(e) => setDate(e.target.value)} aria-invalid={touched && !!errors.date} aria-label="Datum" />
       </Field>

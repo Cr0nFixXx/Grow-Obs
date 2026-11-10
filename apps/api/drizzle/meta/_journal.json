@@ -218,6 +218,13 @@
       "when": 1792764600000,
       "tag": "0030_grow_strains",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792851000000,
+      "tag": "0031_strain_diary",
+      "breakpoints": true
     }
   ]
 }

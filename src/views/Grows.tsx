@@ -3,7 +3,7 @@ import { Calendar, Plus } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useNav } from "@/lib/nav";
 import { Icon } from "@/components/Icon";
-import { Badge, Button, Card, EmptyState, PageHeader, Popover, PopoverItem, ProgressBar, Segmented, SkeletonCard, SmartImage, SwipeLightbox } from "@/components/ui";
+import { Badge, Button, Card, Chip, EmptyState, PageHeader, Popover, PopoverItem, ProgressBar, Segmented, SkeletonCard, SmartImage, SwipeLightbox } from "@/components/ui";
 import { GrowMeasurements } from "@/components/GrowMeasurements";
 import { PhotoCompareModal } from "@/components/PhotoCompare";
 import { downloadCsv, logsCsv } from "@/lib/grow-csv";
@@ -17,6 +17,8 @@ import { useServices } from "@/data/DataContext";
 import { ImagePickButton } from "@/components/media";
 import { resolveMedia } from "@/lib/media";
 import { growStrains, strainSummary, totalPlants } from "@/lib/grow-strains";
+import { ALL_STRAINS, matchesStrainFilter, strainNamesOf, strainsWithId } from "@/lib/strain-diary";
+import { StrainTags } from "@/components/StrainPicker";
 import { toneSoft, type Tone } from "@/lib/tokens";
 
 const logTone: Record<string, Tone> = {
@@ -168,11 +170,19 @@ function PhaseTimeline({ grow }: { grow: Grow }) {
 export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { grow: Grow; onChanged: () => Promise<void> | void; readOnly?: boolean; ownerName?: string }) {
   const svc = useServices();
   const toast = useToast();
+  // B-101: Sorten-Filter (nur bei mehreren Sorten); eine entfernte Sorte fällt auf „Alle“ zurück.
+  const [strainFilterRaw, setStrainFilter] = useState<string>(ALL_STRAINS);
+  const strainChoices = strainsWithId(grow);
+  const multi = strainChoices.length > 1;
+  const strainFilter = multi && strainChoices.some((x) => x.id === strainFilterRaw) ? strainFilterRaw : ALL_STRAINS;
   const addPhoto = async (path: string) => {
     try {
-      await svc.grows.addPhoto(grow.id, path);
+      // Mit gewählter Sorte gehört das neue Foto zu ihr; bei „Alle“ fragt der Foto-Dialog gleich nach der Sorte.
+      const updated = await svc.grows.addPhoto(grow.id, path, strainFilter !== ALL_STRAINS ? [strainFilter] : undefined);
       await onChanged();
-      toast.push({ title: "Foto hinzugefügt", desc: grow.name, tone: "leaf", icon: "Camera" });
+      toast.push({ title: "Foto hinzugefügt", desc: strainFilter !== ALL_STRAINS ? `${grow.name} · ${strainChoices.find((x) => x.id === strainFilter)?.name}` : grow.name, tone: "leaf", icon: "Camera" });
+      const added = updated?.photos?.[updated.photos.length - 1];
+      if (multi && strainFilter === ALL_STRAINS && added) setEditPhotoId(added.id);
     } catch (error) {
       toast.push({ title: "Foto nicht gespeichert", desc: error instanceof Error ? error.message : "Unbekannter Fehler", tone: "danger", icon: "AlertTriangle" });
     }
@@ -191,6 +201,8 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
   const active = grow.status === "active";
   const strainRows = growStrains(grow);
   const plantTotal = totalPlants(strainRows);
+  const shownLogs = grow.logs.filter((l) => matchesStrainFilter(l.strainIds, strainFilter));
+  const shownPhotos = grow.photos.filter((p) => matchesStrainFilter(p.strainIds, strainFilter));
 
   /** Aktion ausführen, Liste neu laden, Fehler als Toast zeigen. */
   const act = async (fn: () => Promise<unknown>, success?: { title: string; desc?: string; icon: string }) => {
@@ -296,6 +308,16 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
               </li>
             ))}
           </ul>
+          <div className="space-y-1.5 border-t border-border pt-3" data-testid="strain-filter">
+            <span className="text-xs font-medium text-fg-subtle">Anzeigen für</span>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Sorten-Filter">
+              <Chip type="button" active={strainFilter === ALL_STRAINS} aria-pressed={strainFilter === ALL_STRAINS} onClick={() => setStrainFilter(ALL_STRAINS)} data-testid="strain-filter-all">Alle Sorten</Chip>
+              {strainChoices.map((x) => (
+                <Chip key={x.id} type="button" active={strainFilter === x.id} aria-pressed={strainFilter === x.id} onClick={() => setStrainFilter(x.id)} data-testid="strain-filter-chip">{x.name}</Chip>
+              ))}
+            </div>
+            {strainFilter !== ALL_STRAINS && <p className="text-xs text-fg-subtle" data-testid="strain-filter-hint">Zeigt Einträge, Fotos sowie pH/EC dieser Sorte – dazu alles, was für den ganzen Grow gilt (u. a. Temperatur und Luftfeuchte).</p>}
+          </div>
         </Card>
       )}
 
@@ -348,7 +370,7 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Reveal>
-            <GrowMeasurements grow={grow} onChanged={saved} readOnly={readOnly} />
+            <GrowMeasurements grow={grow} onChanged={saved} readOnly={readOnly} strainFilter={strainFilter} />
           </Reveal>
 
           <Reveal>
@@ -360,13 +382,13 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
                   <Button size="sm" variant="ghost" onClick={() => navigate("create", { kind: "log", growId: grow.id })}>+ Eintrag</Button>
                 </div>}
               </div>
-              {grow.logs.length === 0 && <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Einträge. Halte Gießen, Düngen, Training und Beobachtungen fest.</p>}
+              {shownLogs.length === 0 && <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">{grow.logs.length === 0 ? "Noch keine Einträge. Halte Gießen, Düngen, Training und Beobachtungen fest." : "Keine Einträge für diese Sorte."}</p>}
               <div className="space-y-1">
-                {grow.logs.map((l, i) => (
+                {shownLogs.map((l, i) => (
                   <div key={l.id} className="flex gap-3">
                     <div className="flex flex-col items-center">
                       <span className={cn("grid size-8 place-items-center rounded-full", toneSoft[logTone[l.tag]])}><Icon name="NotebookPen" size={14} /></span>
-                      {i < grow.logs.length - 1 && <span className="my-1 w-px flex-1 bg-border" />}
+                      {i < shownLogs.length - 1 && <span className="my-1 w-px flex-1 bg-border" />}
                     </div>
                     <div className="flex-1 pb-4">
                       <div className="flex items-center justify-between gap-2">
@@ -377,7 +399,10 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
                         </span>
                       </div>
                       {l.text && <p className="mt-0.5 whitespace-pre-line text-sm text-fg-muted">{l.text}</p>}
-                      <Badge tone={logTone[l.tag]} className="mt-1.5">{l.tag}</Badge>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <Badge tone={logTone[l.tag]}>{l.tag}</Badge>
+                        {multi && <StrainTags names={strainNamesOf(grow, l.strainIds)} />}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -388,7 +413,7 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
           <Reveal>
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Image" size={16} /> Galerie <span className="text-fg-subtle">({grow.photos.length})</span></h2>
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Image" size={16} /> Galerie <span className="text-fg-subtle">({shownPhotos.length})</span></h2>
                 <div className="flex items-center gap-1">
                 {grow.photos.length >= 2 && (
                   <Button size="sm" variant="ghost" onClick={() => setComparing(true)} data-testid="compare-photos"><Icon name="Layers" size={15} /> Vergleichen</Button>
@@ -398,11 +423,11 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
                 </ImagePickButton>}
                 </div>
               </div>
-              {grow.photos.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">Noch keine Fotos. Dokumentiere deinen Grow – das erste Foto wird zum Titelbild.</p>
+              {shownPhotos.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border-strong p-6 text-center text-sm text-fg-muted">{grow.photos.length === 0 ? "Noch keine Fotos. Dokumentiere deinen Grow – das erste Foto wird zum Titelbild." : "Keine Fotos für diese Sorte."}</p>
               ) : (
               <div className="columns-2 gap-3 sm:columns-3 [&>*]:mb-3">
-                {grow.photos.map((photo, i) => (
+                {shownPhotos.map((photo, i) => (
                   <figure key={photo.id} className="relative overflow-hidden rounded-xl" data-testid="grow-photo">
                     <button type="button" onClick={() => setLightbox(i)} className="block w-full" aria-label={photo.caption || `Foto ${i + 1} vergrößern`}>
                       <img src={resolveMedia(photo.url)} alt={photo.caption || `Galerie ${i + 1}`} loading="lazy" className="w-full object-cover transition duration-500 hover:scale-105" style={{ aspectRatio: i % 2 ? "3/4" : "4/3" }} />
@@ -410,6 +435,7 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
                     {photo.cover && <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"><Icon name="Star" size={11} /> Titelbild</span>}
                     {!readOnly && <button type="button" aria-label={`Foto ${i + 1} bearbeiten`} onClick={() => setEditPhotoId(photo.id)} className="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-black/55 text-white transition hover:bg-black/75" data-testid="edit-photo"><Icon name="Pencil" size={14} /></button>}
                     {photo.caption && <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-2 pt-6 text-xs text-white">{photo.caption}</figcaption>}
+                    {multi && (photo.strainIds?.length ?? 0) > 0 && <StrainTags names={strainNamesOf(grow, photo.strainIds)} className="flex flex-wrap gap-1 bg-surface-2 px-2 py-1.5" />}
                   </figure>
                 ))}
               </div>
@@ -454,7 +480,7 @@ export function GrowDetail({ grow, onChanged, readOnly = false, ownerName }: { g
 
       <SwipeLightbox
         open={lightbox !== null}
-        images={grow.photos.map((photo, i) => ({ src: photo.url, alt: `${grow.name}, Foto ${i + 1}`, caption: photo.caption || "Wische seitlich zum Blättern, nach unten zum Schließen" }))}
+        images={shownPhotos.map((photo, i) => ({ src: photo.url, alt: `${grow.name}, Foto ${i + 1}`, caption: photo.caption || "Wische seitlich zum Blättern, nach unten zum Schließen" }))}
         index={lightbox ?? 0}
         onIndexChange={setLightbox}
         onClose={() => setLightbox(null)}

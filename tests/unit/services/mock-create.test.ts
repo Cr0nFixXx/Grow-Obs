@@ -151,4 +151,36 @@ describe("mock create flows", () => {
     const aborted = await svc.grows.finish(grow.id, { outcome: "aborted" });
     expect(aborted.strains.every((x) => x.wetG === null)).toBe(true);
   });
+  it("Sorten je Eintrag, Foto und pH/EC; Entfernen löst die Zuordnung (B-101)", async () => {
+    const e = (name: string) => ({ name, breeder: "", plants: null, wetG: null, dryG: null });
+    const grow = await svc.grows.create({ name: "Mix2", medium: "Erde (Bio)", strains: [e("A"), e("B"), e("C")] });
+    const [a, b, c] = grow.strains.map((x) => x.id!) as [string, string, string];
+    expect(new Set([a, b, c]).size).toBe(3);
+    const log = await svc.grows.addLog(grow.id, { title: "Gießen", text: "", tag: "Gießen", strainIds: [a, b] });
+    expect(log.strainIds).toEqual([a, b]);
+    await expect(svc.grows.addLog(grow.id, { title: "x", text: "", tag: "Gießen", strainIds: ["nope"] })).rejects.toThrow("Unbekannte Sorte");
+    const photo = (await svc.grows.addPhoto(grow.id, "blob:x", [a])).photos[0]!;
+    expect(photo.strainIds).toEqual([a]);
+    const retagged = await svc.grows.updatePhoto(grow.id, photo.id, { strainIds: [b, c] });
+    expect(retagged.photos[0]!.strainIds).toEqual([b, c]);
+    const today = (await svc.grows.get(grow.id))!.startDate;
+    await svc.grows.saveEnv(grow.id, { date: today, ph: 6, strainEnv: [{ strainId: a, ph: 5.5, ec: 1.5 }, { strainId: b, ph: 6.5 }] });
+    let now = (await svc.grows.get(grow.id))!;
+    expect(now.env).toHaveLength(1);
+    expect(now.strainEnv).toHaveLength(2);
+    await svc.grows.saveEnv(grow.id, { date: today, ph: 6, strainEnv: [{ strainId: b, ph: 6.5 }] });
+    expect((await svc.grows.get(grow.id))!.strainEnv).toHaveLength(1);
+    await svc.grows.saveEnv(grow.id, { date: today, ph: 6, strainEnv: [{ strainId: a, ph: 5.5, ec: 1.5 }, { strainId: b, ph: 6.5 }] });
+    // A entfernen: Eintrag/Foto verlieren A, pH vorhanden → bleibt, EC wird übernommen
+    await svc.grows.update(grow.id, { strains: [{ ...e("B"), id: b }, { ...e("C"), id: c }] });
+    now = (await svc.grows.get(grow.id))!;
+    expect(now.logs.find((l) => l.id === log.id)!.strainIds).toEqual([b]);
+    expect(now.photos[0]!.strainIds).toEqual([b, c]);
+    expect(now.env[0]).toMatchObject({ ph: 6, ec: 1.5 });
+    expect(now.strainEnv!.map((x) => x.strainId)).toEqual([b]);
+    await svc.grows.deleteEnv(grow.id, today);
+    now = (await svc.grows.get(grow.id))!;
+    expect(now.env).toHaveLength(0);
+    expect(now.strainEnv).toHaveLength(0);
+  });
 });

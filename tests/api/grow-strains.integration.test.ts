@@ -57,10 +57,10 @@ describe("Grows: mehrere Sorten (B-100)", () => {
   it("alter Weg mit einer Sorte (`strain`/`breeder`) ergibt genau eine Sorte; `Unbekannt` wird zu leerem Breeder", async () => {
     const anna = await makeUser("anna");
     const grow = await create(anna, { strain: "Alte Sorte", breeder: "Unbekannt" });
-    expect(grow.strains).toEqual([s("Alte Sorte")]);
+    expect(grow.strains).toEqual([expect.objectContaining(s("Alte Sorte"))]);
     expect(grow.strain).toBe("Alte Sorte");
     const other = await create(anna, { strain: "Mit Breeder", breeder: "Barney's" });
-    expect(other.strains).toEqual([s("Mit Breeder", { breeder: "Barney's" })]);
+    expect(other.strains).toEqual([expect.objectContaining(s("Mit Breeder", { breeder: "Barney's" }))]);
   });
 
   it("Grenzen: leere Liste, leerer Name, doppelt, mehr als 20, Pflanzen 0 oder 1000, unbekannte Felder", async () => {
@@ -139,7 +139,7 @@ describe("Grows: mehrere Sorten (B-100)", () => {
     const [row] = await db.insert(grows).values({ userId: anna.id, name: "Alt", strainName: "Alte Sorte", breeder: "Altbreeder", startDate: daysAgoIso(5), wetWeightG: 80, dryWeightG: 20 }).returning();
     await db.execute(sql`UPDATE grows SET strain_list = '[]'::jsonb WHERE id = ${row!.id}`);
     // Lesen ohne Liste: Rückfall auf die alte Sorte
-    expect((await get(anna, row!.id)).strains).toEqual([s("Alte Sorte", { breeder: "Altbreeder", wetG: 80, dryG: 20 })]);
+    expect((await get(anna, row!.id)).strains).toEqual([expect.objectContaining(s("Alte Sorte", { breeder: "Altbreeder", wetG: 80, dryG: 20 }))]);
     // Die Migrations-UPDATE-Anweisung selbst (Teil von 0030) ist wiederholbar und füllt die Liste
     const migration = (await import("node:fs")).readFileSync(fileURLToPath(new URL("../../apps/api/drizzle/0030_grow_strains.sql", import.meta.url)), "utf8");
     const update = migration.slice(migration.indexOf("UPDATE"));

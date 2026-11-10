@@ -1,5 +1,17 @@
 [
   {
+    "id": "B-101",
+    "date": "2026-10-01",
+    "title": "Sorten im Tagebuch",
+    "notes": [
+      "Bei Grows mit mehreren Sorten wählst du pro Eintrag und Foto, welche Sorten betroffen sind",
+      "pH und EC trägst du je Sorte ein – Temperatur und Luftfeuchte gelten für den ganzen Grow",
+      "Ein Sorten-Filter zeigt Einträge, Fotos und Diagramme nur für eine Sorte",
+      "Wird eine Sorte entfernt, gelten ihre Einträge und Fotos wieder für den ganzen Grow",
+      "Bestehende Einträge und Messwerte bleiben unverändert beim ganzen Grow"
+    ]
+  },
+  {
     "id": "B-100",
     "date": "2026-10-01",
     "title": "Mehrere Sorten pro Grow",

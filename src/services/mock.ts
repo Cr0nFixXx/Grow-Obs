@@ -143,7 +143,25 @@ const socialService: SocialService = {
 /** Session-Store: neue Grows/Logs bleiben bis zum Reload sichtbar. */
 const sumGrams = (values: (number | null)[]) => { const v = values.filter((n): n is number => n !== null); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
 const strainTexts = (list: GrowStrain[]) => ({ strainName: list.map((x) => x.name).join(", "), breeder: [...new Set(list.map((x) => x.breeder).filter(Boolean))].join(", ") });
-const growStore: Grow[] = seedGrows.map((g) => ({ ...g, logs: [...g.logs], env: [...g.env], photos: [...g.photos] }));
+let strainSeq = 0;
+/** B-101: Sorten bekommen stabile IDs; bekannte IDs bleiben, alles andere erhält eine neue. */
+const withStrainIds = (list: GrowStrain[], existing: GrowStrain[]): GrowStrain[] => {
+  const known = new Set(existing.map((x) => x.id));
+  const used = new Set<string>();
+  return list.map((x) => {
+    const id = x.id && known.has(x.id) && !used.has(x.id) ? x.id : `st-${Date.now()}-${++strainSeq}`;
+    used.add(id);
+    return { ...x, id };
+  });
+};
+const growStore: Grow[] = seedGrows.map((g) => ({ ...g, strains: g.strains.map((x, i) => ({ ...x, id: x.id ?? `${g.id}-s${i}` })), logs: [...g.logs], env: [...g.env], strainEnv: [...(g.strainEnv ?? [])], photos: [...g.photos] }));
+
+/** Eine Auswahl von Sorten-IDs prüfen: nur bekannte, ohne Doppelte. */
+function mockStrainIds(grow: Grow, ids: string[] | undefined): string[] {
+  const list = [...new Set(ids ?? [])];
+  if (list.some((id) => !grow.strains.some((x) => x.id === id))) throw new Error("Unbekannte Sorte");
+  return list;
+}
 
 function mockGrow(id: string): Grow {
   const grow = growStore.find((g) => g.id === id);
@@ -205,7 +223,7 @@ const growService: GrowService = {
   },
   async create(input) {
     await delay();
-    const newStrains: GrowStrain[] = input.strains?.length ? input.strains : input.strain ? [{ name: input.strain, breeder: input.breeder && input.breeder !== "Unbekannt" ? input.breeder : "", plants: null, wetG: null, dryG: null }] : [];
+    const newStrains: GrowStrain[] = withStrainIds(input.strains?.length ? input.strains : input.strain ? [{ name: input.strain, breeder: input.breeder && input.breeder !== "Unbekannt" ? input.breeder : "", plants: null, wetG: null, dryG: null }] : [], []);
     const grow = {
       id: `g-${Date.now()}`,
       name: input.name,
@@ -244,12 +262,25 @@ const growService: GrowService = {
     const grow = mockGrow(growId);
     const { targets, strains: strainsIn, ...fields } = patch;
     Object.assign(grow, fields);
+    const before = grow.strains;
     if (strainsIn) {
-      grow.strains = strainsIn;
+      grow.strains = withStrainIds(strainsIn, before);
       Object.assign(grow, { strain: strainTexts(strainsIn).strainName, breeder: strainTexts(strainsIn).breeder });
       if (strainsIn.some((x) => x.wetG !== null || x.dryG !== null) && grow.harvest) grow.harvest = { ...grow.harvest, wetG: sumGrams(strainsIn.map((x) => x.wetG)), dryG: sumGrams(strainsIn.map((x) => x.dryG)) };
     } else if (fields.strain !== undefined) {
-      grow.strains = fields.strain ? [{ name: fields.strain, breeder: grow.breeder === "Unbekannt" ? "" : grow.breeder, plants: grow.strains.length === 1 ? grow.strains[0].plants : null, wetG: null, dryG: null }] : [];
+      grow.strains = fields.strain ? [{ id: grow.strains.length === 1 ? grow.strains[0].id : `st-${Date.now()}-${++strainSeq}`, name: fields.strain, breeder: grow.breeder === "Unbekannt" ? "" : grow.breeder, plants: grow.strains.length === 1 ? grow.strains[0].plants : null, wetG: null, dryG: null }] : [];
+    }
+    // Entfernte Sorten: Einträge/Fotos werden „ganzer Grow“, pH/EC wandert in den Tageswert (vorhandener Wert gewinnt).
+    const gone = new Set(before.map((x) => x.id).filter((id) => !grow.strains.some((x) => x.id === id)));
+    if (gone.size) {
+      grow.logs = grow.logs.map((l) => (l.strainIds?.some((id) => gone.has(id!)) ? { ...l, strainIds: l.strainIds.filter((id) => !gone.has(id)) } : l));
+      grow.photos = grow.photos.map((p) => (p.strainIds?.some((id) => gone.has(id)) ? { ...p, strainIds: p.strainIds.filter((id) => !gone.has(id)) } : p));
+      for (const e of (grow.strainEnv ?? []).filter((x) => gone.has(x.strainId))) {
+        const whole = grow.env.find((x) => x.date === e.date);
+        if (whole) grow.env = grow.env.map((x) => (x === whole ? { ...x, ph: x.ph ?? e.ph, ec: x.ec ?? e.ec } : x));
+        else grow.env = [...grow.env, { day: e.day, date: e.date, temp: null, rh: null, vpd: null, ph: e.ph, ec: e.ec }].sort((a, b) => a.date.localeCompare(b.date));
+      }
+      grow.strainEnv = (grow.strainEnv ?? []).filter((x) => !gone.has(x.strainId));
     }
     if (targets) {
       const next = { ...grow.targets };
@@ -313,10 +344,11 @@ const growService: GrowService = {
     const at = growStore.findIndex((g) => g.id === growId);
     if (at >= 0) growStore.splice(at, 1);
   },
-  async addPhoto(growId, url) {
+  async addPhoto(growId, url, strainIds) {
     await delay(150);
     const grow = mockGrow(growId);
-    grow.photos = [...grow.photos, { id: `p-${Date.now()}-${grow.photos.length}`, url, caption: "", cover: grow.photos.length === 0, date: todayLocal(), day: dayDiff(grow.startDate, todayLocal()) }];
+    const ids = mockStrainIds(grow, strainIds);
+    grow.photos = [...grow.photos, { id: `p-${Date.now()}-${grow.photos.length}`, url, caption: "", cover: grow.photos.length === 0, strainIds: ids, date: todayLocal(), day: dayDiff(grow.startDate, todayLocal()) }];
     mockCover(grow);
     return { ...grow };
   },
@@ -324,8 +356,10 @@ const growService: GrowService = {
     await delay(120);
     const grow = mockGrow(growId);
     if (!grow.photos.some((p) => p.id === photoId)) throw new Error("Foto nicht gefunden");
+    const ids = patch.strainIds !== undefined ? mockStrainIds(grow, patch.strainIds) : undefined;
     grow.photos = grow.photos.map((p) => ({
       ...p,
+      ...(p.id === photoId && ids ? { strainIds: ids } : {}),
       ...(p.id === photoId && patch.caption !== undefined ? { caption: patch.caption.trim().slice(0, 200) } : {}),
       ...(patch.cover ? { cover: p.id === photoId } : {}),
     }));
@@ -346,7 +380,7 @@ const growService: GrowService = {
     await delay(150);
     const grow = mockGrow(growId);
     const date = mockDiaryDate(grow, input.date);
-    const log: GrowLog = { id: `l-${Date.now()}`, day: dayDiff(grow.startDate, date), date, title: input.title.trim(), text: input.text.trim(), tag: input.tag };
+    const log: GrowLog = { id: `l-${Date.now()}`, day: dayDiff(grow.startDate, date), date, title: input.title.trim(), text: input.text.trim(), tag: input.tag, strainIds: mockStrainIds(grow, input.strainIds) };
     grow.logs = sortLogs([log, ...grow.logs]);
     return log;
   },
@@ -356,7 +390,7 @@ const growService: GrowService = {
     const old = grow.logs.find((l) => l.id === logId);
     if (!old) throw new Error("Eintrag nicht gefunden");
     const date = patch.date !== undefined ? mockDiaryDate(grow, patch.date) : old.date;
-    const log: GrowLog = { ...old, ...(patch.title !== undefined ? { title: patch.title.trim() } : {}), ...(patch.text !== undefined ? { text: patch.text.trim() } : {}), ...(patch.tag ? { tag: patch.tag } : {}), date, day: dayDiff(grow.startDate, date) };
+    const log: GrowLog = { ...old, ...(patch.title !== undefined ? { title: patch.title.trim() } : {}), ...(patch.text !== undefined ? { text: patch.text.trim() } : {}), ...(patch.tag ? { tag: patch.tag } : {}), ...(patch.strainIds !== undefined ? { strainIds: mockStrainIds(grow, patch.strainIds) } : {}), date, day: dayDiff(grow.startDate, date) };
     grow.logs = sortLogs(grow.logs.map((l) => (l.id === logId ? log : l)));
     return log;
   },
@@ -370,15 +404,21 @@ const growService: GrowService = {
     const grow = mockGrow(growId);
     const date = mockDiaryDate(grow, input.date);
     const values = { temp: input.temp ?? null, rh: input.rh ?? null, ec: input.ec ?? null, ph: input.ph ?? null };
-    if (Object.values(values).every((v) => v === null)) throw new Error("Mindestens ein Wert ist nötig");
-    const point = withVpd({ day: dayDiff(grow.startDate, date), date, vpd: null, ...values }, grow.leafOffset);
-    grow.env = [...grow.env.filter((e) => e.date !== date), point].sort((a, b) => a.date.localeCompare(b.date));
+    const day = dayDiff(grow.startDate, date);
+    const perStrain = (input.strainEnv ?? []).map((e) => ({ day, date, strainId: e.strainId, ph: e.ph ?? null, ec: e.ec ?? null })).filter((e) => e.ph !== null || e.ec !== null);
+    mockStrainIds(grow, (input.strainEnv ?? []).map((e) => e.strainId));
+    const wholeEmpty = Object.values(values).every((v) => v === null);
+    if (wholeEmpty && perStrain.length === 0) throw new Error("Mindestens ein Wert ist nötig");
+    const point = withVpd({ day, date, vpd: null, ...values }, grow.leafOffset);
+    grow.env = wholeEmpty ? grow.env.filter((e) => e.date !== date) : [...grow.env.filter((e) => e.date !== date), point].sort((a, b) => a.date.localeCompare(b.date));
+    if (input.strainEnv !== undefined) grow.strainEnv = [...(grow.strainEnv ?? []).filter((e) => e.date !== date), ...perStrain];
     return point;
   },
   async deleteEnv(growId, date) {
     await delay(100);
     const grow = mockGrow(growId);
     grow.env = grow.env.filter((e) => e.date !== date);
+    grow.strainEnv = (grow.strainEnv ?? []).filter((e) => e.date !== date);
   },
 };
 
