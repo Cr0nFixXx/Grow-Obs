@@ -49,6 +49,14 @@ export function unseenReleases(releases: Release[], seenAt: string | null): Rele
   return releases.filter((r) => Date.parse(r.publishedAt) > since).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
 }
 
+/**
+ * Soll das Update-Banner (Modus „Nachfragen“) sichtbar sein? „Was ist neu“ hat Vorrang: solange das Fenster offen ist und kurz nach
+ * dem Schließen bleibt das Banner weg, damit ein Tipp auf „Verstanden“ nie versehentlich „Aktualisieren“ auslöst (B-104).
+ */
+export function bannerVisible(input: { available: boolean; mandatory: boolean; mode: UpdateMode; snoozed: boolean; whatsNewOpen: boolean; settling: boolean }): boolean {
+  return input.available && !input.mandatory && input.mode === "prompt" && !input.snoozed && !input.whatsNewOpen && !input.settling;
+}
+
 /** Was tun, wenn ein (nicht verpflichtendes) Update verfügbar ist? */
 export function updateAction(mode: UpdateMode, context: { visible: boolean; justStarted: boolean }): "apply" | "banner" | "badge" {
   if (mode === "auto") return !context.visible || context.justStarted ? "apply" : "badge";

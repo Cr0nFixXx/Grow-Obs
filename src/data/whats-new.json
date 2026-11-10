@@ -1,5 +1,16 @@
 [
   {
+    "id": "B-104",
+    "date": "2026-11-10",
+    "title": "pH und EC je Pflanze",
+    "notes": [
+      "Hat eine Sorte mehrere Pflanzen, trägst du pH und EC für jede Pflanze einzeln ein",
+      "Die Werte „Ganzer Grow“ gelten als Grundwert für alle Pflanzen, eigene Werte haben Vorrang",
+      "Im Diagramm gibt es keine eigene Linie „Ganzer Grow“ mehr, Sorten ohne eigene Werte teilen sich eine Linie",
+      "Das Update-Banner bleibt weg, solange dieses Fenster offen ist"
+    ]
+  },
+  {
     "id": "B-103",
     "date": "2026-11-10",
     "title": "„Was ist neu“ zeigt nur noch Neues",

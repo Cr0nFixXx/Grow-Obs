@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import { Icon } from "@/components/Icon";
 import { Button, Field, Input, Modal, Segmented, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/Toast";
@@ -471,6 +471,9 @@ export function parseDecimal(text: string, min: number, max: number): number | n
   return Number.isFinite(value) && value >= min && value <= max ? value : Number.NaN;
 }
 
+/** Höchstens so viele Einzelpflanzen-Zeilen im Messwerte-Dialog. */
+const MAX_PLANT_ROWS = 30;
+
 const show = (v: number | null | undefined) => (v == null ? "" : String(v).replace(".", ","));
 
 export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: Grow; initialDate?: string; open: boolean; onClose: () => void; onSaved: () => void }) {
@@ -481,21 +484,28 @@ export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: 
   const [rh, setRh] = useState(show(existing(date)?.rh));
   const [ec, setEc] = useState(show(existing(date)?.ec));
   const [ph, setPh] = useState(show(existing(date)?.ph));
-  // B-101: bei mehreren Sorten pH/EC je Sorte (Temperatur und Luftfeuchte gelten für den ganzen Grow).
+  // B-101: bei mehreren Sorten pH/EC je Sorte, B-104: bei mehreren Pflanzen einer Sorte auch je Pflanze (Temperatur und Luftfeuchte gelten für den ganzen Grow).
   const multi = isMultiStrain(grow);
   const strainList = strainsWithId(grow);
+  const plantNums = (st: { plants: number | null }) => (st.plants && st.plants > 1 ? Array.from({ length: Math.min(st.plants, MAX_PLANT_ROWS) }, (_, i) => i + 1) : []);
+  // Die Sortenzeile (ganze Sorte) gibt es bei mehreren Sorten – oder, wenn eine einzelne Sorte schon eigene Werte hat.
+  const strainRowShown = (st: { id: string }) => multi || (grow.strainEnv ?? []).some((e) => e.strainId === st.id && (e.plant ?? 0) === 0);
+  const detail = multi || strainList.some((st) => plantNums(st).length > 0);
+  const slots = strainList.flatMap((st) => [...(strainRowShown(st) ? [{ id: st.id, plant: 0, name: st.name }] : []), ...plantNums(st).map((p) => ({ id: st.id, plant: p, name: st.name }))]);
+  const slotKey = (id: string, plant: number) => `${id}#${plant}`;
   type StrainText = Record<string, { ph: string; ec: string }>;
-  const strainTexts = (d: string): StrainText => Object.fromEntries(strainList.map((st) => {
-    const found = strainEnvOn(grow, d).find((e) => e.strainId === st.id);
-    return [st.id, { ph: show(found?.ph), ec: show(found?.ec) }];
+  const strainTexts = (d: string): StrainText => Object.fromEntries(slots.map((sl) => {
+    const found = strainEnvOn(grow, d).find((e) => e.strainId === sl.id && (e.plant ?? 0) === sl.plant);
+    return [slotKey(sl.id, sl.plant), { ph: show(found?.ph), ec: show(found?.ec) }];
   }));
   const [perStrain, setPerStrain] = useState<StrainText>(() => strainTexts(date));
-  const setStrainText = (id: string, key: "ph" | "ec", value: string) => setPerStrain((prev) => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
+  const setStrainText = (key: string, field: "ph" | "ec", value: string) => setPerStrain((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+  const [openPlants, setOpenPlants] = useState<Record<string, boolean>>(() => Object.fromEntries(strainList.map((st) => [st.id, (grow.strainEnv ?? []).some((e) => e.strainId === st.id && (e.plant ?? 0) > 0)])));
   const [touched, setTouched] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { busy, error, run } = useGrowAction(() => onSaved());
   const start = grow.startDate.slice(0, 10);
-  const current = existing(date) ?? (multi && strainEnvOn(grow, date).length > 0 ? ({} as EnvPoint) : undefined);
+  const current = existing(date) ?? (detail && strainEnvOn(grow, date).length > 0 ? ({} as EnvPoint) : undefined);
 
   /** Beim Datumswechsel die Werte dieses Tages vorbelegen (erneutes Speichern überschreibt). */
   const changeDate = (value: string) => {
@@ -507,7 +517,7 @@ export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: 
   };
 
   const values = { temp: parseDecimal(temp, -10, 60), rh: parseDecimal(rh, 0, 100), ec: parseDecimal(ec, 0, 10), ph: parseDecimal(ph, 0, 14) };
-  const strainValues = multi ? strainList.map((st) => ({ id: st.id, name: st.name, ph: parseDecimal(perStrain[st.id]?.ph ?? "", 0, 14), ec: parseDecimal(perStrain[st.id]?.ec ?? "", 0, 10) })) : [];
+  const strainValues = detail ? slots.map((sl) => ({ id: sl.id, plant: sl.plant, name: sl.plant > 0 ? `${sl.name}, Pflanze ${sl.plant}` : sl.name, ph: parseDecimal(perStrain[slotKey(sl.id, sl.plant)]?.ph ?? "", 0, 14), ec: parseDecimal(perStrain[slotKey(sl.id, sl.plant)]?.ec ?? "", 0, 10) })) : [];
   const invalid = (Object.entries(values) as [string, number | null][]).find(([, v]) => Number.isNaN(v));
   const invalidStrain = strainValues.find((v) => Number.isNaN(v.ph) || Number.isNaN(v.ec));
   const labels: Record<string, string> = { temp: "Temperatur (−10 bis 60 °C)", rh: "Luftfeuchte (0 bis 100 %)", ec: "EC (0 bis 10 mS)", ph: "pH (0 bis 14)" };
@@ -524,7 +534,7 @@ export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: 
     event.preventDefault();
     setTouched(true);
     if (problem) return;
-    void run(async () => { await svc.grows.saveEnv(grow.id, { date, temp: values.temp, rh: values.rh, ec: values.ec, ph: values.ph, ...(multi ? { strainEnv: strainValues.map((v) => ({ strainId: v.id, ph: v.ph, ec: v.ec })) } : {}) }); }, { title: current ? "Messwerte aktualisiert" : "Messwerte gespeichert", desc: formatDay(date), icon: "Thermometer" });
+    void run(async () => { await svc.grows.saveEnv(grow.id, { date, temp: values.temp, rh: values.rh, ec: values.ec, ph: values.ph, ...(detail ? { strainEnv: strainValues.map((v) => ({ strainId: v.id, ...(v.plant > 0 ? { plant: v.plant } : {}), ph: v.ph, ec: v.ec })) } : {}) }); }, { title: current ? "Messwerte aktualisiert" : "Messwerte gespeichert", desc: formatDay(date), icon: "Thermometer" });
   };
 
   return (
@@ -536,14 +546,14 @@ export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Temperatur (°C)"><Input inputMode="decimal" value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="z. B. 24,5" aria-label="Temperatur" /></Field>
           <Field label="Luftfeuchte (%)"><Input inputMode="decimal" value={rh} onChange={(e) => setRh(e.target.value)} placeholder="z. B. 55" aria-label="Luftfeuchte" /></Field>
-          {!multi && <Field label="EC (mS)"><Input inputMode="decimal" value={ec} onChange={(e) => setEc(e.target.value)} placeholder="z. B. 1,4" aria-label="EC" /></Field>}
-          {!multi && <Field label="pH"><Input inputMode="decimal" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="z. B. 6,3" aria-label="pH" /></Field>}
+          {!detail && <Field label="EC (mS)"><Input inputMode="decimal" value={ec} onChange={(e) => setEc(e.target.value)} placeholder="z. B. 1,4" aria-label="EC" /></Field>}
+          {!detail && <Field label="pH"><Input inputMode="decimal" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="z. B. 6,3" aria-label="pH" /></Field>}
         </div>
-        {multi && (
+        {detail && (
           <div className="space-y-2" data-testid="strain-env">
             <div>
               <span className="text-sm font-medium">pH & EC</span>
-              <p className="text-xs text-fg-subtle">Je Sorte eigene Werte; „Ganzer Grow“ gilt für alle. Leer = kein Wert.</p>
+              <p className="text-xs text-fg-subtle">„Ganzer Grow“ gilt für alle Pflanzen. Eigene Werte einer Sorte oder Pflanze haben Vorrang. Leer = kein eigener Wert.</p>
             </div>
             <div className="grid grid-cols-[1fr_5.5rem_5.5rem] items-center gap-x-2 gap-y-2 text-sm" data-testid="strain-env-grid">
               <span />
@@ -552,13 +562,29 @@ export function EnvModal({ grow, initialDate, open, onClose, onSaved }: { grow: 
               <span className="truncate font-medium">Ganzer Grow</span>
               <Input inputMode="decimal" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="6,3" aria-label="pH" data-testid="strain-env-ph" />
               <Input inputMode="decimal" value={ec} onChange={(e) => setEc(e.target.value)} placeholder="1,4" aria-label="EC" data-testid="strain-env-ec" />
-              {strainList.map((st) => (
-                <div key={st.id} className="contents" data-testid="strain-env-row">
-                  <span className="truncate" title={st.name}>{st.name}</span>
-                  <Input inputMode="decimal" value={perStrain[st.id]?.ph ?? ""} onChange={(e) => setStrainText(st.id, "ph", e.target.value)} placeholder="6,3" aria-label={`pH ${st.name}`} data-testid="strain-env-ph" />
-                  <Input inputMode="decimal" value={perStrain[st.id]?.ec ?? ""} onChange={(e) => setStrainText(st.id, "ec", e.target.value)} placeholder="1,4" aria-label={`EC ${st.name}`} data-testid="strain-env-ec" />
-                </div>
-              ))}
+              {strainList.map((st) => {
+                const nums = plantNums(st);
+                const open = !!openPlants[st.id];
+                const row = (plant: number, label: string, aria: string) => (
+                  <div key={slotKey(st.id, plant)} className="contents" data-testid={plant > 0 ? "plant-env-row" : "strain-env-row"} data-plant={plant}>
+                    <span className={plant > 0 ? "truncate pl-4 text-fg-muted" : "truncate"} title={label}>{label}</span>
+                    <Input inputMode="decimal" value={perStrain[slotKey(st.id, plant)]?.ph ?? ""} onChange={(e) => setStrainText(slotKey(st.id, plant), "ph", e.target.value)} placeholder="6,3" aria-label={`pH ${aria}`} data-testid="strain-env-ph" />
+                    <Input inputMode="decimal" value={perStrain[slotKey(st.id, plant)]?.ec ?? ""} onChange={(e) => setStrainText(slotKey(st.id, plant), "ec", e.target.value)} placeholder="1,4" aria-label={`EC ${aria}`} data-testid="strain-env-ec" />
+                  </div>
+                );
+                return (
+                  <Fragment key={st.id}>
+                    {strainRowShown(st) && row(0, st.name, st.name)}
+                    {nums.length > 0 && (
+                      <button type="button" className="col-span-3 flex items-center gap-1.5 rounded-lg px-1 py-1 text-left text-xs font-medium text-accent hover:underline" aria-expanded={open} onClick={() => setOpenPlants((prev) => ({ ...prev, [st.id]: !open }))} data-testid="plants-toggle">
+                        <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} /> Einzelne Pflanzen{multi ? ` von ${st.name}` : ""} ({st.plants})
+                      </button>
+                    )}
+                    {open && nums.map((p) => row(p, `Pflanze ${p}`, `${st.name} Pflanze ${p}`))}
+                    {open && (st.plants ?? 0) > MAX_PLANT_ROWS && <p className="col-span-3 text-xs text-fg-subtle">Es werden die ersten {MAX_PLANT_ROWS} Pflanzen angezeigt.</p>}
+                  </Fragment>
+                );
+              })}
             </div>
           </div>
         )}

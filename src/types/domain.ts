@@ -173,6 +173,8 @@ export interface StrainEnvPoint {
   day: number;
   date: string;
   strainId: string;
+  /** B-104: 0 oder fehlend = ganze Sorte, 1..n = einzelne Pflanze der Sorte. */
+  plant?: number;
   ph: number | null;
   ec: number | null;
 }

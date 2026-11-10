@@ -225,6 +225,13 @@
       "when": 1792851000000,
       "tag": "0031_strain_diary",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792937400000,
+      "tag": "0032_plant_env",
+      "breakpoints": true
     }
   ]
 }

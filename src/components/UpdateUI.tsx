@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { useNav, type ViewKey } from "@/lib/nav";
@@ -7,7 +8,7 @@ import { featureMeta, type FeatureKey } from "@/config/features";
 import { APP_CODENAME, BACKEND_VERSION, BUILD_NUMBER, FRONTEND_VERSION, versionLabel } from "@/lib/app-version";
 import { Icon } from "@/components/Icon";
 import { Badge, BottomSheet, Button, Card, CollapsibleCard, Segmented, Toggle } from "@/components/ui";
-import type { Release } from "@/lib/update-logic";
+import { bannerVisible, type Release } from "@/lib/update-logic";
 import { CHANGELOG_URL, MAX_AUTO_ENTRIES, type WhatsNewEntry } from "@/lib/whats-new";
 
 const severityLabel: Record<Release["severity"], { label: string; tone: "info" | "warning" | "danger" }> = {
@@ -15,6 +16,8 @@ const severityLabel: Record<Release["severity"], { label: string; tone: "info" |
   recommended: { label: "Empfohlen", tone: "warning" },
   required: { label: "Pflicht", tone: "danger" },
 };
+/** So lange bleibt das Update-Banner nach dem Schließen von „Was ist neu“ noch aus. */
+const BANNER_DELAY_MS = 1500;
 const featureLabel = (key: string) => featureMeta.find((f) => f.key === key)?.label ?? key;
 
 /** Eine Release-Karte (Notes + „Öffnen“-Buttons für hervorgehobene Features). */
@@ -62,7 +65,19 @@ export function UpdateLayer() {
   const u = useAppUpdate();
   const { user } = useAuth();
   const { navigate } = useNav();
-  const showBanner = u.available && !u.mandatory && u.prefs.mode === "prompt" && !u.snoozed;
+  // „Was ist neu“ hat Vorrang: Solange das Fenster offen ist (und kurz danach) bleibt das Update-Banner weg, damit ein Tipp auf „Verstanden“
+  // (oder ein Doppeltipp beim Schließen) nie versehentlich „Aktualisieren“ auslöst.
+  const [settling, setSettling] = useState(false);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (u.whatsNewOpen) { wasOpen.current = true; return; }
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
+    setSettling(true);
+    const timer = window.setTimeout(() => setSettling(false), BANNER_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [u.whatsNewOpen]);
+  const showBanner = bannerVisible({ available: u.available, mandatory: u.mandatory, mode: u.prefs.mode, snoozed: u.snoozed, whatsNewOpen: u.whatsNewOpen, settling });
   const notes = u.unseen.length ? u.unseen : u.unseenChanges.length ? [] : u.releases.slice(0, 3);
   // Automatisch: nur das Neue (höchstens drei Aufgaben); manuell geöffnet: das, was das Fenster zuletzt gezeigt hat.
   const changes = u.unseenChanges.length ? u.unseenChanges.slice(0, MAX_AUTO_ENTRIES) : u.lastChanges;

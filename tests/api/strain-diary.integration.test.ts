@@ -27,7 +27,7 @@ interface Strain { id: string; name: string }
 interface Log { id: string; title: string; strainIds: string[] }
 interface Photo { id: string; url: string; strainIds: string[] }
 interface EnvDto { date: string; temp: number | null; ph: number | null; ec: number | null }
-interface StrainEnv { date: string; strainId: string; ph: number | null; ec: number | null }
+interface StrainEnv { date: string; strainId: string; plant: number; ph: number | null; ec: number | null }
 interface GrowDto { id: string; strains: Strain[]; logs: Log[]; photos: Photo[]; env: EnvDto[]; strainEnv: StrainEnv[] }
 
 const create = async (who: Who, names = ["A", "B", "C"]) => {
@@ -214,5 +214,36 @@ describe("Grows: Tagebuch, Fotos und pH/EC je Sorte (B-101)", () => {
     expect(first[0]!.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(first[1]).toMatchObject({ id: "fest", name: "B", plants: 2 });
     expect(second).toEqual(first);
+  });
+  it("B-104: pH/EC je Pflanze – nur bei bekannter Pflanzenzahl, höchstens n, ersetzt je Tag; Sortenwert (plant 0) bleibt daneben", async () => {
+    const anna = await makeUser("anna");
+    const created = await call(anna, "/grows", "POST", { name: "Plants", medium: "Erde", strains: [{ name: "Alpha", plants: 3 }, { name: "Beta" }] });
+    expect(created.status).toBe(201);
+    const grow = (await created.json()) as GrowDto;
+    const [a, b] = grow.strains.map((x) => x.id);
+    const date = todayIso();
+    const put = (strainEnv: unknown[]) => call(anna, `/grows/${grow.id}/env`, "PUT", { date, ph: 6.0, strainEnv });
+    const ok = await put([{ strainId: a, ph: 6.1 }, { strainId: a, plant: 2, ph: 5.7, ec: 1.3 }, { strainId: a, plant: 3, ec: 1.8 }]);
+    expect(ok.status).toBe(200);
+    expect(((await ok.json()) as { strainEnv: StrainEnv[] }).strainEnv).toHaveLength(3);
+    let g = await get(anna, grow.id);
+    expect(g.strainEnv.map((e) => [e.strainId === a ? "a" : "b", e.plant, e.ph, e.ec]).sort()).toEqual([["a", 0, 6.1, null], ["a", 2, 5.7, 1.3], ["a", 3, null, 1.8]].sort());
+    // Fehlerfälle: Pflanze 4 gibt es nicht (3 Pflanzen), Beta hat keine Pflanzenzahl, doppelte Pflanze, negative Zahl
+    expect((await put([{ strainId: a, plant: 4, ph: 6 }])).status).toBe(400);
+    expect((await put([{ strainId: b, plant: 1, ph: 6 }])).status).toBe(400);
+    expect((await put([{ strainId: a, plant: 1, ph: 6 }, { strainId: a, plant: 1, ph: 6.2 }])).status).toBe(400);
+    expect((await put([{ strainId: a, plant: -1, ph: 6 }])).status).toBe(400);
+    g = await get(anna, grow.id);
+    expect(g.strainEnv).toHaveLength(3); // nichts verändert
+    // weniger Pflanzen: Werte nicht mehr vorhandener Pflanzen entfallen, Sortenwert und Pflanze 2 bleiben
+    const patched = await call(anna, `/grows/${grow.id}`, "PATCH", { strains: [{ id: a, name: "Alpha", plants: 2 }, { id: b, name: "Beta" }] });
+    expect(patched.status).toBe(200);
+    g = await get(anna, grow.id);
+    expect(g.strainEnv.map((e) => e.plant).sort()).toEqual([0, 2]);
+    // Sorte entfernen: nur der Sortenwert wandert in den Grow, Einzelpflanzen entfallen
+    await call(anna, `/grows/${grow.id}`, "PATCH", { strains: [{ id: b, name: "Beta" }] });
+    g = await get(anna, grow.id);
+    expect(g.strainEnv).toHaveLength(0);
+    expect(g.env[0]).toMatchObject({ ph: 6.0, ec: null }); // pH des Grows hatte Vorrang, EC der Pflanze ging nicht in den Grow über
   });
 });

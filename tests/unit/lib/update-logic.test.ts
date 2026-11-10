@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeUpdate, parsePrefs, unseenReleases, updateAction, type Release } from "@/lib/update-logic";
+import { bannerVisible, computeUpdate, parsePrefs, unseenReleases, updateAction, type Release } from "@/lib/update-logic";
 
 const rel = (id: string, publishedAt: string, severity: Release["severity"] = "recommended"): Release =>
   ({ id, version: id, title: id, notes: ["x"], severity, features: [], publishedAt });
@@ -49,5 +49,21 @@ describe("Pull-to-Refresh und Updates (B-80)", () => {
     expect(pullRefreshUpdate("manual", true)).toBe("notice");
     expect(pullRefreshUpdate("auto", false)).toBe("none");
     expect(pullRefreshUpdate("prompt", false)).toBe("none");
+  });
+});
+
+describe("Update-Banner und „Was ist neu“ (B-104)", () => {
+  const base = { available: true, mandatory: false, mode: "prompt" as const, snoozed: false, whatsNewOpen: false, settling: false };
+  it("zeigt das Banner nur im Modus „Nachfragen“ bei verfügbarem Update", () => {
+    expect(bannerVisible(base)).toBe(true);
+    expect(bannerVisible({ ...base, available: false })).toBe(false);
+    expect(bannerVisible({ ...base, mode: "auto" })).toBe(false);
+    expect(bannerVisible({ ...base, mode: "manual" })).toBe(false);
+    expect(bannerVisible({ ...base, snoozed: true })).toBe(false);
+    expect(bannerVisible({ ...base, mandatory: true })).toBe(false);
+  });
+  it("bleibt weg, solange „Was ist neu“ offen ist und kurz danach", () => {
+    expect(bannerVisible({ ...base, whatsNewOpen: true })).toBe(false);
+    expect(bannerVisible({ ...base, settling: true })).toBe(false);
   });
 });

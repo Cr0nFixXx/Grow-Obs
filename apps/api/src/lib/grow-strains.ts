@@ -80,3 +80,20 @@ export function unknownStrainIds(ids: string[], list: GrowStrainRow[]): string |
   const known = new Set(list.map((s) => s.id));
   return ids.some((id) => !known.has(id)) ? "Unbekannte Sorte" : null;
 }
+
+/**
+ * B-104: pH/EC-Einträge je Sorte/Pflanze prüfen. `plant` 0 = ganze Sorte, 1..n = einzelne Pflanze (nur bei bekannter Pflanzenzahl, höchstens n).
+ * Je Sorte und Pflanze nur ein Eintrag.
+ */
+export function plantEnvError(entries: { strainId: string; plant: number }[], list: GrowStrainRow[]): string | null {
+  const seen = new Set<string>();
+  for (const e of entries) {
+    const key = `${e.strainId}#${e.plant}`;
+    if (seen.has(key)) return e.plant === 0 ? "Eine Sorte ist doppelt angegeben" : "Eine Pflanze ist doppelt angegeben";
+    seen.add(key);
+    if (e.plant === 0) continue;
+    const strain = list.find((s) => s.id === e.strainId);
+    if (!strain?.plants || e.plant > strain.plants) return `Pflanze ${e.plant} gibt es bei ${strain?.name ?? "dieser Sorte"} nicht`;
+  }
+  return null;
+}

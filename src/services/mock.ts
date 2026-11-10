@@ -270,12 +270,14 @@ const growService: GrowService = {
     } else if (fields.strain !== undefined) {
       grow.strains = fields.strain ? [{ id: grow.strains.length === 1 ? grow.strains[0].id : `st-${Date.now()}-${++strainSeq}`, name: fields.strain, breeder: grow.breeder === "Unbekannt" ? "" : grow.breeder, plants: grow.strains.length === 1 ? grow.strains[0].plants : null, wetG: null, dryG: null }] : [];
     }
+    // Weniger Pflanzen: pH/EC nicht mehr vorhandener Einzelpflanzen entfallen (B-104).
+    grow.strainEnv = (grow.strainEnv ?? []).filter((x) => (x.plant ?? 0) === 0 || (x.plant ?? 0) <= (grow.strains.find((s) => s.id === x.strainId)?.plants ?? 0));
     // Entfernte Sorten: Einträge/Fotos werden „ganzer Grow“, pH/EC wandert in den Tageswert (vorhandener Wert gewinnt).
     const gone = new Set(before.map((x) => x.id).filter((id) => !grow.strains.some((x) => x.id === id)));
     if (gone.size) {
       grow.logs = grow.logs.map((l) => (l.strainIds?.some((id) => gone.has(id!)) ? { ...l, strainIds: l.strainIds.filter((id) => !gone.has(id)) } : l));
       grow.photos = grow.photos.map((p) => (p.strainIds?.some((id) => gone.has(id)) ? { ...p, strainIds: p.strainIds.filter((id) => !gone.has(id)) } : p));
-      for (const e of (grow.strainEnv ?? []).filter((x) => gone.has(x.strainId))) {
+      for (const e of (grow.strainEnv ?? []).filter((x) => gone.has(x.strainId) && (x.plant ?? 0) === 0)) {
         const whole = grow.env.find((x) => x.date === e.date);
         if (whole) grow.env = grow.env.map((x) => (x === whole ? { ...x, ph: x.ph ?? e.ph, ec: x.ec ?? e.ec } : x));
         else grow.env = [...grow.env, { day: e.day, date: e.date, temp: null, rh: null, vpd: null, ph: e.ph, ec: e.ec }].sort((a, b) => a.date.localeCompare(b.date));
@@ -405,8 +407,16 @@ const growService: GrowService = {
     const date = mockDiaryDate(grow, input.date);
     const values = { temp: input.temp ?? null, rh: input.rh ?? null, ec: input.ec ?? null, ph: input.ph ?? null };
     const day = dayDiff(grow.startDate, date);
-    const perStrain = (input.strainEnv ?? []).map((e) => ({ day, date, strainId: e.strainId, ph: e.ph ?? null, ec: e.ec ?? null })).filter((e) => e.ph !== null || e.ec !== null);
+    const perStrain = (input.strainEnv ?? []).map((e) => ({ day, date, strainId: e.strainId, plant: e.plant ?? 0, ph: e.ph ?? null, ec: e.ec ?? null })).filter((e) => e.ph !== null || e.ec !== null);
     mockStrainIds(grow, (input.strainEnv ?? []).map((e) => e.strainId));
+    const seenKeys = new Set<string>();
+    for (const e of perStrain) {
+      const key = `${e.strainId}#${e.plant}`;
+      if (seenKeys.has(key)) throw new Error(e.plant === 0 ? "Eine Sorte ist doppelt angegeben" : "Eine Pflanze ist doppelt angegeben");
+      seenKeys.add(key);
+      const plants = grow.strains.find((x) => x.id === e.strainId)?.plants ?? null;
+      if (e.plant > 0 && (!plants || e.plant > plants)) throw new Error(`Pflanze ${e.plant} gibt es bei dieser Sorte nicht`);
+    }
     const wholeEmpty = Object.values(values).every((v) => v === null);
     if (wholeEmpty && perStrain.length === 0) throw new Error("Mindestens ein Wert ist nötig");
     const point = withVpd({ day, date, vpd: null, ...values }, grow.leafOffset);

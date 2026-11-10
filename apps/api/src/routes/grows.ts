@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.ts";
 import { growEnv, growLogs, growPhotos, growStrainEnv, grows, strains, type GrowStrainRow } from "../db/schema.ts";
-import { duplicateStrain, growStrainsSchema, removedStrainIds, strainIdsField, strainTexts, strainsOf, unknownStrainIds, weightTotals, withStrainIds } from "../lib/grow-strains.ts";
+import { duplicateStrain, growStrainsSchema, removedStrainIds, strainIdsField, strainTexts, strainsOf, plantEnvError, unknownStrainIds, weightTotals, withStrainIds } from "../lib/grow-strains.ts";
 import { GROW_CONDITIONS, GROW_PHASES, dayDiff, growState, isIsoDate, todayIso, vpdKpa, type GrowCondition, type GrowStatus } from "../lib/grow-state.ts";
 import { releaseMedia } from "../lib/media-cleanup.ts";
 import { requireAuth, type AuthEnv } from "../middleware/auth.ts";
@@ -50,7 +50,7 @@ export async function toGrow(row: GrowRow) {
   const logs = await db.select().from(growLogs).where(eq(growLogs.growId, row.id)).orderBy(desc(growLogs.loggedOn), desc(growLogs.createdAt));
   const photos = await db.select().from(growPhotos).where(eq(growPhotos.growId, row.id)).orderBy(asc(growPhotos.takenAt), asc(growPhotos.id));
   const env = await db.select().from(growEnv).where(eq(growEnv.growId, row.id)).orderBy(asc(growEnv.loggedOn));
-  const strainEnv = await db.select().from(growStrainEnv).where(eq(growStrainEnv.growId, row.id)).orderBy(asc(growStrainEnv.loggedOn));
+  const strainEnv = await db.select().from(growStrainEnv).where(eq(growStrainEnv.growId, row.id)).orderBy(asc(growStrainEnv.loggedOn), asc(growStrainEnv.plant));
   const state = growState(row);
   return {
     id: row.id,
@@ -83,7 +83,7 @@ export async function toGrow(row: GrowRow) {
     phases: state.phases,
     env: env.map((e) => toEnv(e, row)),
     /** B-101: pH/EC je Sorte (Temperatur/Luftfeuchte stehen in `env` und gelten für den ganzen Grow). */
-    strainEnv: strainEnv.map((e) => ({ day: dayDiff(row.startDate, e.loggedOn), date: e.loggedOn, strainId: e.strainId, ph: e.ph, ec: e.ec })),
+    strainEnv: strainEnv.map((e) => ({ day: dayDiff(row.startDate, e.loggedOn), date: e.loggedOn, strainId: e.strainId, plant: e.plant, ph: e.ph, ec: e.ec })),
     logs: logs.map((l) => toLog(l, row.startDate)),
   };
 }
@@ -228,7 +228,8 @@ async function releaseStrainRefs(tx: Tx, row: GrowRow, removed: string[]) {
   for (const l of logs) if (l.ids.some((i) => gone.has(i))) await tx.update(growLogs).set({ strainIds: l.ids.filter((i) => !gone.has(i)) }).where(eq(growLogs.id, l.id));
   const photos = await tx.select({ id: growPhotos.id, ids: growPhotos.strainIds }).from(growPhotos).where(eq(growPhotos.growId, row.id));
   for (const p of photos) if (p.ids.some((i) => gone.has(i))) await tx.update(growPhotos).set({ strainIds: p.ids.filter((i) => !gone.has(i)) }).where(eq(growPhotos.id, p.id));
-  const rows = await tx.select().from(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), inArray(growStrainEnv.strainId, removed))).orderBy(asc(growStrainEnv.loggedOn), asc(growStrainEnv.id));
+  // B-104: nur Werte der ganzen Sorte (plant 0) wandern in den Grow; Werte einzelner Pflanzen entfallen mit der Sorte.
+  const rows = await tx.select().from(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), inArray(growStrainEnv.strainId, removed), eq(growStrainEnv.plant, 0))).orderBy(asc(growStrainEnv.loggedOn), asc(growStrainEnv.id));
   for (const r of rows) {
     const [whole] = await tx.select().from(growEnv).where(and(eq(growEnv.growId, row.id), eq(growEnv.loggedOn, r.loggedOn)));
     if (whole) await tx.update(growEnv).set({ ph: whole.ph ?? r.ph, ec: whole.ec ?? r.ec }).where(eq(growEnv.id, whole.id));
@@ -306,6 +307,8 @@ growsApi.patch("/:id", requireAuth, async (c) => {
     const [u] = await tx.update(grows).set(patch).where(eq(grows.id, row.id)).returning();
     // B-101: entfernte Sorten – ihre Einträge, Fotos und pH/EC-Werte gelten danach für den ganzen Grow.
     if (after) await releaseStrainRefs(tx, row, removedStrainIds(before, after));
+    // B-104: weniger Pflanzen (oder keine Zahl mehr) → pH/EC der nicht mehr vorhandenen Einzelpflanzen entfallen.
+    if (after) for (const st of after) await tx.delete(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), eq(growStrainEnv.strainId, st.id), gt(growStrainEnv.plant, st.plants ?? 0)));
     return u;
   });
   return c.json(await toGrow(updated));
@@ -555,8 +558,8 @@ const envSchema = z.object({
   rh: measure(0, 100, "Luftfeuchte (%)"),
   ec: measure(0, 10, "EC (mS/cm)"),
   ph: measure(0, 14, "pH"),
-  /** B-101: pH/EC je Sorte. Angegeben = vollständiger Ersatz der Sortenwerte dieses Tages; weggelassen = unverändert. */
-  strainEnv: z.array(z.object({ strainId: z.string().max(60), ec: measure(0, 10, "EC (mS/cm)"), ph: measure(0, 14, "pH") }).strict()).max(20).optional(),
+  /** B-101: pH/EC je Sorte, B-104: je Pflanze (`plant` 1..n, weggelassen/0 = ganze Sorte). Angegeben = vollständiger Ersatz der Sorten-/Pflanzenwerte dieses Tages; weggelassen = unverändert. */
+  strainEnv: z.array(z.object({ strainId: z.string().max(60), plant: z.number().int().min(0).max(999).optional(), ec: measure(0, 10, "EC (mS/cm)"), ph: measure(0, 14, "pH") }).strict()).max(1000).optional(),
 }).strict();
 
 /** Ein Wert auf zwei Nachkommastellen; `undefined` und `null` werden zu `null`. */
@@ -572,12 +575,13 @@ growsApi.put("/:id/env", requireAuth, async (c) => {
   if (problem) return c.json({ error: problem }, 400);
   const values = { temp: round2(body.data.temp), rh: round2(body.data.rh), ec: round2(body.data.ec), ph: round2(body.data.ph) };
   const perStrain = (body.data.strainEnv ?? [])
-    .map((e) => ({ strainId: e.strainId, ec: round2(e.ec), ph: round2(e.ph) }))
+    .map((e) => ({ strainId: e.strainId, plant: e.plant ?? 0, ec: round2(e.ec), ph: round2(e.ph) }))
     .filter((e) => e.ec !== null || e.ph !== null);
-  const ids = (body.data.strainEnv ?? []).map((e) => e.strainId);
-  const unknown = unknownStrainIds(ids, strainsOf(row));
+  const entries = body.data.strainEnv ?? [];
+  const unknown = unknownStrainIds(entries.map((e) => e.strainId), strainsOf(row));
   if (unknown) return c.json({ error: unknown }, 400);
-  if (new Set(ids).size !== ids.length) return c.json({ error: "Eine Sorte ist doppelt angegeben" }, 400);
+  const plantError = plantEnvError(entries.map((e) => ({ strainId: e.strainId, plant: e.plant ?? 0 })), strainsOf(row));
+  if (plantError) return c.json({ error: plantError }, 400);
   const wholeEmpty = Object.values(values).every((v) => v === null);
   if (wholeEmpty && perStrain.length === 0) return c.json({ error: "Bitte mindestens einen Messwert angeben" }, 400);
   const day = dayDiff(row.startDate, date);
@@ -600,7 +604,7 @@ growsApi.put("/:id/env", requireAuth, async (c) => {
     return whole;
   });
   const strainRows = await db.select().from(growStrainEnv).where(and(eq(growStrainEnv.growId, row.id), eq(growStrainEnv.loggedOn, date)));
-  const strainEnv = strainRows.map((e) => ({ day, date, strainId: e.strainId, ph: e.ph, ec: e.ec }));
+  const strainEnv = strainRows.map((e) => ({ day, date, strainId: e.strainId, plant: e.plant, ph: e.ph, ec: e.ec }));
   const base = saved ? toEnv(saved, row) : { day, date, temp: null, rh: null, vpd: null, ec: null, ph: null };
   return c.json({ ...base, strainEnv });
 });

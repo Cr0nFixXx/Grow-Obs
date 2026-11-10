@@ -81,7 +81,7 @@ export interface EnvInput {
   ec?: number | null;
   ph?: number | null;
   /** B-101: pH/EC je Sorte; angegeben = ersetzt die Sortenwerte des Tages. */
-  strainEnv?: { strainId: string; ph?: number | null; ec?: number | null }[];
+  strainEnv?: { strainId: string; plant?: number; ph?: number | null; ec?: number | null }[];
 }
 
 /** Änderbare Felder eines Grows (B-84). */

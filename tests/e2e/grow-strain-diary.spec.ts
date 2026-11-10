@@ -97,5 +97,6 @@ test("Grow mit zwei Sorten: Einträge, Fotos und pH/EC je Sorte, Sorten-Filter, 
   await expect(page.getByTestId("strain-filter")).toHaveCount(0);
   await expect(main.getByText("Nur Beta düngen")).toBeVisible();
   await expect(page.getByTestId("grow-photo")).toHaveCount(2);
-  await expect(page.getByTestId("chart-feed")).toBeVisible(); // wieder das gemeinsame pH/EC-Diagramm
+  // Alphas eigene pH/EC-Werte bleiben sichtbar (Diagramm je Sorte/Pflanze, nur eine Linie „Alle Pflanzen“)
+  await expect(page.getByTestId("chart-ph")).toBeVisible();
 });

@@ -398,10 +398,12 @@ export const growStrainEnv = pgTable("grow_strain_env", {
   id: uuid("id").primaryKey().defaultRandom(),
   growId: uuid("grow_id").notNull().references(() => grows.id),
   strainId: text("strain_id").notNull(),
+  /** B-104: 0 = ganze Sorte, 1..n = einzelne Pflanze der Sorte. */
+  plant: smallint("plant").notNull().default(0),
   loggedOn: date("logged_on").notNull(),
   ec: doublePrecision("ec"),
   ph: doublePrecision("ph"),
-}, (t) => [uniqueIndex("grow_strain_env_uq").on(t.growId, t.strainId, t.loggedOn)]);
+}, (t) => [uniqueIndex("grow_strain_env_plant_uq").on(t.growId, t.strainId, t.plant, t.loggedOn)]);
 
 /* ----------------------------- Social ----------------------------- */
 export const posts = pgTable("posts", {

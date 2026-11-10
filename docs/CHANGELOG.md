@@ -11,6 +11,19 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-104 – pH/EC je Pflanze, „Ganzer Grow“ als Grundwert, Update-Banner
+
+**Neu:**
+- **Einzelne Pflanzen:** Hat eine Sorte mehr als eine Pflanze (Pflanzenzahl in der Sortenkarte), kann man im Messwerte-Dialog unter „Einzelne Pflanzen“ pH und EC je Pflanze eintragen (aufklappbar, Pflanze 1…n; bei sehr vielen Pflanzen die ersten 30). Das gilt auch für Grows mit nur einer Sorte.
+- **Ganzer Grow gilt für alle:** Die Werte „Ganzer Grow“ sind der Grundwert jeder Pflanze. Es gibt keine eigene Linie „Ganzer Grow“ mehr: Regel je Wert (pH und EC einzeln) und Tag: **Pflanze vor Sorte vor ganzem Grow**. Sorten ohne eigene Werte teilen sich im Diagramm eine Linie „Alle Pflanzen“, Sorten mit eigenen Werten und Einzelpflanzen mit eigenen Werten bekommen eigene Linien („Alpha“, „Alpha · Pflanze 2“ bzw. „Pflanze 2“ bei einer Sorte). Eigene Sortenwerte einer einzelnen Sorte (z. B. nach Entfernen der anderen) bleiben sichtbar. Liste und CSV-Export nennen die Pflanze („Alpha · Pflanze 2“).
+- Die Pflanzenwerte teilen die Tabelle `grow_strain_env`: neue Spalte `plant` (0 = ganze Sorte, 1…n = Pflanze), eindeutig je Grow, Sorte, Pflanze und Tag (Migration `0032_plant_env.sql`, additiv, idempotent; bestehende Zeilen bleiben „ganze Sorte“).
+
+**Backend:** `PUT /grows/:id/env` nimmt in `strainEnv` zusätzlich `plant` (1…n nur bei gesetzter Pflanzenzahl und höchstens n, sonst 400; doppelte Pflanze 400). `GET /grows/:id` und die Antwort liefern `plant`. Sinkt die Pflanzenzahl einer Sorte (oder entfällt sie), entfallen die Werte der nicht mehr vorhandenen Pflanzen; wird eine Sorte entfernt, wandern nur die Sortenwerte (plant 0) in den Tageswert, Pflanzenwerte entfallen.
+
+**Behoben:** Das Update-Banner („Update verfügbar“, Modus „Nachfragen“) bleibt weg, solange „Was ist neu“ offen ist und 1,5 s danach, damit „Verstanden“ nie versehentlich „Aktualisieren“ auslöst. Eine Ursache für ein automatisches Aktualisieren allein durch „Verstanden“ ließ sich im Code nicht finden (das Schließen ruft kein `apply` auf); das Banner war der einzige Pfad, der beim Schließen unter dem Fenster erscheint.
+
+**Tests:** Vitest 464 (`strain-diary.test.ts` +3, angepasst; `update-logic.test.ts` +2), API-Integration `strain-diary` +1, E2E `grow-plant-env.spec.ts` neu, `grow-strain-diary.spec.ts` angepasst (Diagramm je Sorte bleibt nach Entfernen einer Sorte). `tsc`, `eslint .` ohne Fehler.
+
 ### B-103 – „Was ist neu“: nur Neues, richtige Daten, CI-Fix
 
 **Behoben:**

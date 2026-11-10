@@ -6,7 +6,7 @@ import { EnvModal } from "@/components/GrowDialogs";
 import { TARGET_META, formatDay, formatRange, outsideRange, rangeAlerts, shiftDay, targetSteps, targetsOn, todayLocal } from "@/lib/grows";
 import { downloadCsv, envCsv } from "@/lib/grow-csv";
 import { useToast } from "@/components/Toast";
-import { ALL_STRAINS, STRAIN_LINE_COLORS, envDates, feedData, isMultiStrain, strainEnvOn, strainsWithId, type FeedLine } from "@/lib/strain-diary";
+import { ALL_PLANTS_LABEL, ALL_STRAINS, STRAIN_LINE_COLORS, envDates, feedData, isMultiStrain, plantLabel, strainEnvOn, strainsWithId, type FeedLine } from "@/lib/strain-diary";
 import type { EnvPoint, Grow, TargetKey } from "@/types";
 
 type Range = "7" | "30" | "all";
@@ -53,13 +53,14 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false, strainFilt
   const col = (key: "temp" | "rh" | "ec" | "ph" | "vpd") => points.map((p) => p[key]);
   // B-101: pH/EC je Sorte. Mit gewählter Sorte nur deren Werte (plus die des ganzen Grows).
   const multi = isMultiStrain(grow);
+  const plantsMode = strainsWithId(grow).some((st) => (st.plants ?? 0) > 1);
   const strainName = new Map(strainsWithId(grow).map((st) => [st.id, st.name]));
-  const hasStrainEnv = multi && (grow.strainEnv?.length ?? 0) > 0;
+  const hasStrainEnv = (grow.strainEnv?.length ?? 0) > 0;
   const strainRowsOn = (date: string) => strainEnvOn(grow, date).filter((e) => strainFilter === ALL_STRAINS || e.strainId === strainFilter);
   const list = envDates(grow).filter((d) => grow.env.some((e) => e.date === d) || strainRowsOn(d).length > 0);
   const hasValues = grow.env.length > 0 || (grow.strainEnv?.length ?? 0) > 0;
   const feed = hasStrainEnv ? feedData(grow, strainFilter, from, to) : null;
-  const lineColor = (line: FeedLine, shown: FeedLine[]) => (line.label === "Ganzer Grow" ? "var(--fg-muted)" : STRAIN_LINE_COLORS[shown.filter((l) => l.label !== "Ganzer Grow").indexOf(line) % STRAIN_LINE_COLORS.length]);
+  const lineColor = (line: FeedLine, shown: FeedLine[]) => (line.label === ALL_PLANTS_LABEL ? "var(--fg-muted)" : STRAIN_LINE_COLORS[shown.filter((l) => l.label !== ALL_PLANTS_LABEL).indexOf(line) % STRAIN_LINE_COLORS.length]);
   const strainSeries = (lines: FeedLine[], unit: string, digits: number) => lines.map((l) => ({ key: l.key, label: l.label, unit, color: lineColor(l, lines), axis: "left" as const, values: l.values, digits }));
   const alerts = rangeAlerts(grow);
   const toast = useToast();
@@ -70,7 +71,7 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false, strainFilt
   const climateBands = [targetBand(grow, "temp", "left"), targetBand(grow, "rh", "right")].filter((b): b is EnvBand => !!b);
   const feedBands = [targetBand(grow, "ph", "left"), targetBand(grow, "ec", "right")].filter((b): b is EnvBand => !!b);
   const vpdBands = [targetBand(grow, "vpd", "left")].filter((b): b is EnvBand => !!b);
-  // Ein Band je Größe genügt: an die erste sichtbare Linie gehängt (Ganzer Grow, sonst die erste Sorte).
+  // Ein Band je Größe genügt: an die erste sichtbare Linie gehängt (Alle Pflanzen, sonst die erste Sorte).
   const bandOn = (band: EnvBand[], lines: FeedLine[]) => band.map((b) => ({ ...b, seriesKey: lines[0]?.key ?? b.seriesKey }));
   const phBand = bandOn(feedBands.filter((b) => b.seriesKey === "ph"), feed?.ph ?? []);
   const ecBand = bandOn(feedBands.filter((b) => b.seriesKey === "ec").map((b) => ({ ...b, axis: "left" as const })), feed?.ec ?? []);
@@ -82,7 +83,7 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false, strainFilt
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="Thermometer" size={16} /> Messwerte</h2>
-            {!readOnly && <p className="mt-0.5 text-xs text-fg-subtle">Ein Eintrag pro Tag · alle Werte optional · VPD wird berechnet{multi ? " · pH/EC je Sorte, Temperatur/Luftfeuchte für den ganzen Grow" : ""}</p>}
+            {!readOnly && <p className="mt-0.5 text-xs text-fg-subtle">Ein Eintrag pro Tag · alle Werte optional · VPD wird berechnet{multi || plantsMode ? " · pH/EC auch je Sorte und Pflanze, Temperatur/Luftfeuchte für den ganzen Grow" : ""}</p>}
           </div>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" onClick={exportCsv} data-testid="export-env" aria-label="Messwerte als CSV exportieren"><Icon name="Download" size={15} /> CSV</Button>
@@ -127,12 +128,12 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false, strainFilt
             {feed ? (
               <>
                 <div>
-                  <h3 className="mb-1 text-[13px] font-semibold">pH <span className="font-normal text-fg-subtle">· je Sorte</span></h3>
-                  <EnvChart testId="chart-ph" label="Verlauf des pH-Werts je Sorte" dates={feed.dates} from={from} to={to} bands={phBand} series={strainSeries(feed.ph, "", 2)} />
+                  <h3 className="mb-1 text-[13px] font-semibold">pH <span className="font-normal text-fg-subtle">· Sorten und Pflanzen</span></h3>
+                  <EnvChart testId="chart-ph" label="Verlauf des pH-Werts je Sorte und Pflanze" dates={feed.dates} from={from} to={to} bands={phBand} series={strainSeries(feed.ph, "", 2)} />
                 </div>
                 <div>
-                  <h3 className="mb-1 text-[13px] font-semibold">EC <span className="font-normal text-fg-subtle">· je Sorte</span></h3>
-                  <EnvChart testId="chart-ec" label="Verlauf der EC je Sorte" dates={feed.dates} from={from} to={to} bands={ecBand} series={strainSeries(feed.ec, "mS", 2)} />
+                  <h3 className="mb-1 text-[13px] font-semibold">EC <span className="font-normal text-fg-subtle">· Sorten und Pflanzen</span></h3>
+                  <EnvChart testId="chart-ec" label="Verlauf der EC je Sorte und Pflanze" dates={feed.dates} from={from} to={to} bands={ecBand} series={strainSeries(feed.ec, "mS", 2)} />
                 </div>
               </>
             ) : (
@@ -184,8 +185,8 @@ export function GrowMeasurements({ grow, onChanged, readOnly = false, strainFilt
                         </div>
                       )}
                       {perStrain.map((p) => (
-                        <div key={p.strainId} className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-xs text-fg-muted tnum" data-testid="env-strain-line">
-                          <span className="max-w-[10rem] truncate font-medium text-fg" title={strainName.get(p.strainId)}>{strainName.get(p.strainId) ?? "Entfernte Sorte"}</span>
+                        <div key={`${p.strainId}#${p.plant ?? 0}`} className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-xs text-fg-muted tnum" data-testid="env-strain-line">
+                          <span className="max-w-[12rem] truncate font-medium text-fg" title={plantLabel(strainName.get(p.strainId), p.plant ?? 0, multi)}>{plantLabel(strainName.get(p.strainId), p.plant ?? 0, multi)}</span>
                           <Flagged dir={outsideRange(p.ec, t.ec)}>EC {n(p.ec, 2)}</Flagged>
                           <Flagged dir={outsideRange(p.ph, t.ph)}>pH {n(p.ph, 2)}</Flagged>
                         </div>
