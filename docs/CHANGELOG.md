@@ -11,6 +11,12 @@ und die B-Nummern vor B-52 sind historisch und bleiben unverändert. Neue Eintr�
 
 ## [Unreleased] – Frontend „Ruderalis“ 0.1.2 · Backend 0.0.3 (seit B-52)
 
+### B-99 – Status in eigener Schublade
+
+**Geändert:** Die große Status-Karte ist von der Profilseite verschwunden. Im Profilkopf steht stattdessen unter dem Namen ein kleiner Knopf (aktueller Status oder „Status setzen“, plus Hinweis „24h-Status · noch …“ solange einer läuft). Ein Klick öffnet die Schublade „Mein Status“ mit Textstatus, 24h-Status und Sichtbarkeit (`StatusButton` in `src/components/status.tsx`, `StatusEditor` unverändert im Inhalt). Gäste sehen weiter nur die Statuszeile. Keine Änderung an API und Daten.
+
+**Tests:** E2E `live-status.spec.ts` öffnet die Schublade über `status-open`.
+
 ### B-98 – Forum-Filter kompakter
 
 **Geändert:** Die Filterleiste im Forum zeigt nur noch eine Zeile: **Suche**, Knopf **Filter** (mit Zähler der aktiven Filter) und **Sortierung** (Heiß/Top/Neu als Auswahlfeld statt drei Knöpfen). Bereich (vorher eine Chip-Reihe), Zeitraum, Tag sowie „Nur meine“ und „Ohne Antworten“ (jetzt Kontrollkästchen) liegen im aufklappbaren Filterfeld. „Zurücksetzen“ steht neben der Trefferzahl, sobald etwas gefiltert ist. Filterlogik, API und Daten unverändert.

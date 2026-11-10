@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/Icon";
-import { Button, Card, Chip, Field, Input, Modal, Segmented, Textarea } from "@/components/ui";
+import { BottomSheet, Button, Chip, Field, Input, Modal, Segmented, Textarea } from "@/components/ui";
 import { ImagePickButton } from "@/components/media";
 import { ProfileImageMenu } from "@/components/profile-extras";
 import { useToast } from "@/components/Toast";
@@ -97,7 +97,7 @@ export function StatusReplyModal({ open, onClose, userId, name, live }: { open: 
   );
 }
 
-/** Eigener Status: dauerhafter Textstatus und 24h-Status samt Sichtbarkeit (Profilseite). */
+/** Eigener Status: dauerhafter Textstatus und 24h-Status samt Sichtbarkeit (Inhalt der Status-Schublade). */
 export function StatusEditor() {
   const me = useCurrentUser();
   const { updateProfile } = useAuth();
@@ -129,9 +129,9 @@ export function StatusEditor() {
   };
 
   return (
-    <Card className="space-y-6 p-5" data-testid="status-editor">
+    <div className="space-y-6" data-testid="status-editor">
       <div className="space-y-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="MessageCircle" size={16} /> Mein Status</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-fg-muted"><Icon name="MessageCircle" size={16} /> Textstatus</h2>
         <p className="text-xs text-fg-subtle">Eine Zeile unter deinem Namen, bleibt bis du sie änderst. Leer lassen entfernt ihn.</p>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Emoji wählen">
           {STATUS_EMOJIS.map((e) => <Chip key={e} active={emoji === e} aria-pressed={emoji === e} onClick={() => setEmoji(emoji === e ? "" : e)}>{e}</Chip>)}
@@ -170,6 +170,36 @@ export function StatusEditor() {
         {liveError && <p role="alert" className="text-xs font-medium text-danger">{liveError}</p>}
         <Button onClick={() => void run(async () => { await updateProfile({ live: { text: liveText.trim(), image: liveImage, visibility: liveVisibility } }); setLiveText(""); setLiveImage(""); }, "24h-Status veröffentlicht", setPublishing)} loading={publishing} disabled={!!liveError || (!liveText.trim() && !liveImage)} data-testid="live-publish">Für 24 Stunden veröffentlichen</Button>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+/** Schlanker Einstieg im Profilkopf (ersetzt die frühere Status-Karte): zeigt den Status, ein Klick öffnet die Schublade. */
+export function StatusButton() {
+  const me = useCurrentUser();
+  const [open, setOpen] = useState(false);
+  const line = me.status && (me.status.text || me.status.emoji) ? me.status : null;
+  const live = liveIsActive(me.live) ? me.live! : null;
+  // Restzeit nachführen, damit der Hinweis nach Ablauf verschwindet.
+  const [, tick] = useState(0);
+  useEffect(() => { if (!live) return; const id = setInterval(() => tick((n) => n + 1), 30_000); return () => clearInterval(id); }, [live]);
+  return (
+    <>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        <button type="button" onClick={() => setOpen(true)} data-testid="status-open"
+          className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-dashed border-border px-3 text-xs text-fg-muted transition hover:border-accent/40 hover:text-fg">
+          {line ? (
+            <>{line.emoji && <span aria-hidden="true">{line.emoji}</span>}<span className="min-w-0 truncate">{line.text || "Status"}</span></>
+          ) : (
+            <><Icon name="Plus" size={12} />Status setzen</>
+          )}
+          <Icon name="Pencil" size={11} className="shrink-0 opacity-60" />
+        </button>
+        {live && <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-9 items-center gap-1 rounded-full bg-leaf/15 px-2.5 text-[11px] font-semibold text-leaf" data-testid="live-chip"><Icon name="Clock" size={11} />24h-Status · {liveRemaining(live.expiresAt)}</button>}
+      </div>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="Mein Status">
+        <StatusEditor />
+      </BottomSheet>
+    </>
   );
 }

@@ -18,12 +18,13 @@ test("Status setzen, im fremden Profil sehen und auf den 24h-Status antworten", 
   const viewer = await person(browser, `vie_${stamp}`);
 
   await owner.page.goto("/profile");
+  await owner.page.getByTestId("status-open").click();
   const editor = owner.page.getByTestId("status-editor");
   await expect(editor).toBeVisible();
   await editor.getByRole("button", { name: "🌱" }).click();
   await owner.page.getByTestId("status-text").fill(`Woche 3 Blüte ${stamp}`);
   await owner.page.getByTestId("status-save").click();
-  await expect(owner.page.getByTestId("status-line").first()).toContainText(`Woche 3 Blüte ${stamp}`);
+  await expect(owner.page.getByTestId("status-open")).toContainText(`Woche 3 Blüte ${stamp}`);
 
   await owner.page.getByTestId("live-input").fill(`Heute Topping ${stamp}`);
   await owner.page.getByTestId("live-publish").click();
@@ -55,6 +56,7 @@ test("Status setzen, im fremden Profil sehen und auf den 24h-Status antworten", 
 
   // Sichtbarkeit „Niemand“: der Betrachter sieht nichts mehr
   await owner.page.goto("/profile");
+  await owner.page.getByTestId("status-open").click();
   await owner.page.getByTestId("status-editor").getByRole("button", { name: "Niemand" }).first().click();
   await owner.page.getByTestId("status-save").click();
   await expect(owner.page.getByText("Status gespeichert")).toBeVisible();

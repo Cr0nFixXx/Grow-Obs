@@ -1,4 +1,4 @@
-import { StatusEditor, StatusLine } from "@/components/status";
+import { StatusButton, StatusLine } from "@/components/status";
 import { useEffect, useRef, useState } from "react";
 import { useSwipeTabs } from "@/lib/gestures";
 
@@ -85,7 +85,7 @@ export default function Profile() {
                 <div className="min-w-0 pt-14">
                   <div className="text-xl font-bold">{me.name}</div>
                   <div className="text-sm text-fg-subtle">{atHandle(me.handle)} · {me.title}</div>
-                  <StatusLine status={me.status && (me.status.text || me.status.emoji) ? me.status : null} className="mt-0.5" />
+                  {isGuest ? <StatusLine status={me.status && (me.status.text || me.status.emoji) ? me.status : null} className="mt-0.5" /> : <StatusButton />}
                 </div>
               </div>
               <Button variant="secondary" onClick={() => setEditing(true)}><Icon name="Pencil" size={16} /> Bearbeiten</Button>
@@ -106,7 +106,6 @@ export default function Profile() {
 
       {tab === "profil" && (
         <>
-          {!isGuest && <Reveal delay={0.02}><StatusEditor /></Reveal>}
           {!isGuest && <Reveal delay={0.03}><FollowRequestsCard onChanged={() => void refreshUser()} /></Reveal>}
           {!isGuest && !config.useMock && <Reveal delay={0.05}><MemberActivityCard handle={me.handle} title="Meine Forum- und Wiki-Aktivität" /></Reveal>}
           <Reveal delay={0.06}>
